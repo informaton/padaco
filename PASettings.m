@@ -433,13 +433,7 @@ classdef  PASettings < handle
                         obj.PSD.freq_min = 0; %display min
                         obj.PSD.freq_max = 30; %display max                        
                     case 'BATCH_PROCESS'
-                        obj.BATCH_PROCESS.edf_folder = '.'; %the edf folder to do a batch job on.
-                        obj.BATCH_PROCESS.output_path.parent = 'output';
-                        obj.BATCH_PROCESS.output_path.roc = 'ROC';
-                        obj.BATCH_PROCESS.output_path.power = 'PSD';
-                        obj.BATCH_PROCESS.output_path.events = 'events';
-                        obj.BATCH_PROCESS.output_path.artifacts = 'artifacts';
-                        obj.BATCH_PROCESS.output_path.images = 'images';
+                        obj.BATCH_PROCESS.src_folder = '.'; %the folder to do a batch job on.
             
                         %power spectrum analysis
                         obj.BATCH_PROCESS.output_files.psd_filename = 'psd.txt';

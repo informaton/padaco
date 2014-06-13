@@ -1,11 +1,11 @@
-%> @file PADataLoader.m
+%> @file PAData.m
 %> @brief Accelerometer data loading class.
 % ======================================================================
 %> @brief The class loads and stores accelerometer data used in the 
-%> Physical Activity monitoring project aimed to reduce bbesity 
+%> Physical Activity monitoring project aimed to reduce obesity 
 %> and improve child health.
 % ======================================================================
-classdef PADataLoader < handle
+classdef PAData < handle
    properties
        %> @brief Pathname of file containing accelerometer data.
        pathname;
@@ -15,12 +15,12 @@ classdef PADataLoader < handle
        %> - raw This is not processed
        %> - count This is preprocessed
        accelType;
-       %> @brief Structure of x,y,z accelerations.  Fields are:
+       %> @brief Structure of raw x,y,z accelerations.  Fields are:
        %> @li - x x-axis
        %> @li - y y-axis
        %> @li - z z-axis       
-       accel;
-       %> @brief Structure of inclimoter values.  Fields include:
+       accelRaw;
+       %> @brief Structure of inclinometer values.  Fields include:
        %> @li - off
        %> @li - standing
        %> @li - sitting
@@ -41,21 +41,22 @@ classdef PADataLoader < handle
        startTime;
        %> @brief Start Date
        startDate;
+       
    end
    
    methods
        
         % ======================================================================
-        %> @brief Constructor for PADataLoader class.
+        %> @brief Constructor for PAData class.
         %> @param Optional entries can be either
         %> @li Full filename (i.e. with pathname) of accelerometer data to load.
         %> %li Pathname containing accelerometer files to be loaded.
         %> @param Optional Filename of accelerometer data to load.
         %> @note: This is only supplied in the event that the first
         %> parameter is passed as the pathname for the acceleromter files.
-        %> @retval Instance of PADataLoader.
+        %> @retval Instance of PAData.
         % =================================================================       
-       function obj = PADataLoader(fullfileOrPath,filename)
+       function obj = PAData(fullfileOrPath,filename)
            
            if(nargin==2)
                if(isdir(fullfileOrPath))
@@ -93,7 +94,7 @@ classdef PADataLoader < handle
         % ======================================================================
         %> @brief Returns the full filename (pathname + filename) of 
         %> the accelerometer data.
-        %> @param obj Instance of PADataLoader
+        %> @param obj Instance of PAData
         % =================================================================
        function fullFilename = getFullFilename(obj)
            fullFilename = fullfile(obj.pathname,obj.filename);
@@ -102,7 +103,7 @@ classdef PADataLoader < handle
        % ======================================================================
        %> @brief Load CSV header values (start time, start date, and epoch
        %> period).
-       %> @param obj Instance of PADataLoader.
+       %> @param obj Instance of PAData.
        %> @param File handle (fid) to open file.  Will be rewound on exit.
        % =================================================================
        function loadFileHeader(obj,fid)
@@ -140,7 +141,7 @@ classdef PADataLoader < handle
        
        % ======================================================================
        %> @brief Loads an accelerometer data file.
-       %> @param obj Instance of PADataLoader.
+       %> @param obj Instance of PAData.
        %> @param fullfilename (optional) Full filename to load.  If this
        %> is not included, or does not exist, then the instance variables pathname and filename
        %> are used to identify the file to load.
@@ -202,6 +203,27 @@ classdef PADataLoader < handle
    end
    
    methods(Static)
-      
+       
+       % ======================================================================
+       %> @brief Returns an empty struct with fields that mirror PAData's
+       %> time series instance variables that contain 
+       %> @retval tsStruct A struct of PAData's time series instance variables, which 
+       %> include:
+       %> - accelRaw.x
+       %> - accelRaw.y
+       %> - accelRaw.z
+       %> - inclinometer
+       %> - lux
+       %> - vecMag
+       % =================================================================      
+       function dat = getDummyStruct()
+           accelR.x =[];
+           accelR.y = [];
+           accelR.z = [];
+           dat.accelRaw = accelR;
+           dat.inclinometer = [];
+           dat.lux = [];
+           dat.vecMag = [];
+       end
    end
 end

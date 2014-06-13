@@ -11,12 +11,13 @@
 classdef PAController < handle
     
     properties
-        %> acceleration activity object - instance of PADataLoader
+        %> acceleration activity object - instance of PAData
         accelObj;
         %> Instance of PASettings - this is brought in to eliminate the need for several globals
         SETTINGS; 
         %> Instance of PAView - Padaco's view component.
         VIEW;
+        %> Instance of PAModel - Padaco's model component.  To be implemented. 
         MODEL;        
         %> for the patch handles when editing and dragging
         hg_group; 
@@ -86,57 +87,54 @@ classdef PAController < handle
 
             if(ishandle(Padaco_fig_h))
                 %let's create a VIEW class
-                obj.VIEW = PAView(Padaco_fig_h);         
+                obj.VIEW = PAView(Padaco_fig_h);
+                
+                %configure the menu bar
                 obj.configureMenubar();
-                
-                %                 obj.STATE.batch_process_running = false;
-                %                 obj.STATE.single_study_running = false;
-                %                 obj.shift_display_samples_delta = 10;
-                %                 obj.current_linehandle = [];
-                
             end                
         end
         
-        
+        %% Shutdown functions        
         %> Destructor
         function close(obj)
             obj.saveParameters(); %requires SETTINGS variable
             obj.SETTINGS = [];
         end        
         
-        function paramStruct = getSaveParametersStruct(obj)
-            paramStruct = obj.SETTINGS.VIEW;
-        end
-            
-        
         function saveParameters(obj)
             obj.SETTINGS.saveParametersToFile();
         end
         
+        function paramStruct = getSaveParametersStruct(obj)
+            paramStruct = obj.SETTINGS.VIEW;
+        end            
+        
 
-
-
-        %% -- Menubar configuration --
+        %% Startup configuration functions
+        %-- Menubar configuration --
         function configureMenubar(obj)
             handles = guidata(obj.VIEW.getFigHandle());
             
             %file
-            set(handles.menu_file_open,'callback',@obj.menu_file_open_callback);
+            set(handles.menu_file_open,'callback',@obj.openFileCallback);
             
         end
     
         % --------------------------------------------------------------------
-        function menu_file_open_callback(obj,hObject,eventdata)
+        function openFileCallback(obj,hObject,eventdata)
             % hObject    handle to menu_file_open (see GCBO)
             f=uigetfullfile({'*.csv','Comma Separated Vectors';'*.dat','Raw text (space delimited)'},'Select a file','off',obj.SETTINGS.VIEW.accelPathname);
             
             if(~isempty(f))
                 obj.VIEW.showBusy('Loading');
-                obj.accelObj = PADataLoader(f);
+                obj.accelObj = PAData(f);
                 %update our settings
                 obj.SETTINGS.VIEW.accelPathname = obj.accelObj.pathname;
                 obj.SETTINGS.VIEW.accelFilename = obj.accelObj.filename;
                 obj.VIEW.showReady();
+                obj.VIEW.setAccelData(obj.accelObj);
+                obj.VIEW.draw();
+                
             end
         end
  
@@ -491,142 +489,6 @@ classdef PAController < handle
             else
                 obj.num_epochs = ceil(HDR.duration_sec/seconds_per_epoch); %floor(HDR.duration_sec/seconds_per_epoch);
             end
-        end
-        
-        function initializeView(obj)
-            %initializes the axes and makes sure everything is good to go for a first
-            %time use or when loading a new file or recovering from an error
-            global CHANNELS_CONTAINER;
-            global EVENT_CONTAINER;
-            full_detection_inf_filename = fullfile(obj.SETTINGS.rootpathname,obj.SETTINGS.VIEW.detection_path,obj.SETTINGS.VIEW.detection_inf_file);
-            EVENT_CONTAINER = CLASS_events_container(obj.figurehandle.Padaco,obj.axeshandle.main,obj.SETTINGS.VIEW.samplerate);
-            EVENT_CONTAINER.detection_path = obj.SETTINGS.VIEW.detection_path;
-            EVENT_CONTAINER.detection_inf_file = full_detection_inf_filename;
-            
-            PadacoDefaults = obj.SETTINGS.VIEW;
-            PadacoDefaults.detection_inf_filename = full_detection_inf_filename;
-            
-            CHANNELS_CONTAINER = CLASS_channels_container(obj.figurehandle.Padaco,obj.axeshandle.main,obj.axeshandle.utility,PadacoDefaults);
-            CHANNELS_CONTAINER.loadSettings(obj.SETTINGS.VIEW.channelsettings_file);
-            
-            EVENT_CONTAINER.CHANNELS_CONTAINER = CHANNELS_CONTAINER;
-            disableFigureHandles(obj.figurehandle.Padaco);
-            
-            set(0,'showhiddenhandles','on');
-            
-            cla(obj.axeshandle.main);
-            cla(obj.axeshandle.timeline);
-            cla(obj.axeshandle.utility);
-            
-            
-            cf = get(0,'children');
-            for k=1:numel(cf)
-                if(cf(k)==obj.figurehandle.Padaco)
-                    set(0,'currentfigure',cf(k));
-                else
-                    delete(cf(k)); %removes other children aside from this one
-                end
-            end;
-            
-            set(0,'showhiddenhandles','off');
-            
-            drawnow;
-            
-            %initialize axes
-            set(obj.axeshandle.main,'Units','normalized',... %normalized allows it to resize automatically
-                'drawmode','normal',... %fast does not allow alpha blending...
-                'xgrid','on','ygrid','off',...
-                'xminortick','on',...
-                'xlimmode','manual',...
-                'xtickmode','manual',...
-                'xticklabelmode','manual',...
-                'xtick',[],...
-                'ytickmode','manual',...
-                'ytick',[],...
-                'nextplot','replacechildren','box','on',...
-                'xlim',obj.Padaco_mainaxes_xlim,...
-                'ylim',obj.Padaco_mainaxes_ylim,...  %avoid annoying resolution changes on first load
-                'ydir',obj.SETTINGS.VIEW.yDir);
-            
-            set(obj.axeshandle.timeline,'Units','normalized',... %normalized allows it to resize automatically
-                'xgrid','off','ygrid','off',...
-                'xminortick','off',...
-                'xlimmode','manual',...
-                'xtickmode','manual',...
-                'xticklabelmode','manual',...
-                'xtick',[],...
-                'ytickmode','manual',...
-                'ytick',[],...
-                'nextplot','replacechildren','box','on');
-
-            seconds_per_epoch = obj.getSecondsPerEpoch();
-            if(seconds_per_epoch == obj.SETTINGS.VIEW.standard_epoch_sec)
-                %                 set(obj.axeshandle.main,'dataaspectratiomode','manual','d
-                %                 ataaspectratio',[30 12 1]);
-                set(obj.axeshandle.main,'plotboxaspectratiomode','manual','plotboxaspectratio',[30 12 1]);
-            else
-                %                     set(obj.axeshandle.main,'dataaspectratiomode','auto');
-                set(obj.axeshandle.main,'plotboxaspectratiomode','auto');
-            end
-                
-
-            
-            set(obj.axeshandle.utility,'Units','normalized',... %normalized allows it to resize automatically
-                'xgrid','off','ygrid','off',...
-                'xminortick','off',...
-                'ylimmode','auto',...
-                'xlimmode','manual',...
-                'xtickmode','manual',...
-                'ytickmode','manual',...
-                'xtick',[],...
-                'ytick',[],...
-                'nextplot','replacechildren','box','on');
-            
-            %show the PSD, ROC, events, etc.
-            set(obj.axeshandle.utility,...
-                'xtickmode','auto',...
-                'ytickmode','auto',...
-                'xtickmode','auto',...
-                'ytickmode','auto',...
-                'xlim',[0 obj.SETTINGS.VIEW.samplerate/2]);            
-            
-            if(~isfield(obj.linehandle,'x_minorgrid')||isempty(obj.linehandle.x_minorgrid)||~ishandle(obj.linehandle.x_minorgrid))
-                obj.linehandle.x_minorgrid = line('xdata',[],'ydata',[],'parent',obj.axeshandle.main,'color',[0.8 0.8 0.8],'linewidth',0.5,'linestyle',':','hittest','off','visible','on');
-            end
-            
-            %turn on the appropriate menu items still for initial use before any EDF's
-            %are loaded
-            handles = guidata(obj.figurehandle.Padaco);
-            
-            set(handles.menu_file_createEDF,'enable','on');
-            set(handles.menu_file_load_EDF,'enable','on');
-            set(handles.menu_file,'enable','on');
-            set(handles.menu_file_export,'enable','on');
-            set(handles.menu_file_import,'enable','on');
-            set(handles.menu_file_load_text_channel,'enable','on');
-            
-            set(handles.menu_tools,'enable','on');
-            set(handles.menu_tools_roc_directory,'enable','on');
-            
-            set(handles.menu_settings,'enable','on');
-            set(handles.menu_settings_power,'enable','on');
-            set(handles.menu_settings_power_psd,'enable','on');
-            set(handles.menu_settings_power_music,'enable','on');
-%             set(handles.menu_settings_roc,'enable','on'); %wait until
-%             there are at least two events to examine.
-            set(handles.menu_settings_classifiers,'enable','on');
-            set(handles.menu_settings_defaults,'enable','on');            
-            
-            set(handles.menu_batch_run,'enable','on');
-            set(handles.menu_batch,'enable','on');
-            
-            set(handles.menu_help,'enable','on');
-            set(handles.menu_help_defaults,'enable','on');
-            set(handles.menu_help_restart,'enable','on');
-            
-            set(handles.radio_psd,'value',1);
-            
-            obj.restore_state();
         end
         
         
@@ -1013,37 +875,7 @@ classdef PAController < handle
         
         
         %VIEW parts of the class....
-        
-        function obj = restore_state(obj)
-            obj.clear_handles();
-            
-            set(obj.figurehandle.Padaco,'pointer','arrow');
-            
-            set(obj.figurehandle.Padaco,'WindowButtonMotionFcn',[]);
-            set(obj.figurehandle.Padaco,'WindowScrollWheelFcn',[]);
-            
-            set(obj.figurehandle.Padaco,'WindowButtonDownFcn',@obj.Padaco_main_fig_WindowButtonDownFcn);
-            set(obj.figurehandle.Padaco,'WindowButtonUpFcn',@obj.Padaco_main_fig_WindowButtonUpFcn);
-            
-            obj.marking_state = 'off';
-        end
-        
-        function obj = clear_handles(obj)
-            if(ishghandle(obj.hg_group))
-                delete(obj.hg_group);
-            end;
-            
-            obj.hg_group = [];
-
-            if(~isempty(obj.current_linehandle))                
-                if(ishandle(obj.current_linehandle))
-                    set(obj.current_linehandle,'selected','off');
-                end;
-                obj.current_linehandle = [];
-            end;
-            obj.showReady();
-        end
-
+    
         function Padaco_main_fig_WindowButtonUpFcn(obj,hObject,eventdata)            
             obj.Padaco_button_up();
         end
@@ -1388,21 +1220,7 @@ classdef PAController < handle
             end
         end;
         
-        function plotSelection_callback(obj,varargin)
-            y=obj.getSelectedChannelData();
-            
-            if(~isempty(y))
-                f=figure;
-                plot(y);
-%                 waitforbuttonpress();
-%                 if(ishandle(f))
-%                     close(f);
-%                 end
-                
-            end;
-            
-        end
-        
+
         function grid_handle = draw_x_minorgrid(obj)
             %plots minor grid lines using specified properties
             %y_lines is a vector containing sample points where y-grid lines should be
@@ -1439,22 +1257,7 @@ classdef PAController < handle
             end;
         end
         
-        function detectMethodStruct = getDetectionMethodsStruct(obj)
-           detectMethodStruct = CLASS_events_container.loadDetectionMethodsInf(fullfile(obj.SETTINGS.rootpathname,obj.SETTINGS.VIEW.detection_path),obj.SETTINGS.VIEW.detection_inf_file);
-        end
-        
-    end
-    methods(Static)
-        % --------------------------------------------------------------------
-        function popout_axes(~, ~, axes_h)
-            % hObject    handle to context_menu_pop_out (see GCBO)
-            % eventdata  reserved - to be defined in a future version of MATLAB
-            % handles    structure with handles and user data (see GUIDATA)
-            fig = figure;
-            copyobj(axes_h,fig); %or get parent of hObject's parent
-        end
-        
-
+   
     end
 end
 

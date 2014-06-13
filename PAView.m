@@ -13,18 +13,7 @@ classdef PAView < handle
     properties
         %> for the patch handles when editing and dragging
         hg_group; 
-        %> label of the currently selected channel
-        channel_label; 
-        %>current index of channel with associated event being marked
-        class_channel_index; 
-        %>index of start_stop sample location of the event pointed to by event_index
-        start_stop_matrix_index;
-        %>holds the labels of the events that can be selected
-        event_label_cell;
-        %>name of the current event being marked
-        event_label; 
-        %>index of the event in the events_container object
-        event_index; 
+
         %>linehandle in Padaco currently selected;
         current_linehandle;
         
@@ -36,9 +25,9 @@ classdef PAView < handle
         figurehandle;
         
         %> @brief struct whose fields are axes handles.  Fields include:
-            %> - @b.mainhandle handle to the main axes an instance of this class is associated with
-            %> - @b.timeline hypnogram and event axes
-            %> - @b.utility handle the miscellaneous axes in the lower left corner of the Padaco
+        %> - @b.mainhandle handle to the main axes an instance of this class is associated with
+        %> - @b.timeline hypnogram and event axes
+        %> - @b.utility handle the miscellaneous axes in the lower left corner of the Padaco
         axeshandle;
         
         %> @brief struct of text handles.  Fields are: 
@@ -53,9 +42,11 @@ classdef PAView < handle
         %> - .x_minorgrid which is used for the x grid on the main axes
         linehandle;
          
-        
+        %> PAData instance
+        dataObj;
         epoch_resolution;%struct of different time resolutions, field names correspond to the units of time represented in the field        
         edit_epoch_h;  %handle to the editable epoch handle
+        %> The epoch currently in view.
         current_epoch;
         display_samples; %vector of the samples to be displayed
         shift_display_samples_delta; %number of samples to adjust display by for moving forward or back
@@ -71,7 +62,12 @@ classdef PAView < handle
                 obj.figurehandle = Padaco_fig_h;
                 handles = guidata(obj.getFigHandle());
                 obj.texthandle.status = handles.text_status;
+                
+                % This needs to be worked on further
+                obj.initLineHandles();
                 obj.restore_state();
+                
+                
                 %             obj.Padaco_loading_file_flag = [];
                 %             obj.Padaco_mainaxes_ylim = [-300,300];
                 %             obj.Padaco_mainaxes_xlim = [1 3000];
@@ -82,17 +78,57 @@ classdef PAView < handle
                 %             obj.setEditEpochHandle(handles.edit_cur_epoch);
                 %             obj.setEpochResolutionHandle(handles.popupmenu_epoch);
                 %             obj.configureUtilitySettings();
-                obj.restore_state();
+
             else
                 obj = [];
             end
+        end 
+        
+        %> @brief Initialize the line handles that will be used in the view.
+        %> resets the currentEpoch to 1.
+        %> @param obj Instance of PAView
+        function initLineHandles(obj)
+            datStruct = PAData.getDummyStruct();
+            obj.recurseMe(datStruct);
         end
-       
+        
+        function recurseMe(obj,datStruct)
+            fnames = fieldnames(datStruct);
+            for f=1:numel(fnames)
+                fname = fnames{f};
+                curField = datStruct.(fname);
+                if(isstruct(curField))
+                    obj.linehandles.(fname) = [];
+                    obj.recurseMe(curField);
+                else
+                    obj.linehandles.(fname) = line();
+                end
+            end
+        end
+        
+        %> @brief Set the acceleration data instance variable and
+        %> resets the currentEpoch to 1.
+        %> @param obj Instance of PAView
+        %> @param PADataObject Instance of PAData
+        function obj = setAccelData(obj, PADataObject)
+            obj.dataObj = PADataObject;
+            obj.currentEpoch = 1;
+        end
 
+        %> @brief Get the view's figure handle.
+        %> @param obj Instance of PAView
+        %> @retval figHandle View's figure handle.
         function figHandle = getFigHandle(obj)
             figHandle = obj.figurehandle;
         end
 
+        %> @brief Draws the view
+        %> @param PADataObject Instance of PAData
+        function draw(obj)
+            
+            
+            
+        end
         
  
         % --------------------------------------------------------------------
@@ -712,7 +748,6 @@ classdef PAView < handle
             
             obj.updateTimelineAxes();
             %more of an initializeAxes type thing...
-            obj.updateUtilityAxes();
             obj.showReady();
             set(handles.text_status,'string','');
         end
