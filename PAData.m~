@@ -140,13 +140,14 @@ classdef PAData < handle
        end
 
        % ======================================================================
-       %> @brief Returns the duration of an epoch in terms of sample points.
+       %> @brief Returns the  structure of an instnace PAData's time series data.
        %> @param Instance of PAData.
-       %> @retval (Integer) Duration of the epoch window in units of sample points.
-       %> @note Calcuation based on instance variables epochDurSec and sampleRate
+       %> @retval The start, stop range of the current epoch returned as samples beginning with 1 for the first sample.
+       %> @note This uses instance variables epochDurSec, curEpoch, and sampleRate to
+       %> determine the sample range for the current epoch.
        % =================================================================      
        function epochDurSamples = getEpochDurSamples(obj)
-           epochDurSamples = obj.epochDurSec*obj.sampleRate.accelRaw;
+           epochDurSamples = obj.epochDurSec*obj.sampleRate.rawAccel;
        end
 
        
@@ -171,13 +172,13 @@ classdef PAData < handle
        %> contained in obj.getStruct() or a single 2x1 vector of min max
        %> values for the field name specified.
        % =================================================================      
-       function minMax = getMinmax(obj,field)
+       function minMax = getMinMax(obj,field)
            if(nargin<2 || isempty(field))
                field = 'all';
            end
            dataStruct = obj.getStruct();
            if(strcmpi(field,'all'))
-               minMax = obj.getRecurseMinmax(dataStruct);
+               minMax = obj.getRecurseMinMax(dataStruct);
            else
                
                if(~strcmpi(field,'struct'))
@@ -357,8 +358,7 @@ classdef PAData < handle
                    minmaxVec = minmax([PAData.getRecurseMinmax(dataStruct.(fnames{f})),minmaxVec]);
                end
            else
-               %minmax is performed on each row; just make one row
-               minmaxVec = minmax(dataStruct(:)');
+               minmaxVec = minmax(dataStruct);
            end
            
        end

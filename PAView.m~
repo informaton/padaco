@@ -185,8 +185,8 @@ classdef PAView < handle
         function obj = initWithAccelData(obj, PADataObject)
             obj.dataObj = PADataObject;           
             % obj.drawNew(obj.dataObj.filename);
-            axesProps.xlim = obj.dataObj.getCurEpochRangeAsSamples();
-            axesProps.ylim = obj.dataObj.getMinmax('all');
+            axesProps.xlim = obj.dataObj.getCurEpochRange();
+            axesProps.ylim = obj.dataObj.getMinMax('all');
             obj.initView(axesProps);
             obj.setFilename(obj.dataObj.getFilename());
         end
@@ -200,18 +200,14 @@ classdef PAView < handle
         %> corresponding line handles.  
         % --------------------------------------------------------------------
         function initView(obj,axesProps)
-            lineProps = [];
+            %All lines become visible.
             if(nargin>1 && ~isempty(axesProps))
+               % lineProps.visible = 'on';
                 obj.initAxesHandles(axesProps);
-                lineProps.visible = 'on';
-                lineProps.xdata = axesProps.xlim;
-                lineProps.ydata = [1 1];
+               % obj.recurseLineSetter(obj.linehandle,dataStruct,lineProps);
+            else 
+                obj.initLineHandles();
             end
-            
-            %Default line properties are used in initLineHandles if lineProps is empty
-            % (i.e. if axesProps is not provided or is empty)
-            obj.initLineHandles(lineProps);
-            
             obj.initMenubar();
             obj.restore_state();
         end       
@@ -222,13 +218,11 @@ classdef PAView < handle
         %> dataStruct struct.
         %> @param obj Instance of PAView
         %> @param Structure of axes properties.
-        %> @note Currently only sets the primary axes handle
         % --------------------------------------------------------------------
         function initAxesHandles(obj,axesProps)
-            % See @note Currently only sets the primary axes handle
-            set(obj.axeshandle.primary,axesProps);            
+            set(obj.axes.main,axesProps);            
         end
-
+        
         % --------------------------------------------------------------------
         %> @brief Configures the figure's menubar
         %> @param obj Instance of PAView
@@ -265,7 +259,8 @@ classdef PAView < handle
             %add grid lines
             if(~isfield(obj.linehandle,'x_minorgrid')||isempty(obj.linehandle.x_minorgrid)||~ishandle(obj.linehandle.x_minorgrid))
                 obj.linehandle.x_minorgrid = line('xdata',[],'ydata',[],'parent',obj.axeshandle.primary,'color',[0.8 0.8 0.8],'linewidth',0.5,'linestyle',':','hittest','off','visible','on');
-            end            
+            end
+            
         end
         
         % --------------------------------------------------------------------
@@ -282,6 +277,8 @@ classdef PAView < handle
             end
             obj.recurseHandleInit(obj.linehandle,lineProps);
         end
+        
+
 
         % May need to be deprecated.  Originally thought it would be good
         % to have multiple methods for drawing the view for the first time
