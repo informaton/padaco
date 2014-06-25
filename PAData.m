@@ -46,16 +46,16 @@ classdef PAData < handle
    
    methods
        
-        % ======================================================================
-        %> @brief Constructor for PAData class.
-        %> @param Optional entries can be either
-        %> @li Full filename (i.e. with pathname) of accelerometer data to load.
-        %> %li Pathname containing accelerometer files to be loaded.
-        %> @param Optional Filename of accelerometer data to load.
-        %> @note: This is only supplied in the event that the first
-        %> parameter is passed as the pathname for the acceleromter files.
-        %> @retval Instance of PAData.
-        % =================================================================       
+       % ======================================================================
+       %> @brief Constructor for PAData class.
+       %> @param Optional entries can be either
+       %> @li Full filename (i.e. with pathname) of accelerometer data to load.
+       %> %li Pathname containing accelerometer files to be loaded.
+       %> @param Optional Filename of accelerometer data to load.
+       %> @note: This is only supplied in the event that the first
+       %> parameter is passed as the pathname for the acceleromter files.
+       %> @retval Instance of PAData.
+       % =================================================================
        function obj = PAData(fullfileOrPath,filename)
            
            if(nargin==2)
@@ -91,13 +91,48 @@ classdef PAData < handle
        end
       
        
-        % ======================================================================
-        %> @brief Returns the full filename (pathname + filename) of 
-        %> the accelerometer data.
-        %> @param obj Instance of PAData
-        % =================================================================
-       function fullFilename = getFullFilename(obj)
+       % ======================================================================
+       %> @brief Returns a structure of an instnace PAData's time series data.
+       %> @param Instance of PAData.
+       %> @retval tsStruct A struct of PAData's time series instance data.  The fields
+       %> include:
+       %> - accelRaw.x
+       %> - accelRaw.y
+       %> - accelRaw.z
+       %> - inclinometer
+       %> - lux
+       %> - vecMag
+       % =================================================================      
+       function dat = getStruct(obj)
+           dat.accelRaw = obj.accelRaw;
+           dat.inclinometer = obj.inclinometer;
+           dat.lux = obj.lux;
+           dat.vecMag = obj.vecMag;
+       end
+       
+       % ======================================================================
+       %> @brief Returns the filename, pathname, and full filename (pathname + filename) of
+       %> the file that the accelerometer data was loaded from.
+       %> @param obj Instance of PAData
+       %> @retval The short filename of the accelerometer data.
+       %> @retval The pathname of the accelerometer data.
+       %> @retval The full filename of the accelerometer data.
+       % =================================================================
+       function [filename,pathname,fullFilename] = getFilename(obj)
+           filename = obj.filename;
+           pathname = obj.pathname;
            fullFilename = fullfile(obj.pathname,obj.filename);
+       end
+       
+       % ======================================================================
+       %> @brief Returns the full filename (pathname + filename) of
+       %> the accelerometer data.
+       %> @param obj Instance of PAData
+       %> @retval The full filenmae of the accelerometer data.
+       %> @note See also getFilename()
+       % =================================================================
+       function fullFilename = getFullFilename(obj)
+           [~,~,fullFilename] = obj.getFilename();
        end
 
        % ======================================================================
@@ -171,9 +206,9 @@ classdef PAData < handle
                        % obj.date = dataCell{1};
                        % obj.time = dataCell{2};
                        
-                       obj.accel.x = dataCell{3};
-                       obj.accel.y = dataCell{4};
-                       obj.accel.z = dataCell{5};
+                       obj.accelRaw.x = dataCell{3};
+                       obj.accelRaw.y = dataCell{4};
+                       obj.accelRaw.z = dataCell{5};
                        obj.steps = dataCell{6}; %what are steps?
                        obj.lux = dataCell{7};
                        obj.inclinometer.off = dataCell{8};
@@ -181,7 +216,7 @@ classdef PAData < handle
                        obj.inclinometer.sitting = dataCell{8};
                        obj.inclinometer.lying = dataCell{8};
                        obj.vecMag = dataCell{8};
-                       fprintf('%d rows loaded from %s\n',numel(obj.accel.x),fullfilename);
+                       fprintf('%d rows loaded from %s\n',numel(obj.accelRaw.x),fullfilename);
                        fclose(fid);
                    catch me
                        showME(me);
@@ -205,6 +240,53 @@ classdef PAData < handle
    methods(Static)
        
        % ======================================================================
+       %> @brief Evaluates the range (min, max) of components found in the
+       %> input struct argument and returns the range as struct values with
+       %> matching fieldnames/organization as the input struct's highest level.
+       %> @param A structure whose fields are either structures or vectors.
+       %> @retval structRange a struct whose fields correspond to those of
+       %the input struct and whose values are [min, max] vectors that
+       %correspond to the minimum and maximum values found in the input
+       %structure for that field.
+       %> @note Consider the example
+       %> @note dataStruct.accel.x = [-1 20 5 13];
+       %> @note dataStruct.accel.y = [1 70 9 3];
+       %> @note dataStruct.accel.z = [-10 2 5 1];
+       %> @note dataStruct.lux = [0 0 0 9];
+       %> @note structRange.accel is [-10 70]
+       %> @note structRange.lux is [0 9]
+       function structMinmax = minmax(dataStruct)
+           fnames = fieldnames(dataStruct);
+           structMinmax = struct();
+           for f=1:numel(fnames)
+               curField = dataStruct.(fnames{f});
+               structMinmax.(fnames{f}) = minmax(PAData.getRecurseMinmax(curField));
+           end
+           
+       end
+       
+       % ======================================================================
+       %> @brief Recursive helper function for minmax()
+       %> input struct argument and returns the range as struct values with
+       %> matching fieldnames/organization as the input struct's highest level.
+       %> @param A structure whose fields are either structures or vectors.
+       %> @retval Nx2 vector of minmax values for the given dataStruct.
+       % ======================================================================
+       function minmaxVec = getRecurseMinmax(dataStruct)
+           if(isstruct(dataStruct))
+               minmaxVec = [];
+               fnames = fieldnames(dataStruct);
+               for f=1:numel(fnames)
+                   minmaxVec = minmax([PAData.getRecurseMinmax(dataStruct.(fnames{f})),minmaxVec]);
+               end
+           else
+               minmaxVec = minmax(dataStruct);
+           end
+           
+       end
+       
+       
+       % ======================================================================
        %> @brief Returns an empty struct with fields that mirror PAData's
        %> time series instance variables that contain 
        %> @retval tsStruct A struct of PAData's time series instance variables, which 
@@ -221,7 +303,11 @@ classdef PAData < handle
            accelR.y = [];
            accelR.z = [];
            dat.accelRaw = accelR;
-           dat.inclinometer = [];
+           incl.off = [];
+           incl.standing = [];
+           incl.sitting = [];
+           incl.lying = [];
+           dat.inclinometer = incl;
            dat.lux = [];
            dat.vecMag = [];
        end

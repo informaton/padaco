@@ -123,7 +123,7 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function openFileCallback(obj,hObject,eventdata)
             % hObject    handle to menu_file_open (see GCBO)
-            f=uigetfullfile({'*.csv','Comma Separated Vectors';'*.dat','Raw text (space delimited)'},'Select a file','off',obj.SETTINGS.VIEW.accelPathname);
+            f=uigetfullfile({'*.csv','Comma Separated Vectors';'*.dat','Raw text (space delimited)'},'Select a file','off',fullfile(obj.SETTINGS.VIEW.accelPathname,obj.SETTINGS.VIEW.accelFilename));
             
             if(~isempty(f))
                 obj.VIEW.showBusy('Loading');
@@ -132,8 +132,8 @@ classdef PAController < handle
                 obj.SETTINGS.VIEW.accelPathname = obj.accelObj.pathname;
                 obj.SETTINGS.VIEW.accelFilename = obj.accelObj.filename;
                 obj.VIEW.showReady();
-                obj.VIEW.setAccelData(obj.accelObj);
-                obj.VIEW.draw();
+                obj.VIEW.initWithAccelData(obj.accelObj);
+
                 
             end
         end

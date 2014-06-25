@@ -7,7 +7,6 @@
 %> In the model, view, controller paradigm, this is the
 %> controller. 
 
-
 classdef PAView < handle
     
     properties
@@ -21,26 +20,34 @@ classdef PAView < handle
         state_choices_cell; 
         %>string of the current selected choice
         marking_state; 
-        %>handle to the figure an instance of this class is associated with
+        %> figure handle that the class instance is associated with
         figurehandle;
         
         %> @brief struct whose fields are axes handles.  Fields include:
-        %> - @b.mainhandle handle to the main axes an instance of this class is associated with
-        %> - @b.timeline hypnogram and event axes
-        %> - @b.utility handle the miscellaneous axes in the lower left corner of the Padaco
+        %> - @b.primary handle to the main axes an instance of this class is associated with
+        %> - @b.secondary Epoch view of events (over view)
         axeshandle;
+
+        %> @brief struct whose fields are structs with names of the axes and whose fields are property values for those axes.  Fields include:
+        %> - @b.primary handle to the main axes an instance of this class is associated with
+        %> - @b.secondary Epoch view of events (over view)
+        axesproperty;
         
         %> @brief struct of text handles.  Fields are: 
         %> - .status; %handle to the text status location of the Padaco figure where updates can go
         %> - .src_filename; %handle to the text box for display of loaded filename
         texthandle; 
         
+        %> @brief Struct of line handles (graphic handle class) for showing
+        %> activity data.
+        linehandle;
+        %> @brief Struct of line handle properties corresponding to the
+        %> fields of linehandle.  These are derived from the input files
+        %> loaded by the PAData class.
+        lineproperty;
+        
         %> struct of handles for the context menus
         contextmenuhandle; 
-        
-        %> @brief struct with field
-        %> - .x_minorgrid which is used for the x grid on the main axes
-        linehandle;
          
         %> PAData instance
         dataObj;
@@ -56,81 +63,267 @@ classdef PAView < handle
 
     methods
         
-        %the constructor more or less
+        % --------------------------------------------------------------------
+        %> PAView class constructor.
+        %> @param Figure handle to assign PAView instance to.
+        %> @retval Instance of PAView
+        % --------------------------------------------------------------------
         function obj = PAView(Padaco_fig_h)
             if(ishandle(Padaco_fig_h))
                 obj.figurehandle = Padaco_fig_h;
-                handles = guidata(obj.getFigHandle());
-                obj.texthandle.status = handles.text_status;
-                
-                % This needs to be worked on further
-                obj.initLineHandles();
-                obj.restore_state();
-                
-                
-                %             obj.Padaco_loading_file_flag = [];
-                %             obj.Padaco_mainaxes_ylim = [-300,300];
-                %             obj.Padaco_mainaxes_xlim = [1 3000];
-                %             obj.current_epoch = 0;
-                
-                %             obj.configureMainAxesContextmenu();
-                %             obj.configureMenubar();
-                %             obj.setEditEpochHandle(handles.edit_cur_epoch);
-                %             obj.setEpochResolutionHandle(handles.popupmenu_epoch);
-                %             obj.configureUtilitySettings();
-
+                obj.createView();                
             else
                 obj = [];
             end
         end 
         
+                
+        % --------------------------------------------------------------------
+        %> @brief Creates line handles and maps figure tags to PAView instance variables.
+        %> @param Instance of PAView.
+        % --------------------------------------------------------------------
+        function createView(obj)
+            handles = guidata(obj.getFigHandle());
+
+            obj.texthandle.status = handles.text_status;
+            obj.texthandle.filename = handles.text_filename;
+
+            obj.axeshandle.primary = handles.axes_primary;
+            obj.axeshandle.secondary = handles.axes_secondary;
+
+            % Clear the figure and such.
+            obj.clearAxesHandles();
+            obj.clearTextHandles(); 
+
+            
+            %creates and initializes line handles (obj.linehandle fields)
+            % However, all lines are invisible.
+            obj.createLineHandles();
+        end     
+        
+        % --------------------------------------------------------------------
+        % --------------------------------------------------------------------
+        %
+        %   Initializations
+        %
+        % --------------------------------------------------------------------
+        % --------------------------------------------------------------------
+        
+       
+        % --------------------------------------------------------------------
+        % --------------------------------------------------------------------
+        function clearFigure(obj)
+            
+            %clear the figure handle
+            set(0,'showhiddenhandles','on');
+            
+            cf = get(0,'children');
+            for k=1:numel(cf)
+                if(cf(k)==obj.getFigHandle())
+                    set(0,'currentfigure',cf(k));
+                else
+                    delete(cf(k)); %removes other children aside from this one
+                end
+            end;
+            
+            set(0,'showhiddenhandles','off');
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Initialize text handles that will be used in the view.
+        %> resets the currentEpoch to 1.
+        %> @param obj Instance of PAView
+        % --------------------------------------------------------------------
+        function clearTextHandles(obj)
+            textProps.visible = 'on';
+            textProps.string = '';
+            obj.recurseHandleInit(obj.texthandle,textProps);
+        end
+
+        
+        % --------------------------------------------------------------------
+        %> @brief Clears axes handles of any children and sets default properties.
+        %> Called when first creating a view.  See also initAxesHandles.
+        %> @param obj Instance of PAView
+        % --------------------------------------------------------------------
+        function clearAxesHandles(obj)
+            
+            cla(obj.axeshandle.primary);
+            cla(obj.axeshandle.secondary);
+            
+            axesProps.units = 'normalized'; %normalized allows it to resize automatically
+            axesProps.drawmode = 'normal'; %fast does not allow alpha blending...
+            axesProps.xgrid='on';
+            axesProps.ygrid='off';
+            axesProps.xminortick='on';
+            axesProps.xlimmode='manual';
+            axesProps.xtickmode='manual';
+            axesProps.xticklabelmode='manual';
+            axesProps.xtick=[];
+            axesProps.ytickmode='manual';
+            axesProps.ytick=[];
+            axesProps.nextplot='replacechildren';
+            axesProps.box= 'on';
+            axesProps.plotboxaspectratiomode='auto';
+            
+            
+            %initialize axes
+            set(obj.axeshandle.primary,axesProps);
+            
+            axesProps.xgrid = 'off';
+            axesProps.xminortick = 'off';
+            
+            set(obj.axeshandle.secondary,axesProps);             
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Set the acceleration data instance variable and assigns
+        %> line handle y values to those found with corresponding field
+        %> names in PADataObject.
+        %> resets the currentEpoch to 1.
+        %> @param obj Instance of PAView
+        %> @param PADataObject Instance of PAData
+        % --------------------------------------------------------------------
+        function obj = initWithAccelData(obj, PADataObject)
+            obj.dataObj = PADataObject;           
+            % obj.drawNew(obj.dataObj.filename);
+            obj.initView(obj.dataObj.getStruct());
+            obj.setFilename(obj.dataObj.getFilename());
+
+
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Initializes the graphic handles and maps figure tag names
+        %> to PAView instance variables.
+        %> @param obj Instance of PAView
+        %> @param obj (Optional) PAData struct that matches the linehandle struct of
+        %> obj and whose values will be assigned to the 'ydata' fields of the
+        %> corresponding line handles.  
+        % --------------------------------------------------------------------
+        function initView(obj,dataStruct)
+            %All lines become visible.
+            if(nargin>1 && ~isempty(dataStruct))
+                lineProps.visible = 'on';
+                obj.initAxesHandles(dataStruct);
+                obj.recurseLineSetter(obj.linehandle,dataStruct,lineProps);
+            else 
+                obj.initLineHandles();
+            end
+            obj.initMenubar();
+            obj.restore_state();
+        end       
+        
+        % --------------------------------------------------------------------
+        %> @brief Initialize data specific properties of the axes handles.
+        %> Set the x and y limits of the axes based on limits found in
+        %> dataStruct struct.
+        %> @param obj Instance of PAView
+        %> @hparam Structure component of a PAData object.  
+        % --------------------------------------------------------------------
+        function initAxesHandles(obj,dataStruct)
+            rangeStruct = PAData.getRange(dataStruct);
+            
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Configures the figure's menubar
+        %> @param obj Instance of PAView
+        % --------------------------------------------------------------------
+        function initMenubar(obj)
+
+            %turn on the appropriate menu items still for initial use
+            %before any files are loaded
+            handles = guidata(obj.getFigHandle());
+            
+            set(handles.menu_file,'enable','on');
+            set(handles.menu_file_open,'enable','on');
+            set(handles.menu_file_quit,'enable','on');
+            
+            set(handles.menu_settings,'enable','on');
+            
+            obj.restore_state();
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Create the line handles that will be used in the view.
+        %> This is based on the structure template generated by member
+        %> function getDummyStruct().
+        %> @param obj Instance of PAView
+        % --------------------------------------------------------------------
+        function createLineHandles(obj)
+            lineProps.Parent = obj.axeshandle.primary;
+
+            lineProps.visible = 'off';
+            dataStruct = PAData.getDummyStruct();
+            
+            obj.linehandle = obj.recurseLineGenerator(dataStruct,lineProps);
+            
+            %add grid lines
+            if(~isfield(obj.linehandle,'x_minorgrid')||isempty(obj.linehandle.x_minorgrid)||~ishandle(obj.linehandle.x_minorgrid))
+                obj.linehandle.x_minorgrid = line('xdata',[],'ydata',[],'parent',obj.axeshandle.primary,'color',[0.8 0.8 0.8],'linewidth',0.5,'linestyle',':','hittest','off','visible','on');
+            end
+            
+        end
+        
+        % --------------------------------------------------------------------
         %> @brief Initialize the line handles that will be used in the view.
         %> resets the currentEpoch to 1.
         %> @param obj Instance of PAView
+        % --------------------------------------------------------------------
         function initLineHandles(obj)
-            datStruct = PAData.getDummyStruct();
-            obj.recurseMe(datStruct);
+            lineProps.visible = 'on';
+            lineProps.xdata = [0 1];
+            lineProps.ydata = [1 1];
+            obj.recurseHandleInit(obj.linehandle,lineProps);
         end
         
-        function recurseMe(obj,datStruct)
-            fnames = fieldnames(datStruct);
-            for f=1:numel(fnames)
-                fname = fnames{f};
-                curField = datStruct.(fname);
-                if(isstruct(curField))
-                    obj.linehandles.(fname) = [];
-                    obj.recurseMe(curField);
-                else
-                    obj.linehandles.(fname) = line();
-                end
-            end
-        end
-        
-        %> @brief Set the acceleration data instance variable and
-        %> resets the currentEpoch to 1.
-        %> @param obj Instance of PAView
+
+
+        % May need to be deprecated.  Originally thought it would be good
+        % to have multiple methods for drawing the view for the first time
+        % but I may have overdone it with this one.  Previously, this was
+        % called from initWithAccelData method (above).
+        % --------------------------------------------------------------------
+        %> @brief Draws the view for the first time after new data has been
+        %> loaded.  All available line handles are shown as visible.
         %> @param PADataObject Instance of PAData
-        function obj = setAccelData(obj, PADataObject)
-            obj.dataObj = PADataObject;
-            obj.currentEpoch = 1;
+        %> @param Optional string.  Shown as the loaded filename when included.
+        % --------------------------------------------------------------------
+        function drawNew(obj,sourceFilename)
+            obj.initView(obj.dataObj.getStruct());
+            if(nargin>1)
+                obj.setFilename(sourceFilename);
+            end
+            obj.draw();
         end
-
-        %> @brief Get the view's figure handle.
-        %> @param obj Instance of PAView
-        %> @retval figHandle View's figure handle.
-        function figHandle = getFigHandle(obj)
-            figHandle = obj.figurehandle;
+        
+        % --------------------------------------------------------------------
+        %> @brief Displays the string argument in the view.
+        %> @param PADataObject Instance of PAData
+        %> @param String that will be displayed in the view as the source filename when provided.
+        % --------------------------------------------------------------------
+        function setFilename(obj,sourceFilename)
+            set(obj.texthandle.filename,'string',sourceFilename,'visible','on');
         end
-
+        % --------------------------------------------------------------------
         %> @brief Draws the view
         %> @param PADataObject Instance of PAData
+        % --------------------------------------------------------------------
         function draw(obj)
-            
-            
             
         end
         
  
+        % --------------------------------------------------------------------
+        %> @brief Get the view's figure handle.
+        %> @param obj Instance of PAView
+        %> @retval figHandle View's figure handle.
+        % --------------------------------------------------------------------
+        function figHandle = getFigHandle(obj)
+            figHandle = obj.figurehandle;
+        end
+
         % --------------------------------------------------------------------
         function menu_file_screenshot_callback(obj,hObject, eventdata)
             % hObject    handle to menu_file_screenshot (see GCBO)
@@ -219,147 +412,7 @@ classdef PAView < handle
                     showME(me);
                 end
                 obj.refreshAxes();
-            end
-            
-        end
-        
-
-        
-        % --------------------------------------------------------------------
-        function menu_tools_timelineEventsSelection_callback(obj,hObject, eventdata)
-            % hObject    handle to menu_tools_viewAllEvents (see GCBO)
-            % eventdata  reserved - to be defined in a future version of MATLAB
-            % handles    structure with handles and user data (see GUIDATA)
-            %called from the menu bar, and is used to determine how the lower axes
-            %should display events
-            global EVENT_CONTAINER;
-            % global CHANNELS_CONTAINER;
-            
-            if(EVENT_CONTAINER.num_events<1)
-                warndlg('No events currently available');
-            else
-                units = 'points';
-                dlg = dialog('visible','off','units',units);
-                
-                pan_file = uipanel('title','External Events (file or user)','parent',dlg,'units',units);
-                pan_channels = uipanel('title','Padaco Events','parent',dlg,'units',units);
-                
-                %loop through each channel, and then through each event object within that
-                %channel - make a control for each and set to enable/checked if previously
-                %selected...
-                for k=1:EVENT_CONTAINER.num_events;
-                    
-                    eventLabel = [EVENT_CONTAINER.cell_of_events{k}.label,' (',num2str(EVENT_CONTAINER.channel_vector(k)),')'];
-                    
-                    if(EVENT_CONTAINER.channel_vector(k)) %i.e. it is not ==0 and thus not a file event
-                        parent = pan_channels;
-                    else
-                        parent = pan_file;
-                    end;
-                    uicontrol('style','checkbox','units',units,'string',eventLabel,'parent',pan_channels,'userdata',k,'value',CHANNELS_CONTAINER.events_to_plot(k));
-                end;
-                
-                
-                
-                % left and bottom are the distance from the lower-left corner of the parent object to the lower-left corner of the uicontrol object. width and height are the dimensions of the uicontrol rectangle. All measurements are in units specified by the Units property.
-                
-                width = 25;
-                
-                delta = 5;
-                cur_pos = [delta, delta, 0 0];
-                
-                h = allchild(pan_channels);
-                h = h(1:end-1); %skip the initial channel, which is not there
-                h_channels = h;
-                for k=1:numel(h)
-                    extent = get(h(k),'extent');
-                    cur_pos(3:4) = max(cur_pos(3:4),extent(3:4)+20);
-                    set(h(k),'position',cur_pos);
-                    cur_pos(2) = cur_pos(2)+cur_pos(4);
-                    
-                end
-                
-                bOK = uicontrol('parent',dlg,'style','pushbutton','string','OK','units',units,'position',[50,20,50,20]);
-                bCancel = uicontrol('parent',dlg,'style','pushbutton','string','Cancel','units',units,'position',[50+50+10,20,50,20],'callback','output = [],close(gcbf)');
-                bPos = get(bOK,'position');
-                
-                set(pan_channels,'units',units,'position',[width*1.5, 2*bPos(2)+bPos(4), cur_pos(3)+width*3,cur_pos(2)+delta*2]);
-                pan_channelsPos = get(pan_channels,'position');
-                
-                cur_pos = [delta, delta, 0 0];
-                
-                h = allchild(pan_file);
-                h = h(1:end-1); %skip the initial channel, which is not there
-                h_file = h;
-                for k=1:numel(h)
-                    extent = get(h(k),'extent');
-                    cur_pos(3:4) = max(cur_pos(3:4),extent(3:4)+20);
-                    set(h(k),'position',cur_pos);
-                    cur_pos(2) = cur_pos(2)+cur_pos(4);
-                end
-                
-                set(bOK,'callback','uiresume(gcbf)');
-                
-                set(pan_file,'units',units,'position',[width*1.5, pan_channelsPos(2)+pan_channelsPos(4)+bPos(4), cur_pos(3)+width*3,cur_pos(2)+delta*2]);
-                pan_filePos = get(pan_file,'position');
-                max_width = max(pan_channelsPos(3),pan_filePos(3));
-                pan_filePos(3) = max_width;
-                pan_channelsPos(3)=max_width;
-                set(pan_file,'position',pan_filePos);
-                set(pan_channels,'position',pan_channelsPos);
-                bPos(1) = width*1.5;
-                set(bOK,'position',bPos);
-                bPos(1) = max_width+width*1.5-bPos(3);
-                set(bCancel,'position',bPos);
-                figPosition = get(dlg,'position');
-                
-                set(0,'Units',units)
-                scnsize = get(0,'ScreenSize');
-                
-                figPosition(3:4) = [max_width+width*3,...
-                    bPos(4)+pan_filePos(4)+pan_filePos(2)]; %[width, height]
-                set(dlg,'position',[(scnsize(3:4)-figPosition(3:4))/2,figPosition(3:4)],'visible','on');
-                uiwait(dlg);
-                
-                %output will contain a boolean matrix containing the on/off selection
-                %values for each label that was created.  This is changed to just indices of the true values so
-                %they can be used to determine
-                %which values should be drawn along the entire night axes (axes2) in
-                %updateAxes2 function
-                if(ishghandle(dlg)) %if it is still a graphic, then...
-                    if(numel(h_file)==1)
-                        if(get(h_file,'value'))
-                            file_events_to_plot = get(h_file,'userdata');
-                        else
-                            file_events_to_plot = [];
-                        end
-                    else
-                        file_events_to_plot = get(h_file(cell2mat(get(h_file,'value'))==1),'userdata');
-                    end;
-                    if(iscell(file_events_to_plot))
-                        file_events_to_plot = cell2mat(file_events_to_plot);
-                    end;
-                    
-                    if(numel(h_channels)==1)
-                        if(get(h_channels,'value'))
-                            channel_events_to_plot = get(h_channels,'userdata');
-                        else
-                            channel_events_to_plot = [];
-                        end
-                    else
-                        channel_events_to_plot = get(h_channels(cell2mat(get(h_channels,'value'))==1),'userdata');
-                    end;
-                    if(iscell(channel_events_to_plot))
-                        channel_events_to_plot = cell2mat(channel_events_to_plot);
-                    else
-                        channel_events_to_plot = false(EVENT_CONTAINER.num_eventS);
-                        
-                    end
-                    EVENT_CONTAINER.events_to_plot = [file_events_to_plot,channel_events_to_plot];
-                    delete(dlg);
-                    obj.refreshAxes(handles);
-                end;
-            end;
+            end 
         end
 
 
@@ -492,145 +545,7 @@ classdef PAView < handle
             end
         end
         
-        function initializeView(obj)
-            %initializes the axes and makes sure everything is good to go for a first
-            %time use or when loading a new file or recovering from an error
-            global CHANNELS_CONTAINER;
-            global EVENT_CONTAINER;
-            full_detection_inf_filename = fullfile(obj.SETTINGS.rootpathname,obj.SETTINGS.VIEW.detection_path,obj.SETTINGS.VIEW.detection_inf_file);
-            EVENT_CONTAINER = CLASS_events_container(obj.getFigHandle(),obj.axeshandle.main,obj.SETTINGS.VIEW.samplerate);
-            EVENT_CONTAINER.detection_path = obj.SETTINGS.VIEW.detection_path;
-            EVENT_CONTAINER.detection_inf_file = full_detection_inf_filename;
-            
-            PadacoDefaults = obj.SETTINGS.VIEW;
-            PadacoDefaults.detection_inf_filename = full_detection_inf_filename;
-            
-            CHANNELS_CONTAINER = CLASS_channels_container(obj.getFigHandle(),obj.axeshandle.main,obj.axeshandle.utility,PadacoDefaults);
-            CHANNELS_CONTAINER.loadSettings(obj.SETTINGS.VIEW.channelsettings_file);
-            
-            EVENT_CONTAINER.CHANNELS_CONTAINER = CHANNELS_CONTAINER;
-            disableFigureHandles(obj.getFigHandle());
-            
-            set(0,'showhiddenhandles','on');
-            
-            cla(obj.axeshandle.main);
-            cla(obj.axeshandle.timeline);
-            cla(obj.axeshandle.utility);
-            
-            obj.texthandle.current_stage = text('string','','parent',obj.axeshandle.main,'color',[1 1 1]*.9,'fontsize',42);
-            obj.texthandle.previous_stage = text('string','','parent',obj.axeshandle.main,'color',[1 1 1]*.9,'fontsize',35);
-            obj.texthandle.next_stage = text('string','','parent',obj.axeshandle.main,'color',[1 1 1]*.9,'fontsize',35);
-            
-            cf = get(0,'children');
-            for k=1:numel(cf)
-                if(cf(k)==obj.getFigHandle())
-                    set(0,'currentfigure',cf(k));
-                else
-                    delete(cf(k)); %removes other children aside from this one
-                end
-            end;
-            
-            set(0,'showhiddenhandles','off');
-            
-            drawnow;
-            
-            %initialize axes
-            set(obj.axeshandle.main,'Units','normalized',... %normalized allows it to resize automatically
-                'drawmode','normal',... %fast does not allow alpha blending...
-                'xgrid','on','ygrid','off',...
-                'xminortick','on',...
-                'xlimmode','manual',...
-                'xtickmode','manual',...
-                'xticklabelmode','manual',...
-                'xtick',[],...
-                'ytickmode','manual',...
-                'ytick',[],...
-                'nextplot','replacechildren','box','on',...
-                'xlim',obj.Padaco_mainaxes_xlim,...
-                'ylim',obj.Padaco_mainaxes_ylim,...  %avoid annoying resolution changes on first load
-                'ydir',obj.SETTINGS.VIEW.yDir);
-            
-            set(obj.axeshandle.timeline,'Units','normalized',... %normalized allows it to resize automatically
-                'xgrid','off','ygrid','off',...
-                'xminortick','off',...
-                'xlimmode','manual',...
-                'xtickmode','manual',...
-                'xticklabelmode','manual',...
-                'xtick',[],...
-                'ytickmode','manual',...
-                'ytick',[],...
-                'nextplot','replacechildren','box','on');
 
-            seconds_per_epoch = obj.getSecondsPerEpoch();
-            if(seconds_per_epoch == obj.SETTINGS.VIEW.standard_epoch_sec)
-                %                 set(obj.axeshandle.main,'dataaspectratiomode','manual','d
-                %                 ataaspectratio',[30 12 1]);
-                set(obj.axeshandle.main,'plotboxaspectratiomode','manual','plotboxaspectratio',[30 12 1]);
-            else
-                %                     set(obj.axeshandle.main,'dataaspectratiomode','auto');
-                set(obj.axeshandle.main,'plotboxaspectratiomode','auto');
-            end
-                
-
-            
-            set(obj.axeshandle.utility,'Units','normalized',... %normalized allows it to resize automatically
-                'xgrid','off','ygrid','off',...
-                'xminortick','off',...
-                'ylimmode','auto',...
-                'xlimmode','manual',...
-                'xtickmode','manual',...
-                'ytickmode','manual',...
-                'xtick',[],...
-                'ytick',[],...
-                'nextplot','replacechildren','box','on');
-            
-            %show the PSD, ROC, events, etc.
-            set(obj.axeshandle.utility,...
-                'xtickmode','auto',...
-                'ytickmode','auto',...
-                'xtickmode','auto',...
-                'ytickmode','auto',...
-                'xlim',[0 obj.SETTINGS.VIEW.samplerate/2]);            
-            
-            if(~isfield(obj.linehandle,'x_minorgrid')||isempty(obj.linehandle.x_minorgrid)||~ishandle(obj.linehandle.x_minorgrid))
-                obj.linehandle.x_minorgrid = line('xdata',[],'ydata',[],'parent',obj.axeshandle.main,'color',[0.8 0.8 0.8],'linewidth',0.5,'linestyle',':','hittest','off','visible','on');
-            end
-            
-            %turn on the appropriate menu items still for initial use before any EDF's
-            %are loaded
-            handles = guidata(obj.getFigHandle());
-            
-            set(handles.menu_file_createEDF,'enable','on');
-            set(handles.menu_file_load_EDF,'enable','on');
-            set(handles.menu_file,'enable','on');
-            set(handles.menu_file_export,'enable','on');
-            set(handles.menu_file_import,'enable','on');
-            set(handles.menu_file_load_text_channel,'enable','on');
-            
-            set(handles.menu_tools,'enable','on');
-            set(handles.menu_tools_roc_directory,'enable','on');
-            
-            set(handles.menu_settings,'enable','on');
-            set(handles.menu_settings_power,'enable','on');
-            set(handles.menu_settings_power_psd,'enable','on');
-            set(handles.menu_settings_power_music,'enable','on');
-%             set(handles.menu_settings_roc,'enable','on'); %wait until
-%             there are at least two events to examine.
-            set(handles.menu_settings_classifiers,'enable','on');
-            set(handles.menu_settings_defaults,'enable','on');            
-            
-            set(handles.menu_batch_run,'enable','on');
-            set(handles.menu_batch,'enable','on');
-            
-            set(handles.menu_help,'enable','on');
-            set(handles.menu_help_defaults,'enable','on');
-            set(handles.menu_help_restart,'enable','on');
-            
-            set(handles.radio_psd,'value',1);
-            
-            obj.restore_state();
-        end
-        
         
         function setAxesXlim(obj)  %called when there is a change to the xlimit to be displayed
             obj.Padaco_mainaxes_xlim = [obj.display_samples(1),obj.display_samples(end)];
@@ -1032,13 +947,6 @@ classdef PAView < handle
             obj.clear_handles();
             
             set(obj.getFigHandle(),'pointer','arrow');
-            
-            set(obj.getFigHandle(),'WindowButtonMotionFcn',[]);
-            set(obj.getFigHandle(),'WindowScrollWheelFcn',[]);
-            
-            set(obj.getFigHandle(),'WindowButtonDownFcn',@obj.Padaco_main_fig_WindowButtonDownFcn);
-            set(obj.getFigHandle(),'WindowButtonUpFcn',@obj.Padaco_main_fig_WindowButtonUpFcn);
-            
             obj.marking_state = 'off';
         end
         
@@ -1447,6 +1355,110 @@ classdef PAView < handle
         
     end
     methods(Static)
+        
+        %==================================================================
+        %> @brief Recursively fills in the template structure dummyStruct
+        %> with matlab lines and returns as a new struct.  If dummyStruct
+        %> has numeric values in its deepest nodes, then these values are
+        %> assigned as the y-values of the corresponding line handle, and the
+        %> x-value is a vector from 1 to the number of elements in y.
+        %> @param obj Instance of PAView
+        %> @param dummyStruct Structure with arbitrarily deep number fields.
+        %> @param Struct of line handle properties to initialize line handles with.  
+        %> @retval destStruct The filled in struct, with the same field
+        %> layout as dummyStruct but with line handles filled in at the
+        %> deepest nodes.
+        %> @note If destStruct is included, then lineproperties must also be included, even if only as an empty place holder.
+        %> For example as <br>
+        %> destStruct = PAView.recurseLineGenerator(dummyStruct,[],destStruct)
+        %> @param destStruct The initial struct to grow to (optional and can be different than the output node).
+        %> For example<br> desStruct = PAView.recurseLineGenerator(dummyStruct,proplines,diffStruct)
+        %> <br>Or<br> recurseLineGenerator(dummyStruct,[],diffStruct)
+        %==================================================================
+        function destStruct = recurseLineGenerator(dummyStruct,lineproperties,destStruct)
+            if(nargin < 3 || isempty(destStruct))
+                destStruct = struct();
+                if(nargin<2)
+                    lineproperties = [];
+                end
+            
+            end
+            
+            fnames = fieldnames(dummyStruct);
+            for f=1:numel(fnames)
+                fname = fnames{f};
+
+                if(isstruct(dummyStruct.(fname)))
+                    destStruct.(fname) = [];
+                    
+                    %recurse down
+                    destStruct.(fname) = PAView.recurseLineGenerator(dummyStruct.(fname),lineproperties,destStruct.(fname));
+                else
+                    destStruct.(fname) = line();
+                    if(nargin>1 && ~isempty(lineproperties))
+                        set(destStruct.(fname),lineproperties);
+                    end                    
+                end
+            end
+        end
+
+        %==================================================================
+        %> @brief Recursively maps values from dataObj to the x/y fields of 
+        %> linehandle struct child handles.
+        %> @param handleStruct The struct of line handles to set the x/y
+        %> values and graphic properties of.
+        %> @param dataStruct Structure whose fields contain structures or
+        %> numeric vectors that will be placed as the y-values of line
+        %> handles at the same location in the handleStruct struct.
+        %> @param Optional structure of property/value pairings to set the graphic
+        %> handles found in handleStruct to.
+        %==================================================================
+        function recurseLineSetter(handleStruct, dataStruct,lineproperties)
+            fnames = fieldnames(dataStruct);
+            for f=1:numel(fnames)
+                fname = fnames{f};
+                curField = handleStruct.(fname);
+                try
+                if(isstruct(curField))
+                    PAView.recurseLineSetter(curField,dataStruct.(fname),lineproperties);
+                else
+                    if(ishandle(curField))
+                        y = dataStruct.(fname)(:);
+                        lineproperties.xdata = [1:numel(y)]';
+                        lineproperties.ydata = y;
+                        set(curField,lineproperties);
+                    end
+                end
+                catch me
+                    showME(me);
+                end
+            end
+        end
+        
+        %==================================================================
+        %> @brief Recursively initializes the graphic handles found in the
+        %> provided structure with the handle properties provided.
+        %> @param handleStruct The struct of line handles to set the
+        %> properties of.  
+        %> @param Structure of property/value pairings to set the graphic
+        %> handles found in handleStruct to.
+        %==================================================================
+        function recurseHandleInit(handleStruct,properties)
+            fnames = fieldnames(handleStruct);
+            for f=1:numel(fnames)
+                fname = fnames{f};
+                curField = handleStruct.(fname);
+                if(isstruct(curField))
+                    PAView.recurseHandleInit(curField,properties);
+                else
+                    if(ishandle(curField))
+                        set(curField,properties);
+                    end
+                end
+            end
+        end
+        
+        
         % --------------------------------------------------------------------
         function popout_axes(~, ~, axes_h)
             % hObject    handle to context_menu_pop_out (see GCBO)
