@@ -148,8 +148,35 @@ classdef PAData < handle
        function epochDurSamples = getEpochDurSamples(obj)
            epochDurSamples = obj.epochDurSec*obj.sampleRate.accelRaw;
        end
-
        
+       % --------------------------------------------------------------------
+       %> @brief Set the current epoch for the instance variable accelObj
+       %> (PAData)
+       %> @param Instance of PAContraller
+       %> @param True if the epoch is set successfully, and false otherwise.
+       %> @note Reason for failure include epoch values that are outside
+       %> the range allowed by accelObj (e.g. negative values or those
+       %> longer than the duration given.
+       % --------------------------------------------------------------------
+       function success = setCurEpoch(obj,epoch)
+           if(epoch>0 && epoch<=obj.getMaxEpoch())
+               obj.curEpoch = epoch;
+               success = true;
+           else
+               success= false;
+           end
+       end
+       
+       % --------------------------------------------------------------------
+       %> @brief Returns the maximum epoch allowed based on sampling rate, epoch duration, and size of the time series data.
+       %> @param Instance of PAData
+       %> @param The maximum/last epoch allowed
+       % --------------------------------------------------------------------
+       function maxEpoch = getMaxEpoch(obj)
+           %Informaton: finish this up later on, and then rerun padaco and
+           %attempt to set the epoch in the text box to test and debug.
+           maxEpoch = 
+       end
        % ======================================================================
        %> @brief Returns the minmax value(s) for the object's (obj) time series data
        %> Returns either a structure or 1x2 vector of [min, max] values for the field
@@ -186,6 +213,7 @@ classdef PAData < handle
                minMax = obj.minmax(dataStruct);
            end
        end
+       
        
        % ======================================================================
        %> @brief Returns the filename, pathname, and full filename (pathname + filename) of
@@ -360,7 +388,6 @@ classdef PAData < handle
                %minmax is performed on each row; just make one row
                minmaxVec = minmax(dataStruct(:)');
            end
-           
        end
        
        

@@ -117,16 +117,12 @@ classdef PAController < handle
 
         %% Startup configuration functions
         %-- Menubar configuration --
-        % --------------------------------------------------------------------
-        %> @brief Assign figure's menubar callbacks.
-        %> Called internally during class construction.
-        %> @param Instance of PAContraller
-        % --------------------------------------------------------------------        
         function configureMenubar(obj)
             handles = guidata(obj.VIEW.getFigHandle());
             
             %file
             set(handles.menu_file_open,'callback',@obj.openFileCallback);
+            
         end
         
         % --------------------------------------------------------------------
@@ -136,7 +132,9 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function configureWidgetCallbacks(obj)
             handles = guidata(obj.VIEW.getFigHandle());
+            
             set(handles.edit_curEpoch,'callback',@obj.setCurEpochCallback);
+            
         end
     
         % --------------------------------------------------------------------
@@ -159,10 +157,8 @@ classdef PAController < handle
         %> @brief Set the current epoch for the instance variable accelObj
         %> (PAData)
         %> @param Instance of PAContraller
-        %> @param True if the epoch is set successfully, and false otherwise.
-        %> @note Reason for failure include epoch values that are outside
-        %> the range allowed by accelObj (e.g. negative values or those
-        %> longer than the duration given.  
+        %> @param Handle to the edit text widget
+        %> @param Required by MATLAB, but not used
         % --------------------------------------------------------------------
         function success = setCurEpoch(obj,epoch)
             success= false;
@@ -171,11 +167,6 @@ classdef PAController < handle
             end
         end
         
-        % --------------------------------------------------------------------
-        %> @brief Returns the current epoch of the instance variable accelObj
-        %> (PAData)
-        %> @param Instance of PAContraller
-        %> @param The  current epoch, or null if it has not been initialized.
         function epoch = curEpoch(obj)
             if(isempty(obj.accelObj))
                 epoch = [];
@@ -200,6 +191,8 @@ classdef PAController < handle
                 obj.SETTINGS.VIEW.accelFilename = obj.accelObj.filename;
                 obj.VIEW.showReady();
                 obj.VIEW.initWithAccelData(obj.accelObj);
+
+                
             end
         end
  

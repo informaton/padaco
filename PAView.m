@@ -187,9 +187,9 @@ classdef PAView < handle
             % obj.drawNew(obj.dataObj.filename);
             axesProps.xlim = obj.dataObj.getCurEpochRangeAsSamples();
             axesProps.ylim = obj.dataObj.getMinmax('all');
-            obj.initView(axesProps);
+            obj.initView(axesProps,obj.dataObj.getStruct());
             obj.setFilename(obj.dataObj.getFilename());
-        end
+        end        
         
         % --------------------------------------------------------------------
         %> @brief Initializes the graphic handles and maps figure tag names
@@ -199,18 +199,23 @@ classdef PAView < handle
         %> obj and whose values will be assigned to the 'ydata' fields of the
         %> corresponding line handles.  
         % --------------------------------------------------------------------
-        function initView(obj,axesProps)
+        function initView(obj,axesProps,dataStruct)
             lineProps = [];
             if(nargin>1 && ~isempty(axesProps))
                 obj.initAxesHandles(axesProps);
-                lineProps.visible = 'on';
-                lineProps.xdata = axesProps.xlim;
-                lineProps.ydata = [1 1];
+            end
+            
+            if(nargin<3)
+                dataStruct = [];
             end
             
             %Default line properties are used in initLineHandles if lineProps is empty
-            % (i.e. if axesProps is not provided or is empty)
-            obj.initLineHandles(lineProps);
+            % (i.e. if axesProps is not provided or is empty)            
+            lineProps.visible = 'on';
+            lineProps.xdata = axesProps.xlim;
+            lineProps.ydata = [1 1];
+            
+            obj.initLineHandles(lineProps, dataStruct);
             
             obj.initMenubar();
             obj.restore_state();
@@ -272,15 +277,25 @@ classdef PAView < handle
         %> @brief Initialize the line handles that will be used in the view.
         %> resets the currentEpoch to 1.
         %> @param obj Instance of PAView
-        %> @param Optional structure of line properties to be applied to all line handles.
+        %> @param Structure of line properties to be applied to all line
+        %> handles.  If empty ([]) then defaultvalues are used.
+        %> @param obj (Optional) PAData struct that matches the linehandle struct of
+        %> obj and whose values will be assigned to the 'ydata' fields of the
+        %> corresponding line handles.  Otherwise the values found in ydata and xdata fields of lineProps are used.
         % --------------------------------------------------------------------
-        function initLineHandles(obj,lineProps)
-            if(nargin<2 || isempty(lineProps))
+        function initLineHandles(obj,lineProps,lineData)
+            if(isempty(lineProps))
                 lineProps.visible = 'on';
                 lineProps.xdata = [0 1];
                 lineProps.ydata = [0 0];
             end
+            
             obj.recurseHandleInit(obj.linehandle,lineProps);
+            
+            if(nargin>2 && ~isempty(lineData))                
+                obj.recurseLineSetter(obj.linehandle, lineData);
+            end
+            
         end
 
         % May need to be deprecated.  Originally thought it would be good
@@ -314,9 +329,11 @@ classdef PAView < handle
         %> @param PADataObject Instance of PAData
         % --------------------------------------------------------------------
         function draw(obj)
-            
+            curEpoch = obj.dataObj.curEpoch;
+            epochRange = obj.dataObj.getCurEpochRangeAsSamples();
+            set(obj.axeshandle.primary,'xlim',epochRange);            
         end
-        
+
  
         % --------------------------------------------------------------------
         %> @brief Get the view's figure handle.
@@ -1417,6 +1434,9 @@ classdef PAView < handle
         %> handles found in handleStruct to.
         %==================================================================
         function recurseLineSetter(handleStruct, dataStruct,lineproperties)
+            if(nargin<3)
+                lineproperties = [];
+            end
             fnames = fieldnames(dataStruct);
             for f=1:numel(fnames)
                 fname = fnames{f};
