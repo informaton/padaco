@@ -41,10 +41,6 @@ classdef PAView < handle
         %> @brief Struct of line handles (graphic handle class) for showing
         %> activity data.
         linehandle;
-        %> @brief Struct of line handle properties corresponding to the
-        %> fields of linehandle.  These are derived from the input files
-        %> loaded by the PAData class.
-        lineproperty;
         
         %> struct of handles for the context menus
         contextmenuhandle; 
@@ -94,7 +90,7 @@ classdef PAView < handle
             % Clear the figure and such.
             obj.clearAxesHandles();
             obj.clearTextHandles(); 
-
+            obj.clearWidgets();
             
             %creates and initializes line handles (obj.linehandle fields)
             % However, all lines are invisible.
@@ -175,6 +171,15 @@ classdef PAView < handle
         end
         
         % --------------------------------------------------------------------
+        %> @brief Disable user interface widgets and clear contents.
+        %> @param obj Instance of PAView
+        % --------------------------------------------------------------------
+        function clearWidgets(obj)
+            handles = guidata(obj.getFigHandle());            
+            set(handles.edit_curEpoch,'enable','off','string','','visible','off'); 
+        end        
+        
+        % --------------------------------------------------------------------
         %> @brief Set the acceleration data instance variable and assigns
         %> line handle y values to those found with corresponding field
         %> names in PADataObject.
@@ -189,8 +194,7 @@ classdef PAView < handle
             axesProps.ylim = obj.dataObj.getMinmax('all');
             obj.initView(axesProps,obj.dataObj.getStruct());
             obj.setFilename(obj.dataObj.getFilename());
-        end
-        
+        end        
         
         % --------------------------------------------------------------------
         %> @brief Initializes the graphic handles and maps figure tag names
@@ -204,20 +208,23 @@ classdef PAView < handle
             lineProps = [];
             if(nargin>1 && ~isempty(axesProps))
                 obj.initAxesHandles(axesProps);
-                lineProps.visible = 'on';
-                lineProps.xdata = axesProps.xlim;
-                lineProps.ydata = [1 1];
             end
             
-            if(nargin>2 && ~isempty(dataStruct))
+            if(nargin<3)
                 dataStruct = [];
             end
+            
             %Default line properties are used in initLineHandles if lineProps is empty
-            % (i.e. if axesProps is not provided or is empty)
+            % (i.e. if axesProps is not provided or is empty)            
+            lineProps.visible = 'on';
+            lineProps.xdata = axesProps.xlim;
+            lineProps.ydata = [1 1];
+            
             obj.initLineHandles(lineProps, dataStruct);
             
-            
             obj.initMenubar();
+            obj.initWidgets();
+            
             obj.restore_state();
         end       
         
@@ -251,6 +258,16 @@ classdef PAView < handle
             set(handles.menu_settings,'enable','on');
             
             obj.restore_state();
+        end
+
+
+        % --------------------------------------------------------------------
+        %> @brief Initialize user interface widgets on start up.
+        %> @param obj Instance of PAView        
+        % --------------------------------------------------------------------
+        function initWidgets(obj)
+            handles = guidata(obj.getFigHandle());
+            set(handles.edit_curEpoch,'enable','on','visible','on','string','0');             
         end
         
         % --------------------------------------------------------------------
@@ -292,8 +309,8 @@ classdef PAView < handle
             
             obj.recurseHandleInit(obj.linehandle,lineProps);
             
-            if(nargin>2 && ~isempty(lineData))
-                       obj.recurseLineSetter(obj.linehandle, dataStruct);
+            if(nargin>2 && ~isempty(lineData))                
+                obj.recurseLineSetter(obj.linehandle, lineData);
             end
             
         end
@@ -333,7 +350,7 @@ classdef PAView < handle
             epochRange = obj.dataObj.getCurEpochRangeAsSamples();
             set(obj.axeshandle.primary,'xlim',epochRange);            
         end
-        
+
  
         % --------------------------------------------------------------------
         %> @brief Get the view's figure handle.
@@ -344,6 +361,19 @@ classdef PAView < handle
             figHandle = obj.figurehandle;
         end
 
+        
+        % --------------------------------------------------------------------
+        %> @brief Get the view's line handles as a struct.
+        %> @param obj Instance of PAView
+        %> @retval View's line handles as a struct.
+        % --------------------------------------------------------------------
+        function lineHandle = getLinehandle(obj)
+            lineHandle = obj.linehandle;
+        end
+
+        
+        
+        
         % --------------------------------------------------------------------
         function menu_file_screenshot_callback(obj,hObject, eventdata)
             % hObject    handle to menu_file_screenshot (see GCBO)
@@ -1434,6 +1464,9 @@ classdef PAView < handle
         %> handles found in handleStruct to.
         %==================================================================
         function recurseLineSetter(handleStruct, dataStruct,lineproperties)
+            if(nargin<3)
+                lineproperties = [];
+            end
             fnames = fieldnames(dataStruct);
             for f=1:numel(fnames)
                 fname = fnames{f};
@@ -1454,6 +1487,32 @@ classdef PAView < handle
                 end
             end
         end
+        
+        %==================================================================
+        %> @brief Recursively initializes the graphic handles found in the
+        %> provided structure with the properties found at corresponding locations
+        %> in the propStruct argument.
+        %> @param handleStruct The struct of line handles to set the
+        %> properties of.  
+        %> @param Structure of property structs (i.e. property/value pairings) to set the graphic
+        %> handles found in handleStruct to.
+        %==================================================================
+        function setStructWithStruct(handleStruct,properyStruct)
+            fnames = fieldnames(handleStruct);
+            for f=1:numel(fnames)
+                fname = fnames{f};
+                curHandleField = handleStruct.(fname);
+                curPropertyField = propertyStruct.(fname);
+                if(isstruct(curHandleField) && i)
+                    PAView.recurseHandleInit(curHandleField,properyStruct);
+                else
+                    if(ishandle(curHandleField))
+                        set(curHandleField,properyStruct);
+                    end
+                end
+            end
+        end
+        
         
         %==================================================================
         %> @brief Recursively initializes the graphic handles found in the

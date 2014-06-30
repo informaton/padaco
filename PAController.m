@@ -64,6 +64,28 @@ classdef PAController < handle
         Padaco_mainaxes_xlim;        
     end
     
+    methods(Access=private)
+        % --------------------------------------------------------------------
+        %> @brief Initializes the display using instantiated instance
+        %> variables VIEW (PAView) and accelObj (PAData)
+        %> @param Instance of PAContraller
+        % --------------------------------------------------------------------
+        function initView(obj)
+            %keep record of our settings
+            obj.SETTINGS.DATA.lastPathname = obj.accelObj.pathname;
+            obj.SETTINGS.DATA.lastFilename = obj.accelObj.filename;
+            
+            obj.VIEW.showReady();
+            obj.VIEW.initWithAccelData(obj.accelObj);
+            
+            lineHandles = obj.VIEW.getLinehandle();
+            
+            obj.setLineScale(lineHandles);
+            obj.setLineColor(lineHandles);
+            obj.setLineOffset(lineHandles);
+            
+        end
+    end
 
     methods
         
@@ -89,12 +111,16 @@ classdef PAController < handle
                 %let's create a VIEW class
                 obj.VIEW = PAView(Padaco_fig_h);
                 
+                handles = guidata(Padaco_fig_h);
+                
                 %configure the menu bar
                 obj.configureMenubar();                
                 
                 %configure the user interface widgets
                 obj.configureWidgetCallbacks();
                 
+                % Synthesize edit callback to trigger first display
+                obj.edit_curEpochCallback(handles.edit_curEpoch,[]);
                 
             end                
         end
@@ -136,7 +162,7 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function configureWidgetCallbacks(obj)
             handles = guidata(obj.VIEW.getFigHandle());
-            set(handles.edit_curEpoch,'callback',@obj.setCurEpochCallback);
+            set(handles.edit_curEpoch,'callback',@obj.edit_curEpochCallback);
         end
     
         % --------------------------------------------------------------------
@@ -190,18 +216,18 @@ classdef PAController < handle
         %> @param hObject    handle to menu_file_open (see GCBO)
         % --------------------------------------------------------------------
         function openFileCallback(obj,hObject,eventdata)
-            f=uigetfullfile({'*.csv','Comma Separated Vectors';'*.dat','Raw text (space delimited)'},'Select a file','off',fullfile(obj.SETTINGS.VIEW.accelPathname,obj.SETTINGS.VIEW.accelFilename));
+            f=uigetfullfile({'*.csv','Comma Separated Vectors';'*.dat','Raw text (space delimited)'},'Select a file','off',fullfile(obj.SETTINGS.DATA.lastPathname,obj.SETTINGS.DATA.lastFilename));
             
             if(~isempty(f))
                 obj.VIEW.showBusy('Loading');
                 obj.accelObj = PAData(f);
-                %update our settings
-                obj.SETTINGS.VIEW.accelPathname = obj.accelObj.pathname;
-                obj.SETTINGS.VIEW.accelFilename = obj.accelObj.filename;
-                obj.VIEW.showReady();
-                obj.VIEW.initWithAccelData(obj.accelObj);
+                
+                %initialize the PAData object's visual properties
+                obj.initView();
             end
         end
+        
+
  
         % --------------------------------------------------------------------
         function menu_file_screenshot_callback(obj,hObject, eventdata)

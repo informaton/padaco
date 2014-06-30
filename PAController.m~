@@ -64,6 +64,28 @@ classdef PAController < handle
         Padaco_mainaxes_xlim;        
     end
     
+    methods(Access=private)
+        % --------------------------------------------------------------------
+        %> @brief Initializes the display using instantiated instance
+        %> variables VIEW (PAView) and accelObj (PAData)
+        %> @param Instance of PAContraller
+        % --------------------------------------------------------------------
+        function initView(obj)
+            %keep record of our settings
+            obj.SETTINGS.DATA.accelPathname = obj.accelObj.pathname;
+            obj.SETTINGS.DATA.accelFilename = obj.accelObj.filename;
+            
+            obj.VIEW.showReady();
+            obj.VIEW.initWithAccelData(obj.accelObj);
+            
+            lineHandles = obj.VIEW.getLinehandles();
+            
+            obj.setLineScale(lineHandles);
+            obj.setLineColor(lineHandles);
+            obj.setLineOffset(lineHandles);
+            
+        end
+    end
 
     methods
         
@@ -89,12 +111,16 @@ classdef PAController < handle
                 %let's create a VIEW class
                 obj.VIEW = PAView(Padaco_fig_h);
                 
+                handles = guidata(Padaco_fig_h);
+                
                 %configure the menu bar
                 obj.configureMenubar();                
                 
                 %configure the user interface widgets
                 obj.configureWidgetCallbacks();
                 
+                % Synthesize edit callback to trigger first display
+                obj.edit_curEpochCallback(handles.edit_curEpoch,[]);
                 
             end                
         end
@@ -117,12 +143,16 @@ classdef PAController < handle
 
         %% Startup configuration functions
         %-- Menubar configuration --
+        % --------------------------------------------------------------------
+        %> @brief Assign figure's menubar callbacks.
+        %> Called internally during class construction.
+        %> @param Instance of PAContraller
+        % --------------------------------------------------------------------        
         function configureMenubar(obj)
             handles = guidata(obj.VIEW.getFigHandle());
             
             %file
             set(handles.menu_file_open,'callback',@obj.openFileCallback);
-            
         end
         
         % --------------------------------------------------------------------
@@ -132,9 +162,7 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function configureWidgetCallbacks(obj)
             handles = guidata(obj.VIEW.getFigHandle());
-            
-            set(handles.edit_curEpoch,'callback',@obj.setCurEpochCallback);
-            
+            set(handles.edit_curEpoch,'callback',@obj.edit_curEpochCallback);
         end
     
         % --------------------------------------------------------------------
@@ -157,8 +185,10 @@ classdef PAController < handle
         %> @brief Set the current epoch for the instance variable accelObj
         %> (PAData)
         %> @param Instance of PAContraller
-        %> @param Handle to the edit text widget
-        %> @param Required by MATLAB, but not used
+        %> @param True if the epoch is set successfully, and false otherwise.
+        %> @note Reason for failure include epoch values that are outside
+        %> the range allowed by accelObj (e.g. negative values or those
+        %> longer than the duration given.  
         % --------------------------------------------------------------------
         function success = setCurEpoch(obj,epoch)
             success= false;
@@ -167,6 +197,11 @@ classdef PAController < handle
             end
         end
         
+        % --------------------------------------------------------------------
+        %> @brief Returns the current epoch of the instance variable accelObj
+        %> (PAData)
+        %> @param Instance of PAContraller
+        %> @param The  current epoch, or null if it has not been initialized.
         function epoch = curEpoch(obj)
             if(isempty(obj.accelObj))
                 epoch = [];
@@ -186,15 +221,13 @@ classdef PAController < handle
             if(~isempty(f))
                 obj.VIEW.showBusy('Loading');
                 obj.accelObj = PAData(f);
-                %update our settings
-                obj.SETTINGS.VIEW.accelPathname = obj.accelObj.pathname;
-                obj.SETTINGS.VIEW.accelFilename = obj.accelObj.filename;
-                obj.VIEW.showReady();
-                obj.VIEW.initWithAccelData(obj.accelObj);
-
                 
+                %initialize the PAData object's visual properties
+                obj.initView();
             end
         end
+        
+
  
         % --------------------------------------------------------------------
         function menu_file_screenshot_callback(obj,hObject, eventdata)

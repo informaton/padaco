@@ -19,7 +19,7 @@ classdef  PASettings < handle
         %> @brief name of text file that stores the toolkit's settings
         parameters_filename
         %> @brief cell of string names corresponding to the struct properties that
-        %> contain settings  <b><i> {'DATA','VIEW', 'BATCH_PROCESS', 'PSD','MUSIC'}</b></i>
+        %> contain settings  <b><i> {'VIEW', 'BATCH_PROCESS', 'PSD','MUSIC'}</b></i>
         fieldNames;
         %> struct of PAData preferences.
         DATA;
@@ -137,6 +137,7 @@ classdef  PASettings < handle
             end;
         end
         
+        
         % ======================================================================
         %> @brief helper function for loadStruct
         %> @param pstruct parent struct by which the tok cell will be converted to
@@ -198,6 +199,7 @@ classdef  PASettings < handle
             end
         end
         
+
         
         % --------------------------------------------------------------------
         % =================================================================
@@ -207,8 +209,9 @@ classdef  PASettings < handle
         %>
         %> @param obj instance of the PASettings class.
         % =================================================================
-        function initialize(obj)            
-            obj.fieldNames = {'DATA','VIEW','BATCH_PROCESS','PSD','MUSIC'};
+        function initialize(obj)
+            %initialize global variables in Padaco....
+            obj.fieldNames = {'VIEW','BATCH_PROCESS','PSD','MUSIC'};
             obj.setDefaults();
             
             full_paramsFile = fullfile(obj.rootpathname,obj.parameters_filename);
@@ -293,7 +296,7 @@ classdef  PASettings < handle
         function wasModified = defaultsEditor(obj,optional_fieldName)
             tmp_obj = obj.copy();
             if(nargin<2)
-                lite_fieldNames = {'DATA','VIEW','PSD','MUSIC'}; %these are only one structure deep
+                lite_fieldNames = {'VIEW','PSD','MUSIC'}; %these are only one structure deep
             else
                 lite_fieldNames = optional_fieldName;
                 if(~iscell(lite_fieldNames))
@@ -395,14 +398,12 @@ classdef  PASettings < handle
             
             for f = 1:numel(fieldNames)
                 switch fieldNames{f}
-                    case 'DATA'
-                        obj.DATA.epochDurSec = 30; %perhaps want to base this off of the hpn file if it exists...
-                        obj.DATA.samplerate = 100;
-                        obj.DATA.lastPathname = '.'; %directory of accelerometer data.
-                        obj.DATA.lastFilename = ''; %last accelerometer data opened.
-                        
                     case 'VIEW'
+                        obj.VIEW.accelPathname = '.'; %directory of accelerometer data.
+                        obj.VIEW.accelFilename = ''; %last accelerometer data opened.
                         obj.VIEW.yDir = 'normal';  %or can be 'reverse'
+                        obj.VIEW.standard_epoch_sec = 30; %perhaps want to base this off of the hpn file if it exists...
+                        obj.VIEW.samplerate = 100;
                         obj.VIEW.screenshot_path = obj.rootpathname; %initial directory to look in for EDF files to load
                         obj.VIEW.output_pathname = fullfile(fileparts(mfilename('fullpath')),'output');
                         if(~isdir(obj.VIEW.output_pathname))

@@ -1,3 +1,4 @@
+% ======================================================================
 %> @file PAData.m
 %> @brief Accelerometer data loading class.
 % ======================================================================
@@ -26,9 +27,6 @@ classdef PAData < handle
        %> @li - sitting
        %> @li - lying   
        inclinometer;
-       %> @brief Epoch duration (in seconds) that file data was stored at.
-       %> This is the sampling rate of the file output.       
-       epochDurSec;       
        %> @brief Steps - unknown?  Maybe pedometer type reading?  
        steps;
        %> @brief Magnitude of tri-axis acceleration vectors.
@@ -50,7 +48,23 @@ classdef PAData < handle
        sampleRate;
        %> Current epoch.  Current position in the raw data.  The first epoch is '1' (i.e. not zero because this is MATLAB programming)
        curEpoch; 
+       %> Durtion of the sampled data in seconds.  
+       durationSec; 
+       %> @brief Defined in the accelerometer's file output and converted to seconds.
+       %> This is the sampling rate of the output file. ???
+       epochPeriodSec;
+       %> @brief Epoch duration (in seconds). 
+       %> This can be adjusted by the user, but is 30 s by default.
+       epochDurSec;    
        
+       %> @brief Struct of line handle properties corresponding to the
+       %> fields of linehandle.  These are derived from the input files
+       %> loaded by the PAData class.
+       lineproperty;
+        
+       color;
+       offset;
+       scale;
        
    end
    
@@ -83,6 +97,27 @@ classdef PAData < handle
                    obj.filename = strcat(obj.filename,ext);
                end               
            end
+           
+           obj.color.accelRaw.x = 'r';
+           obj.color.accelRaw.y = 'b';
+           obj.color.accelRaw.z = 'g';
+           obj.color.inclinometer = 'k';
+           obj.color.lux = 'y';
+           obj.color.vecMag = 'm';
+           obj.color.steps = 'o'; 
+           
+           obj.scale.accelRaw.x = ;
+           obj.scale.accelRaw.y = ;
+           obj.scale.accelRaw.z = ;
+           obj.scale.inclinometer = ;
+           obj.scale.lux = ;
+           obj.scale.vecMag = ;
+           obj.scale.steps = 1; 
+           
+           
+           
+           
+           
            
            obj.sampleRate.accelRaw = 80;
            obj.sampleRate.inclinometer = 80;
@@ -168,17 +203,19 @@ classdef PAData < handle
        end
        
        % --------------------------------------------------------------------
-       %> @brief Returns the last epoSet the current epoch for the instance variable accelObj
-       %> (PAData)
-       %> @param Instance of PAContraller
-       %> @param True if the epoch is set successfully, and false otherwise.
-       %> @note Reason for failure include epoch values that are outside
-       %> the range allowed by accelObj (e.g. negative values or those
-       %> longer than the duration given.
+       %> @brief Returns the total number of epochs the data can be divided
+       %> into based on sampling rate, epoch resolution (i.e. duration), and the size of the time
+       %> series data.
+       %> @param Instance of PAData
+       %> @param The maximum/last epoch allowed
+       %> @note In the case of data size is not broken perfectly into epochs, but has an incomplete epoch, the
+       %> epoch count is rounded up.  For example, if the time series data is 10 s in duration and the epoch size is 
+       %> defined as 30 seconds, then the epochCount is 1.  
        % --------------------------------------------------------------------
-       function maxEpoch = getMaxEpoch(obj)
-       
+       function epochCount = getEpochCount(obj)
+           epochCount = ceil(obj.durationSec/obj.epochDurSec);
        end
+       
        % ======================================================================
        %> @brief Returns the minmax value(s) for the object's (obj) time series data
        %> Returns either a structure or 1x2 vector of [min, max] values for the field
@@ -275,8 +312,12 @@ classdef PAData < handle
                %  Start Date 1/23/2014
                tline = fgetl(fid);
                obj.startDate = strrep(tline,'Start Date ','');
+               
+               % Pull the following line from the file and convert hh:mm:ss
+               % to total seconds
+               %  Epoch Period (hh:mm:ss) 00:00:01
                a=fscanf(fid,'%*s %*s %*s %d:%d:%d');
-               obj.epochDurSec  =[3600 60 1]* a;
+               obj.epochPeriodSec = [3600 60 1]* a;
            end
            frewind(fid);
        end
@@ -323,7 +364,9 @@ classdef PAData < handle
                        obj.inclinometer.sitting = dataCell{8};
                        obj.inclinometer.lying = dataCell{8};
                        obj.vecMag = dataCell{8};
-                       fprintf('%d rows loaded from %s\n',numel(obj.accelRaw.x),fullfilename);
+                       numSamples = numel(obj.accelRaw.x);
+                       fprintf('%d rows loaded from %s\n',numSamples,fullfilename);
+                       obj.durationSec = numSamples*obj.epochPeriodSec;
                        fclose(fid);
                    catch me
                        showME(me);
