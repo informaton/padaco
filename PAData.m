@@ -48,7 +48,9 @@ classdef PAData < handle
        sampleRate;
        %> Current epoch.  Current position in the raw data.  The first epoch is '1' (i.e. not zero because this is MATLAB programming)
        curEpoch; 
-       %> Durtion of the sampled data in seconds.  
+       %> Time series struct of values at the current epoch
+       curStruct;
+       %> Durtion of the sampled data in seconds.       
        durationSec; 
        %> @brief Defined in the accelerometer's file output and converted to seconds.
        %> This is the sampling rate of the output file. ???
@@ -98,6 +100,8 @@ classdef PAData < handle
                end               
            end
            
+           obj.curStruct = obj.getDummyStruct;
+           
            obj.color.accelRaw.x = 'r';
            obj.color.accelRaw.y = 'b';
            obj.color.accelRaw.z = 'g';
@@ -106,19 +110,23 @@ classdef PAData < handle
            obj.color.vecMag = 'm';
            obj.color.steps = 'o'; 
            
-           obj.scale.accelRaw.x = ;
-           obj.scale.accelRaw.y = ;
-           obj.scale.accelRaw.z = ;
-           obj.scale.inclinometer = ;
-           obj.scale.lux = ;
-           obj.scale.vecMag = ;
-           obj.scale.steps = ; 
+           obj.scale.accelRaw.x = 1;
+           obj.scale.accelRaw.y = 1;
+           obj.scale.accelRaw.z = 1;
+           obj.scale.inclinometer = 1;
+           obj.scale.lux = 1;
+           obj.scale.vecMag = 1;
+           obj.scale.steps = 1; 
            
-           
-           
-           
-           
-           
+           yDelta = 50;
+           obj.offset.accelRaw.x = 0;
+           obj.offset.accelRaw.y = yDelta;
+           obj.offset.accelRaw.z = yDelta*2;
+           obj.offset.inclinometer = yDelta*3;
+           obj.offset.lux = yDelta*4;
+           obj.offset.vecMag = yDelta*5;
+           obj.offset.steps = yDelta*6; 
+                      
            obj.sampleRate.accelRaw = 80;
            obj.sampleRate.inclinometer = 80;
            obj.sampleRate.lux = 80;
@@ -127,23 +135,72 @@ classdef PAData < handle
            obj.curEpoch = 1;
            obj.loadFile();
            
-           test = false;
-           if(test)
-               % testFile = '/Users/hyatt4/Google Drive/work/prospects/handwriting recognition/reacceldata/Sensor_record_20140407_160400_W1.csv';
-               obj.pathname = '/Users/hyatt4/Google Drive/work/Stanford - Pediatrics/sampledata';
-               [filenames,~] = getFilenamesi(obj.pathname,'csv');
-               if(iscell(filenames))
-                   obj.filename=filenames{2};
-               else
-                   obj.filename = filenames;
-               end
-               obj.loadFile(obj.getFullFilename());
+          
+       end
+       
+       % ======================================================================
+       %> @brief Returns a structure of PAData's time series fields and
+       %> values, depending on the user's input selection.
+       %> @param Instance of PAData.
+       %> @param Type of structure to be returned; optional.  A string.  Possible
+       %> values include:
+       %> - @b dummy Empty data.
+       %> - @b all All, original time series data.
+       %> - @b current Time series data with offset and scaling values applied.
+       %> @retval tsStruct A struct of PAData's time series instance data.  The fields
+       %> include:
+       %> - accelRaw.x
+       %> - accelRaw.y
+       %> - accelRaw.z
+       %> - inclinometer
+       %> - lux
+       %> - vecMag
+       % =================================================================      
+       function dat = getStruct(obj,choice)
+           switch(choice)
+               case 'dummy'
+                   dat = obj.getDummyStruct();
+               case 'current'
+                   dat = obj.getCurrentStruct();
+               case 'all'
+                   dat = obj.getAllStruct();
+               otherwise
+                   dat = obj.getAllStruct();
            end
        end
        
+       %> @brief overloaded subsindex method returns structure of time series data
+       %> at indices provided. 
+       %> @param Instance of PAData
+       %> @param Vector (logical or ordinal) of indices to select time
+       %> series data by.
+       %> @retval A struct of PAData's time series instance data for the indices provided.  The fields
+       %> include:
+       %> - accelRaw.x
+       %> - accelRaw.y
+       %> - accelRaw.z
+       %> - inclinometer
+       %> - lux
+       %> - vecMag
+       function dat = subsindex(obj,indices)
+           
+           dat.accelRaw.x = obj.accelRaw.x(indices);
+           dat.accelRaw.y = obj.accelRaw.y(indices);
+           dat.accelRaw.z = obj.accelRaw.z(indices);
+           dat.inclinometer = obj.inclinometer.off(indices);
+           dat.inclinometer = obj.inclinometer.standing(indices);
+           dat.inclinometer = obj.inclinometer.sitting(indices);
+           dat.inclinometer = obj.inclinometer.lying(indices);
+           dat.lux = obj.lux(indices);
+           dat.vecMag = obj.vecMag(indices);           
+       end
+       
+       
+
+       
        
        % ======================================================================
-       %> @brief Returns a structure of an instnace PAData's time series data.
+       %> @brief Returns a structure of an insance PAData's time series data.
        %> @param Instance of PAData.
        %> @retval tsStruct A struct of PAData's time series instance data.  The fields
        %> include:
@@ -154,13 +211,52 @@ classdef PAData < handle
        %> - lux
        %> - vecMag
        % =================================================================      
-       function dat = getStruct(obj)
+       function dat = getAllStruct(obj)
            dat.accelRaw = obj.accelRaw;
            dat.inclinometer = obj.inclinometer;
            dat.lux = obj.lux;
            dat.vecMag = obj.vecMag;
        end
        
+       % ======================================================================
+       %> @brief Sets the current time series data structure based on the
+       %> current epoch range (as samples).
+       %> @param Instance of PAData.
+       %> @retval tsStruct A struct of PAData's time series instance data.  The fields
+       %> include:
+       %> - accelRaw.x
+       %> - accelRaw.y
+       %> - accelRaw.z
+       %> - inclinometer
+       %> - lux
+       %> - vecMag
+       % =================================================================      
+       function setCurrentStruct(obj)
+           epochRange = obj.getCurEpochRangeAsSamples();
+           obj.curStruct = obj(epochRange);
+       end
+       
+       % ======================================================================
+       %> @brief Returns a structure of an insance PAData's time series
+       %> data at the current epoch.
+       %> @param Instance of PAData.
+       %> @retval tsStruct A struct of PAData's time series instance data.  The fields
+       %> include:
+       %> - accelRaw.x
+       %> - accelRaw.y
+       %> - accelRaw.z
+       %> - inclinometer
+       %> - lux
+       %> - vecMag
+       % =================================================================      
+       function dat = getCurrentStruct(obj)
+           dat = obj.curStruct;
+       end
+       
+       function dat = getCurrentDisplayStruct(obj)           
+           dat = PAData.structOp('times',obj.getCurrentStruct,obj.scale);
+           dat = PAData.structOp('plus',dat,obj.offset;
+       end
        
        % ======================================================================
        %> @brief Returns a structure of an instnace PAData's time series data.
@@ -196,6 +292,7 @@ classdef PAData < handle
        function success = setCurEpoch(obj,epoch)
            if(epoch>0 && epoch<=obj.getMaxEpoch())
                obj.curEpoch = epoch;
+               obj.setCurrentStruct();
                success = true;
            else
                success= false;
@@ -388,6 +485,50 @@ classdef PAData < handle
    end
    
    methods(Static)
+       
+       % ======================================================================
+       %> @brief Evaluates the two structures, field for field, using the function name
+       %> provided.
+       %> @param A structure whose fields are either structures or vectors.
+       %> @param A structure whose fields are either structures or vectors.
+       %> @retval A structure with same fields as ltStruct and rtStruct
+       %> whose values are the result of applying operand to corresponding
+       %> fields.  
+       %> @note For example:
+       %> @note ltStruct =
+       %> @note         x: 2
+       %> @note     accel: [1x1 struct]
+       %> @note       [x]: 0.5000
+       %> @note       [y]: 1
+       %> @note
+       %> @note rtStruct =
+       %> @note         x: [10 10 2]
+       %> @note     accel: [1x1 struct]
+       %> @note       [x]: [10 10 2]
+       %> @note       [y]: [1 2 3]
+       %> @note
+       %> @note PAData.structEval('plus',rtStruct,ltStruct)
+       %> @note ans =
+       %> @note         x: [12 12 4]
+       %> @note     accel: [1x1 struct]
+       %> @note       [x]: [10.5000 10.5000 2.5000]
+       %> @note       [y]: [2 3 4]
+       %> @note
+       % ======================================================================
+       function resultStruct = structEval(operand,ltStruct,rtStruct)
+           
+           if(isstruct(ltStruct))               
+               fnames = fieldnames(ltStruct);
+               resultStruct = struct();
+               for f=1:numel(fnames)
+                   curField = fnames{f};
+                   resultStruct.(curField) = PAData.structEval(operand,ltStruct.(curField),rtStruct.(curField));
+               end
+           else
+               resultStruct = feval(operand,ltStruct,rtStruct);
+           end
+       end
+       
        
        % ======================================================================
        %> @brief Evaluates the range (min, max) of components found in the

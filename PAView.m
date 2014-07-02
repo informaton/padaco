@@ -346,9 +346,11 @@ classdef PAView < handle
         %> @param PADataObject Instance of PAData
         % --------------------------------------------------------------------
         function draw(obj)
-            curEpoch = obj.dataObj.curEpoch;
             epochRange = obj.dataObj.getCurEpochRangeAsSamples();
-            set(obj.axeshandle.primary,'xlim',epochRange);            
+            curData = obj.dataObj.getCurDisplayStruct();
+            set(obj.axeshandle.primary,'xlim',epochRange);       
+            obj.setLinehandles(curData);
+            
         end
 
  
