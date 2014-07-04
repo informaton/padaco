@@ -41,15 +41,11 @@ classdef PAData < handle
        startDate;
        %> @brief Struct of sample rates corresponding to time series data stored
        %> by class instances.  Fields include:
-       %> - accelRaw [default is 80Hz]
+       %> - accelRaw [default is 40Hz]
        %> - inclinometer
        %> - lux
        %> - vecMag
        sampleRate;
-       %> Current epoch.  Current position in the raw data.  The first epoch is '1' (i.e. not zero because this is MATLAB programming)
-       curEpoch; 
-       %> Time series struct of values at the current epoch
-       curStruct;
        %> Durtion of the sampled data in seconds.       
        durationSec; 
        %> @brief Defined in the accelerometer's file output and converted to seconds.
@@ -67,6 +63,14 @@ classdef PAData < handle
        color;
        offset;
        scale;
+       yDelta;
+       
+   end
+   
+   properties (Access = private)
+       %> Current epoch.  Current position in the raw data.  The first epoch is '1' (i.e. not zero because this is MATLAB programming)
+       curEpoch; 
+       
        
    end
    
@@ -100,41 +104,56 @@ classdef PAData < handle
                end               
            end
            
-           obj.curStruct = obj.getDummyStruct;
+           obj.color.accelRaw.x.color = 'r';
+           obj.color.accelRaw.y.color = 'b';
+           obj.color.accelRaw.z.color = 'g';
            
-           obj.color.accelRaw.x = 'r';
-           obj.color.accelRaw.y = 'b';
-           obj.color.accelRaw.z = 'g';
-           obj.color.inclinometer = 'k';
-           obj.color.lux = 'y';
-           obj.color.vecMag = 'm';
-           obj.color.steps = 'o'; 
+           obj.color.inclinometer.standing.color = 'k';
+           obj.color.inclinometer.lying.color = 'k';
+           obj.color.inclinometer.sitting.color = 'k';
+           obj.color.inclinometer.off.color = 'k';
+           
+           obj.color.lux.color = 'y';
+           obj.color.vecMag.color = 'm';
+           obj.color.steps.color = 'o'; 
            
            obj.scale.accelRaw.x = 1;
            obj.scale.accelRaw.y = 1;
            obj.scale.accelRaw.z = 1;
-           obj.scale.inclinometer = 1;
+           obj.scale.inclinometer.standing = 1;
+           obj.scale.inclinometer.lying = 1;
+           obj.scale.inclinometer.sitting = 1;
+           obj.scale.inclinometer.off = 1;
            obj.scale.lux = 1;
            obj.scale.vecMag = 1;
            obj.scale.steps = 1; 
            
-           yDelta = 50;
-           obj.offset.accelRaw.x = 0;
-           obj.offset.accelRaw.y = yDelta;
-           obj.offset.accelRaw.z = yDelta*2;
-           obj.offset.inclinometer = yDelta*3;
-           obj.offset.lux = yDelta*4;
-           obj.offset.vecMag = yDelta*5;
-           obj.offset.steps = yDelta*6; 
-                      
-           obj.sampleRate.accelRaw = 80;
-           obj.sampleRate.inclinometer = 80;
-           obj.sampleRate.lux = 80;
-           obj.sampleRate.vecMag = 80;
+           
+
+            
+  
+           
+           obj.sampleRate.accelRaw = 40;
+           obj.sampleRate.inclinometer = 40;
+           obj.sampleRate.lux = 40;
+           obj.sampleRate.vecMag = 40;
            obj.epochDurSec = 30;
            obj.curEpoch = 1;
+           
+           
            obj.loadFile();
            
+           obj.yDelta = 0.05*diff(obj.getMinmax('all'));
+           obj.offset.accelRaw.x = obj.yDelta*1;
+           obj.offset.accelRaw.y = obj.yDelta*5;
+           obj.offset.accelRaw.z = obj.yDelta*10;
+           obj.offset.inclinometer.standing = obj.yDelta*14;
+           obj.offset.inclinometer.lying = obj.yDelta*15;
+           obj.offset.inclinometer.sitting = obj.yDelta*16;
+           obj.offset.inclinometer.off = obj.yDelta*17;
+           obj.offset.lux = obj.yDelta*18;
+           obj.offset.vecMag = obj.yDelta*19;
+           obj.offset.steps = obj.yDelta*20; 
           
        end
        
@@ -157,6 +176,9 @@ classdef PAData < handle
        %> - vecMag
        % =================================================================      
        function dat = getStruct(obj,choice)
+           if(nargin<2)
+               choice = '';
+           end
            switch(choice)
                case 'dummy'
                    dat = obj.getDummyStruct();
@@ -184,20 +206,26 @@ classdef PAData < handle
        %> - vecMag
        function dat = subsindex(obj,indices)
            
-           dat.accelRaw.x = obj.accelRaw.x(indices);
-           dat.accelRaw.y = obj.accelRaw.y(indices);
-           dat.accelRaw.z = obj.accelRaw.z(indices);
-           dat.inclinometer = obj.inclinometer.off(indices);
-           dat.inclinometer = obj.inclinometer.standing(indices);
-           dat.inclinometer = obj.inclinometer.sitting(indices);
-           dat.inclinometer = obj.inclinometer.lying(indices);
-           dat.lux = obj.lux(indices);
-           dat.vecMag = obj.vecMag(indices);           
+           dat.accelRaw.x = double(obj.accelRaw.x(indices));
+           dat.accelRaw.y = double(obj.accelRaw.y(indices));
+           dat.accelRaw.z = double(obj.accelRaw.z(indices));
+           dat.inclinometer.off = double(double(obj.inclinometer.off(indices)));
+           dat.inclinometer.standing = double(obj.inclinometer.standing(indices));
+           dat.inclinometer.sitting = double(obj.inclinometer.sitting(indices));
+           dat.inclinometer.lying = double(obj.inclinometer.lying(indices));
+           dat.lux = double(obj.lux(indices));
+           dat.vecMag = double(obj.vecMag(indices));           
        end
        
        
-
-       
+       function sref = subsref(obj,s)
+           if(strcmp(s(1).type,'()') && length(s)<2)
+               % Note that obj.Data is passed to subsref
+               sref = obj.subsindex(cell2mat(s.subs));               
+           else
+               sref = builtin('subsref',obj,s);
+           end
+       end
        
        % ======================================================================
        %> @brief Returns a structure of an insance PAData's time series data.
@@ -218,23 +246,6 @@ classdef PAData < handle
            dat.vecMag = obj.vecMag;
        end
        
-       % ======================================================================
-       %> @brief Sets the current time series data structure based on the
-       %> current epoch range (as samples).
-       %> @param Instance of PAData.
-       %> @retval tsStruct A struct of PAData's time series instance data.  The fields
-       %> include:
-       %> - accelRaw.x
-       %> - accelRaw.y
-       %> - accelRaw.z
-       %> - inclinometer
-       %> - lux
-       %> - vecMag
-       % =================================================================      
-       function setCurrentStruct(obj)
-           epochRange = obj.getCurEpochRangeAsSamples();
-           obj.curStruct = obj(epochRange);
-       end
        
        % ======================================================================
        %> @brief Returns a structure of an insance PAData's time series
@@ -245,17 +256,33 @@ classdef PAData < handle
        %> - accelRaw.x
        %> - accelRaw.y
        %> - accelRaw.z
-       %> - inclinometer
+       %> - inclinometer (struct with more fields)
        %> - lux
        %> - vecMag
        % =================================================================      
-       function dat = getCurrentStruct(obj)
-           dat = obj.curStruct;
+       function curStruct = getCurrentStruct(obj)
+           epochRange = obj.getCurEpochRangeAsSamples();
+           % This does not work:
+           % obj.curStruct = obj(epochRange);
+           curStruct = obj.subsindex(epochRange(1):epochRange(end));
        end
        
-       function dat = getCurrentDisplayStruct(obj)           
-           dat = PAData.structOp('times',obj.getCurrentStruct,obj.scale);
-           dat = PAData.structOp('plus',dat,obj.offset;
+       % ======================================================================
+       %> @brief Returns the time series data as a struct for the current epoch range,
+       %> adjusted for visual offset and scale.       
+       %> @param Instance of PAData.
+       %> @retval tsStruct A struct of PAData's time series instance data.  The fields
+       %> include:
+       %> - accelRaw.x
+       %> - accelRaw.y
+       %> - accelRaw.z
+       %> - inclinometer (struct with more fields)
+       %> - lux
+       %> - vecMag
+       % =================================================================      
+       function dat = getCurrentDisplayStruct(obj)
+           dat = PAData.structEval('times',obj.getCurrentStruct,obj.scale);
+           dat = PAData.structEval('plus',dat,obj.offset);
        end
        
        % ======================================================================
@@ -284,19 +311,38 @@ classdef PAData < handle
        %> @brief Set the current epoch for the instance variable accelObj
        %> (PAData)
        %> @param Instance of PAContraller
-       %> @param True if the epoch is set successfully, and false otherwise.
-       %> @note Reason for failure include epoch values that are outside
-       %> the range allowed by accelObj (e.g. negative values or those
-       %> longer than the duration given.
+       %> @param The epoch to set curEpoch to.
+       %> @retval The current value of instance variable curEpoch.
+       %> @note If the input argument for epoch is negative or exceeds 
+       %> the maximum epoch value for the time series data, then it is not used
+       %> and the curEpoch value is retained, and also returned.
        % --------------------------------------------------------------------
-       function success = setCurEpoch(obj,epoch)
-           if(epoch>0 && epoch<=obj.getMaxEpoch())
+       function curEpoch = setCurEpoch(obj,epoch)
+           if(epoch>0 && epoch<=obj.getEpochCount())
                obj.curEpoch = epoch;
-               obj.setCurrentStruct();
-               success = true;
-           else
-               success= false;
+               %obj.setCurrentStruct();
            end
+           %returns the current epoch, wether it be 'epoch' or not.
+           curEpoch = obj.getCurEpoch();
+       end
+       
+       % --------------------------------------------------------------------
+       % @brief Returns the current epoch.
+       % @param Instance of PAData
+       % @retval The current epoch;
+       % --------------------------------------------------------------------
+       function curEpoch = getCurEpoch(obj)
+           curEpoch = obj.curEpoch;
+       end
+       
+       % --------------------------------------------------------------------
+       % @brief Returns the color instance variable
+       % @param Instance of PAData
+       % @retval A struct of color values correspodning to the time series
+       % fields of obj.
+       % --------------------------------------------------------------------
+       function color = getColor(obj)
+           color = obj.color;
        end
        
        % --------------------------------------------------------------------
@@ -312,6 +358,17 @@ classdef PAData < handle
        function epochCount = getEpochCount(obj)
            epochCount = ceil(obj.durationSec/obj.epochDurSec);
        end
+       
+       % ======================================================================
+       %> @brief Returns the minimum and maximum amplitudes that can be
+       %> displayed uner the current configuration.
+       %> @param Instance of PAData.
+       %> @retval 1x2 vector containing ymin and ymax.
+       % ======================================================================
+       function yLim = getDisplayMinMax(obj)
+           
+           yLim = [0, 20 ]*obj.yDelta;
+       end    
        
        % ======================================================================
        %> @brief Returns the minmax value(s) for the object's (obj) time series data
@@ -335,20 +392,28 @@ classdef PAData < handle
        %> values for the field name specified.
        % =================================================================      
        function minMax = getMinmax(obj,field)
+           
+           % get all data for all structs.
+           dataStruct = obj.getStruct('all'); 
+           
            if(nargin<2 || isempty(field))
                field = 'all';
            end
-           dataStruct = obj.getStruct();
+
+           % get all fields
            if(strcmpi(field,'all'))
                minMax = obj.getRecurseMinmax(dataStruct);
            else
                
+               % if it is not a struct (and is a 'string')
+               % then get the value for it.
                if(~strcmpi(field,'struct'))
                    dataStruct = dataStruct.(field);
                end
                minMax = obj.minmax(dataStruct);
            end
        end
+       
        
        
        % ======================================================================
@@ -415,7 +480,12 @@ classdef PAData < handle
                %  Epoch Period (hh:mm:ss) 00:00:01
                a=fscanf(fid,'%*s %*s %*s %d:%d:%d');
                obj.epochPeriodSec = [3600 60 1]* a;
+           else
+               obj.epochPeriodSec = 1;
+               obj.startDate = 'N/A';
+               fprintf(' File does not include header.  Default values set for start date and epochPeriodSec (1).\n');
            end
+           
            frewind(fid);
        end
        
@@ -553,7 +623,6 @@ classdef PAData < handle
                curField = dataStruct.(fnames{f});
                structMinmax.(fnames{f}) = minmax(PAData.getRecurseMinmax(curField));
            end
-           
        end
        
        % ======================================================================
@@ -572,7 +641,7 @@ classdef PAData < handle
                end
            else
                %minmax is performed on each row; just make one row
-               minmaxVec = minmax(dataStruct(:)');
+               minmaxVec = double(minmax(dataStruct(:)'));
            end
        end
        
