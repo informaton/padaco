@@ -300,7 +300,7 @@ classdef PAData < handle
            epochDurSamples = obj.getEpochDurSamples();
            epochRange = (obj.curEpoch-1)*epochDurSamples+[1,epochDurSamples];
            
-           epochRange(2) = min([epochRange(2),obj.durationSamples()]);
+           epochRange(2) = min([epochRange(2),numel(obj.accelRaw.x]);
                        
        end
 
@@ -342,11 +342,10 @@ classdef PAData < handle
            curEpoch = obj.curEpoch;
        end
        
-       % --------------------------------------------------------------------
-       % @brief Returns the number of samples contained in the time series data.
+% --------------------------------------------------------------------
+       % @brief Returns the current epoch.
        % @param Instance of PAData
-       % @retval Number of elements contained in durSamples instance var
-       %> (initialized by number of elements in accelRaw.x
+       % @retval The current epoch;
        % --------------------------------------------------------------------
        function durationSamp = durationSamples(obj)
            durationSamp = obj.durSamples;
@@ -549,9 +548,7 @@ classdef PAData < handle
                        obj.inclinometer.sitting = dataCell{8};
                        obj.inclinometer.lying = dataCell{8};
                        obj.vecMag = dataCell{8};
-                       obj.durSamples = numel(obj.accelRaw.x);
-                       numSamples = obj.durationSamples();
-                       
+                       numSamples = numel(obj.accelRaw.x);
                        fprintf('%d rows loaded from %s\n',numSamples,fullfilename);
                        
                        %either use epochPeriodSec or use samplerate.

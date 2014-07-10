@@ -43,11 +43,7 @@ classdef PAView < handle
         %> activity data.
         linehandle;
         
-        %> @brief Graphic handle of the vertical bar which provides a
-        %> visual reference of where the epoch is comparison to the entire
-        %> study.
-        positionBarHandle;
-        
+        overViewLineHandle;
         %> struct of handles for the context menus
         contextmenuhandle; 
          
@@ -110,8 +106,6 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         function setCurEpoch(obj,epochStr)
            set(obj.texthandle.curEpoch,'string',epochStr); 
-           epochNum = str2double(epochStr);
-           set(obj.positionBarHandle,'xdata',repmat(epochNum,1,2));
            obj.draw();
         end
         
@@ -308,8 +302,6 @@ classdef PAView < handle
             
             obj.linehandle = obj.recurseLineGenerator(dataStruct,lineProps);
             
-            obj.positionBarHandle = line('parent',obj.axeshandle.secondary,'visible','off');%annotation(obj.figurehandle.sev,'line',[1, 1], [pos(2) pos(2)+pos(4)],'hittest','off');
-            
             %add grid lines
 %             if(~isfield(obj.linehandle,'x_minorgrid')||isempty(obj.linehandle.x_minorgrid)||~ishandle(obj.linehandle.x_minorgrid))
 %                 obj.linehandle.x_minorgrid = line('xdata',[],'ydata',[],'parent',obj.axeshandle.primary,'color',[0.8 0.8 0.8],'linewidth',0.5,'linestyle',':','hittest','off','visible','on');
@@ -339,8 +331,6 @@ classdef PAView < handle
                 obj.recurseLineSetter(obj.linehandle, lineData);
             end
             
-            set(obj.positionBarHandle,'visible','on','ydata',[0 1]);
-            
         end
         
         % --------------------------------------------------------------------
@@ -362,6 +352,8 @@ classdef PAView < handle
             set(obj.axeshandle.primary,'xlim',epochRange);       
             lineProps.xdata = epochRange(1):epochRange(end);
             obj.recurseLineSetter(obj.linehandle,curData,lineProps);
+            
+            drawLine(obj);
         end
 
         % --------------------------------------------------------------------

@@ -135,8 +135,8 @@ classdef PAController < handle
             
             % figure callbacks
             set(figH,'CloseRequestFcn',{@obj.figureCloseCallback,guidata(figH)});            
-            set(figH,'KeyPressFcn',@obj.keyPressCallback);
-            set(figH,'KeyReleaseFcn',@obj.keyReleaseCallback);
+            set(figH,'KeyPressFcn',obj.keyPressCallback);
+            set(figH,'KeyReleaseFcn',obj.keyReleaseCallback);
             
             %configure the menu bar
             obj.configureMenubar();
@@ -177,13 +177,14 @@ classdef PAController < handle
             if(strcmp(key,'add'))
                 
             elseif(strcmp(key,'subtract'))
-                       
+           
+            
             elseif(strcmp(key,'leftarrow')||strcmp(key,'pagedown'))
                 %go backward 1 epoch
                 obj.setCurEpoch(epoch-1);                
             elseif(strcmp(key,'rightarrow')||strcmp(key,'pageup'))
                 %go forward 1 epoch
-                obj.setCurEpoch(epoch+1);                    
+                obj.setCurEpoch(epoch-1);                    
             elseif(strcmp(key,'uparrow'))
                 %go forward 10 epochs
                 obj.setCurEpoch(epoch+10);
@@ -195,8 +196,10 @@ classdef PAController < handle
             if(strcmp(eventdata.Key,'shift'))
                 set(obj.VIEW.getFigHandle(),'pointer','ibeam');
             end
+            
+            
+            %copy to clipboard
             if(strcmp(eventdata.Modifier,'control'))
-                %kill the program            
                 if(strcmp(eventdata.Key,'x'))
                     delete(hObject);
                     %take screen capture of figure
