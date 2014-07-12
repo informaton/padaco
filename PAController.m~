@@ -294,14 +294,11 @@ classdef PAController < handle
         %> @param Required by MATLAB, but not used
         % --------------------------------------------------------------------
         function menu_windowDurSecCallback(obj,hObject,eventdata)
-            %get the array of window sizes in seconds
             windowDursSec = get(hObject,'userdata');
-            % grab the currently selected window size (in seconds)
-            windowDurSec = windowDursSec(get(hObject,'value'));
             
-            %change it - this internally recalculates the cur epoch
-            obj.accelObj.setEpochDurSec(windowDurSec);
-            obj.setCurEpoch(obj.curEpoch());
+            obj.accelObj.setDurSec(valueSec);
+            obj.setEpoch(obj.curEpoch());
+            
         end
         
         % --------------------------------------------------------------------

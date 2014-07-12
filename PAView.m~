@@ -302,12 +302,12 @@ classdef PAView < handle
                 900,'15 min';
                 1800,'30 min';
                 3600,'1 hour';
-                7200,'2 hours';
-                14400,'4 hours';
-                28800,'8 hours';
-                43200,'12 hours';
-                57600,'16 hours';
-                86400,'24 hours'};
+                7200,'2 hour';
+                14400,'4 hour'};
+                28800,'8 hour'};
+                14400,'12 hour'};
+                57600,'16 hour'};
+                14400,'24 hour'};
             
             set(handles.menu_windowDurSec,'enable','on','visible','on','userdata',cell2mat(windowMinSelection(:,1)), 'string',windowMinSelection(:,2),'value',1);
         end

@@ -301,7 +301,7 @@ classdef PAData < handle
        %> @note Calcuation based on instance variables epochDurSec and sampleRate
        % =================================================================      
        function epochDurSamples = getEpochDurSamples(obj)
-           epochDurSamples = obj.epochDurSec*obj.getSampleRate();
+           epochDurSamples = obj.epochDurSec*obj.sampleRate.accelRaw;
        end
        
        % --------------------------------------------------------------------
@@ -384,8 +384,9 @@ classdef PAData < handle
        %> @retval Sample rate of the x-axis accelerometer.
        % --------------------------------------------------------------------
        function fs = getSampleRate(obj)
-           fs = obj.sampleRate.accelRaw;
+           fs = obj.samplerate.Rate.accelRaw;
        end
+       
        
        % --------------------------------------------------------------------
        %> @brief Returns the total number of epochs the data can be divided
@@ -583,7 +584,7 @@ classdef PAData < handle
                        if(obj.epochPeriodSec>0)
                            obj.durationSec = numSamples*obj.epochPeriodSec;
                        else
-                           obj.durationSec = numSamples/obj.getSampleRate();   
+                           obj.durationSec = numSamples/obj.sampleRate.accelRaw;   
                        end                       
                        fclose(fid);
                    catch me
@@ -612,10 +613,10 @@ classdef PAData < handle
        % ======================================================================
        function epoch = sample2epoch(obj,sample,epochDurSec,samplerate)           
            if(nargin<4)
-               samplerate = obj.getSampleRate();
+               samplerate = obj.getSamplerate();
            end
            if(nargin<3)
-               epochDurSec = obj.epochDurSec;
+               epochDurSec = obj.getEpochDurSec();
            end;
            epoch = ceil(sample/(epochDurSec*samplerate));
        end
