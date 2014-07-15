@@ -60,7 +60,8 @@ classdef PAData < handle
        %> fields of linehandle.  These are derived from the input files
        %> loaded by the PAData class.
        lineproperty;
-        
+       
+       label;
        color;
        offset;
        scale;
@@ -75,6 +76,7 @@ classdef PAData < handle
        durSamples; 
        
    end
+   
    
    methods
        
@@ -119,6 +121,7 @@ classdef PAData < handle
            obj.color.vecMag.color = 'm';
            obj.color.steps.color = 'o'; 
            
+           
            obj.scale.accelRaw.x = 1;
            obj.scale.accelRaw.y = 1;
            obj.scale.accelRaw.z = 1;
@@ -150,6 +153,35 @@ classdef PAData < handle
            obj.offset.lux = obj.yDelta*18;
            obj.offset.vecMag = obj.yDelta*19;
            obj.offset.steps = obj.yDelta*20; 
+           
+           
+           % label properties for visualization
+           obj.label.accelRaw.x.string = 'X';
+           obj.label.accelRaw.y.string = 'Y';
+           obj.label.accelRaw.z.string = 'Z';
+           
+           obj.label.inclinometer.standing.string = 'Standing';
+           obj.label.inclinometer.lying.string = 'Lying';
+           obj.label.inclinometer.sitting.string = 'Sitting';
+           obj.label.inclinometer.off.string = 'Off';
+           
+           obj.label.lux.string = 'Lux';
+           obj.label.vecMag.string = 'Magnitude';
+           obj.label.steps.string = 'Steps';  
+           
+           obj.label.accelRaw.x.position = [0 0 0];
+           obj.label.accelRaw.y.position = [0 0 0];
+           obj.label.accelRaw.z.position = [0 0 0];
+           
+           obj.label.inclinometer.standing.position = [0 0 0];
+           obj.label.inclinometer.lying.position = [0 0 0];
+           obj.label.inclinometer.sitting.position = [0 0 0];
+           obj.label.inclinometer.off.position = [0 0 0];
+           
+           obj.label.lux.position = [0 0 0];
+           obj.label.vecMag.position = [0 0 0];
+           obj.label.steps.position = [0 0 0]; 
+           
        end
        
        % ======================================================================
@@ -159,8 +191,11 @@ classdef PAData < handle
        %> @param Type of structure to be returned; optional.  A string.  Possible
        %> values include:
        %> - @b dummy Empty data.
-       %> - @b all All, original time series data.
+       %> - @b dummydisplay Holds generic line properties for the time series structure.
        %> - @b current Time series data with offset and scaling values applied.
+       %> - @b currentdisplay Time series data with offset and scaling values applied
+       %> and stored as 'ydata' child fields.
+       %> - @b all All, original time series data.
        %> @retval tsStruct A struct of PAData's time series instance data.  The fields
        %> include:
        %> - accelRaw.x
@@ -177,8 +212,12 @@ classdef PAData < handle
            switch(choice)
                case 'dummy'
                    dat = obj.getDummyStruct();
+               case 'dummydisplay'
+                   dat = obj.getDummyDisplayStruct();
                case 'current'
                    dat = obj.getCurrentStruct();
+               case 'currentdisplay'
+                   dat = obj.getCurrentDisplayStruct();
                case 'all'
                    dat = obj.getAllStruct();
                otherwise
@@ -222,64 +261,7 @@ classdef PAData < handle
            end
        end
        
-       % ======================================================================
-       %> @brief Returns a structure of an insance PAData's time series data.
-       %> @param Instance of PAData.
-       %> @retval tsStruct A struct of PAData's time series instance data.  The fields
-       %> include:
-       %> - accelRaw.x
-       %> - accelRaw.y
-       %> - accelRaw.z
-       %> - inclinometer
-       %> - lux
-       %> - vecMag
-       % =================================================================      
-       function dat = getAllStruct(obj)
-           dat.accelRaw = obj.accelRaw;
-           dat.inclinometer = obj.inclinometer;
-           dat.lux = obj.lux;
-           dat.vecMag = obj.vecMag;
-       end
-       
-       
-       % ======================================================================
-       %> @brief Returns a structure of an insance PAData's time series
-       %> data at the current epoch.
-       %> @param Instance of PAData.
-       %> @retval tsStruct A struct of PAData's time series instance data.  The fields
-       %> include:
-       %> - accelRaw.x
-       %> - accelRaw.y
-       %> - accelRaw.z
-       %> - inclinometer (struct with more fields)
-       %> - lux
-       %> - vecMag
-       % =================================================================      
-       function curStruct = getCurrentStruct(obj)
-           epochRange = obj.getCurEpochRangeAsSamples();
-           % This does not work:
-           % obj.curStruct = obj(epochRange);
-           curStruct = obj.subsindex(epochRange(1):epochRange(end));
-       end
-       
-       % ======================================================================
-       %> @brief Returns the time series data as a struct for the current epoch range,
-       %> adjusted for visual offset and scale.       
-       %> @param Instance of PAData.
-       %> @retval tsStruct A struct of PAData's time series instance data.  The fields
-       %> include:
-       %> - accelRaw.x
-       %> - accelRaw.y
-       %> - accelRaw.z
-       %> - inclinometer (struct with more fields)
-       %> - lux
-       %> - vecMag
-       % =================================================================      
-       function dat = getCurrentDisplayStruct(obj)
-           dat = PAData.structEval('times',obj.getCurrentStruct,obj.scale);
-           dat = PAData.structEval('plus',dat,obj.offset);
-       end
-       
+
        % ======================================================================
        %> @brief Returns a structure of an instnace PAData's time series data.
        %> @param Instance of PAData.
@@ -378,6 +360,16 @@ classdef PAData < handle
            color = obj.color;
        end
 
+       % --------------------------------------------------------------------
+       % @brief Returns the label instance variable
+       % @param Instance of PAData
+       % @retval A struct of string values which serve to label the correspodning to the time series
+       % fields of obj.
+       % --------------------------------------------------------------------
+       function label = getLabel(obj)
+           label = obj.label;
+       end
+       
        % --------------------------------------------------------------------
        %> @brief Returns the samplerate of the x-axis accelerometer.
        %> @param Instance of PAData
@@ -621,16 +613,102 @@ classdef PAData < handle
        end
    end
    
-   methods(Static)
+   methods (Access = private)
+   
+       % ======================================================================
+       %> @brief Returns a structure of an insance PAData's time series data.
+       %> @param Instance of PAData.
+       %> @retval tsStruct A struct of PAData's time series instance data.  The fields
+       %> include:
+       %> - accelRaw.x
+       %> - accelRaw.y
+       %> - accelRaw.z
+       %> - inclinometer
+       %> - lux
+       %> - vecMag
+       % =================================================================      
+       function dat = getAllStruct(obj)
+           dat.accelRaw = obj.accelRaw;
+           dat.inclinometer = obj.inclinometer;
+           dat.lux = obj.lux;
+           dat.vecMag = obj.vecMag;
+       end
        
+       
+       % ======================================================================
+       %> @brief Returns a structure of an insance PAData's time series
+       %> data at the current epoch.
+       %> @param Instance of PAData.
+       %> @retval tsStruct A struct of PAData's time series instance data.  The fields
+       %> include:
+       %> - accelRaw.x
+       %> - accelRaw.y
+       %> - accelRaw.z
+       %> - inclinometer (struct with more fields)
+       %> - lux
+       %> - vecMag
+       % =================================================================      
+       function curStruct = getCurrentStruct(obj)
+           epochRange = obj.getCurEpochRangeAsSamples();
+           % This does not work:
+           % obj.curStruct = obj(epochRange);
+           curStruct = obj.subsindex(epochRange(1):epochRange(end));
+       end
+       
+       % ======================================================================
+       %> @brief Returns the time series data as a struct for the current epoch range,
+       %> adjusted for visual offset and scale.       
+       %> @param Instance of PAData.
+       %> @retval tsStruct A struct of PAData's time series instance data.  The fields
+       %> include:
+       %> - accelRaw.x
+       %> - accelRaw.y
+       %> - accelRaw.z
+       %> - inclinometer (struct with more fields)
+       %> - lux
+       %> - vecMag
+       % =================================================================      
+       function dat = getCurrentDisplayStruct(obj)
+           dat = PAData.structEval('times',obj.getStruct('current'),obj.scale);
+           
+           epochRange = obj.getCurEpochRangeAsSamples();
+           lineProp.xdata = epochRange(1):epochRange(end);            
+           % put the output into a 'ydata' field for graphical display
+           % property of a line.
+           dat = PAData.structEval('plus',dat,obj.offset,'ydata');
+           
+           dat = PAData.appendStruct(dat,lineProp);
+       end
+              
+       
+   end
+   
+   methods(Static)
+
        % ======================================================================
        %> @brief Evaluates the two structures, field for field, using the function name
        %> provided.
+       %> @param A string name of the operation (via 'eval') to conduct at
+       %> the lowest level.  Additional operands include:
+       %> - passthrough Requires Optional field name to be set.
+       %> - calculateposition (requires rtStruct to have .xdata and .ydata
+       %> fields.
        %> @param A structure whose fields are either structures or vectors.
        %> @param A structure whose fields are either structures or vectors.
+       %> @param Optional field name to subset the resulting output
+       %> structure to (see last example).  This can be useful if the
+       %> output structure will be passed as input that expects a specific
+       %> sub field name for the values (e.g. line properties).  See last
+       %> example below.
        %> @retval A structure with same fields as ltStruct and rtStruct
        %> whose values are the result of applying operand to corresponding
        %> fields.  
+       %> @note In the special case that operand is set to 'passthrough'
+       %> only ltStruct is used (enter ltStruct as the rtStruct value)
+       %> and the optionalDestField must be set (i.e. cannot be empty).  
+       %> The purpose of the 'passthrough' operation is to insert a field named
+       %> optionalDestField between any field/non-struct value pairs.
+       %> 
        %> @note For example:
        %> @note ltStruct =
        %> @note         x: 2
@@ -641,31 +719,156 @@ classdef PAData < handle
        %> @note rtStruct =
        %> @note         x: [10 10 2]
        %> @note     accel: [1x1 struct]
-       %> @note       [x]: [10 10 2]
-       %> @note       [y]: [1 2 3]
+       %> @note             [x]: [10 10 2]
+       %> @note             [y]: [1 2 3]
+       %> @note
+       %> @note
        %> @note
        %> @note PAData.structEval('plus',rtStruct,ltStruct)
        %> @note ans =
        %> @note         x: [12 12 4]
        %> @note     accel: [1x1 struct]
-       %> @note       [x]: [10.5000 10.5000 2.5000]
-       %> @note       [y]: [2 3 4]
+       %> @note             [x]: [10.5000 10.5000 2.5000]
+       %> @note             [y]: [2 3 4]
        %> @note
+       %> @note PAData.structEval('plus',rtStruct,ltStruct,'ydata')
+       %> @note ans =
+       %> @note         x.ydata: [12 12 4]
+       %> @note           accel: [1x1 struct]
+       %> @note                   [x].ydata: [10.5000 10.5000 2.5000]
+       %> @note                   [y].ydata: [2 3 4]
+       %> @note
+       %> @note PAData.structEval('passthrough',ltStruct,ltStruct,'string')
+       %> @note ans =
+       %> @note         x.string: 2
+       %> @note            accel: [1x1 struct]
+       %> @note                    [x].string: 0.5000
+       %> @note                    [y].string: 1
+       %> @note
+       %> @note       
        % ======================================================================
-       function resultStruct = structEval(operand,ltStruct,rtStruct)
+       function resultStruct = structEval(operand,ltStruct,rtStruct,optionalDestField)
+           if(nargin < 4)
+              optionalDestField = []; 
+           end
            
            if(isstruct(ltStruct))               
                fnames = fieldnames(ltStruct);
                resultStruct = struct();
                for f=1:numel(fnames)
                    curField = fnames{f};
-                   resultStruct.(curField) = PAData.structEval(operand,ltStruct.(curField),rtStruct.(curField));
+                   resultStruct.(curField) = PAData.structEval(operand,ltStruct.(curField),rtStruct.(curField),optionalDestField);
                end
            else
-               resultStruct = feval(operand,ltStruct,rtStruct);
+               if(strcmpi(operand,'calculateposition'))
+                       resultStruct.position = [rtStruct.xdata(1), rtStruct.ydata(1), 0];
+               else
+                   if(~isempty(optionalDestField))
+                       if(strcmpi(operand,'passthrough'))
+                           resultStruct.(optionalDestField) = ltStruct;
+                       else
+                           resultStruct.(optionalDestField) = feval(operand,ltStruct,rtStruct);
+                       end
+                   else
+                       resultStruct = feval(operand,ltStruct,rtStruct);
+                   end
+               end
            end
        end
        
+       % ======================================================================
+       %> @brief Appends the fields of one to another.
+       %> @param A structure whose fields are to be appended by the other.
+       %> @param A structure whose fields are will be appened to the other.
+       %> @note For example:
+       %> @note ltStruct =
+       %> @note     ydata: [1 1]
+       %> @note     accel: [1x1 struct]
+       %> @note            [x]: 0.5000
+       %> @note            [y]: 1
+       %> @note
+       %> @note rtStruct =
+       %> @note     xdata: [1 100]
+       %> @note     
+       %> @note PAData.structEval(rtStruct,ltStruct)
+       %> @note ans =
+       %> @note     ydata: [1 1]
+       %> @note     xdata: [1 100]
+       %> @note     accel: [1x1 struct]
+       %> @note            [xdata]: [1 100]
+       %> @note            [x]: [10.5000 10.5000 2.5000]
+       %> @note            [y]: [2 3 4]
+       %> @note
+       % ======================================================================
+       function ltStruct = appendStruct(ltStruct,rtStruct)
+
+           if(isstruct(ltStruct))               
+               fnames = fieldnames(ltStruct);
+               for f=1:numel(fnames)
+                   curField = fnames{f};
+                   if(isstruct(ltStruct.(curField)))
+                       ltStruct.(curField) = PAData.appendStruct(ltStruct.(curField),rtStruct);
+                   else
+                       appendNames=fieldnames(rtStruct);
+                       for a=1:numel(appendNames)
+                           ltStruct.(appendNames{a}) = rtStruct.(appendNames{a});
+                       end
+                   end
+               end
+               
+
+           end           
+       end
+       
+       % ======================================================================
+       %> @brief Merge the fields of one struct with another.  Copies over
+       %> matching field values.  Similar to appendStruct, but now the second argument 
+       %> is itself a struct with similar organization as the first
+       %> argument.
+       %> @param A structure whose fields are to be appended by the other.
+       %> @param A structure whose fields are will be appened to the other.
+       %> @note For example:
+       %> @note ltStruct =
+       %> @note     accel: [1x1 struct]
+       %> @note            [x]: 0.5000
+       %> @note            [y]: 1
+       %> @note     lux: [1x1 struct]
+       %> @note            [z]: 0.5000       
+       %> @note
+       %> @note rtStruct =
+       %> @note     accel: [1x1 struct]
+       %> @note            [pos]: [0.5000, 1, 0]
+       %> @note            
+       %> @note     
+       %> @note PAData.structEval(rtStruct,ltStruct)
+       %> @note ans =   
+       %> @note     accel: [1x1 struct]
+       %> @note              [x]: 0.5000
+       %> @note              [y]: 1
+       %> @note            [pos]: [0.5000, 1, 0]
+       %> @note     lux: [1x1 struct]
+       %> @note            [z]: 0.5000       
+       %> @note            [pos]: [0.5000, 1, 0]
+       %> @note
+       % ======================================================================
+       function ltStruct = mergeStruct(ltStruct,rtStruct)
+
+           if(isstruct(rtStruct))               
+               fnames = fieldnames(rtStruct);
+               for f=1:numel(fnames)
+                   curField = fnames{f};
+                   if(isstruct(rtStruct.(curField)))
+                       if(isfield(ltStruct,curField))
+                           ltStruct.(curField) = PAData.mergeStruct(ltStruct.(curField),rtStruct.(curField));
+                       else
+                           ltStruct.(curField) = rtStruct.(curField);
+                       end
+                   else
+                       ltStruct.(curField) = rtStruct.(curField);
+                   end
+               end
+           end           
+       end
        
        % ======================================================================
        %> @brief Evaluates the range (min, max) of components found in the
@@ -738,5 +941,37 @@ classdef PAData < handle
            dat.lux = [];
            dat.vecMag = [];
        end
+       
+       % ======================================================================
+       %> @brief Returns a struct with subfields that hold the line properties
+       %> for graphic display of the time series instance variables.
+       %> @retval tsStruct A struct of PAData's time series instance variables, which 
+       %> include:
+       %> - accelRaw.x.(xdata, ydata, color)
+       %> - accelRaw.y.(xdata, ydata, color)
+       %> - accelRaw.z.(xdata, ydata, color)
+       %> - inclinometer.(xdata, ydata, color)
+       %> - lux.(xdata, ydata, color)
+       %> - vecMag.(xdata, ydata, color)
+       % =================================================================      
+       function dat = getDummyDisplayStruct()
+           lineProps.xdata = [1 1200];
+           lineProps.ydata = [1 1];
+           lineProps.color = 'k';
+           lineProps.visible = 'on';
+           accelR.x = lineProps;
+           accelR.y = lineProps;
+           accelR.z = lineProps;
+           dat.accelRaw = accelR;
+           incl.off = lineProps;
+           incl.standing = lineProps;
+           incl.sitting = lineProps;
+           incl.lying = lineProps;
+           dat.inclinometer = incl;
+           dat.lux = lineProps;
+           dat.vecMag = lineProps;
+       end
+       
+       
    end
 end

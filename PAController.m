@@ -253,9 +253,32 @@ classdef PAController < handle
         %> @param Structure of mouse press information; unused
         % --------------------------------------------------------------------
         function windowButtonDownCallback(obj,hObject,eventData)
-            
+%             if(strcmpi(obj.marking_state,'off')) %don't want to reset the state if we are marking events
+%                 if(~isempty(obj.current_linehandle))
+%                     obj.restore_state();
+%                 end;
+%             else
+%                 if(ishghandle(obj.hg_group))
+%                     if(~any(gco==allchild(obj.hg_group))) %did not click on a member of the object being drawn...
+%                         obj.clear_handles();
+%                     end;
+%                 end;
+%             end;
+%             if(~isempty(obj.current_linehandle)&&ishandle(obj.current_linehandle) && strcmpi(get(obj.current_linehandle,'selected'),'on'))
+%                 set(obj.current_linehandle,'selected','off');
+%             end
         end
         
+%         function setLinehandle(obj, line_h)
+%             obj.clear_handles();
+%             obj.current_linehandle = line_h;
+%             set(obj.current_linehandle,'selected','on');
+%         end
+%         
+%         
+%         function status = isActive(obj)
+%             status = ~strcmpi(obj.marking_state,'off');
+%         end
         
         %-- Menubar configuration --
         % --------------------------------------------------------------------
