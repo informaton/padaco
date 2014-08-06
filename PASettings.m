@@ -42,10 +42,10 @@ classdef  PASettings < handle
         %> - fieldname1 value1
         %> - fieldname2 value2
         %> - ....
-        %>an optional ':' is allowed after the fieldname such as
-        %>fieldname: value
+        %> an optional ':' is allowed after the fieldname such as
+        %> fieldname: value
         %
-        %The parameters is 
+        %> The parameters is 
         %>
         %> @param filename String identifying the filename to load.
         %> @retval paramStruct Structure that contains the listed fields found in the

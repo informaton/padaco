@@ -20,22 +20,22 @@ classdef PAController < handle
         %> Instance of PAModel - Padaco's model component.  To be implemented. 
         MODEL;        
 
-        %>linehandle in Padaco currently selected;
+        %> Linehandle in Padaco that is currently selected by the user.
         current_linehandle;
         
-        %>cell of string choices for the marking state (off, 'marking','general')
+        %> cell of string choices for the marking state (off, 'marking','general')
         state_choices_cell; 
-        %>string of the current selected choice
-        %>handle to the figure an instance of this class is associated with
+        %> string of the current selected choice
+        %> handle to the figure an instance of this class is associated with
         %> struct of handles for the context menus
         contextmenuhandle; 
         
         %> @brief struct with field
         %> - .x_minorgrid which is used for the x grid on the main axes
-        linehandle;
-         
+        linehandle;         
         
-        epoch_resolution;%struct of different time resolutions, field names correspond to the units of time represented in the field        
+        %> struct of different time resolutions, field names correspond to the units of time represented in the field        
+        epoch_resolution;
         num_epochs;
         display_samples; %vector of the samples to be displayed
         shift_display_samples_delta; %number of samples to adjust display by for moving forward or back
@@ -269,16 +269,7 @@ classdef PAController < handle
 %             end
         end
         
-%         function setLinehandle(obj, line_h)
-%             obj.clear_handles();
-%             obj.current_linehandle = line_h;
-%             set(obj.current_linehandle,'selected','on');
-%         end
-%         
-%         
-%         function status = isActive(obj)
-%             status = ~strcmpi(obj.marking_state,'off');
-%         end
+
         
         %-- Menubar configuration --
         % --------------------------------------------------------------------

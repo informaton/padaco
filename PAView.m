@@ -90,9 +90,13 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         function createView(obj)
             handles = guidata(obj.getFigHandle());
+            
+            set(handles.panel_left,'backgroundcolor',[0.75,0.75,0.75]);
+            set(handles.panel_study,'backgroundcolor',[0.95,0.95,0.95]);
 
             obj.texthandle.status = handles.text_status;
             obj.texthandle.filename = handles.text_filename;
+            obj.texthandle.studyinfo = handles.text_studyinfo;
             obj.texthandle.curEpoch = handles.edit_curEpoch;
             
             obj.axeshandle.primary = handles.axes_primary;
@@ -107,7 +111,7 @@ classdef PAView < handle
             % However, all lines are invisible.
             obj.createLineAndLabelHandles();
             
-        end     
+        end
         
         % --------------------------------------------------------------------
         %> @brief Sets current epoch edit box string value
@@ -198,11 +202,12 @@ classdef PAView < handle
         %> @brief Disable user interface widgets and clear contents.
         %> @param obj Instance of PAView
         % --------------------------------------------------------------------
-        function clearWidgets(obj)
+        function clearWidgets(obj)            
             handles = guidata(obj.getFigHandle());            
-            set(handles.edit_curEpoch,'enable','off','string','','visible','off'); 
-            set(handles.menu_windowDurSec,'enable','off','visible','off'); 
-        end        
+            obj.initWidgets();
+            set(handles.edit_curEpoch,'enable','off'); 
+            set(handles.menu_windowDurSec,'enable','off'); 
+        end
         
         % --------------------------------------------------------------------
         %> @brief Set the acceleration data instance variable and assigns
@@ -221,15 +226,19 @@ classdef PAView < handle
             axesProps.secondary.ylim = [0 1];
             
             labelProps = obj.dataObj.getLabel();
-            labelPosStruct = obj.getLabelhandlePosition();
+            labelPosStruct = obj.getLabelhandlePosition();            
             labelProps = PAData.mergeStruct(labelProps,labelPosStruct);
+            
             visibleProp.visible = 'on';
             labelProps = PAData.appendStruct(labelProps,visibleProp);
             
             obj.initView(axesProps,obj.dataObj.getStruct('dummydisplay'),labelProps);
             
             obj.setLinehandleColor(PADataObject.getColor());
-            obj.setFilename(obj.dataObj.getFilename());            
+            obj.setFilename(obj.dataObj.getFilename());  
+            
+            studyCellStr = sprintf('Duration: %u (sec)\nEpochs: %u',PADataObject.durationSec,PADataObject.getEpochCount);
+            obj.setStudyPanelContents(studyCellStr);
         end        
         
         % --------------------------------------------------------------------
@@ -270,6 +279,7 @@ classdef PAView < handle
             obj.initWidgets();
             
             obj.restore_state();
+            
         end       
         
         % --------------------------------------------------------------------
@@ -305,7 +315,6 @@ classdef PAView < handle
             
             obj.restore_state();
         end
-
 
         % --------------------------------------------------------------------
         %> @brief Initialize user interface widgets on start up.
@@ -367,14 +376,11 @@ classdef PAView < handle
             if(nargin<2 || isempty(lineProps))
                 lineProps = PAData.getDummyDisplayStruct();
             end
-            
                            
             obj.recurseHandleSetter(obj.linehandle, lineProps);
             
-            set(obj.positionBarHandle,'visible','on','ydata',[0 1]);
-            
+            set(obj.positionBarHandle,'visible','on','ydata',[0 1]);            
         end
-        
         
         % --------------------------------------------------------------------
         %> @brief Initialize the label handles that will be used in the view.
@@ -385,10 +391,7 @@ classdef PAView < handle
         %> fields of the labelhandle instance variable.
         % --------------------------------------------------------------------
         function initLabelHandles(obj,labelProps)
-                           
             obj.recurseHandleSetter(obj.labelhandle, labelProps);
-            
-            
         end
         
         % --------------------------------------------------------------------
@@ -401,6 +404,16 @@ classdef PAView < handle
         end
         
         % --------------------------------------------------------------------
+        %> @brief Displays the contents of cellString in the study panel
+        %> @param PADataObject Instance of PAData
+        %> @param Cell of string that will be displayed in the study panel.  Each 
+        %> cell element is given its own display line.
+        % --------------------------------------------------------------------
+        function setStudyPanelContents(obj,cellString)
+            set(obj.texthandle.studyinfo,'string',cellString,'visible','on');
+        end
+        
+        % --------------------------------------------------------------------
         %> @brief Draws the view
         %> @param PADataObject Instance of PAData
         % --------------------------------------------------------------------
@@ -409,6 +422,11 @@ classdef PAView < handle
             lineProps = obj.dataObj.getStruct('currentdisplay');
             set(obj.axeshandle.primary,'xlim',epochRange);  
             obj.recurseHandleSetter(obj.linehandle,lineProps);
+            
+            % update label text positions based on the axes position...
+            % link the x position with the axis x-position ...            
+            obj.initLabelHandles(obj.getLabelhandlePosition());
+            
         end
 
         % --------------------------------------------------------------------
@@ -431,6 +449,8 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         function labelPosStruct = getLabelhandlePosition(obj)            
             labelPosStruct = PAData.structEval('calculateposition',PAData.getDummyStruct(),obj.dataObj.getStruct('currentdisplay'));
+            offset = [10, 50, 0];
+            labelPosStruct = PAData.structScalarEval('plus',labelPosStruct,offset);            
         end
 
         % --------------------------------------------------------------------
@@ -467,8 +487,7 @@ classdef PAView < handle
         end
         
      
-        %VIEW parts of the class....
-        
+        %VIEW parts of the class....        
         function obj = restore_state(obj)
             obj.clear_handles();
             
@@ -616,7 +635,6 @@ classdef PAView < handle
             end
         end
         
-        
         % --------------------------------------------------------------------
         function popout_axes(~, ~, axes_h)
             % hObject    handle to context_menu_pop_out (see GCBO)
@@ -625,8 +643,6 @@ classdef PAView < handle
             fig = figure;
             copyobj(axes_h,fig); %or get parent of hObject's parent
         end
-        
-
     end
 end
 
