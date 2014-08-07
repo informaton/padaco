@@ -724,14 +724,19 @@ classdef PAData < handle
        %> - vecMag
        % =================================================================      
        function dat = getCurrentOffsetStruct(obj)
-           dat = obj.offset;           
+           dat = PAData.structEval('times',obj.getStruct('current'),obj.scale);
+           
            epochRange = obj.getCurEpochRangeAsSamples();
-           lineProp.xdata = epochRange(1);            
-           % put the output into a 'position' 
-           dat = PAData.structEval('passthrough',dat,dat,'ydata');
+           lineProp.xdata = epochRange(1):epochRange(end);            
+           % put the output into a 'ydata' field for graphical display
+           % property of a line.
+           dat = PAData.structEval('plus',dat,obj.offset,'ydata');
            
            dat = PAData.appendStruct(dat,lineProp);
-       end    
+       end
+       
+       
+              
        
    end
    
@@ -813,7 +818,7 @@ classdef PAData < handle
                end
            else
                if(strcmpi(operand,'calculateposition'))
-                   resultStruct.position = [rtStruct.xdata(1), rtStruct.ydata(1), 0];
+                       resultStruct.position = [rtStruct.xdata(1), rtStruct.ydata(1), 0];
                else
                    if(~isempty(optionalDestField))
                        if(strcmpi(operand,'passthrough'))

@@ -449,7 +449,7 @@ classdef PAView < handle
         function labelPosStruct = getLabelhandlePosition(obj)    
             labelPosStruct = PAData.structEval('calculateposition',obj.dataObj.offset,obj.dataObj.getStruct('displayoffset'));
             xOffset = 1/120*diff(get(obj.axeshandle.primary,'xlim'));            
-            offset = [xOffset, 15, 0];
+            offset = [xOffset, 50, 0];
             labelPosStruct = PAData.structScalarEval('plus',labelPosStruct,offset);            
         end
 
