@@ -40,7 +40,10 @@ classdef PAData < handle
        %> @brief Start Date
        startDate;       
        %> Durtion of the sampled data in seconds.       
-       durationSec; 
+       durationSec;
+       %> @brief The numeric value for each date time sample provided by
+       %the file name.
+       dateTimeNum;
 
        %> @brief Defined in the accelerometer's file output and converted to seconds.
        %> This is, most likely, the sampling rate of the output file.
@@ -60,7 +63,10 @@ classdef PAData < handle
        scale;
        yDelta;
        
-%        %> @brief Struct of sample rates corresponding to time series data stored
+       %> @brief Sample rate of time series data.
+       sampleRate;
+
+%        > @brief Struct of sample rates corresponding to time series data stored
 %        %> by class instances.  Fields include:
 %        %> - accelRaw [default is 40Hz]
 %        %> - inclinometer
@@ -119,8 +125,7 @@ classdef PAData < handle
            
            obj.color.lux.color = 'y';
            obj.color.vecMag.color = 'm';
-           obj.color.steps.color = 'o'; 
-           
+           obj.color.steps.color = 'o';
            
            obj.scale.accelRaw.x = 1;
            obj.scale.accelRaw.y = 1;
@@ -155,8 +160,7 @@ classdef PAData < handle
            obj.offset.lux = obj.yDelta*18;
            obj.offset.vecMag = obj.yDelta*19;
            obj.offset.steps = obj.yDelta*20; 
-           
-           
+                      
            % label properties for visualization
            obj.label.accelRaw.x.string = 'X';
            obj.label.accelRaw.y.string = 'Y';
@@ -382,8 +386,7 @@ classdef PAData < handle
        %> @retval Sample rate of the x-axis accelerometer.
        % --------------------------------------------------------------------
        function fs = getSampleRate(obj)
-           fs = obj.epochPeriodSec;
-           %fs = obj.sampleRate.accelRaw;
+           fs = obj.sampleRate;           
        end
        
        % --------------------------------------------------------------------
@@ -406,8 +409,7 @@ classdef PAData < handle
        %> @param Instance of PAData.
        %> @retval 1x2 vector containing ymin and ymax.
        % ======================================================================
-       function yLim = getDisplayMinMax(obj)
-           
+       function yLim = getDisplayMinMax(obj)           
            yLim = [0, 20 ]*obj.yDelta;
        end    
        
@@ -486,9 +488,9 @@ classdef PAData < handle
        %> @brief Load CSV header values (start time, start date, and epoch
        %> period).
        %> @param obj Instance of PAData.
-       %> @param File handle (fid) to open file.  Will be rewound on exit.
+       %> @param Filename to open and examine.
        % =================================================================
-       function loadFileHeader(obj,fid)
+       function loadFileHeader(obj,fullfilename)
            %  ------------ Data Table File Created By ActiGraph GT3XPlus ActiLife v6.9.2 Firmware v3.2.1 date format M/d/yyyy Filter Normal -----------
            %  Serial Number: NEO1C15110135
            %  Start Time 18:00:00
@@ -498,40 +500,43 @@ classdef PAData < handle
            %  Download Date 1/24/2014
            %  Current Memory Address: 0
            %  Current Battery Voltage: 4.13     Mode = 61
-           %  --------------------------------------------------
-           
-           %get to the start
-           frewind(fid);
-           tline = fgetl(fid);
-           commentLine = '------------';
-           %make sure we are dealing with a file which has a header           
-           if(strncmp(tline,commentLine, numel(commentLine)))
-               fgetl(fid);
-               tline = fgetl(fid);
-               exp = regexp(tline,'^Start Time (.*)','tokens');
-               if(~isempty(exp))
-                   obj.startTime = exp{1}{1};
-               else
-                   obj.startTime = 'N/A';
+           %  --------------------------------------------------           
+           fid = fopen(fullfilename,'r');
+           if(fid>0)
+               try
+                   tline = fgetl(fid);
+                   commentLine = '------------';
+                   %make sure we are dealing with a file which has a header
+                   if(strncmp(tline,commentLine, numel(commentLine)))
+                       fgetl(fid);
+                       tline = fgetl(fid);
+                       exp = regexp(tline,'^Start Time (.*)','tokens');
+                       if(~isempty(exp))
+                           obj.startTime = exp{1}{1};
+                       else
+                           obj.startTime = 'N/A';
+                       end
+                       %  Start Date 1/23/2014
+                       tline = fgetl(fid);
+                       obj.startDate = strrep(tline,'Start Date ','');
+                       
+                       % Pull the following line from the file and convert hh:mm:ss
+                       % to total seconds
+                       %  Epoch Period (hh:mm:ss) 00:00:01
+                       a=fscanf(fid,'%*s %*s %*s %d:%d:%d');
+                       obj.epochPeriodSec = [3600 60 1]* a;
+                   else
+                       % unset - we don't know - assume 1 per second
+                       obj.epochPeriodSec = 1;
+                       obj.startTime = 'N/A';
+                       obj.startDate = 'N/A';
+                       fprintf(' File does not include header.  Default values set for start date and epochPeriodSec (1).\n');
+                   end
+                   fclose(fid);
+               catch me
+                   showME(me);
                end
-               %  Start Date 1/23/2014
-               tline = fgetl(fid);
-               obj.startDate = strrep(tline,'Start Date ','');
-               
-               % Pull the following line from the file and convert hh:mm:ss
-               % to total seconds
-               %  Epoch Period (hh:mm:ss) 00:00:01
-               a=fscanf(fid,'%*s %*s %*s %d:%d:%d');
-               obj.epochPeriodSec = [3600 60 1]* a;
-           else
-               % unset - we don't know - assume 1 per second
-               obj.epochPeriodSec = 1;
-               obj.startTime = 'N/A';
-               obj.startDate = 'N/A';
-               fprintf(' File does not include header.  Default values set for start date and epochPeriodSec (1).\n');
            end
-           
-           frewind(fid);
        end       
        
        % ======================================================================
@@ -570,18 +575,139 @@ classdef PAData < handle
                %msg = 'Select the .csv file';
                %fullfilename = uigetfullfile(filtercell,pwd,msg);
            end           
+
+           % Have one file version for counts...
            
            if(exist(fullfilename,'file'))
-               fid = fopen(fullfilename,'r');
+               [path, name, ext] = fileparts(fullfilename);
+               obj.loadFileHeader(fullfilename);
+               
+               if(strcmpi(ext,'raw'))
+                   fullCountFilename = fullfile(path,name,'csv');
+                   obj.loadCountFile(fullCountFilename);
+                   obj.loadRawFile(fullfilename);
+               else
+                   obj.loadCountFile(fullfilename);
+               end
+           end           
+       end       
+       
+       % ======================================================================
+       %> @brief Loads an accelerometer "count" data file.
+       %> @param obj Instance of PAData.
+       %> @param Full filename to load. 
+       % =================================================================
+       function loadCountFile(obj,fullCountFilename)           
+           
+           if(exist(fullCountFilename,'file'))
+               [path, name, ext] = fileparts(fullCountFilename);              
+               
+               fid = fopen(fullCountFilename,'r');
+               if(fid>0)
+                   try
+                       delimiter = ',';
+                       % header = 'Date	 Time	 Axis1	Axis2	Axis3	Steps	Lux	Inclinometer Off	Inclinometer Standing	Inclinometer Sitting	Inclinometer Lying	Vector Magnitude';
+                       headerLines = 11; %number of lines to skip
+                       % Date, Time, Axis1,Axis2,Axis3,Steps,Lux,Inclinometer Off,Inclinometer Standing,Inclinometer Sitting,Inclinometer Lying,Vector Magnitude
+
+                       scanFormat = '%s %s %u16 %u16 %u16 %u8 %u8 %u8 %u8 %u8 %u8 %f32';
+                       tmpDataCell = textscan(fid,scanFormat,'delimiter',delimiter,'headerlines',headerLines);
+
+                       %Date time handling                       
+                       dateTime = strcat(tmpDataCell{1},',',tmpDataCell{2});
+                       dateTimeNumber = datenum(dateTime,'mm/dd/yyyy,HH:MM:SS');   
+                       
+                       samplesFound = numel(dateTimeNumber);
+                       
+                       startDateTimeNum = datenum(strcat(obj.startDate,',',obj.startTime),'mm/dd/yyyy,HH:MM:SS');
+                       stopDateTimeNum = dateTimeNumber(end);
+                       dateTimeDelta = datenum(0,0,0,0,0,obj.epochPeriodSec);
+                       obj.dateTimeNum = startDateTimeNum:dateTimeDelta:stopDateTimeNum;
+                       
+                       obj.durSamples = numel(obj.dateTimeNum);
+                       
+                       numMissing = obj.durSamples - samplesFound;
+                       missingValue = -1;
+                                              
+                       if(obj.durSamples==samplesFound)
+                           fprintf('%d rows loaded from %s\n',samplesFound,fullCountFilename);  
+                           dataCell = tmpDataCell(3:end); 
+                           
+                       else
+                           %make a cell with the same number of column as
+                           %loaded in the file less 2 (remove date and time
+                           %b/c already have these, with each column entry
+                           %having an array with as many missing values as
+                           %originally found.  
+                           dataCell =  repmat({repmat(missingValue,obj.durationSamples(),1)},1,size(tmpDataCell,2)-2);
+                           
+                           [C,IA,IB] = intersect(allDateTimeNum,fileDateTimeNum);                           
+                           
+                           dataCell(IB) = tmpDataCell;
+                           for c=1:numel(dataCell)
+                               dataCell{c}(IB) = tmpDataCell{c}(IB);
+                           end
+                           
+                           if(numMissing>0)
+                               fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %f.\n',samplesFound,fullCountFilename,numMissing,missingValue);
+                           else
+                               fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %f.\n',samplesFound,fullCountFilename,numMissing,missingValue);
+                           end
+                       end
+                       
+                       tmpDataCell = []; %free up this memory;
+           
+                       obj.accelRaw.x = dataCell{1};
+                       obj.accelRaw.y = dataCell{2};
+                       obj.accelRaw.z = dataCell{3};
+                       
+                       obj.steps = dataCell{4}; %what are steps?
+                       obj.lux = dataCell{5};
+                       obj.inclinometer.off = dataCell{6};
+                       obj.inclinometer.standing = dataCell{7};
+                       obj.inclinometer.sitting = dataCell{8};
+                       obj.inclinometer.lying = dataCell{9};
+                       obj.vecMag = dataCell{10};
+                       
+                       %either use epochPeriodSec or use samplerate.
+                       if(obj.epochPeriodSec>0)
+                           obj.durationSec = samplesFound*obj.epochPeriodSec;
+                       else
+                           fprintf('There was an error when loading the epoch period second value (non-positive value found in %s).\n',fullCountFilename);
+                           obj.durationSec = 0;
+                       end                       
+                       fclose(fid);
+                   catch me
+                       showME(me);
+                       fclose(fid);
+                   end
+               else
+                   fprintf('Warning - could not open %s for reading!\n',fullCountFilename);
+               end
+           else
+               fprintf('Warning - %s does not exist!\n',fullCountFilename);
+           end           
+       end       
+       
+
+       % ======================================================================
+       %> @brief Loads an accelerometer raw data file.
+       %> @param obj Instance of PAData.
+       %> @param fullfilename Full filename to load.
+       % =================================================================
+       function loadRawFile(obj,fullRawFilename)
+           if(exist(fullRawFilename,'file'))
+                              
+               fid = fopen(fullRawFilename,'r');
                if(fid>0)
                    try
                        obj.loadFileHeader(fid);
                        delimiter = ',';
-                       % header = 'Date	 Time	 Axis1	Axis2	Axis3	Steps	Lux	Inclinometer Off	Inclinometer Standing	Inclinometer Sitting	Inclinometer Lying	Vector Magnitude';
+                       % header = 'Date	 Time	 Axis1	Axis2	Axis3
                        headerLines = 11; %number of lines to skip
-                       scanFormat = '%s %s %u16 %u16 %u16 %u8 %u8 %u8 %u8 %u8 %f32';
+                       scanFormat = '%s %s %f32 %f32 %f32'; %load as a 'single' (not double) floating-point number
                        dataCell = textscan(fid,scanFormat,'delimiter',delimiter,'headerlines',headerLines);
-
+                       
                        %Date time is not handled yet
                        % obj.date = dataCell{1};
                        % obj.time = dataCell{2};
@@ -599,30 +725,26 @@ classdef PAData < handle
                        obj.durSamples = numel(obj.accelRaw.x); %duration Epochs...
                        numSamples = obj.durationSamples();
                        
-                       fprintf('%d rows loaded from %s\n',numSamples,fullfilename);
+                       fprintf('%d rows loaded from %s\n',numSamples,fullRawFilename);
                        
                        %either use epochPeriodSec or use samplerate.
                        if(obj.epochPeriodSec>0)
                            obj.durationSec = numSamples*obj.epochPeriodSec;
                        else
-                           obj.durationSec = numSamples/obj.getSampleRate();   
-                       end                       
+                           obj.durationSec = numSamples/obj.getSampleRate();
+                       end
                        fclose(fid);
                    catch me
                        showME(me);
                        fclose(fid);
                    end
                else
-                   fprintf('Warning - could not open %s for reading!\n',fullfilename);
+                   fprintf('Warning - could not open %s for reading!\n',fullRawFilename);
                end
            else
-               if(isempty(fullfilename))
-                   
-               else
-                   fprintf('Warning - %s does not exist!\n',fullfilename);
-               end
-           end           
-       end       
+               fprintf('Warning - %s does not exist!\n',fullRawFilename);
+           end
+       end
        
        % ======================================================================
        %> @brief Calculates, and returns, the epoch for the given sample index of a signal.
@@ -724,19 +846,14 @@ classdef PAData < handle
        %> - vecMag
        % =================================================================      
        function dat = getCurrentOffsetStruct(obj)
-           dat = PAData.structEval('times',obj.getStruct('current'),obj.scale);
-           
+           dat = obj.offset;           
            epochRange = obj.getCurEpochRangeAsSamples();
-           lineProp.xdata = epochRange(1):epochRange(end);            
-           % put the output into a 'ydata' field for graphical display
-           % property of a line.
-           dat = PAData.structEval('plus',dat,obj.offset,'ydata');
+           lineProp.xdata = epochRange(1);            
+           % put the output into a 'position' 
+           dat = PAData.structEval('passthrough',dat,dat,'ydata');
            
            dat = PAData.appendStruct(dat,lineProp);
-       end
-       
-       
-              
+       end    
        
    end
    
@@ -818,7 +935,7 @@ classdef PAData < handle
                end
            else
                if(strcmpi(operand,'calculateposition'))
-                       resultStruct.position = [rtStruct.xdata(1), rtStruct.ydata(1), 0];
+                   resultStruct.position = [rtStruct.xdata(1), rtStruct.ydata(1), 0];
                else
                    if(~isempty(optionalDestField))
                        if(strcmpi(operand,'passthrough'))
