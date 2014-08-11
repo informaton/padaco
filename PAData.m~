@@ -733,9 +733,9 @@ classdef PAData < handle
                        obj.lux = dataCell{7};
                        obj.inclinometer.off = dataCell{8};
                        obj.inclinometer.standing = dataCell{9};
-                       obj.inclinometer.sitting = dataCell{10};
-                       obj.inclinometer.lying = dataCell{11};
-                       obj.vecMag = dataCell{12};
+                       obj.inclinometer.sitting = dataCell{};
+                       obj.inclinometer.lying = dataCell{8};
+                       obj.vecMag = dataCell{8};
                        obj.durSamples = numel(obj.accelRaw.x); %duration Epochs...
                        numSamples = obj.durationSamples();
                        
