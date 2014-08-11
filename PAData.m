@@ -524,7 +524,7 @@ classdef PAData < handle
                        % to total seconds
                        %  Epoch Period (hh:mm:ss) 00:00:01
                        a=fscanf(fid,'%*s %*s %*s %d:%d:%d');
-                       obj.epochPeriodSec = [3600 60 1]* a;
+                       obj.epochPeriodSec = [3600 60 1]* a;                       
                    else
                        % unset - we don't know - assume 1 per second
                        obj.epochPeriodSec = 1;
@@ -580,10 +580,8 @@ classdef PAData < handle
            
            if(exist(fullfilename,'file'))
                [path, name, ext] = fileparts(fullfilename);
-               obj.loadFileHeader(fullfilename);
-               
-               if(strcmpi(ext,'raw'))
-                   fullCountFilename = fullfile(path,name,'csv');
+               if(strcmpi(ext,'.raw'))
+                   fullCountFilename = fullfile(path,strcat(name,'.csv'));
                    obj.loadCountFile(fullCountFilename);
                    obj.loadRawFile(fullfilename);
                else
@@ -605,6 +603,7 @@ classdef PAData < handle
                fid = fopen(fullCountFilename,'r');
                if(fid>0)
                    try
+                       obj.loadFileHeader(fullCountFilename);
                        delimiter = ',';
                        % header = 'Date	 Time	 Axis1	Axis2	Axis3	Steps	Lux	Inclinometer Off	Inclinometer Standing	Inclinometer Sitting	Inclinometer Lying	Vector Magnitude';
                        headerLines = 11; %number of lines to skip
@@ -624,6 +623,16 @@ classdef PAData < handle
                        stopDateNum = dateNumFound(end);
                                               
                        epochDateNumDelta = datenum([0,0,0,0,0,obj.epochPeriodSec]);
+                       
+                       missingValue = nan;
+                       
+                       % NOTE:  Chopping off the first two columns: date time values;
+                       tmpDataCell(1:2) = [];
+                       
+                       [dataCell, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,epochDateNumDelta,dateVecFound,tmpDataCell,missingValue);
+                       
+                       tmpDataCell = []; %free up this memory;
+                       
                        %MATLAB has some strange behaviour with date num -
                        %looks to be a precision problem
                        %math.
@@ -632,33 +641,15 @@ classdef PAData < handle
                        %                        dateTimeDelta = datenum(0,0,0,0,0,1);
                        %                        dateTimeDelta == dateTimeDelta2  %what is going on here???
                        
-                       obj.dateTimeNum = datenum(round(datevec(startDateNum:epochDateNumDelta:stopDateNum)));
-                       
                        obj.durSamples = numel(obj.dateTimeNum);
                        
                        numMissing = obj.durationSamples() - samplesFound;
-                       missingValue = nan;
-                       
-                       % NOTE:  Chopping off the first two columns: date time values;
-                       tmpDataCell(1:2) = [];
+
                                               
                        if(obj.durationSamples()==samplesFound)
-                           fprintf('%d rows loaded from %s\n',samplesFound,fullCountFilename);  
-                           dataCell = tmpDataCell;                            
+                           fprintf('%d rows loaded from %s\n',samplesFound,fullCountFilename); 
                        else
-                           %make a cell with the same number of column as
-                           %loaded in the file less 2 (remove date and time
-                           %b/c already have these, with each column entry
-                           %having an array with as many missing values as
-                           %originally found.  
-                           dataCell =  repmat({repmat(missingValue,obj.durationSamples(),1)},1,size(tmpDataCell,2));
                            
-                           [~,IA,~] = intersect(obj.dateTimeNum,dateNumFound);                           
-                           
-                           
-                           for c=1:numel(dataCell)
-                               dataCell{c}(IA) = tmpDataCell{c};
-                           end
                            
                            if(numMissing>0)
                                fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullCountFilename,numMissing,num2str(missingValue));
@@ -668,8 +659,6 @@ classdef PAData < handle
                            end
                        end
                        
-                       tmpDataCell = []; %free up this memory;
-           
                        obj.accelRaw.x = dataCell{1};
                        obj.accelRaw.y = dataCell{2};
                        obj.accelRaw.z = dataCell{3};
@@ -705,7 +694,12 @@ classdef PAData < handle
        
 
        % ======================================================================
-       %> @brief Loads an accelerometer raw data file.
+       %> @brief Loads an accelerometer raw data file.  This function is
+       %> intended to be called from loadFile() to ensure that
+       %loadCountFile is called in advance to guarantee that the auxialiary
+       %> sensor measurements are loaded into the object (obj).  The
+       %> auxialiary measures (e.g. lux, vecMag) are upsampled to the
+       %> sampling rate of the raw data (typically 40 Hz).
        %> @param obj Instance of PAData.
        %> @param fullfilename Full filename to load.
        % =================================================================
@@ -715,38 +709,69 @@ classdef PAData < handle
                fid = fopen(fullRawFilename,'r');
                if(fid>0)
                    try
-                       obj.loadFileHeader(fid);
+                       tic
                        delimiter = ',';
                        % header = 'Date	 Time	 Axis1	Axis2	Axis3
                        headerLines = 11; %number of lines to skip
                        scanFormat = '%s %s %f32 %f32 %f32'; %load as a 'single' (not double) floating-point number
-                       dataCell = textscan(fid,scanFormat,'delimiter',delimiter,'headerlines',headerLines);
+                       tmpDataCell = textscan(fid,scanFormat,'delimiter',delimiter,'headerlines',headerLines);
+                       toc
                        
-                       %Date time is not handled yet
-                       % obj.date = dataCell{1};
-                       % obj.time = dataCell{2};
+                       %Date time handling
+                       dateTime = strcat(tmpDataCell{1},{' '},tmpDataCell{2});
+                       toc
+                       dateVecFound = round(datevec(dateTime,'mm/dd/yyyy HH:MM:SS:FFF'));
+                       toc
+                       dateNumFound = datenum(dateVecFound);
+                       toc
+                       obj.sampleRate = 40;
                        
-                       obj.accelRaw.x = dataCell{3};
-                       obj.accelRaw.y = dataCell{4};
-                       obj.accelRaw.z = dataCell{5};
-                       obj.steps = dataCell{6}; %what are steps?
-                       obj.lux = dataCell{7};
-                       obj.inclinometer.off = dataCell{8};
-                       obj.inclinometer.standing = dataCell{9};
-                       obj.inclinometer.sitting = dataCell{10};
-                       obj.inclinometer.lying = dataCell{11};
-                       obj.vecMag = dataCell{12};
-                       obj.durSamples = numel(obj.accelRaw.x); %duration Epochs...
-                       numSamples = obj.durationSamples();
+                       samplesFound = numel(dateNumFound);  
                        
-                       fprintf('%d rows loaded from %s\n',numSamples,fullRawFilename);
+                       startDateNum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
+                       stopDateNum = dateNumFound(end);                       
                        
-                       %either use epochPeriodSec or use samplerate.
-                       if(obj.epochPeriodSec>0)
-                           obj.durationSec = numSamples*obj.epochPeriodSec;
-                       else
-                           obj.durationSec = numSamples/obj.getSampleRate();
+                       missingValue = nan;
+                       epochDateNumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
+                       
+                       toc
+                       % NOTE:  Chopping off the first two columns: date time values;
+                       tmpDataCell(1:2) = [];                       
+                       [dataCell, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,epochDateNumDelta,dateVecFound,tmpDataCell,missingValue);                       
+                       tmpDataCell = []; %free up this memory;
+                       toc
+                       obj.durSamples = numel(obj.dateTimeNum);
+                       obj.durationSec = floor(obj.durationSamples()/obj.sampleRate);
+                       
+                       numMissing = obj.durationSamples() - samplesFound;
+                                              
+                       if(obj.durationSamples()==samplesFound)
+                           fprintf('%d rows loaded from %s\n',samplesFound,fullCountFilename); 
+                       else                           
+                           
+                           if(numMissing>0)
+                               fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullCountFilename,numMissing,num2str(missingValue));
+                           else
+                               fprintf('This case is not handled yet.\n');
+                               fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullCountFilename,numMissing,num2str(missingValue));
+                           end
                        end
+                       
+                       obj.accelRaw.x = dataCell{1};
+                       obj.accelRaw.y = dataCell{2};
+                       obj.accelRaw.z = dataCell{3};
+                       
+                       N = obj.epochPeriodSec*obj.sampleRate;
+                       
+                       obj.steps = reshape(repmat(obj.steps(:),N,1),[],1);
+                       obj.lux = reshape(repmat(obj.lux(:),N,1),[],1);
+                       
+                       obj.inclinometer.off = reshape(repmat(obj.inclinomter.off(:),N,1),[],1);
+                       obj.inclinometer.standing = reshape(repmat(obj.inclinomter.standing(:),N,1),[],1);
+                       obj.inclinometer.sitting = reshape(repmat(obj.inclinomter.sitting(:),N,1),[],1);
+                       obj.inclinometer.lying = reshape(repmat(obj.inclinomter.lying(:),N,1),[],1);
+                       obj.vecMag = reshape(repmat(obj.vecMag,N,1),[],1);
+
                        fclose(fid);
                    catch me
                        showME(me);
@@ -873,6 +898,54 @@ classdef PAData < handle
    
    methods(Static)
 
+       % ======================================================================
+       %> @brief Helper function for loading raw and count file
+       %> formats to ensure proper ordering and I/O error handling.
+       %> @param The start date number that the ordered data cell should
+       %> begin at.  (should be generated using datenum())
+       %> @param The date number (generated using datenum()) that the ordered data cell 
+       %> ends at.
+       %> @param The difference between two successive date number samples.
+       %> @param Vector of date number values taken between startDateNum
+       %> and stopDateNum (inclusive) and are in the order and size as the
+       %> individual cell components of tmpDataCell
+       %> @param A cell of vectors whose individual values correspond to
+       %> the order of sampledDateVec
+       %> @param (Optional) Value to be used in the ordered output data
+       %> cell where the tmpDataCell does not have corresponding values.
+       %> The default is 'nan'.
+       %> @retval A cell of vectors that are taken from tmpDataCell but
+       %> initially filled with the missing value parameter and ordered
+       %> according to synthDateNum.
+       %> @retval Vector of date numbers generated by
+       %> startDateNum:dateNumDelta:stopDateNum which correponds to the
+       %> row order of orderedDataCell cell values/vectors
+       %> @note This is a helper function for loading raw and count file
+       %> formats to ensure proper ordering and I/O error handling.
+       function [orderedDataCell, synthDateNum] = mergedCell(startDateNum, stopDateNum, dateNumDelta, sampledDateVec,tmpDataCell,missingValue)
+           if(nargin<6 || isempty(missingValue))
+               missingValue = nan;
+           end
+           
+           sampledDateNum = datenum(round(sampledDateVec));
+           
+           synthDateNum = datenum(round(datevec(startDateNum:dateNumDelta:stopDateNum)));
+           numSamples = numel(synthDateNum);
+           %make a cell with the same number of column as
+           %loaded in the file less 2 (remove date and time
+           %b/c already have these, with each column entry
+           %having an array with as many missing values as
+           %originally found.
+           orderedDataCell =  repmat({repmat(missingValue,numSamples,1)},1,size(tmpDataCell,2));
+           
+           [~,IA,~] = intersect(synthDateNum,sampledDateNum);
+           
+           
+           for c=1:numel(orderedDataCell)
+               orderedDataCell{c}(IA) = tmpDataCell{c};
+           end
+       end
+       
        % ======================================================================
        %> @brief Evaluates the two structures, field for field, using the function name
        %> provided.

@@ -369,7 +369,7 @@ classdef PAController < handle
         %> @param hObject    handle to menu_file_open (see GCBO)
         % --------------------------------------------------------------------
         function menuFileOpenCallback(obj,hObject,eventdata)
-            f=uigetfullfile({'*.csv','Comma Separated Values';'*.raw','Raw Format (comma separated values)'},'Select a file','off',fullfile(obj.SETTINGS.DATA.lastPathname,obj.SETTINGS.DATA.lastFilename));
+            f=uigetfullfile({'*.csv','Comma Separated Vectors';'*.raw','Raw Format (comma separated valuesspace delimited)'},'Select a file','off',fullfile(obj.SETTINGS.DATA.lastPathname,obj.SETTINGS.DATA.lastFilename));
             
             if(~isempty(f))
                 obj.VIEW.showBusy('Loading');
