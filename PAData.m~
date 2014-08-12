@@ -555,8 +555,8 @@ classdef PAData < handle
        function headerStr = getHeaderAsString(obj)
            durStr = datestr(datenum([0 0 0 0 0 obj.durationSec]),'HH:MM:SS'); 
            epochPeriod = datestr(datenum([0 0 0 0 0 obj.epochPeriodSec]),'HH:MM:SS'); 
-           headerStr = sprintf('Filename:\t%s\nStart Date: %s\nStart Time: %s\nDuration:\t%s\nEpoch Count:\t%4u\nEpoch Period:\t%s\nSample Rate:\t%f',...
-               obj.filename,obj.startDate,obj.startTime,durStr,obj.getEpochCount,epochPeriod,obj.getSampleRate());
+           headerStr = sprintf('Filename:\t%s\nStart Date: %s\nStart Time: %s\nDuration:\t%s\nEpoch Count:\t%4u\nEpoch Period:\t%s',...
+               obj.filename,obj.startDate,obj.startTime,durStr,obj.getEpochCount,epochPeriod);
        end
        
        % ======================================================================
@@ -618,7 +618,7 @@ classdef PAData < handle
                        %                        dateTime = strcat(tmpDataCell{1},{' '},tmpDataCell{2});
                        % dateVecFound = round(datevec(dateTime,'mm/dd/yyyy HH:MM:SS'));
                        dateVecFound = [tmpDataCell{3},tmpDataCell{1},tmpDataCell{2},tmpDataCell{4},tmpDataCell{5},tmpDataCell{6}];
-                       samplesFound = size(dateVecFound,1);  
+                       samplesFound = size(dateVecFound,2);  
                        
                        startDateNum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
                        stopDateNum = datenum(dateVecFound(end,:));
@@ -630,7 +630,9 @@ classdef PAData < handle
                        % NOTE:  Chopping off the first six columns: date time values;
                        tmpDataCell(1:6) = [];
                        
-                       [dataCell, ~, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,epochDateNumDelta,dateVecFound,tmpDataCell,missingValue);
+                       [dataCell, dateTimeVec] = obj.mergedCell(startDateNum,stopDateNum,epochDateNumDelta,dateVecFound,tmpDataCell,missingValue);
+                       toc;
+                       obj.dateTimeNum = datenum(dateTimeVec);
                        toc;
                        tmpDataCell = []; %free up this memory;
                        
@@ -735,7 +737,8 @@ classdef PAData < handle
 
                        % NOTE:  Chopping off the first six columns: date time values;
                        tmpDataCell(1:6) = [];                       
-                       [dataCell, ~, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,epochDateNumDelta,dateVecFound,tmpDataCell,missingValue);                       
+                       [dataCell, dateTimeVec] = obj.mergedCell(startDateNum,stopDateNum,epochDateNumDelta,dateVecFound,tmpDataCell,missingValue);                       
+                       obj.dateTimeNum = datenum(dateTimeVec);
                        tmpDataCell = []; %free up this memory;
                        toc
                        obj.durSamples = numel(obj.dateTimeNum);
@@ -744,7 +747,7 @@ classdef PAData < handle
                        numMissing = obj.durationSamples() - samplesFound;
                                               
                        if(obj.durationSamples()==samplesFound)
-                           fprintf('%d rows loaded from %s\n',samplesFound,fullRawFilename); 
+                           fprintf('%d rows loaded from %s\n',samplesFound,fullCountFilename); 
                        else                           
                            
                            if(numMissing>0)
@@ -764,10 +767,10 @@ classdef PAData < handle
                        obj.steps = reshape(repmat(obj.steps(:),N,1),[],1);
                        obj.lux = reshape(repmat(obj.lux(:),N,1),[],1);
                        
-                       obj.inclinometer.off = reshape(repmat(obj.inclinometer.off(:),N,1),[],1);
-                       obj.inclinometer.standing = reshape(repmat(obj.inclinometer.standing(:),N,1),[],1);
-                       obj.inclinometer.sitting = reshape(repmat(obj.inclinometer.sitting(:),N,1),[],1);
-                       obj.inclinometer.lying = reshape(repmat(obj.inclinometer.lying(:),N,1),[],1);
+                       obj.inclinometer.off = reshape(repmat(obj.inclinomter.off(:),N,1),[],1);
+                       obj.inclinometer.standing = reshape(repmat(obj.inclinomter.standing(:),N,1),[],1);
+                       obj.inclinometer.sitting = reshape(repmat(obj.inclinomter.sitting(:),N,1),[],1);
+                       obj.inclinometer.lying = reshape(repmat(obj.inclinomter.lying(:),N,1),[],1);
                        obj.vecMag = reshape(repmat(obj.vecMag,N,1),[],1);
 
                        fclose(fid);
@@ -915,14 +918,12 @@ classdef PAData < handle
        %> @retval A cell of vectors that are taken from tmpDataCell but
        %> initially filled with the missing value parameter and ordered
        %> according to synthDateNum.
-       %> @retval Matrix of date vectors ([Y, Mon,Day, Hr, Mn, Sec]) generated by
+       %> @retval Vector of date numbers generated by
        %> startDateNum:dateNumDelta:stopDateNum which correponds to the
        %> row order of orderedDataCell cell values/vectors
-       %> @retval Vector of date numbers corresponding to the date vector
-       %> matrix return argument.
        %> @note This is a helper function for loading raw and count file
        %> formats to ensure proper ordering and I/O error handling.
-       function [orderedDataCell, synthDateVec, synthDateNum] = mergedCell(startDateNum, stopDateNum, dateNumDelta, sampledDateVec,tmpDataCell,missingValue)
+       function [orderedDataCell, synthDateVec] = mergedCell(startDateNum, stopDateNum, dateNumDelta, sampledDateVec,tmpDataCell,missingValue)
            if(nargin<6 || isempty(missingValue))
                missingValue = nan;
            end
@@ -940,13 +941,18 @@ classdef PAData < handle
            orderedDataCell =  repmat({repmat(missingValue,numSamples,1)},1,size(tmpDataCell,2));
            
            %This takes 2.0 seconds!
+           tic
            synthDateNum = datenum(synthDateVec);
            sampledDateNum = datenum(sampledDateVec);
+           toc 
            [~,IA,~] = intersect(synthDateNum,sampledDateNum);
+           toc
            
            %This takes 153.7 seconds! - 'rows' option is not as helpful
            %here.
+           tic
            %            [~,IA,~] = intersect(synthDateVec,sampledDateVec,'rows');
+           %            toc
            for c=1:numel(orderedDataCell)
                orderedDataCell{c}(IA) = tmpDataCell{c};
            end
