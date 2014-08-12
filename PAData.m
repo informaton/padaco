@@ -555,7 +555,7 @@ classdef PAData < handle
        function headerStr = getHeaderAsString(obj)
            durStr = datestr(datenum([0 0 0 0 0 obj.durationSec]),'HH:MM:SS'); 
            epochPeriod = datestr(datenum([0 0 0 0 0 obj.epochPeriodSec]),'HH:MM:SS'); 
-           headerStr = sprintf('Filename:\t%s\nStart Date: %s\nStart Time: %s\nDuration:\t%s\nEpoch Count:\t%4u\nEpoch Period:\t%s\nSample Rate:\t%f',...
+           headerStr = sprintf('Filename:\t%s\nStart Date: %s\nStart Time: %s\nDuration:\t%s\nEpoch Count:\t%4u\nEpoch Period:\t%s\nSample Rate:\t%u Hz',...
                obj.filename,obj.startDate,obj.startTime,durStr,obj.getEpochCount,epochPeriod,obj.getSampleRate());
        end
        
@@ -631,7 +631,7 @@ classdef PAData < handle
                        tmpDataCell(1:6) = [];
                        
                        [dataCell, ~, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,epochDateNumDelta,dateVecFound,tmpDataCell,missingValue);
-                       toc;
+                       
                        tmpDataCell = []; %free up this memory;
                        
                        %MATLAB has some strange behaviour with date num -
@@ -708,7 +708,6 @@ classdef PAData < handle
                fid = fopen(fullRawFilename,'r');
                if(fid>0)
                    try
-                       tic
                        delimiter = ',';
                        % header = 'Date	 Time	 Axis1	Axis2	Axis3
                        headerLines = 11; %number of lines to skip
@@ -718,11 +717,10 @@ classdef PAData < handle
 
                        %Date time handling
                        dateVecFound = [tmpDataCell{3},tmpDataCell{1},tmpDataCell{2},tmpDataCell{4},tmpDataCell{5},tmpDataCell{6}];
-                       toc
                        
                        %Date time handling
                        %dateVecFound = datevec(tmpDataCell{1},'mm/dd/yyyy HH:MM:SS.FFF');
-                       %toc
+                       
                        
                        obj.sampleRate = 40;                       
                        samplesFound = size(dateVecFound,1);  
@@ -737,7 +735,7 @@ classdef PAData < handle
                        tmpDataCell(1:6) = [];                       
                        [dataCell, ~, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,epochDateNumDelta,dateVecFound,tmpDataCell,missingValue);                       
                        tmpDataCell = []; %free up this memory;
-                       toc
+                       
                        obj.durSamples = numel(obj.dateTimeNum);
                        obj.durationSec = floor(obj.durationSamples()/obj.sampleRate);
                        
@@ -762,13 +760,30 @@ classdef PAData < handle
                        N = obj.epochPeriodSec*obj.sampleRate;
                        
                        obj.steps = reshape(repmat(obj.steps(:),N,1),[],1);
-                       obj.lux = reshape(repmat(obj.lux(:),N,1),[],1);
+                       obj.lux = reshape(repmat(obj.lux(:)',N,1),[],1);
                        
-                       obj.inclinometer.off = reshape(repmat(obj.inclinometer.off(:),N,1),[],1);
-                       obj.inclinometer.standing = reshape(repmat(obj.inclinometer.standing(:),N,1),[],1);
-                       obj.inclinometer.sitting = reshape(repmat(obj.inclinometer.sitting(:),N,1),[],1);
-                       obj.inclinometer.lying = reshape(repmat(obj.inclinometer.lying(:),N,1),[],1);
-                       obj.vecMag = reshape(repmat(obj.vecMag,N,1),[],1);
+                       obj.inclinometer.off = reshape(repmat(obj.inclinometer.off(:)',N,1),[],1);
+                       obj.inclinometer.standing = reshape(repmat(obj.inclinometer.standing(:)',N,1),[],1);
+                       obj.inclinometer.sitting = reshape(repmat(obj.inclinometer.sitting(:)',N,1),[],1);
+                       obj.inclinometer.lying = reshape(repmat(obj.inclinometer.lying(:)',N,1),[],1);
+                       
+                       % obj.vecMag = reshape(repmat(obj.vecMag(:)',N,1),[],1);
+                       % derive vecMag from x, y, z axes directly...
+                       obj.vecMag = sqrt(obj.accelRaw.x.^2+obj.accelRaw.y.^2+obj.accelRaw.z.^2);
+                       
+                       
+                       
+                       %Use a different scale for raw data so it can be
+                       %seen more easily...
+                       obj.scale.accelRaw.x = 10;
+                       obj.scale.accelRaw.y = 10;
+                       obj.scale.accelRaw.z = 10;
+                       obj.scale.inclinometer.standing = 5;
+                       obj.scale.inclinometer.lying = 5;
+                       obj.scale.inclinometer.sitting = 5;
+                       obj.scale.inclinometer.off = 5;
+                       obj.scale.lux = 5;
+                       obj.scale.vecMag = 10;
 
                        fclose(fid);
                    catch me
