@@ -323,7 +323,7 @@ classdef PAData < handle
        % --------------------------------------------------------------------
        %> @brief Set the current epoch for the instance variable accelObj
        %> (PAData)
-       %> @param Instance of PAContraller
+       %> @param Instance of PAData
        %> @param The epoch to set curEpoch to.
        %> @retval The current value of instance variable curEpoch.
        %> @note If the input argument for epoch is negative or exceeds 
@@ -373,8 +373,7 @@ classdef PAData < handle
        % --------------------------------------------------------------------
        function aggregateDuration = getAggregateDuration(obj)
            aggregateDuration = obj.aggregateDurMin;
-       end
-       
+       end       
        
        % --------------------------------------------------------------------
        %> @brief Set the frame duration (in minutes) instance variable.

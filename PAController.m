@@ -284,8 +284,25 @@ classdef PAController < handle
             set(handles.edit_frameSize,'callback',@obj.edit_frameSizeCallback);
             
             set(handles.menu_windowDurSec,'callback',@obj.menu_windowDurSecCallback);
-            set(handles.menu_prefilter,'callback',@obj.menu_aggregateCallback);
-            set(handles.menu_extractor,'callback',@obj.menu_extractorCallback);
+            % set(handles.menu_prefilter,'callback',@obj.menu_prefilterCallback);
+            % set(handles.menu_extractor,'callback',@obj.menu_extractorCallback);
+            
+            set(handles.button_go,'callback',@obj.button_goCallback);
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Callback for pressing the Go push button.
+        %> @param Instance of PAContraller
+        %> @param Handle to the edit text widget
+        %> @param Required by MATLAB, but not used
+        % --------------------------------------------------------------------
+        function button_goCallback(obj,hObject,eventdata)
+            %obtain the prefilter method
+            
+            %obtain the extractor method
+            
+            %Tell the model to prefilter and extract
+            disp('In progress');
         end
 
         % --------------------------------------------------------------------
@@ -309,6 +326,7 @@ classdef PAController < handle
             obj.VIEW.updateSecondaryAxes(obj.accelObj.getEpochCount);
             obj.setCurEpoch(obj.curEpoch());
         end
+        
         
         % --------------------------------------------------------------------
         %> @brief Callback for current epoch's edit textbox.
@@ -343,8 +361,7 @@ classdef PAController < handle
         function edit_frameSizeCallback(obj,hObject,eventdata)
             frameDuration = str2double(get(hObject,'string'));
             obj.setFameDuration(frameDuration);
-        end
-        
+        end        
         
         % --------------------------------------------------------------------
         %> @brief Set the aggregate duration in minutes.
