@@ -369,44 +369,40 @@ classdef PAData < handle
        end
        
        % --------------------------------------------------------------------
-       % @brief Returns the current epoch.
+       % @brief Returns the current aggregate duration in minutes.
        % @param Instance of PAData
        % @retval The current epoch;
        % --------------------------------------------------------------------
-       function curEpoch = getCurEpoch(obj)
-           curEpoch = obj.curEpoch;
+       function aggregateDuration = getAggregateDuration(obj)
+           aggregateDuration = obj.curEpoch;
        end
        
        
        % --------------------------------------------------------------------
-       %> @brief Set the current epoch for the instance variable accelObj
-       %> (PAData)
-       %> @param Instance of PAContraller
-       %> @param The epoch to set curEpoch to.
-       %> @retval The current value of instance variable curEpoch.
-       %> @note If the input argument for epoch is negative or exceeds 
-       %> the maximum epoch value for the time series data, then it is not used
-       %> and the curEpoch value is retained, and also returned.
+       %> @brief Set the frame duration (in minutes) instance variable.
+       %> @param Instance of PAData
+       %> @param The frame duration to set frameDurMin to.
+       %> @retval The current value of instance variable frameDurMin.
+       %> @note If the input argument for frameDurationMin is negative or exceeds 
+       %> the maximum duration of data, then it is not used
+       %> and the current frame duration is retained (and also returned).
        % --------------------------------------------------------------------
-       function curEpoch = setCurEpoch(obj,epoch)
-           if(epoch>0 && epoch<=obj.getEpochCount())
-               obj.curEpoch = epoch;
-               %obj.setCurrentStruct();
+       function frameDurationMin = setFrameDuration(obj,frameDurationMin)
+           if(frameDurationMin>0 && frameDurationMin<=obj.durationSec()/60)
+               obj.curEpoch = frameDurationMin;
            end
-           %returns the current epoch, wether it be 'epoch' or not.
-           curEpoch = obj.getCurEpoch();
+           %returns the current frame duration, whether it be 'frameDurationMin' or not.
+           frameDurationMin = obj.getFrameDuration();
        end
        
        % --------------------------------------------------------------------
-       % @brief Returns the current epoch.
+       % @brief Returns the frame duration (in minutes)
        % @param Instance of PAData
        % @retval The current frame duration in minutes;
        % --------------------------------------------------------------------
        function curFrameDurationMin = getFrameDuration(obj)
-           curFrameDurationMin = obj.frameDurationMin;
+           curFrameDurationMin = obj.frameDurMin;
        end
-       
-       
        
        % --------------------------------------------------------------------
        % @brief Returns the number of samples contained in the time series data.

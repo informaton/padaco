@@ -346,8 +346,8 @@ classdef PAController < handle
         %> @note Entered values are interepreted as minutes.
         % --------------------------------------------------------------------
         function edit_aggregateCallback(obj,hObject,eventdata)
-            aggregateDuration = str2double(get(hObject,'string'));
-            obj.setAggregateDuration(aggregateDuration);
+            epoch = str2double(get(hObject,'string'));
+            obj.setAggregateMin(epoch);
         end
         
         % --------------------------------------------------------------------
@@ -358,8 +358,8 @@ classdef PAController < handle
         %> @note Entered values are interepreted as minutes.
         % --------------------------------------------------------------------
         function edit_frameSizeCallback(obj,hObject,eventdata)
-            frameDuration = str2double(get(hObject,'string'));
-            obj.frameDuration(frameDuration);
+            epoch = str2double(get(hObject,'string'));
+            obj.frameSizeEpoch(epoch);
         end
         
         
@@ -367,36 +367,18 @@ classdef PAController < handle
         %> @brief Set the aggregate duration in minutes.
         %> @param Instance of PAContraller
         %> @param Aggregate duration in minutes.
-        %> @retval True if the aggregate duration is changed, and false otherwise.
+        %> @retval True if the epoch is set successfully, and false otherwise.
         % --------------------------------------------------------------------
-        function success = setAggregateDuration(obj,new_aggregateDuration)
+        function success = setAggregateDuration(obj,new_ggregateDuration)
             success = false;
             if(~isempty(obj.accelObj))                
-                cur_aggregateDuration = obj.accelObj.setAggregateDuration(new_aggregateDuration);
+                cur_aggregateDuration = obj.accelObj.setAggregateDuration(new_AggregateDuration);
                 obj.VIEW.setAggregateDuration(num2str(cur_aggregateDuration));
-                if(new_aggregateDuration==cur_aggregateDuration)
+                if(new_AggregateDuration==cur_aggregateDuration)
                     success=true;
                 end
             end
         end
-        
-        % --------------------------------------------------------------------
-        %> @brief Set the frame size in minutes.
-        %> @param Instance of PAContraller
-        %> @param Aggregate duration in minutes.
-        %> @retval True if the frame duration is changed, and false otherwise.
-        % --------------------------------------------------------------------
-        function success = setFrameDuration(obj,new_frameDuration)
-            success = false;
-            if(~isempty(obj.accelObj))                
-                cur_frameDuration = obj.accelObj.setFrameDuration(new_frameDuration);
-                obj.VIEW.setFrameDuration(num2str(cur_frameDuration));
-                if(new_frameDuration==cur_frameDuration)
-                    success=true;
-                end
-            end
-        end
-        
         
         % --------------------------------------------------------------------
         %> @brief Set the current epoch for the instance variable accelObj

@@ -106,8 +106,6 @@ classdef PAView < handle
             obj.texthandle.filename = handles.text_filename;
             obj.texthandle.studyinfo = handles.text_studyinfo;
             obj.texthandle.curEpoch = handles.edit_curEpoch;
-            obj.texthandle.aggregateDuration = handles.edit_aggregate;
-            obj.texthandle.frameDuration = handles.edit_frameSize;
             
             obj.axeshandle.primary = handles.axes_primary;
             obj.axeshandle.secondary = handles.axes_secondary;
@@ -138,21 +136,15 @@ classdef PAView < handle
         
         
         % --------------------------------------------------------------------
-        %> @brief Sets aggregate duration edit box string value
+        %> @brief Sets current epoch edit box string value
         %> @param Instance of PAView.
-        %> @param A string representing the aggregate duration as minutes.
+        %> @param A string.
         % --------------------------------------------------------------------
-        function setAggregateDuration(obj,aggregateDurationStr)
-           set(obj.texthandle.curAggregateDuration,'string',aggregateDurationStr);            
-        end
-        
-        % --------------------------------------------------------------------
-        %> @brief Sets aggregate duration edit box string value
-        %> @param Instance of PAView.
-        %> @param A string representing the frame duration as minutes.
-        % --------------------------------------------------------------------
-        function setFrameDuration(obj,frameDurationStr)
-           set(obj.texthandle.curFrameDuration,'string',frameDurationStr);            
+        function setAggregateDuration(obj,aggregateStr)
+           set(obj.texthandle.curEpoch,'string',aggregateStr); 
+           epochNum = str2double(aggregateStr);
+           set(obj.positionBarHandle,'xdata',repmat(epochNum,1,2));
+           obj.draw();
         end
         
         
