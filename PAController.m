@@ -49,24 +49,7 @@ classdef PAController < handle
         Padaco_mainaxes_xlim;        
     end
     
-    methods(Access=private)
-        % --------------------------------------------------------------------
-        %> @brief Initializes the display using instantiated instance
-        %> variables VIEW (PAView) and accelObj (PAData)
-        %> @param Instance of PAContraller
-        % --------------------------------------------------------------------
-        function initView(obj)
-            %keep record of our settings
-            obj.SETTINGS.DATA.lastPathname = obj.accelObj.pathname;
-            obj.SETTINGS.DATA.lastFilename = obj.accelObj.filename;
-            
-            obj.VIEW.showReady();
-            
-            obj.VIEW.initWithAccelData(obj.accelObj);
-            
-            obj.setCurEpoch(1);
-        end
-    end
+
 
     methods
         
@@ -359,7 +342,7 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function edit_frameSizeCallback(obj,hObject,eventdata)
             frameDuration = str2double(get(hObject,'string'));
-            obj.frameDuration(frameDuration);
+            obj.setFameDuration(frameDuration);
         end
         
         
@@ -428,7 +411,7 @@ classdef PAController < handle
             if(isempty(obj.accelObj))
                 epoch = [];
             else
-                epoch = obj.accelObj.curEpoch;
+                epoch = obj.accelObj.getCurEpoch;
             end
         end
         
@@ -463,5 +446,27 @@ classdef PAController < handle
         
 
     end
+    
+    methods(Access=private)
+        % --------------------------------------------------------------------
+        %> @brief Initializes the display using instantiated instance
+        %> variables VIEW (PAView) and accelObj (PAData)
+        %> @param Instance of PAContraller
+        % --------------------------------------------------------------------
+        function initView(obj)
+            %keep record of our settings
+            obj.SETTINGS.DATA.lastPathname = obj.accelObj.pathname;
+            obj.SETTINGS.DATA.lastFilename = obj.accelObj.filename;
+            
+            obj.VIEW.showReady();
+            
+            obj.VIEW.initWithAccelData(obj.accelObj);
+            
+            obj.setCurEpoch(1);
+            obj.setFrameDuration(15);
+            obj.setAggregateDuration(3);
+        end
+    end
+    
 end
 

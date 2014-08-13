@@ -120,6 +120,9 @@ classdef PAData < handle
                end               
            end
            
+           obj.aggregateDurMin = 1;
+           obj.frameDurMin = 4;
+           
            obj.color.accelRaw.x.color = 'r';
            obj.color.accelRaw.y.color = 'b';
            obj.color.accelRaw.z.color = 'g';
@@ -306,7 +309,6 @@ classdef PAData < handle
            epochDurSamples = obj.getEpochDurSamples();
            epochRange = (obj.curEpoch-1)*epochDurSamples+[1,epochDurSamples];
        end
-
        
        % ======================================================================
        %> @brief Returns the duration of an epoch in terms of sample points.
@@ -317,8 +319,6 @@ classdef PAData < handle
        function epochDurSamples = getEpochDurSamples(obj)
            epochDurSamples = obj.epochDurSec*obj.getSampleRate();
        end
-       
-       
        
        % --------------------------------------------------------------------
        %> @brief Set the current epoch for the instance variable accelObj
@@ -360,7 +360,7 @@ classdef PAData < handle
        % --------------------------------------------------------------------
        function aggregateDurationMin = setAggregateDuration(obj,aggregateDurationMin)
            if(aggregateDurationMin>0 && aggregateDurationMin<=obj.getFrameDuration())
-               obj.curEpoch = aggregateDurationMin;
+               obj.aggregateDurMin = aggregateDurationMin;
            end
            %returns the current frame duration, whether it be 'frameDurationMin' or not.
            aggregateDurationMin = obj.getAggregateDuration();
@@ -386,8 +386,8 @@ classdef PAData < handle
        %> and the current frame duration is retained (and also returned).
        % --------------------------------------------------------------------
        function frameDurationMin = setFrameDuration(obj,frameDurationMin)
-           if(frameDurationMin>0 && frameDurationMin<=obj.durationSec()/60)
-               obj.curEpoch = frameDurationMin;
+           if(frameDurationMin>0 && frameDurationMin<=obj.durationSec/60)
+               obj.frameDurMin = frameDurationMin;
            end
            %returns the current frame duration, whether it be 'frameDurationMin' or not.
            frameDurationMin = obj.getFrameDuration();

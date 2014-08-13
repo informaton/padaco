@@ -143,7 +143,7 @@ classdef PAView < handle
         %> @param A string representing the aggregate duration as minutes.
         % --------------------------------------------------------------------
         function setAggregateDuration(obj,aggregateDurationStr)
-           set(obj.texthandle.curAggregateDuration,'string',aggregateDurationStr);            
+           set(obj.texthandle.aggregateDuration,'string',aggregateDurationStr);            
         end
         
         % --------------------------------------------------------------------
@@ -152,7 +152,7 @@ classdef PAView < handle
         %> @param A string representing the frame duration as minutes.
         % --------------------------------------------------------------------
         function setFrameDuration(obj,frameDurationStr)
-           set(obj.texthandle.curFrameDuration,'string',frameDurationStr);            
+           set(obj.texthandle.frameDuration,'string',frameDurationStr);            
         end
         
         
@@ -369,7 +369,6 @@ classdef PAView < handle
             
             widgetList = [handles.menu_windowDurSec
                 handles.edit_curEpoch
-                handles.edit_curEpoch
                 handles.menu_windowDurSec
                 handles.menu_prefilter
                 handles.edit_aggregate
@@ -381,8 +380,10 @@ classdef PAView < handle
             
             
             set(handles.edit_aggregate,'string','1');
-            set(handles.edit_frameSize,'string','1');
+            set(handles.edit_frameSize,'string','4');
             set(handles.edit_curEpoch,'string','0');
+            
+            
             
             prefilterSelection = {'None','RMS','Hash','Sum','Median','Mean'};
             set(handles.menu_prefilter,'string',prefilterSelection,'value',1);
