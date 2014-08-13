@@ -309,13 +309,19 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function menu_windowDurSecCallback(obj,hObject,eventdata)
             %get the array of window sizes in seconds
-            windowDursSec = get(hObject,'userdata');
+            windowDurSec = get(hObject,'userdata');
             % grab the currently selected window size (in seconds)
-            windowDurSec = windowDursSec(get(hObject,'value'));
+            windowDurSec = windowDurSec(get(hObject,'value'));
             
             %change it - this internally recalculates the cur epoch
             obj.accelObj.setEpochDurSec(windowDurSec);
+            
+            %resize the secondary axes according to the new window
+            %resolution
+            obj.VIEW.updateSecondaryAxes(obj.accelObj.getEpochCount);
             obj.setCurEpoch(obj.curEpoch());
+            
+            
         end
         
         % --------------------------------------------------------------------

@@ -275,17 +275,33 @@ classdef PAData < handle
        % ======================================================================
        %> @brief Returns a structure of an instnace PAData's time series data.
        %> @param Instance of PAData.
-       %> @retval The start, stop range of the current epoch returned as samples beginning with 1 for the first sample.
+       %> @retval A 2x1 vector with start, stop range of the current epoch returned as
+       %> samples beginning with 1 for the first sample.  The second value
+       %> (i.e. the stop sample) is capped at the current value of
+       %> durationSamples().
        %> @note This uses instance variables epochDurSec, curEpoch, and sampleRate to
        %> determine the sample range for the current epoch.
        % =================================================================      
-       function epochRange = getCurEpochRangeAsSamples(obj)
-           epochDurSamples = obj.getEpochDurSamples();
-           epochRange = (obj.curEpoch-1)*epochDurSamples+[1,epochDurSamples];
-           
-           epochRange(2) = min([epochRange(2),obj.durationSamples()]);
+       function correctedEpochRange = getCurEpochRangeAsSamples(obj)
+           correctedEpochRange = obj.getCurEpochRangeAsUncorrectedSamples();
+           correctedEpochRange(2) = min([correctedEpochRange(2),obj.durationSamples()]);
        end
 
+       
+       % ======================================================================
+       %> @brief Returns a structure of an instnace PAData's time series data.
+       %> @param Instance of PAData.
+       %> @retval A 2x1 vector with start, stop range of the current epoch returned as
+       %> samples beginning with 1 for the first sample.  
+       %> @note This uses instance variables epochDurSec, curEpoch, and sampleRate to
+       %> determine the sample range for the current epoch.
+       % =================================================================      
+       function epochRange = getCurEpochRangeAsUncorrectedSamples(obj)
+           epochDurSamples = obj.getEpochDurSamples();
+           epochRange = (obj.curEpoch-1)*epochDurSamples+[1,epochDurSamples];
+       end
+
+       
        % ======================================================================
        %> @brief Returns the duration of an epoch in terms of sample points.
        %> @param Instance of PAData.
