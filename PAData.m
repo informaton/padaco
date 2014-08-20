@@ -45,19 +45,6 @@ classdef PAData < handle
        %the file name.
        dateTimeNum;
 
-       %> @brief Defined in the accelerometer's file output and converted to seconds.
-       %> This is, most likely, the sampling rate of the output file.
-       epochPeriodSec;
-       %> @brief Epoch duration (in seconds). 
-       %> This can be adjusted by the user, but is 30 s by default.
-       epochDurSec;    
-       
-       %> @brief Initial aggregation duration in minutes.  Frames are
-       %comprised of consecutive aggregated windows of data.
-       aggregateDurMin;
-       
-       %> @brief Frame duration (in minutes).  Features are extracted from frames. 
-       frameDurMin;
        %> @brief Struct of line handle properties corresponding to the
        %> fields of linehandle.  These are derived from the input files
        %> loaded by the PAData class.
@@ -87,6 +74,21 @@ classdef PAData < handle
        curEpoch; 
        %> Number of samples contained in the data (accelRaw.x)
        durSamples;
+       %> @brief Defined in the accelerometer's file output and converted to seconds.
+       %> This is, most likely, the sampling rate of the output file.
+       epochPeriodSec;
+       %> @brief Epoch duration (in seconds). 
+       %> This can be adjusted by the user, but is 30 s by default.
+       epochDurSec;    
+       
+       %> @brief Initial aggregation duration in minutes.  Frames are
+       %comprised of consecutive aggregated windows of data.
+       aggregateDurMin;
+       
+       
+       %> @brief Frame duration (in minutes).  Features are extracted from frames. 
+       frameDurMin;
+       
    end
    
    
@@ -120,33 +122,35 @@ classdef PAData < handle
                end               
            end
            
+            
            obj.aggregateDurMin = 1;
            obj.frameDurMin = 4;
            
            obj.color.accelRaw.x.color = 'r';
            obj.color.accelRaw.y.color = 'b';
-           obj.color.accelRaw.z.color = 'g';
-           
+           obj.color.accelRaw.z.color = 'g';           
+           obj.color.vecMag.color = 'm';
+           obj.color.steps.color = [1 0.5 0.5];
+           obj.color.lux.color = 'y';           
            obj.color.inclinometer.standing.color = 'k';
            obj.color.inclinometer.lying.color = 'k';
            obj.color.inclinometer.sitting.color = 'k';
            obj.color.inclinometer.off.color = 'k';
            
-           obj.color.lux.color = 'y';
-           obj.color.vecMag.color = 'm';
-           obj.color.steps.color = 'o';
            
+           % scale to show at - place before the loadFile command, 
+           % b/c it will differe based on the type of file loading done.
            obj.scale.accelRaw.x = 1;
            obj.scale.accelRaw.y = 1;
            obj.scale.accelRaw.z = 1;
-           obj.scale.inclinometer.standing = 1;
-           obj.scale.inclinometer.lying = 1;
-           obj.scale.inclinometer.sitting = 1;
-           obj.scale.inclinometer.off = 1;
-           obj.scale.lux = 1;
            obj.scale.vecMag = 1;
-           obj.scale.steps = 1; 
-          
+           obj.scale.steps = 5; 
+           obj.scale.lux = 1;
+           obj.scale.inclinometer.standing = 5;
+           obj.scale.inclinometer.sitting = 5;
+           obj.scale.inclinometer.lying = 5;
+           obj.scale.inclinometer.off = 5;
+           
            % Removed in place of getSampleRate()
            %            obj.sampleRate.accelRaw = 40;
            %            obj.sampleRate.inclinometer = 40;
@@ -158,44 +162,49 @@ classdef PAData < handle
            
            obj.loadFile();
            
+           % yDelta = 1/20 of the vertical screen space (i.e. 20 can fit)
            obj.yDelta = 0.05*diff(obj.getMinmax('all'));
            obj.offset.accelRaw.x = obj.yDelta*1;
-           obj.offset.accelRaw.y = obj.yDelta*5;
-           obj.offset.accelRaw.z = obj.yDelta*10;
-           obj.offset.inclinometer.standing = obj.yDelta*14;
-           obj.offset.inclinometer.lying = obj.yDelta*15;
-           obj.offset.inclinometer.sitting = obj.yDelta*16;
-           obj.offset.inclinometer.off = obj.yDelta*17;
-           obj.offset.lux = obj.yDelta*18;
-           obj.offset.vecMag = obj.yDelta*19;
-           obj.offset.steps = obj.yDelta*20; 
+           obj.offset.accelRaw.y = obj.yDelta*4;
+           obj.offset.accelRaw.z = obj.yDelta*7;
+           obj.offset.vecMag = obj.yDelta*10;
+           obj.offset.steps = obj.yDelta*14; 
+           obj.offset.lux = obj.yDelta*15;
+           obj.offset.inclinometer.standing = obj.yDelta*19.0;
+           obj.offset.inclinometer.sitting = obj.yDelta*18.25;
+           obj.offset.inclinometer.lying = obj.yDelta*17.5;
+           obj.offset.inclinometer.off = obj.yDelta*16.75;
+           
                       
            % label properties for visualization
            obj.label.accelRaw.x.string = 'X';
            obj.label.accelRaw.y.string = 'Y';
            obj.label.accelRaw.z.string = 'Z';
            
-           obj.label.inclinometer.standing.string = 'Standing';
-           obj.label.inclinometer.lying.string = 'Lying';
-           obj.label.inclinometer.sitting.string = 'Sitting';
-           obj.label.inclinometer.off.string = 'Off';
-           
-           obj.label.lux.string = 'Lux';
            obj.label.vecMag.string = 'Magnitude';
            obj.label.steps.string = 'Steps';  
+           obj.label.lux.string = 'Lux';
+           
+           obj.label.inclinometer.standing.string = 'Standing';
+           obj.label.inclinometer.sitting.string = 'Sitting';
+           obj.label.inclinometer.lying.string = 'Lying';
+           obj.label.inclinometer.off.string = 'Off';
+           
+           
            
            obj.label.accelRaw.x.position = [0 0 0];
            obj.label.accelRaw.y.position = [0 0 0];
            obj.label.accelRaw.z.position = [0 0 0];
            
-           obj.label.inclinometer.standing.position = [0 0 0];
-           obj.label.inclinometer.lying.position = [0 0 0];
-           obj.label.inclinometer.sitting.position = [0 0 0];
-           obj.label.inclinometer.off.position = [0 0 0];
-           
-           obj.label.lux.position = [0 0 0];
            obj.label.vecMag.position = [0 0 0];
            obj.label.steps.position = [0 0 0]; 
+           obj.label.lux.position = [0 0 0];
+           
+           obj.label.inclinometer.standing.position = [0 0 0];
+           obj.label.inclinometer.sitting.position = [0 0 0];
+           obj.label.inclinometer.lying.position = [0 0 0];
+           obj.label.inclinometer.off.position = [0 0 0];
+           
            
        end
        
@@ -254,20 +263,22 @@ classdef PAData < handle
        %> - accelRaw.x
        %> - accelRaw.y
        %> - accelRaw.z
-       %> - inclinometer
-       %> - lux
        %> - vecMag
+       %> - steps
+       %> - lux
+       %> - inclinometer
        function dat = subsindex(obj,indices)
            
            dat.accelRaw.x = double(obj.accelRaw.x(indices));
            dat.accelRaw.y = double(obj.accelRaw.y(indices));
            dat.accelRaw.z = double(obj.accelRaw.z(indices));
-           dat.inclinometer.off = double(double(obj.inclinometer.off(indices)));
+           dat.vecMag = double(obj.vecMag(indices));           
+           dat.steps = double(obj.steps(indices));
+           dat.lux = double(obj.lux(indices));           
            dat.inclinometer.standing = double(obj.inclinometer.standing(indices));
            dat.inclinometer.sitting = double(obj.inclinometer.sitting(indices));
            dat.inclinometer.lying = double(obj.inclinometer.lying(indices));
-           dat.lux = double(obj.lux(indices));
-           dat.vecMag = double(obj.vecMag(indices));           
+           dat.inclinometer.off = double(double(obj.inclinometer.off(indices)));
        end
        
        
@@ -340,14 +351,14 @@ classdef PAData < handle
        end
        
        % --------------------------------------------------------------------
-       % @brief Returns the current epoch.
-       % @param Instance of PAData
-       % @retval The current epoch;
+       %> @brief Returns the current epoch.
+       %> @param Instance of PAData
+       %> @retval The current epoch;
        % --------------------------------------------------------------------
        function curEpoch = getCurEpoch(obj)
            curEpoch = obj.curEpoch;
        end
-       
+              
        
        % --------------------------------------------------------------------
        %> @brief Set the aggregate duration (in minutes) instance variable.
@@ -741,10 +752,10 @@ classdef PAData < handle
                        
                        obj.steps = dataCell{4}; %what are steps?
                        obj.lux = dataCell{5};
-                       obj.inclinometer.off = dataCell{6};
                        obj.inclinometer.standing = dataCell{7};
                        obj.inclinometer.sitting = dataCell{8};
                        obj.inclinometer.lying = dataCell{9};
+                       obj.inclinometer.off = dataCell{6};
                        obj.vecMag = dataCell{10};
                        
                        %either use epochPeriodSec or use samplerate.
@@ -839,10 +850,10 @@ classdef PAData < handle
                        obj.steps = reshape(repmat(obj.steps(:),N,1),[],1);
                        obj.lux = reshape(repmat(obj.lux(:)',N,1),[],1);
                        
-                       obj.inclinometer.off = reshape(repmat(obj.inclinometer.off(:)',N,1),[],1);
                        obj.inclinometer.standing = reshape(repmat(obj.inclinometer.standing(:)',N,1),[],1);
                        obj.inclinometer.sitting = reshape(repmat(obj.inclinometer.sitting(:)',N,1),[],1);
                        obj.inclinometer.lying = reshape(repmat(obj.inclinometer.lying(:)',N,1),[],1);
+                       obj.inclinometer.off = reshape(repmat(obj.inclinometer.off(:)',N,1),[],1);
                        
                        % obj.vecMag = reshape(repmat(obj.vecMag(:)',N,1),[],1);
                        % derive vecMag from x, y, z axes directly...
@@ -855,12 +866,13 @@ classdef PAData < handle
                        obj.scale.accelRaw.x = 10;
                        obj.scale.accelRaw.y = 10;
                        obj.scale.accelRaw.z = 10;
-                       obj.scale.inclinometer.standing = 5;
-                       obj.scale.inclinometer.lying = 5;
-                       obj.scale.inclinometer.sitting = 5;
-                       obj.scale.inclinometer.off = 5;
-                       obj.scale.lux = 5;
                        obj.scale.vecMag = 10;
+                       obj.scale.steps = 5;
+                       obj.scale.lux = 5;
+                       obj.scale.inclinometer.standing = 5;
+                       obj.scale.inclinometer.sitting = 5;
+                       obj.scale.inclinometer.lying = 5;
+                       obj.scale.inclinometer.off = 5;
 
                        fclose(fid);
                    catch me
@@ -892,6 +904,19 @@ classdef PAData < handle
            end;
            epoch = ceil(sample/(epochDurSec*samplerate));
        end
+       
+       function prefilter(obj,method)
+          switch(lower(method))
+              case 'none'
+              case 'rms'
+              case 'median'
+              case 'mean'
+              case 'hash'
+              otherwise
+                fprintf(1,'Unknown method (%s)\n',method);
+          end           
+       end
+       
    end
    
    methods (Access = private)
@@ -904,15 +929,17 @@ classdef PAData < handle
        %> - accelRaw.x
        %> - accelRaw.y
        %> - accelRaw.z
-       %> - inclinometer
-       %> - lux
        %> - vecMag
+       %> - steps
+       %> - lux
+       %> - inclinometer
        % =================================================================      
        function dat = getAllStruct(obj)
            dat.accelRaw = obj.accelRaw;
-           dat.inclinometer = obj.inclinometer;
-           dat.lux = obj.lux;
            dat.vecMag = obj.vecMag;
+           dat.steps = obj.steps;
+           dat.lux = obj.lux;
+           dat.inclinometer = obj.inclinometer;
        end
        
        
@@ -925,9 +952,10 @@ classdef PAData < handle
        %> - accelRaw.x
        %> - accelRaw.y
        %> - accelRaw.z
-       %> - inclinometer (struct with more fields)
-       %> - lux
        %> - vecMag
+       %> - steps
+       %> - lux
+       %> - inclinometer (struct with more fields)
        % =================================================================      
        function curStruct = getCurrentStruct(obj)
            epochRange = obj.getCurEpochRangeAsSamples();
@@ -945,9 +973,10 @@ classdef PAData < handle
        %> - accelRaw.x
        %> - accelRaw.y
        %> - accelRaw.z
-       %> - inclinometer (struct with more fields)
-       %> - lux
        %> - vecMag
+       %> - steps
+       %> - lux
+       %> - inclinometer (struct with more fields)
        % =================================================================      
        function dat = getCurrentDisplayStruct(obj)
            dat = PAData.structEval('times',obj.getStruct('current'),obj.scale);
@@ -970,15 +999,21 @@ classdef PAData < handle
        %> - accelRaw.x
        %> - accelRaw.y
        %> - accelRaw.z
-       %> - inclinometer (struct with more fields)
-       %> - lux
        %> - vecMag
+       %> - steps
+       %> - lux
+       %> - inclinometer (struct with more fields)
        % =================================================================      
        function dat = getCurrentOffsetStruct(obj)
-           dat = obj.offset;           
+           dat = obj.offset; 
+           
            epochRange = obj.getCurEpochRangeAsSamples();
-           lineProp.xdata = epochRange(1);            
+%            lineProp.xdata = epochRange(1);            
+           lineProp.xdata = epochRange;
            % put the output into a 'position' 
+           
+           dat = PAData.structEval('repmat',dat,dat,size(epochRange));
+            
            dat = PAData.structEval('passthrough',dat,dat,'ydata');
            
            dat = PAData.appendStruct(dat,lineProp);
@@ -1120,11 +1155,14 @@ classdef PAData < handle
                end
            else
                if(strcmpi(operand,'calculateposition'))
-                   resultStruct.position = [rtStruct.xdata(1), rtStruct.ydata(1), 0];
+                   resultStruct.position = [rtStruct.xdata(1), rtStruct.ydata(1), 0];               
+                   
                else
                    if(~isempty(optionalDestField))
                        if(strcmpi(operand,'passthrough'))
                            resultStruct.(optionalDestField) = ltStruct;
+                       elseif(strcmpi(operand,'repmat'))
+                           resultStruct = repmat(ltStruct,optionalDestField);
                        else
                            resultStruct.(optionalDestField) = feval(operand,ltStruct,rtStruct);
                        end
@@ -1221,7 +1259,6 @@ classdef PAData < handle
        %> @note
        % ======================================================================
        function ltStruct = appendStruct(ltStruct,rtStruct)
-
            if(isstruct(ltStruct))               
                fnames = fieldnames(ltStruct);
                for f=1:numel(fnames)
@@ -1235,8 +1272,6 @@ classdef PAData < handle
                        end
                    end
                end
-               
-
            end           
        end
        
@@ -1344,22 +1379,24 @@ classdef PAData < handle
        %> - accelRaw.x
        %> - accelRaw.y
        %> - accelRaw.z
-       %> - inclinometer
-       %> - lux
        %> - vecMag
+       %> - steps
+       %> - lux
+       %> - inclinometer
        % =================================================================      
        function dat = getDummyStruct()
            accelR.x =[];
            accelR.y = [];
            accelR.z = [];
-           dat.accelRaw = accelR;
-           incl.off = [];
            incl.standing = [];
            incl.sitting = [];
            incl.lying = [];
-           dat.inclinometer = incl;
-           dat.lux = [];
+           incl.off = [];
+           dat.accelRaw = accelR;
            dat.vecMag = [];
+           dat.steps = [];
+           dat.lux = [];
+           dat.inclinometer = incl;
        end
        
        % ======================================================================
@@ -1379,19 +1416,54 @@ classdef PAData < handle
            lineProps.ydata = [1 1];
            lineProps.color = 'k';
            lineProps.visible = 'on';
+           
            accelR.x = lineProps;
            accelR.y = lineProps;
            accelR.z = lineProps;
-           dat.accelRaw = accelR;
-           incl.off = lineProps;
+           
            incl.standing = lineProps;
            incl.sitting = lineProps;
            incl.lying = lineProps;
-           dat.inclinometer = incl;
-           dat.lux = lineProps;
+           incl.off = lineProps;
+           
+           dat.accelRaw = accelR;
            dat.vecMag = lineProps;
+           dat.steps = lineProps;
+           dat.lux = lineProps;
+           dat.inclinometer = incl;
+       end       
+      
+       % --------------------------------------------------------------------
+       %> @brief Returns a cell listing of available prefilter methods as strings.
+       %> @retval Cell listing of prefilter methods.
+       %> - none No prefiltering
+       %> - rms  Root mean square
+       %> - hash
+       %> - sum
+       %> - median
+       %> - mean
+       %> @note These methods can be passed as the argument to PAData's
+       %> prefilter() method.
+       % --------------------------------------------------------------------
+       function prefilterMethods = getPrefilterMethods()
+           prefilterMethods = {'None','RMS','Hash','Sum','Median','Mean'};           
        end
        
+       % --------------------------------------------------------------------
+       %> @brief Returns a cell listing of available feature extraction methods as strings.
+       %> @retval Cell listing of prefilter methods.
+       %> - none No feature extraction
+       %> - rms  Root mean square
+       %> - hash
+       %> - sum
+       %> - median
+       %> - mean
+       %> @note These methods can be passed as the argument to PAData's
+       %> prefilter() method.
+       % --------------------------------------------------------------------
+       function extractorMethods = getExtractorMethods()
+           extractorMethods = {'None','RMS','Hash','Sum','Median','Mean'};           
+       end
        
    end
 end

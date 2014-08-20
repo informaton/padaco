@@ -39,10 +39,19 @@ classdef PAView < handle
         %> - .edit_epoch;  %handle to the editable epoch handle        
         texthandle; 
         
+        %> @brief struct of menu handles.  Fields are: 
+        %> - .menu_windowDurSec The window display duration in seconds
+        %> - .menu_prefilter The selection of prefilter methods
+        %> - .menu_extractor The selection of feature extraction methods
+        menuhandle;
         %> @brief Struct of line handles (graphic handle class) for showing
         %> activity data.
         linehandle;
         
+        %> @brief struct of line handles with matching fieldnames of
+        %> instance variable linehandle which are used to draw a dotted reference
+        %> line corresponding to zero.
+        referencelinehandle;
         %> @brief Struct of text handles (graphic handle class) that display the 
         %> the name or label of the line held at the corresponding position
         %> of linehandle.        
@@ -108,6 +117,9 @@ classdef PAView < handle
             obj.texthandle.curEpoch = handles.edit_curEpoch;
             obj.texthandle.aggregateDuration = handles.edit_aggregate;
             obj.texthandle.frameDuration = handles.edit_frameSize;
+            
+            obj.menuhandle.extractorMethod = handles.menu_extractor;
+            obj.menuhandle.prefilterMethod = handles.menu_prefilter;
             
             obj.axeshandle.primary = handles.axes_primary;
             obj.axeshandle.secondary = handles.axes_secondary;
@@ -378,20 +390,16 @@ classdef PAView < handle
                 handles.menu_extractor
                 handles.button_go];                
             
-            
             set(handles.edit_aggregate,'string','1');
             set(handles.edit_frameSize,'string','4');
             set(handles.edit_curEpoch,'string','0');
             
-            
-            
-            prefilterSelection = {'None','RMS','Hash','Sum','Median','Mean'};
+            prefilterSelection = PAData.getPrefilterMethods();
             set(handles.menu_prefilter,'string',prefilterSelection,'value',1);
             
             % feature extractor
-            extractorMethods = {'None','RMS','Hash','Sum','Median','Mean'};
-            set(handles.menu_prefilter,'string',extractorMethods,'value',1);
-            
+            extractorMethods = PAData.getExtractorMethods();
+            set(handles.menu_extractor,'string',extractorMethods,'value',1);
             
             % Window display resolution
             windowMinSelection = {30,'30 s';
@@ -410,9 +418,7 @@ classdef PAView < handle
                 86400,'24 hours'};
             
             set(handles.menu_windowDurSec,'userdata',cell2mat(windowMinSelection(:,1)), 'string',windowMinSelection(:,2),'value',1);
-            
             set(widgetList,'enable','on','visible','on');
-
         end
         
         
@@ -444,6 +450,9 @@ classdef PAView < handle
             
             handleType = 'line';
             obj.linehandle = obj.recurseHandleGenerator(dataStruct,handleType,handleProps);
+            
+            obj.referencelinehandle = obj.recurseHandleGenerator(dataStruct,handleType,handleProps);
+            
             handleType = 'text';
             obj.labelhandle = obj.recurseHandleGenerator(dataStruct,handleType,handleProps);
             
@@ -460,11 +469,13 @@ classdef PAView < handle
         %> If empty ([]) then default PAData.getDummyDisplayStruct is used.
         % --------------------------------------------------------------------
         function initLineHandles(obj,lineProps)
+            
             if(nargin<2 || isempty(lineProps))
                 lineProps = PAData.getDummyDisplayStruct();
             end
-                           
+            
             obj.recurseHandleSetter(obj.linehandle, lineProps);
+            obj.recurseHandleSetter(obj.referencelinehandle, lineProps);
             
             set(obj.positionBarHandle,'visible','on','ydata',[0 1]);            
         end
@@ -505,15 +516,29 @@ classdef PAView < handle
         %> @param PADataObject Instance of PAData
         % --------------------------------------------------------------------
         function draw(obj)
-            axesRange = obj.dataObj.getCurEpochRangeAsUncorrectedSamples();
-            lineProps = obj.dataObj.getStruct('currentdisplay');
+            axesRange   = obj.dataObj.getCurEpochRangeAsUncorrectedSamples();
+            
+            offsetProps = obj.dataObj.getStruct('displayoffset');
+            style.LineStyle = '--';
+            %style.LineWidth = 0.1;
+            style.color = [0.6 0.6 0.6];
+            
+            offsetProps = PAData.appendStruct(offsetProps,style);
+
+            
+            lineProps   = obj.dataObj.getStruct('currentdisplay');
             set(obj.axeshandle.primary,'xlim',axesRange);  
+
+            % draw the reference lines first so that the regular lines
+            % appear on top (or set a z-value, but this is easier for now
+            obj.recurseHandleSetter(obj.referencelinehandle,offsetProps);
+
             obj.recurseHandleSetter(obj.linehandle,lineProps);
+            
             
             % update label text positions based on the axes position...
             % link the x position with the axis x-position ...            
             obj.initLabelHandles(obj.getLabelhandlePosition());
-            
         end
 
         % --------------------------------------------------------------------
