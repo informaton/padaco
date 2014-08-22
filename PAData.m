@@ -85,7 +85,6 @@ classdef PAData < handle
        %comprised of consecutive aggregated windows of data.
        aggregateDurMin;
        
-       
        %> @brief Frame duration (in minutes).  Features are extracted from frames. 
        frameDurMin;
        
@@ -905,18 +904,34 @@ classdef PAData < handle
            epoch = ceil(sample/(epochDurSec*samplerate));
        end
        
-       function prefilter(obj,method)
-          switch(lower(method))
-              case 'none'
-              case 'rms'
-              case 'median'
-              case 'mean'
-              case 'hash'
-              otherwise
-                fprintf(1,'Unknown method (%s)\n',method);
-          end           
-       end
        
+       function obj = prefilter(obj,method)
+           durationSamples = obj.aggregateDurMin*60*obj.getSampleRate();
+           
+           switch(lower(method))
+               case 'none'
+               case 'rms'
+               case 'median'
+               case 'mean'
+               case 'hash'
+               otherwise
+                   fprintf(1,'Unknown method (%s)\n',method);
+           end
+       end
+
+       function obj = extractFeature(obj,method)
+           durationSamples = obj.frameDurMin*60*obj.getSampleRate();           
+           switch(lower(method))
+               case 'none'
+               case 'rms'
+               case 'median'
+               case 'mean'
+               case 'hash'
+               otherwise
+                   fprintf(1,'Unknown method (%s)\n',method);
+           end
+       end
+
    end
    
    methods (Access = private)

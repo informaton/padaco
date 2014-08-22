@@ -303,6 +303,8 @@ classdef PAController < handle
             prefilterMethod = obj.getPrefilterMethod();
             extractorMethod = obj.getExtractorMethod();
             
+            %set the prefilter duration in minutes.  
+            
             %Tell the model to prefilter and extract
             obj.accelObj.prefilter(prefilterMethod);
             obj.accelObj.extractFeature(extractorMethod);

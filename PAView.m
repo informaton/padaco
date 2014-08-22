@@ -291,6 +291,10 @@ classdef PAView < handle
             obj.setFilename(obj.dataObj.getFilename());  
             
             obj.setStudyPanelContents(PADataObject.getHeaderAsString);
+            
+            obj.setAggregateDuration(num2str(PADataObject.aggregateDurMin));
+            obj.setFrameDuration(num2str(PADataObject.frameDurMin));
+        
         end        
         
         % --------------------------------------------------------------------
@@ -390,9 +394,9 @@ classdef PAView < handle
                 handles.menu_extractor
                 handles.button_go];                
             
-            set(handles.edit_aggregate,'string','1');
-            set(handles.edit_frameSize,'string','4');
-            set(handles.edit_curEpoch,'string','0');
+            set(handles.edit_aggregate,'string','');
+            set(handles.edit_frameSize,'string','');
+            set(handles.edit_curEpoch,'string','');
             
             prefilterSelection = PAData.getPrefilterMethods();
             set(handles.menu_prefilter,'string',prefilterSelection,'value',1);
