@@ -40,15 +40,11 @@ classdef PAData < handle
        %> @brief Start Date
        startDate;       
        %> Durtion of the sampled data in seconds.       
-       durationSec; 
+       durationSec;
+       %> @brief The numeric value for each date time sample provided by
+       %the file name.
+       dateTimeNum;
 
-       %> @brief Defined in the accelerometer's file output and converted to seconds.
-       %> This is, most likely, the sampling rate of the output file.
-       epochPeriodSec;
-       %> @brief Epoch duration (in seconds). 
-       %> This can be adjusted by the user, but is 30 s by default.
-       epochDurSec;    
-       
        %> @brief Struct of line handle properties corresponding to the
        %> fields of linehandle.  These are derived from the input files
        %> loaded by the PAData class.
@@ -60,7 +56,10 @@ classdef PAData < handle
        scale;
        yDelta;
        
-%        %> @brief Struct of sample rates corresponding to time series data stored
+       %> @brief Sample rate of time series data.
+       sampleRate;
+
+%        > @brief Struct of sample rates corresponding to time series data stored
 %        %> by class instances.  Fields include:
 %        %> - accelRaw [default is 40Hz]
 %        %> - inclinometer
@@ -75,6 +74,20 @@ classdef PAData < handle
        curEpoch; 
        %> Number of samples contained in the data (accelRaw.x)
        durSamples;
+       %> @brief Defined in the accelerometer's file output and converted to seconds.
+       %> This is, most likely, the sampling rate of the output file.
+       epochPeriodSec;
+       %> @brief Epoch duration (in seconds). 
+       %> This can be adjusted by the user, but is 30 s by default.
+       epochDurSec;    
+       
+       %> @brief Initial aggregation duration in minutes.  Frames are
+       %comprised of consecutive aggregated windows of data.
+       aggregateDurMin;
+       
+       %> @brief Frame duration (in minutes).  Features are extracted from frames. 
+       frameDurMin;
+       
    end
    
    
@@ -108,31 +121,35 @@ classdef PAData < handle
                end               
            end
            
+            
+           obj.aggregateDurMin = 1;
+           obj.frameDurMin = 4;
+           
            obj.color.accelRaw.x.color = 'r';
            obj.color.accelRaw.y.color = 'b';
-           obj.color.accelRaw.z.color = 'g';
-           
+           obj.color.accelRaw.z.color = 'g';           
+           obj.color.vecMag.color = 'm';
+           obj.color.steps.color = [1 0.5 0.5];
+           obj.color.lux.color = 'y';           
            obj.color.inclinometer.standing.color = 'k';
            obj.color.inclinometer.lying.color = 'k';
            obj.color.inclinometer.sitting.color = 'k';
            obj.color.inclinometer.off.color = 'k';
            
-           obj.color.lux.color = 'y';
-           obj.color.vecMag.color = 'm';
-           obj.color.steps.color = 'o'; 
            
-           
+           % scale to show at - place before the loadFile command, 
+           % b/c it will differe based on the type of file loading done.
            obj.scale.accelRaw.x = 1;
            obj.scale.accelRaw.y = 1;
            obj.scale.accelRaw.z = 1;
-           obj.scale.inclinometer.standing = 1;
-           obj.scale.inclinometer.lying = 1;
-           obj.scale.inclinometer.sitting = 1;
-           obj.scale.inclinometer.off = 1;
-           obj.scale.lux = 1;
            obj.scale.vecMag = 1;
-           obj.scale.steps = 1; 
-          
+           obj.scale.steps = 5; 
+           obj.scale.lux = 1;
+           obj.scale.inclinometer.standing = 5;
+           obj.scale.inclinometer.sitting = 5;
+           obj.scale.inclinometer.lying = 5;
+           obj.scale.inclinometer.off = 5;
+           
            % Removed in place of getSampleRate()
            %            obj.sampleRate.accelRaw = 40;
            %            obj.sampleRate.inclinometer = 40;
@@ -144,45 +161,49 @@ classdef PAData < handle
            
            obj.loadFile();
            
+           % yDelta = 1/20 of the vertical screen space (i.e. 20 can fit)
            obj.yDelta = 0.05*diff(obj.getMinmax('all'));
            obj.offset.accelRaw.x = obj.yDelta*1;
-           obj.offset.accelRaw.y = obj.yDelta*5;
-           obj.offset.accelRaw.z = obj.yDelta*10;
-           obj.offset.inclinometer.standing = obj.yDelta*14;
-           obj.offset.inclinometer.lying = obj.yDelta*15;
-           obj.offset.inclinometer.sitting = obj.yDelta*16;
-           obj.offset.inclinometer.off = obj.yDelta*17;
-           obj.offset.lux = obj.yDelta*18;
-           obj.offset.vecMag = obj.yDelta*19;
-           obj.offset.steps = obj.yDelta*20; 
+           obj.offset.accelRaw.y = obj.yDelta*4;
+           obj.offset.accelRaw.z = obj.yDelta*7;
+           obj.offset.vecMag = obj.yDelta*10;
+           obj.offset.steps = obj.yDelta*14; 
+           obj.offset.lux = obj.yDelta*15;
+           obj.offset.inclinometer.standing = obj.yDelta*19.0;
+           obj.offset.inclinometer.sitting = obj.yDelta*18.25;
+           obj.offset.inclinometer.lying = obj.yDelta*17.5;
+           obj.offset.inclinometer.off = obj.yDelta*16.75;
            
-           
+                      
            % label properties for visualization
            obj.label.accelRaw.x.string = 'X';
            obj.label.accelRaw.y.string = 'Y';
            obj.label.accelRaw.z.string = 'Z';
            
-           obj.label.inclinometer.standing.string = 'Standing';
-           obj.label.inclinometer.lying.string = 'Lying';
-           obj.label.inclinometer.sitting.string = 'Sitting';
-           obj.label.inclinometer.off.string = 'Off';
-           
-           obj.label.lux.string = 'Lux';
            obj.label.vecMag.string = 'Magnitude';
            obj.label.steps.string = 'Steps';  
+           obj.label.lux.string = 'Lux';
+           
+           obj.label.inclinometer.standing.string = 'Standing';
+           obj.label.inclinometer.sitting.string = 'Sitting';
+           obj.label.inclinometer.lying.string = 'Lying';
+           obj.label.inclinometer.off.string = 'Off';
+           
+           
            
            obj.label.accelRaw.x.position = [0 0 0];
            obj.label.accelRaw.y.position = [0 0 0];
            obj.label.accelRaw.z.position = [0 0 0];
            
-           obj.label.inclinometer.standing.position = [0 0 0];
-           obj.label.inclinometer.lying.position = [0 0 0];
-           obj.label.inclinometer.sitting.position = [0 0 0];
-           obj.label.inclinometer.off.position = [0 0 0];
-           
-           obj.label.lux.position = [0 0 0];
            obj.label.vecMag.position = [0 0 0];
            obj.label.steps.position = [0 0 0]; 
+           obj.label.lux.position = [0 0 0];
+           
+           obj.label.inclinometer.standing.position = [0 0 0];
+           obj.label.inclinometer.sitting.position = [0 0 0];
+           obj.label.inclinometer.lying.position = [0 0 0];
+           obj.label.inclinometer.off.position = [0 0 0];
+           
            
        end
        
@@ -241,20 +262,22 @@ classdef PAData < handle
        %> - accelRaw.x
        %> - accelRaw.y
        %> - accelRaw.z
-       %> - inclinometer
-       %> - lux
        %> - vecMag
+       %> - steps
+       %> - lux
+       %> - inclinometer
        function dat = subsindex(obj,indices)
            
            dat.accelRaw.x = double(obj.accelRaw.x(indices));
            dat.accelRaw.y = double(obj.accelRaw.y(indices));
            dat.accelRaw.z = double(obj.accelRaw.z(indices));
-           dat.inclinometer.off = double(double(obj.inclinometer.off(indices)));
+           dat.vecMag = double(obj.vecMag(indices));           
+           dat.steps = double(obj.steps(indices));
+           dat.lux = double(obj.lux(indices));           
            dat.inclinometer.standing = double(obj.inclinometer.standing(indices));
            dat.inclinometer.sitting = double(obj.inclinometer.sitting(indices));
            dat.inclinometer.lying = double(obj.inclinometer.lying(indices));
-           dat.lux = double(obj.lux(indices));
-           dat.vecMag = double(obj.vecMag(indices));           
+           dat.inclinometer.off = double(double(obj.inclinometer.off(indices)));
        end
        
        
@@ -271,17 +294,32 @@ classdef PAData < handle
        % ======================================================================
        %> @brief Returns a structure of an instnace PAData's time series data.
        %> @param Instance of PAData.
-       %> @retval The start, stop range of the current epoch returned as samples beginning with 1 for the first sample.
+       %> @retval A 2x1 vector with start, stop range of the current epoch returned as
+       %> samples beginning with 1 for the first sample.  The second value
+       %> (i.e. the stop sample) is capped at the current value of
+       %> durationSamples().
        %> @note This uses instance variables epochDurSec, curEpoch, and sampleRate to
        %> determine the sample range for the current epoch.
        % =================================================================      
-       function epochRange = getCurEpochRangeAsSamples(obj)
-           epochDurSamples = obj.getEpochDurSamples();
-           epochRange = (obj.curEpoch-1)*epochDurSamples+[1,epochDurSamples];
-           
-           epochRange(2) = min([epochRange(2),obj.durationSamples()]);
+       function correctedEpochRange = getCurEpochRangeAsSamples(obj)
+           correctedEpochRange = obj.getCurEpochRangeAsUncorrectedSamples();
+           correctedEpochRange(2) = min([correctedEpochRange(2),obj.durationSamples()]);
        end
 
+       
+       % ======================================================================
+       %> @brief Returns a structure of an instnace PAData's time series data.
+       %> @param Instance of PAData.
+       %> @retval A 2x1 vector with start, stop range of the current epoch returned as
+       %> samples beginning with 1 for the first sample.  
+       %> @note This uses instance variables epochDurSec, curEpoch, and sampleRate to
+       %> determine the sample range for the current epoch.
+       % =================================================================      
+       function epochRange = getCurEpochRangeAsUncorrectedSamples(obj)
+           epochDurSamples = obj.getEpochDurSamples();
+           epochRange = (obj.curEpoch-1)*epochDurSamples+[1,epochDurSamples];
+       end
+       
        % ======================================================================
        %> @brief Returns the duration of an epoch in terms of sample points.
        %> @param Instance of PAData.
@@ -295,7 +333,7 @@ classdef PAData < handle
        % --------------------------------------------------------------------
        %> @brief Set the current epoch for the instance variable accelObj
        %> (PAData)
-       %> @param Instance of PAContraller
+       %> @param Instance of PAData
        %> @param The epoch to set curEpoch to.
        %> @retval The current value of instance variable curEpoch.
        %> @note If the input argument for epoch is negative or exceeds 
@@ -312,12 +350,65 @@ classdef PAData < handle
        end
        
        % --------------------------------------------------------------------
-       % @brief Returns the current epoch.
-       % @param Instance of PAData
-       % @retval The current epoch;
+       %> @brief Returns the current epoch.
+       %> @param Instance of PAData
+       %> @retval The current epoch;
        % --------------------------------------------------------------------
        function curEpoch = getCurEpoch(obj)
            curEpoch = obj.curEpoch;
+       end
+              
+       
+       % --------------------------------------------------------------------
+       %> @brief Set the aggregate duration (in minutes) instance variable.
+       %> @param Instance of PAData
+       %> @param The aggregate duration to set aggregateDurMin to.
+       %> @retval The current value of instance variable aggregateDurMin.
+       %> @note If the input argument for aggregateDurationMin is negative or exceeds 
+       %> the current frame duration value (in minutes), then it is not used
+       %> and the current frame duration is retained (and also returned).
+       % --------------------------------------------------------------------
+       function aggregateDurationMin = setAggregateDuration(obj,aggregateDurationMin)
+           if(aggregateDurationMin>0 && aggregateDurationMin<=obj.getFrameDuration())
+               obj.aggregateDurMin = aggregateDurationMin;
+           end
+           %returns the current frame duration, whether it be 'frameDurationMin' or not.
+           aggregateDurationMin = obj.getAggregateDuration();
+       end
+       
+       % --------------------------------------------------------------------
+       % @brief Returns the current aggregate duration in minutes.
+       % @param Instance of PAData
+       % @retval The current epoch;
+       % --------------------------------------------------------------------
+       function aggregateDuration = getAggregateDuration(obj)
+           aggregateDuration = obj.aggregateDurMin;
+       end       
+       
+       % --------------------------------------------------------------------
+       %> @brief Set the frame duration (in minutes) instance variable.
+       %> @param Instance of PAData
+       %> @param The frame duration to set frameDurMin to.
+       %> @retval The current value of instance variable frameDurMin.
+       %> @note If the input argument for frameDurationMin is negative or exceeds 
+       %> the maximum duration of data, then it is not used
+       %> and the current frame duration is retained (and also returned).
+       % --------------------------------------------------------------------
+       function frameDurationMin = setFrameDuration(obj,frameDurationMin)
+           if(frameDurationMin>0 && frameDurationMin<=obj.durationSec/60)
+               obj.frameDurMin = frameDurationMin;
+           end
+           %returns the current frame duration, whether it be 'frameDurationMin' or not.
+           frameDurationMin = obj.getFrameDuration();
+       end
+       
+       % --------------------------------------------------------------------
+       % @brief Returns the frame duration (in minutes)
+       % @param Instance of PAData
+       % @retval The current frame duration in minutes;
+       % --------------------------------------------------------------------
+       function curFrameDurationMin = getFrameDuration(obj)
+           curFrameDurationMin = obj.frameDurMin;
        end
        
        % --------------------------------------------------------------------
@@ -382,8 +473,7 @@ classdef PAData < handle
        %> @retval Sample rate of the x-axis accelerometer.
        % --------------------------------------------------------------------
        function fs = getSampleRate(obj)
-           fs = obj.epochPeriodSec;
-           %fs = obj.sampleRate.accelRaw;
+           fs = obj.sampleRate;           
        end
        
        % --------------------------------------------------------------------
@@ -406,8 +496,7 @@ classdef PAData < handle
        %> @param Instance of PAData.
        %> @retval 1x2 vector containing ymin and ymax.
        % ======================================================================
-       function yLim = getDisplayMinMax(obj)
-           
+       function yLim = getDisplayMinMax(obj)           
            yLim = [0, 20 ]*obj.yDelta;
        end    
        
@@ -486,9 +575,9 @@ classdef PAData < handle
        %> @brief Load CSV header values (start time, start date, and epoch
        %> period).
        %> @param obj Instance of PAData.
-       %> @param File handle (fid) to open file.  Will be rewound on exit.
+       %> @param Filename to open and examine.
        % =================================================================
-       function loadFileHeader(obj,fid)
+       function loadFileHeader(obj,fullfilename)
            %  ------------ Data Table File Created By ActiGraph GT3XPlus ActiLife v6.9.2 Firmware v3.2.1 date format M/d/yyyy Filter Normal -----------
            %  Serial Number: NEO1C15110135
            %  Start Time 18:00:00
@@ -498,40 +587,43 @@ classdef PAData < handle
            %  Download Date 1/24/2014
            %  Current Memory Address: 0
            %  Current Battery Voltage: 4.13     Mode = 61
-           %  --------------------------------------------------
-           
-           %get to the start
-           frewind(fid);
-           tline = fgetl(fid);
-           commentLine = '------------';
-           %make sure we are dealing with a file which has a header           
-           if(strncmp(tline,commentLine, numel(commentLine)))
-               fgetl(fid);
-               tline = fgetl(fid);
-               exp = regexp(tline,'^Start Time (.*)','tokens');
-               if(~isempty(exp))
-                   obj.startTime = exp{1}{1};
-               else
-                   obj.startTime = 'N/A';
+           %  --------------------------------------------------           
+           fid = fopen(fullfilename,'r');
+           if(fid>0)
+               try
+                   tline = fgetl(fid);
+                   commentLine = '------------';
+                   %make sure we are dealing with a file which has a header
+                   if(strncmp(tline,commentLine, numel(commentLine)))
+                       fgetl(fid);
+                       tline = fgetl(fid);
+                       exp = regexp(tline,'^Start Time (.*)','tokens');
+                       if(~isempty(exp))
+                           obj.startTime = exp{1}{1};
+                       else
+                           obj.startTime = 'N/A';
+                       end
+                       %  Start Date 1/23/2014
+                       tline = fgetl(fid);
+                       obj.startDate = strrep(tline,'Start Date ','');
+                       
+                       % Pull the following line from the file and convert hh:mm:ss
+                       % to total seconds
+                       %  Epoch Period (hh:mm:ss) 00:00:01
+                       a=fscanf(fid,'%*s %*s %*s %d:%d:%d');
+                       obj.epochPeriodSec = [3600 60 1]* a;                       
+                   else
+                       % unset - we don't know - assume 1 per second
+                       obj.epochPeriodSec = 1;
+                       obj.startTime = 'N/A';
+                       obj.startDate = 'N/A';
+                       fprintf(' File does not include header.  Default values set for start date and epochPeriodSec (1).\n');
+                   end
+                   fclose(fid);
+               catch me
+                   showME(me);
                end
-               %  Start Date 1/23/2014
-               tline = fgetl(fid);
-               obj.startDate = strrep(tline,'Start Date ','');
-               
-               % Pull the following line from the file and convert hh:mm:ss
-               % to total seconds
-               %  Epoch Period (hh:mm:ss) 00:00:01
-               a=fscanf(fid,'%*s %*s %*s %d:%d:%d');
-               obj.epochPeriodSec = [3600 60 1]* a;
-           else
-               % unset - we don't know - assume 1 per second
-               obj.epochPeriodSec = 1;
-               obj.startTime = 'N/A';
-               obj.startDate = 'N/A';
-               fprintf(' File does not include header.  Default values set for start date and epochPeriodSec (1).\n');
            end
-           
-           frewind(fid);
        end       
        
        % ======================================================================
@@ -550,8 +642,8 @@ classdef PAData < handle
        function headerStr = getHeaderAsString(obj)
            durStr = datestr(datenum([0 0 0 0 0 obj.durationSec]),'HH:MM:SS'); 
            epochPeriod = datestr(datenum([0 0 0 0 0 obj.epochPeriodSec]),'HH:MM:SS'); 
-           headerStr = sprintf('Filename:\t%s\nStart Date: %s\nStart Time: %s\nDuration:\t%s\nEpoch Count:\t%4u\nEpoch Period:\t%s',...
-               obj.filename,obj.startDate,obj.startTime,durStr,obj.getEpochCount,epochPeriod);
+           headerStr = sprintf('Filename:\t%s\nStart Date: %s\nStart Time: %s\nDuration:\t%s\nEpoch Count:\t%4u\nEpoch Period:\t%s\nSample Rate:\t%u Hz',...
+               obj.filename,obj.startDate,obj.startTime,durStr,obj.getEpochCount,epochPeriod,obj.getSampleRate());
        end
        
        % ======================================================================
@@ -574,42 +666,108 @@ classdef PAData < handle
                %msg = 'Select the .csv file';
                %fullfilename = uigetfullfile(filtercell,pwd,msg);
            end           
+
+           % Have one file version for counts...
            
            if(exist(fullfilename,'file'))
-               fid = fopen(fullfilename,'r');
+               [path, name, ext] = fileparts(fullfilename);
+               if(strcmpi(ext,'.raw'))
+                   fullCountFilename = fullfile(path,strcat(name,'.csv'));
+                   obj.loadCountFile(fullCountFilename);
+                   obj.loadRawFile(fullfilename);
+               else
+                   obj.loadCountFile(fullfilename);
+               end
+           end           
+       end       
+       
+       % ======================================================================
+       %> @brief Loads an accelerometer "count" data file.
+       %> @param obj Instance of PAData.
+       %> @param Full filename to load. 
+       % =================================================================
+       function loadCountFile(obj,fullCountFilename)           
+           
+           if(exist(fullCountFilename,'file'))
+               [path, name, ext] = fileparts(fullCountFilename);              
+               
+               fid = fopen(fullCountFilename,'r');
                if(fid>0)
                    try
-                       obj.loadFileHeader(fid);
+                       obj.loadFileHeader(fullCountFilename);
                        delimiter = ',';
                        % header = 'Date	 Time	 Axis1	Axis2	Axis3	Steps	Lux	Inclinometer Off	Inclinometer Standing	Inclinometer Sitting	Inclinometer Lying	Vector Magnitude';
                        headerLines = 11; %number of lines to skip
-                       scanFormat = '%s %s %u16 %u16 %u16 %u8 %u8 %u8 %u8 %u8 %f32';
-                       dataCell = textscan(fid,scanFormat,'delimiter',delimiter,'headerlines',headerLines);
+                       % Date, Time, Axis1,Axis2,Axis3,Steps,Lux,Inclinometer Off,Inclinometer Standing,Inclinometer Sitting,Inclinometer Lying,Vector Magnitude
 
-                       %Date time is not handled yet
-                       % obj.date = dataCell{1};
-                       % obj.time = dataCell{2};
+                       %scanFormat = '%s %s %u16 %u16 %u16 %u8 %u8 %u8 %u8 %u8 %u8 %f32';
+                       % 1/23/2014 18:00:00.000, --> MM/DD/YYYY HH:MM:SS.FFF,
+                       scanFormat = '%f/%f/%f %f:%f:%f %u16 %u16 %u16 %u8 %u8 %u8 %u8 %u8 %u8 %f32';
+                       tmpDataCell = textscan(fid,scanFormat,'delimiter',delimiter,'headerlines',headerLines);
+
+                       %Date time handling
+                       %                        dateTime = strcat(tmpDataCell{1},{' '},tmpDataCell{2});
+                       % dateVecFound = round(datevec(dateTime,'mm/dd/yyyy HH:MM:SS'));
+                       dateVecFound = [tmpDataCell{3},tmpDataCell{1},tmpDataCell{2},tmpDataCell{4},tmpDataCell{5},tmpDataCell{6}];
+                       samplesFound = size(dateVecFound,1);  
                        
-                       obj.accelRaw.x = dataCell{3};
-                       obj.accelRaw.y = dataCell{4};
-                       obj.accelRaw.z = dataCell{5};
-                       obj.steps = dataCell{6}; %what are steps?
-                       obj.lux = dataCell{7};
-                       obj.inclinometer.off = dataCell{8};
-                       obj.inclinometer.standing = dataCell{8};
+                       startDateNum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
+                       stopDateNum = datenum(dateVecFound(end,:));
+                                              
+                       epochDateNumDelta = datenum([0,0,0,0,0,obj.epochPeriodSec]);
+                       
+                       missingValue = nan;
+                       
+                       % NOTE:  Chopping off the first six columns: date time values;
+                       tmpDataCell(1:6) = [];
+                       
+                       [dataCell, ~, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,epochDateNumDelta,dateVecFound,tmpDataCell,missingValue);
+                       
+                       tmpDataCell = []; %free up this memory;
+                       
+                       %MATLAB has some strange behaviour with date num -
+                       %looks to be a precision problem
+                       %math.
+                       %                        dateTimeDelta2 = diff([datenum(2010,1,1,1,1,10),datenum(2010,1,1,1,1,11)]);
+                       %                        dateTimeDelta2 = datenum(2010,1,1,1,1,11)-datenum(2010,1,1,1,1,10); % or this one
+                       %                        dateTimeDelta = datenum(0,0,0,0,0,1);
+                       %                        dateTimeDelta == dateTimeDelta2  %what is going on here???
+                       
+                       obj.durSamples = numel(obj.dateTimeNum);
+                       numMissing = obj.durationSamples() - samplesFound;
+                                              
+                       if(obj.durationSamples()==samplesFound)
+                           fprintf('%d rows loaded from %s\n',samplesFound,fullCountFilename); 
+                       else
+                           
+                           
+                           if(numMissing>0)
+                               fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullCountFilename,numMissing,num2str(missingValue));
+                           else
+                               fprintf('This case is not handled yet.\n');
+                               fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullCountFilename,numMissing,num2str(missingValue));
+                           end
+                       end
+                       
+                       obj.accelRaw.x = dataCell{1};
+                       obj.accelRaw.y = dataCell{2};
+                       obj.accelRaw.z = dataCell{3};
+                       
+                       obj.steps = dataCell{4}; %what are steps?
+                       obj.lux = dataCell{5};
+                       obj.inclinometer.standing = dataCell{7};
                        obj.inclinometer.sitting = dataCell{8};
-                       obj.inclinometer.lying = dataCell{8};
-                       obj.vecMag = dataCell{8};
-                       obj.durSamples = numel(obj.accelRaw.x); %duration Epochs...
-                       numSamples = obj.durationSamples();
-                       
-                       fprintf('%d rows loaded from %s\n',numSamples,fullfilename);
+                       obj.inclinometer.lying = dataCell{9};
+                       obj.inclinometer.off = dataCell{6};
+                       obj.vecMag = dataCell{10};
                        
                        %either use epochPeriodSec or use samplerate.
                        if(obj.epochPeriodSec>0)
-                           obj.durationSec = numSamples*obj.epochPeriodSec;
+                           obj.sampleRate = 1/obj.epochPeriodSec;
+                           obj.durationSec = obj.durationSamples()*obj.epochPeriodSec;
                        else
-                           obj.durationSec = numSamples/obj.getSampleRate();   
+                           fprintf('There was an error when loading the epoch period second value (non-positive value found in %s).\n',fullCountFilename);
+                           obj.durationSec = 0;
                        end                       
                        fclose(fid);
                    catch me
@@ -617,16 +775,120 @@ classdef PAData < handle
                        fclose(fid);
                    end
                else
-                   fprintf('Warning - could not open %s for reading!\n',fullfilename);
+                   fprintf('Warning - could not open %s for reading!\n',fullCountFilename);
                end
            else
-               if(isempty(fullfilename))
-                   
-               else
-                   fprintf('Warning - %s does not exist!\n',fullfilename);
-               end
+               fprintf('Warning - %s does not exist!\n',fullCountFilename);
            end           
        end       
+       
+
+       % ======================================================================
+       %> @brief Loads an accelerometer raw data file.  This function is
+       %> intended to be called from loadFile() to ensure that
+       %loadCountFile is called in advance to guarantee that the auxialiary
+       %> sensor measurements are loaded into the object (obj).  The
+       %> auxialiary measures (e.g. lux, vecMag) are upsampled to the
+       %> sampling rate of the raw data (typically 40 Hz).
+       %> @param obj Instance of PAData.
+       %> @param fullfilename Full filename to load.
+       % =================================================================
+       function loadRawFile(obj,fullRawFilename)
+           if(exist(fullRawFilename,'file'))
+                              
+               fid = fopen(fullRawFilename,'r');
+               if(fid>0)
+                   try
+                       delimiter = ',';
+                       % header = 'Date	 Time	 Axis1	Axis2	Axis3
+                       headerLines = 11; %number of lines to skip
+                       %                        scanFormat = '%s %f32 %f32 %f32'; %load as a 'single' (not double) floating-point number
+                       scanFormat = '%f/%f/%f %f:%f:%f %f32 %f32 %f32';
+                       tmpDataCell = textscan(fid,scanFormat,'delimiter',delimiter,'headerlines',headerLines);
+
+                       %Date time handling
+                       dateVecFound = [tmpDataCell{3},tmpDataCell{1},tmpDataCell{2},tmpDataCell{4},tmpDataCell{5},tmpDataCell{6}];
+                       
+                       %Date time handling
+                       %dateVecFound = datevec(tmpDataCell{1},'mm/dd/yyyy HH:MM:SS.FFF');
+                       
+                       
+                       obj.sampleRate = 40;                       
+                       samplesFound = size(dateVecFound,1);  
+                       
+                       %start, stop and delta date nums
+                       startDateNum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
+                       stopDateNum = datenum(dateVecFound(end,:));                       
+                       epochDateNumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
+                       missingValue = nan;
+
+                       % NOTE:  Chopping off the first six columns: date time values;
+                       tmpDataCell(1:6) = [];                       
+                       [dataCell, ~, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,epochDateNumDelta,dateVecFound,tmpDataCell,missingValue);                       
+                       tmpDataCell = []; %free up this memory;
+                       
+                       obj.durSamples = numel(obj.dateTimeNum);
+                       obj.durationSec = floor(obj.durationSamples()/obj.sampleRate);
+                       
+                       numMissing = obj.durationSamples() - samplesFound;
+                                              
+                       if(obj.durationSamples()==samplesFound)
+                           fprintf('%d rows loaded from %s\n',samplesFound,fullRawFilename); 
+                       else                           
+                           
+                           if(numMissing>0)
+                               fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullCountFilename,numMissing,num2str(missingValue));
+                           else
+                               fprintf('This case is not handled yet.\n');
+                               fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullCountFilename,numMissing,num2str(missingValue));
+                           end
+                       end
+                       
+                       obj.accelRaw.x = dataCell{1};
+                       obj.accelRaw.y = dataCell{2};
+                       obj.accelRaw.z = dataCell{3};
+                       
+                       N = obj.epochPeriodSec*obj.sampleRate;
+                       
+                       obj.steps = reshape(repmat(obj.steps(:),N,1),[],1);
+                       obj.lux = reshape(repmat(obj.lux(:)',N,1),[],1);
+                       
+                       obj.inclinometer.standing = reshape(repmat(obj.inclinometer.standing(:)',N,1),[],1);
+                       obj.inclinometer.sitting = reshape(repmat(obj.inclinometer.sitting(:)',N,1),[],1);
+                       obj.inclinometer.lying = reshape(repmat(obj.inclinometer.lying(:)',N,1),[],1);
+                       obj.inclinometer.off = reshape(repmat(obj.inclinometer.off(:)',N,1),[],1);
+                       
+                       % obj.vecMag = reshape(repmat(obj.vecMag(:)',N,1),[],1);
+                       % derive vecMag from x, y, z axes directly...
+                       obj.vecMag = sqrt(obj.accelRaw.x.^2+obj.accelRaw.y.^2+obj.accelRaw.z.^2);
+                       
+                       
+                       
+                       %Use a different scale for raw data so it can be
+                       %seen more easily...
+                       obj.scale.accelRaw.x = 10;
+                       obj.scale.accelRaw.y = 10;
+                       obj.scale.accelRaw.z = 10;
+                       obj.scale.vecMag = 10;
+                       obj.scale.steps = 5;
+                       obj.scale.lux = 5;
+                       obj.scale.inclinometer.standing = 5;
+                       obj.scale.inclinometer.sitting = 5;
+                       obj.scale.inclinometer.lying = 5;
+                       obj.scale.inclinometer.off = 5;
+
+                       fclose(fid);
+                   catch me
+                       showME(me);
+                       fclose(fid);
+                   end
+               else
+                   fprintf('Warning - could not open %s for reading!\n',fullRawFilename);
+               end
+           else
+               fprintf('Warning - %s does not exist!\n',fullRawFilename);
+           end
+       end
        
        % ======================================================================
        %> @brief Calculates, and returns, the epoch for the given sample index of a signal.
@@ -645,6 +907,35 @@ classdef PAData < handle
            end;
            epoch = ceil(sample/(epochDurSec*samplerate));
        end
+       
+       
+       function obj = prefilter(obj,method)
+           durationSamples = obj.aggregateDurMin*60*obj.getSampleRate();
+           
+           switch(lower(method))
+               case 'none'
+               case 'rms'
+               case 'median'
+               case 'mean'
+               case 'hash'
+               otherwise
+                   fprintf(1,'Unknown method (%s)\n',method);
+           end
+       end
+
+       function obj = extractFeature(obj,method)
+           durationSamples = obj.frameDurMin*60*obj.getSampleRate();           
+           switch(lower(method))
+               case 'none'
+               case 'rms'
+               case 'median'
+               case 'mean'
+               case 'hash'
+               otherwise
+                   fprintf(1,'Unknown method (%s)\n',method);
+           end
+       end
+
    end
    
    methods (Access = private)
@@ -657,15 +948,17 @@ classdef PAData < handle
        %> - accelRaw.x
        %> - accelRaw.y
        %> - accelRaw.z
-       %> - inclinometer
-       %> - lux
        %> - vecMag
+       %> - steps
+       %> - lux
+       %> - inclinometer
        % =================================================================      
        function dat = getAllStruct(obj)
            dat.accelRaw = obj.accelRaw;
-           dat.inclinometer = obj.inclinometer;
-           dat.lux = obj.lux;
            dat.vecMag = obj.vecMag;
+           dat.steps = obj.steps;
+           dat.lux = obj.lux;
+           dat.inclinometer = obj.inclinometer;
        end
        
        
@@ -678,9 +971,10 @@ classdef PAData < handle
        %> - accelRaw.x
        %> - accelRaw.y
        %> - accelRaw.z
-       %> - inclinometer (struct with more fields)
-       %> - lux
        %> - vecMag
+       %> - steps
+       %> - lux
+       %> - inclinometer (struct with more fields)
        % =================================================================      
        function curStruct = getCurrentStruct(obj)
            epochRange = obj.getCurEpochRangeAsSamples();
@@ -698,9 +992,10 @@ classdef PAData < handle
        %> - accelRaw.x
        %> - accelRaw.y
        %> - accelRaw.z
-       %> - inclinometer (struct with more fields)
-       %> - lux
        %> - vecMag
+       %> - steps
+       %> - lux
+       %> - inclinometer (struct with more fields)
        % =================================================================      
        function dat = getCurrentDisplayStruct(obj)
            dat = PAData.structEval('times',obj.getStruct('current'),obj.scale);
@@ -723,15 +1018,21 @@ classdef PAData < handle
        %> - accelRaw.x
        %> - accelRaw.y
        %> - accelRaw.z
-       %> - inclinometer (struct with more fields)
-       %> - lux
        %> - vecMag
+       %> - steps
+       %> - lux
+       %> - inclinometer (struct with more fields)
        % =================================================================      
        function dat = getCurrentOffsetStruct(obj)
-           dat = obj.offset;           
+           dat = obj.offset; 
+           
            epochRange = obj.getCurEpochRangeAsSamples();
-           lineProp.xdata = epochRange(1);            
+%            lineProp.xdata = epochRange(1);            
+           lineProp.xdata = epochRange;
            % put the output into a 'position' 
+           
+           dat = PAData.structEval('repmat',dat,dat,size(epochRange));
+            
            dat = PAData.structEval('passthrough',dat,dat,'ydata');
            
            dat = PAData.appendStruct(dat,lineProp);
@@ -741,6 +1042,62 @@ classdef PAData < handle
    
    methods(Static)
 
+       % ======================================================================
+       %> @brief Helper function for loading raw and count file
+       %> formats to ensure proper ordering and I/O error handling.
+       %> @param The start date number that the ordered data cell should
+       %> begin at.  (should be generated using datenum())
+       %> @param The date number (generated using datenum()) that the ordered data cell 
+       %> ends at.
+       %> @param The difference between two successive date number samples.
+       %> @param Vector of date number values taken between startDateNum
+       %> and stopDateNum (inclusive) and are in the order and size as the
+       %> individual cell components of tmpDataCell
+       %> @param A cell of vectors whose individual values correspond to
+       %> the order of sampledDateVec
+       %> @param (Optional) Value to be used in the ordered output data
+       %> cell where the tmpDataCell does not have corresponding values.
+       %> The default is 'nan'.
+       %> @retval A cell of vectors that are taken from tmpDataCell but
+       %> initially filled with the missing value parameter and ordered
+       %> according to synthDateNum.
+       %> @retval Matrix of date vectors ([Y, Mon,Day, Hr, Mn, Sec]) generated by
+       %> startDateNum:dateNumDelta:stopDateNum which correponds to the
+       %> row order of orderedDataCell cell values/vectors
+       %> @retval Vector of date numbers corresponding to the date vector
+       %> matrix return argument.
+       %> @note This is a helper function for loading raw and count file
+       %> formats to ensure proper ordering and I/O error handling.
+       function [orderedDataCell, synthDateVec, synthDateNum] = mergedCell(startDateNum, stopDateNum, dateNumDelta, sampledDateVec,tmpDataCell,missingValue)
+           if(nargin<6 || isempty(missingValue))
+               missingValue = nan;
+           end
+           
+           %sampledDateNum = datenum(sampledDateVec);           
+           synthDateVec = datevec(startDateNum:dateNumDelta:stopDateNum);
+           synthDateVec(:,6) = round(synthDateVec(:,6)*1000)/1000;
+           numSamples = size(synthDateVec,1);
+           
+           %make a cell with the same number of column as
+           %loaded in the file less 2 (remove date and time
+           %b/c already have these, with each column entry
+           %having an array with as many missing values as
+           %originally found.
+           orderedDataCell =  repmat({repmat(missingValue,numSamples,1)},1,size(tmpDataCell,2));
+           
+           %This takes 2.0 seconds!
+           synthDateNum = datenum(synthDateVec);
+           sampledDateNum = datenum(sampledDateVec);
+           [~,IA,~] = intersect(synthDateNum,sampledDateNum);
+           
+           %This takes 153.7 seconds! - 'rows' option is not as helpful
+           %here.
+           %            [~,IA,~] = intersect(synthDateVec,sampledDateVec,'rows');
+           for c=1:numel(orderedDataCell)
+               orderedDataCell{c}(IA) = tmpDataCell{c};
+           end
+       end
+       
        % ======================================================================
        %> @brief Evaluates the two structures, field for field, using the function name
        %> provided.
@@ -817,11 +1174,14 @@ classdef PAData < handle
                end
            else
                if(strcmpi(operand,'calculateposition'))
-                   resultStruct.position = [rtStruct.xdata(1), rtStruct.ydata(1), 0];
+                   resultStruct.position = [rtStruct.xdata(1), rtStruct.ydata(1), 0];               
+                   
                else
                    if(~isempty(optionalDestField))
                        if(strcmpi(operand,'passthrough'))
                            resultStruct.(optionalDestField) = ltStruct;
+                       elseif(strcmpi(operand,'repmat'))
+                           resultStruct = repmat(ltStruct,optionalDestField);
                        else
                            resultStruct.(optionalDestField) = feval(operand,ltStruct,rtStruct);
                        end
@@ -918,7 +1278,6 @@ classdef PAData < handle
        %> @note
        % ======================================================================
        function ltStruct = appendStruct(ltStruct,rtStruct)
-
            if(isstruct(ltStruct))               
                fnames = fieldnames(ltStruct);
                for f=1:numel(fnames)
@@ -932,8 +1291,6 @@ classdef PAData < handle
                        end
                    end
                end
-               
-
            end           
        end
        
@@ -1041,22 +1398,24 @@ classdef PAData < handle
        %> - accelRaw.x
        %> - accelRaw.y
        %> - accelRaw.z
-       %> - inclinometer
-       %> - lux
        %> - vecMag
+       %> - steps
+       %> - lux
+       %> - inclinometer
        % =================================================================      
        function dat = getDummyStruct()
            accelR.x =[];
            accelR.y = [];
            accelR.z = [];
-           dat.accelRaw = accelR;
-           incl.off = [];
            incl.standing = [];
            incl.sitting = [];
            incl.lying = [];
-           dat.inclinometer = incl;
-           dat.lux = [];
+           incl.off = [];
+           dat.accelRaw = accelR;
            dat.vecMag = [];
+           dat.steps = [];
+           dat.lux = [];
+           dat.inclinometer = incl;
        end
        
        % ======================================================================
@@ -1076,19 +1435,54 @@ classdef PAData < handle
            lineProps.ydata = [1 1];
            lineProps.color = 'k';
            lineProps.visible = 'on';
+           
            accelR.x = lineProps;
            accelR.y = lineProps;
            accelR.z = lineProps;
-           dat.accelRaw = accelR;
-           incl.off = lineProps;
+           
            incl.standing = lineProps;
            incl.sitting = lineProps;
            incl.lying = lineProps;
-           dat.inclinometer = incl;
-           dat.lux = lineProps;
+           incl.off = lineProps;
+           
+           dat.accelRaw = accelR;
            dat.vecMag = lineProps;
+           dat.steps = lineProps;
+           dat.lux = lineProps;
+           dat.inclinometer = incl;
+       end       
+      
+       % --------------------------------------------------------------------
+       %> @brief Returns a cell listing of available prefilter methods as strings.
+       %> @retval Cell listing of prefilter methods.
+       %> - none No prefiltering
+       %> - rms  Root mean square
+       %> - hash
+       %> - sum
+       %> - median
+       %> - mean
+       %> @note These methods can be passed as the argument to PAData's
+       %> prefilter() method.
+       % --------------------------------------------------------------------
+       function prefilterMethods = getPrefilterMethods()
+           prefilterMethods = {'None','RMS','Hash','Sum','Median','Mean'};           
        end
        
+       % --------------------------------------------------------------------
+       %> @brief Returns a cell listing of available feature extraction methods as strings.
+       %> @retval Cell listing of prefilter methods.
+       %> - none No feature extraction
+       %> - rms  Root mean square
+       %> - hash
+       %> - sum
+       %> - median
+       %> - mean
+       %> @note These methods can be passed as the argument to PAData's
+       %> prefilter() method.
+       % --------------------------------------------------------------------
+       function extractorMethods = getExtractorMethods()
+           extractorMethods = {'None','RMS','Hash','Sum','Median','Mean'};           
+       end
        
    end
 end

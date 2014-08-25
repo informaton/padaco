@@ -39,10 +39,19 @@ classdef PAView < handle
         %> - .edit_epoch;  %handle to the editable epoch handle        
         texthandle; 
         
+        %> @brief struct of menu handles.  Fields are: 
+        %> - .menu_windowDurSec The window display duration in seconds
+        %> - .menu_prefilter The selection of prefilter methods
+        %> - .menu_extractor The selection of feature extraction methods
+        menuhandle;
         %> @brief Struct of line handles (graphic handle class) for showing
         %> activity data.
         linehandle;
         
+        %> @brief struct of line handles with matching fieldnames of
+        %> instance variable linehandle which are used to draw a dotted reference
+        %> line corresponding to zero.
+        referencelinehandle;
         %> @brief Struct of text handles (graphic handle class) that display the 
         %> the name or label of the line held at the corresponding position
         %> of linehandle.        
@@ -93,11 +102,24 @@ classdef PAView < handle
             
             set(handles.panel_left,'backgroundcolor',[0.75,0.75,0.75]);
             set(handles.panel_study,'backgroundcolor',[0.95,0.95,0.95]);
-
+            
+            whiteHandles = [handles.text_aggregate
+                handles.text_frameSize
+                handles.panel_features_prefilter
+                handles.panel_features_aggregate
+                handles.panel_features_frame
+                handles.panel_features_extractor];
+            set(whiteHandles,'backgroundcolor',[0.95,0.95,0.95]);
+            
             obj.texthandle.status = handles.text_status;
             obj.texthandle.filename = handles.text_filename;
             obj.texthandle.studyinfo = handles.text_studyinfo;
             obj.texthandle.curEpoch = handles.edit_curEpoch;
+            obj.texthandle.aggregateDuration = handles.edit_aggregate;
+            obj.texthandle.frameDuration = handles.edit_frameSize;
+            
+            obj.menuhandle.extractorMethod = handles.menu_extractor;
+            obj.menuhandle.prefilterMethod = handles.menu_prefilter;
             
             obj.axeshandle.primary = handles.axes_primary;
             obj.axeshandle.secondary = handles.axes_secondary;
@@ -124,6 +146,28 @@ classdef PAView < handle
            set(obj.positionBarHandle,'xdata',repmat(epochNum,1,2));
            obj.draw();
         end
+        
+        
+        
+        % --------------------------------------------------------------------
+        %> @brief Sets aggregate duration edit box string value
+        %> @param Instance of PAView.
+        %> @param A string representing the aggregate duration as minutes.
+        % --------------------------------------------------------------------
+        function setAggregateDuration(obj,aggregateDurationStr)
+           set(obj.texthandle.aggregateDuration,'string',aggregateDurationStr);            
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Sets aggregate duration edit box string value
+        %> @param Instance of PAView.
+        %> @param A string representing the frame duration as minutes.
+        % --------------------------------------------------------------------
+        function setFrameDuration(obj,frameDurationStr)
+           set(obj.texthandle.frameDuration,'string',frameDurationStr);            
+        end
+        
+        
         
         % --------------------------------------------------------------------
         % --------------------------------------------------------------------
@@ -205,8 +249,17 @@ classdef PAView < handle
         function clearWidgets(obj)            
             handles = guidata(obj.getFigHandle());            
             obj.initWidgets();
-            set(handles.edit_curEpoch,'enable','off'); 
-            set(handles.menu_windowDurSec,'enable','off'); 
+            widgetList = [handles.edit_curEpoch
+                handles.menu_windowDurSec
+                handles.menu_prefilter
+                handles.edit_aggregate
+                handles.edit_frameSize
+                handles.text_aggregate
+                handles.text_frameSize
+                handles.menu_extractor
+                handles.button_go];  
+            set(widgetList,'enable','off'); 
+            
         end
         
         % --------------------------------------------------------------------
@@ -238,6 +291,10 @@ classdef PAView < handle
             obj.setFilename(obj.dataObj.getFilename());  
             
             obj.setStudyPanelContents(PADataObject.getHeaderAsString);
+            
+            obj.setAggregateDuration(num2str(PADataObject.aggregateDurMin));
+            obj.setFrameDuration(num2str(PADataObject.frameDurMin));
+        
         end        
         
         % --------------------------------------------------------------------
@@ -278,7 +335,6 @@ classdef PAView < handle
             obj.initWidgets();
             
             obj.restore_state();
-            
         end       
         
         % --------------------------------------------------------------------
@@ -292,8 +348,13 @@ classdef PAView < handle
         %> - secondary (for the secondary axes, lower, timeline axes)
         % --------------------------------------------------------------------
         function initAxesHandles(obj,axesProps)
-            set(obj.axeshandle.primary,axesProps.primary);  
-            set(obj.axeshandle.secondary,axesProps.secondary);
+            axesNames = fieldnames(axesProps);
+            for a=1:numel(axesNames)
+                axesName = axesNames{a};
+                set(obj.axeshandle.(axesName),axesProps.(axesName));
+            end
+            %             set(obj.axeshandle.primary,axesProps.primary);
+            %             set(obj.axeshandle.secondary,axesProps.secondary);
         end
 
         % --------------------------------------------------------------------
@@ -321,8 +382,30 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         function initWidgets(obj)
             handles = guidata(obj.getFigHandle());
-            set(handles.edit_curEpoch,'enable','on','visible','on','string','0');
             
+            widgetList = [handles.menu_windowDurSec
+                handles.edit_curEpoch
+                handles.menu_windowDurSec
+                handles.menu_prefilter
+                handles.edit_aggregate
+                handles.edit_frameSize
+                handles.text_aggregate
+                handles.text_frameSize
+                handles.menu_extractor
+                handles.button_go];                
+            
+            set(handles.edit_aggregate,'string','');
+            set(handles.edit_frameSize,'string','');
+            set(handles.edit_curEpoch,'string','');
+            
+            prefilterSelection = PAData.getPrefilterMethods();
+            set(handles.menu_prefilter,'string',prefilterSelection,'value',1);
+            
+            % feature extractor
+            extractorMethods = PAData.getExtractorMethods();
+            set(handles.menu_extractor,'string',extractorMethods,'value',1);
+            
+            % Window display resolution
             windowMinSelection = {30,'30 s';
                 60,'1 min';
                 120,'2 min';
@@ -338,7 +421,22 @@ classdef PAView < handle
                 57600,'16 hours';
                 86400,'24 hours'};
             
-            set(handles.menu_windowDurSec,'enable','on','visible','on','userdata',cell2mat(windowMinSelection(:,1)), 'string',windowMinSelection(:,2),'value',1);
+            set(handles.menu_windowDurSec,'userdata',cell2mat(windowMinSelection(:,1)), 'string',windowMinSelection(:,2),'value',1);
+            set(widgetList,'enable','on','visible','on');
+        end
+        
+        
+        % --------------------------------------------------------------------
+        %> @brief Updates the secondary axes x and y axes limits.
+        %> @param obj Instance of PAView
+        %> @param The total number of windows that can be displayed in the
+        %> primary axes.  This will be xlim(2) for the secondary axes (i.e.
+        %> timeline/overview axes).
+        % --------------------------------------------------------------------
+        function updateSecondaryAxes(obj,epochCount)
+            axesProps.secondary.xlim = [1 epochCount];
+            axesProps.secondary.ylim = [0 1];
+            obj.initAxesHandles(axesProps);
         end
         
         % --------------------------------------------------------------------
@@ -356,6 +454,9 @@ classdef PAView < handle
             
             handleType = 'line';
             obj.linehandle = obj.recurseHandleGenerator(dataStruct,handleType,handleProps);
+            
+            obj.referencelinehandle = obj.recurseHandleGenerator(dataStruct,handleType,handleProps);
+            
             handleType = 'text';
             obj.labelhandle = obj.recurseHandleGenerator(dataStruct,handleType,handleProps);
             
@@ -372,11 +473,13 @@ classdef PAView < handle
         %> If empty ([]) then default PAData.getDummyDisplayStruct is used.
         % --------------------------------------------------------------------
         function initLineHandles(obj,lineProps)
+            
             if(nargin<2 || isempty(lineProps))
                 lineProps = PAData.getDummyDisplayStruct();
             end
-                           
+            
             obj.recurseHandleSetter(obj.linehandle, lineProps);
+            obj.recurseHandleSetter(obj.referencelinehandle, lineProps);
             
             set(obj.positionBarHandle,'visible','on','ydata',[0 1]);            
         end
@@ -417,15 +520,29 @@ classdef PAView < handle
         %> @param PADataObject Instance of PAData
         % --------------------------------------------------------------------
         function draw(obj)
-            epochRange = obj.dataObj.getCurEpochRangeAsSamples();
-            lineProps = obj.dataObj.getStruct('currentdisplay');
-            set(obj.axeshandle.primary,'xlim',epochRange);  
+            axesRange   = obj.dataObj.getCurEpochRangeAsUncorrectedSamples();
+            
+            offsetProps = obj.dataObj.getStruct('displayoffset');
+            style.LineStyle = '--';
+            %style.LineWidth = 0.1;
+            style.color = [0.6 0.6 0.6];
+            
+            offsetProps = PAData.appendStruct(offsetProps,style);
+
+            
+            lineProps   = obj.dataObj.getStruct('currentdisplay');
+            set(obj.axeshandle.primary,'xlim',axesRange);  
+
+            % draw the reference lines first so that the regular lines
+            % appear on top (or set a z-value, but this is easier for now
+            obj.recurseHandleSetter(obj.referencelinehandle,offsetProps);
+
             obj.recurseHandleSetter(obj.linehandle,lineProps);
+            
             
             % update label text positions based on the axes position...
             % link the x position with the axis x-position ...            
             obj.initLabelHandles(obj.getLabelhandlePosition());
-            
         end
 
         % --------------------------------------------------------------------

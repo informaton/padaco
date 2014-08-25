@@ -26,7 +26,7 @@ function varargout = padaco(varargin)
 
 % Edit the above text to modify the response to help padaco
 
-% Last Modified by GUIDE v2.5 11-Jul-2014 17:05:45
+% Last Modified by GUIDE v2.5 12-Aug-2014 18:39:55
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -112,32 +112,8 @@ function varargout = padaco_OutputFcn(hObject, eventdata, handles)
 varargout{1} = handles.output;
 
 
-
-
-
-
-% --- Executes during object creation, after setting all properties.
-function edit_curEpoch_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to edit_curEpoch (see GCBO)
+% --- Executes on button press in button_go.
+function button_go_Callback(hObject, eventdata, handles)
+% hObject    handle to button_go (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-
-% --- Executes during object creation, after setting all properties.
-function menu_windowDurSec_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to menu_windowDurSec (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: popupmenu controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
+% handles    structure with handles and user data (see GUIDATA)
