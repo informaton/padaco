@@ -561,6 +561,10 @@ classdef PAData < handle
        %> is not included, or does not exist, then the instance variables pathname and filename
        %> are used to identify the file to load.
        % =================================================================
+       
+       
+       % Ensure that we have a negative number or some way of making sure
+       % that we have sequential data (fill in all with Nan or -1 eg)
        function loadFile(obj,fullfilename)
            
            if(nargin<2 || ~exist(fullfilename,'file'))
@@ -724,19 +728,14 @@ classdef PAData < handle
        %> - vecMag
        % =================================================================      
        function dat = getCurrentOffsetStruct(obj)
-           dat = PAData.structEval('times',obj.getStruct('current'),obj.scale);
-           
+           dat = obj.offset;           
            epochRange = obj.getCurEpochRangeAsSamples();
-           lineProp.xdata = epochRange(1):epochRange(end);            
-           % put the output into a 'ydata' field for graphical display
-           % property of a line.
-           dat = PAData.structEval('plus',dat,obj.offset,'ydata');
+           lineProp.xdata = epochRange(1);            
+           % put the output into a 'position' 
+           dat = PAData.structEval('passthrough',dat,dat,'ydata');
            
            dat = PAData.appendStruct(dat,lineProp);
-       end
-       
-       
-              
+       end    
        
    end
    
@@ -818,7 +817,7 @@ classdef PAData < handle
                end
            else
                if(strcmpi(operand,'calculateposition'))
-                       resultStruct.position = [rtStruct.xdata(1), rtStruct.ydata(1), 0];
+                   resultStruct.position = [rtStruct.xdata(1), rtStruct.ydata(1), 0];
                else
                    if(~isempty(optionalDestField))
                        if(strcmpi(operand,'passthrough'))

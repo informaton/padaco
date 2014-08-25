@@ -561,6 +561,10 @@ classdef PAData < handle
        %> is not included, or does not exist, then the instance variables pathname and filename
        %> are used to identify the file to load.
        % =================================================================
+       
+       
+       % Ensure that we have a negative number or some way of making sure
+       % that we have sequential data (fill in all with Nan or -1 eg)
        function loadFile(obj,fullfilename)
            
            if(nargin<2 || ~exist(fullfilename,'file'))
