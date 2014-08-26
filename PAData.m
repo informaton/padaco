@@ -56,9 +56,6 @@ classdef PAData < handle
        scale;
        yDelta;
        
-       %> @brief Sample rate of time series data.
-       sampleRate;
-
 %        > @brief Struct of sample rates corresponding to time series data stored
 %        %> by class instances.  Fields include:
 %        %> - accelRaw [default is 40Hz]
@@ -88,6 +85,27 @@ classdef PAData < handle
        %> @brief Frame duration (in minutes).  Features are extracted from frames. 
        frameDurMin;
        
+       
+       %> @brief Number of bins that the time series data can be aggregated
+       %> into.  It is calculated as the ceiling of the study's duration in
+       %> minutes divided by aggregate duration in minutes.
+       numBins;
+       
+       %> @brief
+       bins;
+       %> @frames
+       frames;
+       
+       %> @brief Struct of features as extracted from frames.
+       features;
+       
+       %> @brief Number of frames that the time series data can be aggregated
+       %> into.  It is calculated as the ceiling of the study's duration in
+       %> minutes divided by the current frame duration in minutes.       
+       numFrames;
+       
+       %> @brief Sample rate of time series data.
+       sampleRate;
    end
    
    
@@ -125,6 +143,12 @@ classdef PAData < handle
            obj.aggregateDurMin = 1;
            obj.frameDurMin = 4;
            
+           obj.numBins = 0;
+           obj.bins = [];
+           obj.numFrames = 0;
+           obj.frames = [];
+           obj.features = [];
+           
            obj.color.accelRaw.x.color = 'r';
            obj.color.accelRaw.y.color = 'b';
            obj.color.accelRaw.z.color = 'g';           
@@ -139,16 +163,16 @@ classdef PAData < handle
            
            % scale to show at - place before the loadFile command, 
            % b/c it will differe based on the type of file loading done.
-           obj.scale.accelRaw.x = 1;
-           obj.scale.accelRaw.y = 1;
-           obj.scale.accelRaw.z = 1;
-           obj.scale.vecMag = 1;
-           obj.scale.steps = 5; 
-           obj.scale.lux = 1;
-           obj.scale.inclinometer.standing = 5;
-           obj.scale.inclinometer.sitting = 5;
-           obj.scale.inclinometer.lying = 5;
-           obj.scale.inclinometer.off = 5;
+           obj.scale.timeSeries.accelRaw.x = 1;
+           obj.scale.timeSeries.accelRaw.y = 1;
+           obj.scale.timeSeries.accelRaw.z = 1;
+           obj.scale.timeSeries.vecMag = 1;
+           obj.scale.timeSeries.steps = 5; 
+           obj.scale.timeSeries.lux = 1;
+           obj.scale.timeSeries.inclinometer.standing = 5;
+           obj.scale.timeSeries.inclinometer.sitting = 5;
+           obj.scale.timeSeries.inclinometer.lying = 5;
+           obj.scale.timeSeries.inclinometer.off = 5;
            
            % Removed in place of getSampleRate()
            %            obj.sampleRate.accelRaw = 40;
@@ -161,133 +185,75 @@ classdef PAData < handle
            
            obj.loadFile();
            
+           
+           obj.offset.features.median = obj.yDelta;
+           obj.offset.features.mean = obj.yDelta*4;
+           obj.offset.features.rms = obj.yDelta*8;
+           obj.offset.features.std = obj.yDelta*12;
+           obj.offset.features.variance = obj.yDelta*16;
+           
+           obj.scale.features.median = 1;
+           obj.scale.features.mean = 1;
+           obj.scale.features.rms = 1;
+           obj.scale.features.std = 1;
+           obj.scale.features.variance = 1;
+           
+           obj.label.features.median.string = 'Median';
+           obj.label.features.mean.string = 'Mean';
+           obj.label.features.rms.string = 'RMS';
+           obj.label.features.std.string = 'Standard Deviation';
+           obj.label.features.variance.string = 'Variance';
+           
+           obj.label.features.median.position = [0 0 0];
+           obj.label.features.mean.position = [0 0 0];
+           obj.label.features.rms.position = [0 0 0];
+           obj.label.features.std.position = [0 0 0];
+           obj.label.features.variance.position = [0 0 0];
+           
            % yDelta = 1/20 of the vertical screen space (i.e. 20 can fit)
            obj.yDelta = 0.05*diff(obj.getMinmax('all'));
-           obj.offset.accelRaw.x = obj.yDelta*1;
-           obj.offset.accelRaw.y = obj.yDelta*4;
-           obj.offset.accelRaw.z = obj.yDelta*7;
-           obj.offset.vecMag = obj.yDelta*10;
-           obj.offset.steps = obj.yDelta*14; 
-           obj.offset.lux = obj.yDelta*15;
-           obj.offset.inclinometer.standing = obj.yDelta*19.0;
-           obj.offset.inclinometer.sitting = obj.yDelta*18.25;
-           obj.offset.inclinometer.lying = obj.yDelta*17.5;
-           obj.offset.inclinometer.off = obj.yDelta*16.75;
+           obj.offset.timeSeries.accelRaw.x = obj.yDelta*1;
+           obj.offset.timeSeries.accelRaw.y = obj.yDelta*4;
+           obj.offset.timeSeries.accelRaw.z = obj.yDelta*7;
+           obj.offset.timeSeries.vecMag = obj.yDelta*10;
+           obj.offset.timeSeries.steps = obj.yDelta*14; 
+           obj.offset.timeSeries.lux = obj.yDelta*15;
+           obj.offset.timeSeries.inclinometer.standing = obj.yDelta*19.0;
+           obj.offset.timeSeries.inclinometer.sitting = obj.yDelta*18.25;
+           obj.offset.timeSeries.inclinometer.lying = obj.yDelta*17.5;
+           obj.offset.timeSeries.inclinometer.off = obj.yDelta*16.75;
            
                       
            % label properties for visualization
-           obj.label.accelRaw.x.string = 'X';
-           obj.label.accelRaw.y.string = 'Y';
-           obj.label.accelRaw.z.string = 'Z';
+           obj.label.timeSeries.accelRaw.x.string = 'X';
+           obj.label.timeSeries.accelRaw.y.string = 'Y';
+           obj.label.timeSeries.accelRaw.z.string = 'Z';
            
-           obj.label.vecMag.string = 'Magnitude';
-           obj.label.steps.string = 'Steps';  
-           obj.label.lux.string = 'Lux';
+           obj.label.timeSeries.vecMag.string = 'Magnitude';
+           obj.label.timeSeries.steps.string = 'Steps';  
+           obj.label.timeSeries.lux.string = 'Lux';
            
-           obj.label.inclinometer.standing.string = 'Standing';
-           obj.label.inclinometer.sitting.string = 'Sitting';
-           obj.label.inclinometer.lying.string = 'Lying';
-           obj.label.inclinometer.off.string = 'Off';
-           
-           
-           
-           obj.label.accelRaw.x.position = [0 0 0];
-           obj.label.accelRaw.y.position = [0 0 0];
-           obj.label.accelRaw.z.position = [0 0 0];
-           
-           obj.label.vecMag.position = [0 0 0];
-           obj.label.steps.position = [0 0 0]; 
-           obj.label.lux.position = [0 0 0];
-           
-           obj.label.inclinometer.standing.position = [0 0 0];
-           obj.label.inclinometer.sitting.position = [0 0 0];
-           obj.label.inclinometer.lying.position = [0 0 0];
-           obj.label.inclinometer.off.position = [0 0 0];
+           obj.label.timeSeries.inclinometer.standing.string = 'Standing';
+           obj.label.timeSeries.inclinometer.sitting.string = 'Sitting';
+           obj.label.timeSeries.inclinometer.lying.string = 'Lying';
+           obj.label.timeSeries.inclinometer.off.string = 'Off';
            
            
-       end
-       
-       % ======================================================================
-       %> @brief Returns a structure of PAData's time series fields and
-       %> values, depending on the user's input selection.
-       %> @param Instance of PAData.
-       %> @param Type of structure to be returned; optional.  A string.  Possible
-       %> values include:
-       %> - @b dummy Empty data.
-       %> - @b dummydisplay Holds generic line properties for the time series structure.
-       %> - @b current Time series data with offset and scaling values applied.
-       %> - @b currentdisplay Time series data with offset and scaling values applied
-       %> and stored as 'ydata' child fields.
-       %> - @b displayoffset [x,y,z] offsets of the current time series
-       %> data being displayed.  Values are stored in .position child field
-       %> - @b all All, original time series data.
-       %> @retval tsStruct A struct of PAData's time series instance data.  The fields
-       %> include:
-       %> - accelRaw.x
-       %> - accelRaw.y
-       %> - accelRaw.z
-       %> - inclinometer
-       %> - lux
-       %> - vecMag
-       % =================================================================      
-       function dat = getStruct(obj,choice)
-           if(nargin<2)
-               choice = '';
-           end
-           switch(choice)
-               case 'dummy'
-                   dat = obj.getDummyStruct();
-               case 'dummydisplay'
-                   dat = obj.getDummyDisplayStruct();
-               case 'current'
-                   dat = obj.getCurrentStruct();
-               case 'currentdisplay'
-                   dat = obj.getCurrentDisplayStruct();
-               case 'displayoffset'
-                   dat = obj.getCurrentOffsetStruct();
-               case 'all'
-                   dat = obj.getAllStruct();
-               otherwise
-                   dat = obj.getAllStruct();
-           end
-       end
-       
-       %> @brief overloaded subsindex method returns structure of time series data
-       %> at indices provided. 
-       %> @param Instance of PAData
-       %> @param Vector (logical or ordinal) of indices to select time
-       %> series data by.
-       %> @retval A struct of PAData's time series instance data for the indices provided.  The fields
-       %> include:
-       %> - accelRaw.x
-       %> - accelRaw.y
-       %> - accelRaw.z
-       %> - vecMag
-       %> - steps
-       %> - lux
-       %> - inclinometer
-       function dat = subsindex(obj,indices)
            
-           dat.accelRaw.x = double(obj.accelRaw.x(indices));
-           dat.accelRaw.y = double(obj.accelRaw.y(indices));
-           dat.accelRaw.z = double(obj.accelRaw.z(indices));
-           dat.vecMag = double(obj.vecMag(indices));           
-           dat.steps = double(obj.steps(indices));
-           dat.lux = double(obj.lux(indices));           
-           dat.inclinometer.standing = double(obj.inclinometer.standing(indices));
-           dat.inclinometer.sitting = double(obj.inclinometer.sitting(indices));
-           dat.inclinometer.lying = double(obj.inclinometer.lying(indices));
-           dat.inclinometer.off = double(double(obj.inclinometer.off(indices)));
-       end
-       
-       
-       function sref = subsref(obj,s)
-           if(strcmp(s(1).type,'()') && length(s)<2)
-               % Note that obj.Data is passed to subsref
-               sref = obj.subsindex(cell2mat(s.subs));               
-           else
-               sref = builtin('subsref',obj,s);
-           end
+           obj.label.timeSeries.accelRaw.x.position = [0 0 0];
+           obj.label.timeSeries.accelRaw.y.position = [0 0 0];
+           obj.label.timeSeries.accelRaw.z.position = [0 0 0];
+           
+           obj.label.timeSeries.vecMag.position = [0 0 0];
+           obj.label.timeSeries.steps.position = [0 0 0]; 
+           obj.label.timeSeries.lux.position = [0 0 0];
+           
+           obj.label.timeSeries.inclinometer.standing.position = [0 0 0];
+           obj.label.timeSeries.inclinometer.sitting.position = [0 0 0];
+           obj.label.timeSeries.inclinometer.lying.position = [0 0 0];
+           obj.label.timeSeries.inclinometer.off.position = [0 0 0];
+           
+           
        end
        
 
@@ -448,23 +414,39 @@ classdef PAData < handle
        end
        
        % --------------------------------------------------------------------
-       % @brief Returns the color instance variable
-       % @param Instance of PAData
-       % @retval A struct of color values correspodning to the time series
-       % fields of obj.
+       %> @brief Returns the color instance variable
+       %> @param Instance of PAData
+       %> @retval A struct of color values correspodning to the time series
+       %> fields of obj.
        % --------------------------------------------------------------------
        function color = getColor(obj)
            color = obj.color;
        end
 
        % --------------------------------------------------------------------
-       % @brief Returns the label instance variable
-       % @param Instance of PAData
-       % @retval A struct of string values which serve to label the correspodning to the time series
-       % fields of obj.
+       %> @brief Returns the label instance variable
+       %> @param Instance of PAData
+       %> @param String specifying the structure type of label to retrieve.
+       %> Possible values include:
+       %> @li @c time series (default)
+       %> @li @c features
+       %> @retval A struct of string values which serve to label the correspodning to the time series
+       %> fields of obj.
        % --------------------------------------------------------------------
-       function label = getLabel(obj)
-           label = obj.label;
+       function label = getLabel(obj,structType)
+           if(nargin<2 || isempty(structType))
+               structType = 'time series';
+           end           
+           switch lower(structType)
+               case 'time series'
+                   label = obj.label.timeSeries;       
+               case 'features'
+                   label = obj.label.features;
+               otherwise
+                   fprintf('This structure type is not handled (%s).\n',structType);
+                   label = [];
+           end
+           
        end
        
        % --------------------------------------------------------------------
@@ -653,6 +635,10 @@ classdef PAData < handle
        %> is not included, or does not exist, then the instance variables pathname and filename
        %> are used to identify the file to load.
        % =================================================================
+       
+       
+       % Ensure that we have a negative number or some way of making sure
+       % that we have sequential data (fill in all with Nan or -1 eg)
        function loadFile(obj,fullfilename)
            
            if(nargin<2 || ~exist(fullfilename,'file'))
@@ -862,16 +848,16 @@ classdef PAData < handle
                        
                        %Use a different scale for raw data so it can be
                        %seen more easily...
-                       obj.scale.accelRaw.x = 10;
-                       obj.scale.accelRaw.y = 10;
-                       obj.scale.accelRaw.z = 10;
-                       obj.scale.vecMag = 10;
-                       obj.scale.steps = 5;
-                       obj.scale.lux = 5;
-                       obj.scale.inclinometer.standing = 5;
-                       obj.scale.inclinometer.sitting = 5;
-                       obj.scale.inclinometer.lying = 5;
-                       obj.scale.inclinometer.off = 5;
+                       obj.scale.timeSeries.accelRaw.x = 10;
+                       obj.scale.timeSeries.accelRaw.y = 10;
+                       obj.scale.timeSeries.accelRaw.z = 10;
+                       obj.scale.timeSeries.vecMag = 10;
+                       obj.scale.timeSeries.steps = 5;
+                       obj.scale.timeSeries.lux = 5;
+                       obj.scale.timeSeries.inclinometer.standing = 5;
+                       obj.scale.timeSeries.inclinometer.sitting = 5;
+                       obj.scale.timeSeries.inclinometer.lying = 5;
+                       obj.scale.timeSeries.inclinometer.off = 5;
 
                        fclose(fid);
                    catch me
@@ -906,7 +892,12 @@ classdef PAData < handle
        
        
        function obj = prefilter(obj,method)
-           durationSamples = obj.aggregateDurMin*60*obj.getSampleRate();
+           currentNumBins = floor((obj.durationSec/60)/obj.aggregateDurMin);
+           if(currentNumBins~=obj.numBins)
+               obj.numBins = currentNumBins;
+               obj.bins = nan(obj.numBins,1);
+           end
+           
            
            switch(lower(method))
                case 'none'
@@ -920,17 +911,130 @@ classdef PAData < handle
        end
 
        function obj = extractFeature(obj,method)
-           durationSamples = obj.frameDurMin*60*obj.getSampleRate();           
+           currentNumFrames = floor((obj.durationSec/60)/obj.frameDurMin);
+           if(currentNumFrames~=obj.numFrames)
+               obj.numFrames = currentNumFrames;
+               frameableSamples = obj.numFrames*obj.frameDurMin*60*obj.getSampleRate();
+               obj.frames =  reshape(obj.vecMag(1:frameableSamples),[],obj.numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
+               obj.features = [];
+           end
+           
+           data = obj.frames;
            switch(lower(method))
                case 'none'
                case 'rms'
+                   %obj.frames.rms = rms(data)
                case 'median'
+                   obj.features.median = median(data)';
                case 'mean'
+                   obj.features.mean = mean(data)';
                case 'hash'
                otherwise
                    fprintf(1,'Unknown method (%s)\n',method);
            end
        end
+       
+       
+              
+       % ======================================================================
+       %> @brief overloaded subsindex method returns structure of time series data
+       %> at indices provided. 
+       %> @param Instance of PAData
+       %> @param Vector (logical or ordinal) of indices to select time
+       %> series data by.
+       %> @retval A struct of PAData's time series instance data for the indices provided.  The fields
+       %> include:
+       %> - accelRaw.x
+       %> - accelRaw.y
+       %> - accelRaw.z
+       %> - vecMag
+       %> - steps
+       %> - lux
+       %> - inclinometer
+       % ======================================================================
+       function dat = subsindex(obj,indices,optionalFieldType)
+           
+           if(nargin<3 ||isempty(optionalFieldType))
+               optionalFieldType = 'time series';
+           end
+           switch(lower(optionalFieldType))
+               case 'time series'
+                   dat.accelRaw.x = double(obj.accelRaw.x(indices));
+                   dat.accelRaw.y = double(obj.accelRaw.y(indices));
+                   dat.accelRaw.z = double(obj.accelRaw.z(indices));
+                   dat.vecMag = double(obj.vecMag(indices));
+                   dat.steps = double(obj.steps(indices));
+                   dat.lux = double(obj.lux(indices));
+                   dat.inclinometer.standing = double(obj.inclinometer.standing(indices));
+                   dat.inclinometer.sitting = double(obj.inclinometer.sitting(indices));
+                   dat.inclinometer.lying = double(obj.inclinometer.lying(indices));
+                   dat.inclinometer.off = double(double(obj.inclinometer.off(indices)));
+               case 'features'
+                   dat = PAData.subsStruct(obj.features,indices);
+               case 'aggregate bins'
+                   dat.median = double(obj.feature.median(indices));
+               otherwise
+                   fprintf('Warning!  This case is not handled (%s).\n',optionalFieldType);
+           end
+       end
+       
+       function sref = subsref(obj,s)
+           if(strcmp(s(1).type,'()') && length(s)<2)
+               % Note that obj.Data is passed to subsref
+               sref = obj.subsindex(cell2mat(s.subs));               
+           else
+               sref = builtin('subsref',obj,s);
+           end
+       end
+       
+       % ======================================================================
+       %> @brief Returns a structure of PAData's time series fields and
+       %> values, depending on the user's input selection.
+       %> @param Instance of PAData.
+       %> @param Type of structure to be returned; optional.  A string.  Possible
+       %> values include:
+       %> - @b dummy Empty data.
+       %> - @b dummydisplay Holds generic line properties for the time series structure.
+       %> - @b current Time series data with offset and scaling values applied.
+       %> - @b currentdisplay Time series data with offset and scaling values applied
+       %> and stored as 'ydata' child fields.
+       %> - @b displayoffset [x,y,z] offsets of the current time series
+       %> data being displayed.  Values are stored in .position child field
+       %> - @b all All, original time series data.
+       %> @retval tsStruct A struct of PAData's time series instance data.  The fields
+       %> include:
+       %> - accelRaw.x
+       %> - accelRaw.y
+       %> - accelRaw.z
+       %> - inclinometer
+       %> - lux
+       %> - vecMag
+       % =================================================================      
+       function dat = getStruct(obj,choice,displayType)
+           if(nargin<3)
+               displayType = 'time series';
+               if(nargin<2)
+                   choice = 'all';
+               end
+           end
+           switch(choice)
+               case 'dummy'
+                   dat = obj.getDummyStruct();
+               case 'dummydisplay'
+                   dat = obj.getDummyDisplayStruct();
+               case 'current'
+                   dat = obj.getCurrentStruct(displayType);
+                case 'displayoffset'
+                    dat = obj.getCurrentOffsetStruct(displayType);
+               case 'currentdisplay'
+                   dat = obj.getCurrentDisplayStruct(displayType);               
+               case 'all'                   
+                   dat = obj.getAllStruct(displayType);
+               otherwise
+                   dat = obj.getAllStruct(displayType);
+           end
+       end
+       
 
    end
    
@@ -949,21 +1053,36 @@ classdef PAData < handle
        %> - lux
        %> - inclinometer
        % =================================================================      
-       function dat = getAllStruct(obj)
-           dat.accelRaw = obj.accelRaw;
-           dat.vecMag = obj.vecMag;
-           dat.steps = obj.steps;
-           dat.lux = obj.lux;
-           dat.inclinometer = obj.inclinometer;
+       function dat = getAllStruct(obj,structType)
+           if(nargin<2 || isempty(structType))
+               structType = 'time series';
+           end
+           
+           switch lower(structType)
+               case 'time series'
+                   dat.accelRaw = obj.accelRaw;
+                   dat.vecMag = obj.vecMag;
+                   dat.steps = obj.steps;
+                   dat.lux = obj.lux;
+                   dat.inclinometer = obj.inclinometer;           
+               case 'features'
+                   dat = obj.features;
+               otherwise
+                   fprintf('This structure type is not handled (%s).\n',structType);
+           end
        end
+       
        
        
        % ======================================================================
        %> @brief Returns a structure of an insance PAData's time series
        %> data at the current epoch.
        %> @param Instance of PAData.
-       %> @retval tsStruct A struct of PAData's time series instance data.  The fields
-       %> include:
+       %> @param String specifying which structure type to return.  Can be
+       %> @li @c time series
+       %> @li @c features
+       %> @retval tsStruct A struct of PAData's time series or features instance data.  The fields
+       %> for time series include:
        %> - accelRaw.x
        %> - accelRaw.y
        %> - accelRaw.z
@@ -971,20 +1090,29 @@ classdef PAData < handle
        %> - steps
        %> - lux
        %> - inclinometer (struct with more fields)
-       % =================================================================      
-       function curStruct = getCurrentStruct(obj)
+       %> While the fields for @c features include
+       %> @li @c median
+       %> @li @c mean
+       %> @li @c rms
+       % =================================================================
+       function curStruct = getCurrentStruct(obj,structType)
+           if(nargin<2 || isempty(structType))
+               structType = 'time series';
+           end
+           
            epochRange = obj.getCurEpochRangeAsSamples();
-           % This does not work:
-           % obj.curStruct = obj(epochRange);
-           curStruct = obj.subsindex(epochRange(1):epochRange(end));
+           curStruct = obj.subsindex(epochRange(1):epochRange(end),structType);
        end
        
        % ======================================================================
        %> @brief Returns the time series data as a struct for the current epoch range,
-       %> adjusted for visual offset and scale.       
+       %> adjusted for visual offset and scale.
        %> @param Instance of PAData.
-       %> @retval tsStruct A struct of PAData's time series instance data.  The fields
-       %> include:
+       %> @param String specifying which structure type to return.  Can be
+       %> @li @c time series
+       %> @li @c features
+       %> @retval A struct of PAData's time series or features instance data.  The fields
+       %> for time series data include:
        %> - accelRaw.x
        %> - accelRaw.y
        %> - accelRaw.z
@@ -992,25 +1120,43 @@ classdef PAData < handle
        %> - steps
        %> - lux
        %> - inclinometer (struct with more fields)
-       % =================================================================      
-       function dat = getCurrentDisplayStruct(obj)
-           dat = PAData.structEval('times',obj.getStruct('current'),obj.scale);
+       %> The fields for feature data include:
+       %> @li @c median
+       %> @li @c mean
+       %> @li @c rms
+       % =================================================================
+       function dat = getCurrentDisplayStruct(obj,structType)
+           if(nargin<2 || isempty(structType))
+               structType = 'time series';
+           end
+           
+           switch lower(structType)
+               case 'time series'
+                   structFieldName = 'timeSeries';
+               case 'features'
+                   structFieldName = 'features';
+               otherwise
+                   fprintf('This structure type is not handled (%s).\n',structType);
+           end
+           dat = PAData.structEval('times',obj.getStruct('current',structType),obj.scale.(structFieldName));
            
            epochRange = obj.getCurEpochRangeAsSamples();
-           lineProp.xdata = epochRange(1):epochRange(end);            
+           lineProp.xdata = epochRange(1):epochRange(end);
            % put the output into a 'ydata' field for graphical display
            % property of a line.
-           dat = PAData.structEval('plus',dat,obj.offset,'ydata');
-           
+           dat = PAData.structEval('plus',dat,obj.offset.(structFieldName),'ydata');
            dat = PAData.appendStruct(dat,lineProp);
        end
        
-        % ======================================================================
+       
+       % ======================================================================
        %> @brief Returns [x,y,z] offsets of the current time series
        %> data being displayed.  Values are stored in .position child field
        %> @param Instance of PAData.
-       %> @retval tsStruct A struct of [x,y,z] starting location of each data field.  The fields
-       %> include:
+       %> @param Optional string identifying the type of data to obtain the
+       %> offset from.  Can be 'time series' (default) or 'features'.
+       %> @retval tsStruct A struct of [x,y,z] starting location of each
+       %> data field.  The fields (for 'time series') include:
        %> - accelRaw.x
        %> - accelRaw.y
        %> - accelRaw.z
@@ -1018,26 +1164,58 @@ classdef PAData < handle
        %> - steps
        %> - lux
        %> - inclinometer (struct with more fields)
-       % =================================================================      
-       function dat = getCurrentOffsetStruct(obj)
-           dat = obj.offset; 
+       % =================================================================
+       function dat = getCurrentOffsetStruct(obj,offsetType)
+           if(nargin<2 || isempty(offsetType))
+               offsetType = 'time series';
+           end
+           switch(lower(offsetType))
+               case 'time series'
+                   dat = obj.offset.timeSeries;
+               case 'features'
+                   dat = obj.offset.features;
+               otherwise
+                   fprintf('Unknown offset type (%s).\n',offsetType)
+           end
            
            epochRange = obj.getCurEpochRangeAsSamples();
-%            lineProp.xdata = epochRange(1);            
+           %            lineProp.xdata = epochRange(1);
            lineProp.xdata = epochRange;
-           % put the output into a 'position' 
+           % put the output into a 'position'
            
            dat = PAData.structEval('repmat',dat,dat,size(epochRange));
-            
+           
            dat = PAData.structEval('passthrough',dat,dat,'ydata');
            
            dat = PAData.appendStruct(dat,lineProp);
-       end    
+       end
        
    end
    
    methods(Static)
 
+       % ======================================================================
+       %> @brief Returns structure whose values are taken from the struct
+       %> and indices provided.
+       %> @param Struct of indicable data.
+       %> @param Vector (logical or ordinal) of indices to select time
+       %> series data by.
+       %> @retval Struct with matching fields as input struct, with values taken at indices.
+       function structOut = subsStruct(structIn,indices)
+           if(isstruct(structIn))
+               fnames = fieldnames(structIn);
+               structOut = struct();
+               for f=1:numel(fnames)
+                   structOut.(fnames{f}) = subsStruct(structIn.(fnames{f}),indices);
+               end
+           elseif(isempty(structIn))
+               structOut = [];
+           else
+               structOut = structIn(indices);
+           end
+       end
+       
+       
        % ======================================================================
        %> @brief Helper function for loading raw and count file
        %> formats to ensure proper ordering and I/O error handling.
@@ -1399,19 +1577,38 @@ classdef PAData < handle
        %> - lux
        %> - inclinometer
        % =================================================================      
-       function dat = getDummyStruct()
-           accelR.x =[];
-           accelR.y = [];
-           accelR.z = [];
-           incl.standing = [];
-           incl.sitting = [];
-           incl.lying = [];
-           incl.off = [];
-           dat.accelRaw = accelR;
-           dat.vecMag = [];
-           dat.steps = [];
-           dat.lux = [];
-           dat.inclinometer = incl;
+       function dat = getDummyStruct(structType)
+           if(nargin<1 || isempty(structType))
+               structType = 'time series';
+           end
+           switch(lower(structType))
+               case 'time series'
+                   accelR.x =[];
+                   accelR.y = [];
+                   accelR.z = [];
+                   incl.standing = [];
+                   incl.sitting = [];
+                   incl.lying = [];
+                   incl.off = [];
+                   dat.accelRaw = accelR;
+                   dat.vecMag = [];
+                   dat.steps = [];
+                   dat.lux = [];
+                   dat.inclinometer = incl;
+               case 'features'
+                   featureNames =  PAData.getExtractorMethods();
+                   dat = struct;
+                   for f=1:numel(featureNames)
+                       dat.(lower(featureNames{f})) = [];
+                   end
+                   dat = rmfield(dat,{'none','all'});
+                   
+               otherwise
+                   dat = [];
+                   fprintf('Unknown offset type (%s).\n',structType)
+           end
+           
+
        end
        
        % ======================================================================
@@ -1477,7 +1674,7 @@ classdef PAData < handle
        %> prefilter() method.
        % --------------------------------------------------------------------
        function extractorMethods = getExtractorMethods()
-           extractorMethods = {'None','RMS','Hash','Sum','Median','Mean'};           
+           extractorMethods = {'None','RMS','Hash','Sum','Median','Mean','All'};           
        end
        
    end

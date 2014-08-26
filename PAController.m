@@ -284,10 +284,59 @@ classdef PAController < handle
             set(handles.edit_frameSize,'callback',@obj.edit_frameSizeCallback);
             
             set(handles.menu_windowDurSec,'callback',@obj.menu_windowDurSecCallback);
-            % set(handles.menu_prefilter,'callback',@obj.menu_prefilterCallback);
-            % set(handles.menu_extractor,'callback',@obj.menu_extractorCallback);
+            set(handles.panel_displayButtonGroup,'selectionChangeFcn',@obj.displayChangeCallback);
             
             set(handles.button_go,'callback',@obj.button_goCallback);
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Callback for radio button change of the panel_displayButtonGroup handle.
+        %> The user can select either, 'time series', 'aggregate bins', or
+        %> 'features'.  If 'Features' is selected, then the Feature dropdown
+        %> menu is enabled, and is disabled otherwise.  The view is
+        %> redrawn.
+        %> @param Instance of PAController
+        %> @param Handle to button group panel.  
+        %> @param Structure of event data to include:
+        %> @li @c EventName 'SelectionChanged'
+        %> @li @c OldValue Handle to the previous callback
+        %> @li @c NewValue Handle to the current callback
+        % --------------------------------------------------------------------
+        function displayChangeCallback(obj,~,eventData)
+            displayType = get(eventData.NewValue,'string');
+            obj.VIEW.setDisplayType(displayType);  
+            obj.VIEW.draw();
+        end
+        
+        
+        % --------------------------------------------------------------------
+        %> @brief Executes a radio button group callback (i.e.
+        %> displayChangeCallback).
+        %> @param Instance of PAController
+        %> @param String value of the radio button to set.  Can be
+        %> @li @c time series
+        %> @li @c aggregate bins
+        %> @li @c features        
+        function setRadioButton(obj,displayType)
+            handles = guidata(obj.VIEW.getFigHandle());
+            eventStruct.EventName = 'SelectionChanged';
+            eventStruct.OldValue = get(handles.panel_displayButtonGroup,'selectedObject');
+            
+            switch lower(displayType)
+                case 'time series'
+                    eventStruct.NewValue = handles.radio_time;
+                case 'aggregate bins'
+                    eventStruct.NewValue = handles.radio_bins;
+                case 'features'
+                    eventStruct.NewValue = handles.radio_features;
+                otherwise
+                    fprintf('Sorry, (%s) is not a recognized type.\n',displayType);
+            end
+            
+            if(eventStruct.OldValue~=eventStruct.NewValue)
+                set(eventStruct.NewValue,'value',1);
+                obj.displayChangeCallback(handles.panel_displayButtonGroup,eventStruct);
+            end
         end
         
         % --------------------------------------------------------------------
@@ -303,11 +352,24 @@ classdef PAController < handle
             prefilterMethod = obj.getPrefilterMethod();
             extractorMethod = obj.getExtractorMethod();
             
-            %set the prefilter duration in minutes.  
+            % get the prefilter duration in minutes. 
+            % aggregateDurMin = obj.VIEW.getAggregateDuration();
             
             %Tell the model to prefilter and extract
-            obj.accelObj.prefilter(prefilterMethod);
-            obj.accelObj.extractFeature(extractorMethod);
+            if(~strcmpi(prefilterMethod,'none'))                             
+                obj.accelObj.prefilter(prefilterMethod);
+                obj.VIEW.enableAggregateRadioButton();
+                
+                displayType = 'aggregate bins';
+                obj.setRadioButton(displayType);  
+            end
+            if(~strcmpi(extractorMethod,'none'))            
+                obj.accelObj.extractFeature(extractorMethod);
+                obj.VIEW.enableFeatureRadioButton();
+                obj.VIEW.appendFeatureMenu(extractorMethod);                
+                displayType = 'features';
+                obj.setRadioButton(displayType); 
+            end
         end
         
         % --------------------------------------------------------------------
@@ -354,12 +416,15 @@ classdef PAController < handle
             % grab the currently selected window size (in seconds)
             windowDurSec = windowDurSec(get(hObject,'value'));
             
+            
+            
             %change it - this internally recalculates the cur epoch
             obj.accelObj.setEpochDurSec(windowDurSec);
             
             %resize the secondary axes according to the new window
             %resolution
             obj.VIEW.updateSecondaryAxes(obj.accelObj.getEpochCount);
+
             obj.setCurEpoch(obj.curEpoch());
         end
         
@@ -515,9 +580,15 @@ classdef PAController < handle
             
             obj.VIEW.initWithAccelData(obj.accelObj);
             
+            % set the display to show time series data initially.
+            displayType = 'Time Series';
+            obj.VIEW.setDisplayType(displayType); 
+            
             obj.setCurEpoch(1);
             obj.setFrameDuration(15);
             obj.setAggregateDuration(3);
+            
+            
         end
     end
     

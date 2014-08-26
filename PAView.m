@@ -9,6 +9,17 @@
 
 classdef PAView < handle
     
+    properties (Access = private)
+        
+        %> String representing the current type of display being used.
+        %> Can be
+        %> @li @c Time Series
+        %> @li @c Aggregate Bins
+        %> @li @c Features
+        displayType; 
+        
+        
+    end
     properties
         %> for the patch handles when editing and dragging
         hg_group; 
@@ -70,9 +81,7 @@ classdef PAView < handle
         epoch_resolution;%struct of different time resolutions, field names correspond to the units of time represented in the field        
         %> The epoch currently in view.
         current_epoch;
-        display_samples; %vector of the samples to be displayed
-        shift_display_samples_delta; %number of samples to adjust display by for moving forward or back
-        startDateTime;
+        
     end
     
 
@@ -120,6 +129,7 @@ classdef PAView < handle
             
             obj.menuhandle.extractorMethod = handles.menu_extractor;
             obj.menuhandle.prefilterMethod = handles.menu_prefilter;
+            obj.menuhandle.displayFeature = handles.menu_displayFeature;
             
             obj.axeshandle.primary = handles.axes_primary;
             obj.axeshandle.secondary = handles.axes_secondary;
@@ -157,17 +167,57 @@ classdef PAView < handle
         function setAggregateDuration(obj,aggregateDurationStr)
            set(obj.texthandle.aggregateDuration,'string',aggregateDurationStr);            
         end
+        % --------------------------------------------------------------------
+        %> @brief Retrieves the aggregate duration edit box value as a
+        %> number.
+        %> @param Instance of PAView.
+        %> @retval The aggregate duration (in minutes) currently set in the text edit box
+        %> as a numeric value.
+        % --------------------------------------------------------------------
+        function aggregateDurMin = getAggregateDuration(obj)
+            aggregateDurMin = str2double(get(obj.texthandle.aggregateDuration,'string'));
+        end
         
         % --------------------------------------------------------------------
-        %> @brief Sets aggregate duration edit box string value
+        %> @brief Sets frame duration edit box string value
         %> @param Instance of PAView.
         %> @param A string representing the frame duration as minutes.
         % --------------------------------------------------------------------
         function setFrameDuration(obj,frameDurationStr)
            set(obj.texthandle.frameDuration,'string',frameDurationStr);            
-        end
+        end   
         
+        % --------------------------------------------------------------------
+        %> @brief Sets display type instance variable.    
+        %> @param Instance of PAView.
+        %> @param A string representing the display type.  Can be 
+        %> @li @c Time Series
+        %> @li @c Aggregate Bins
+        %> @li @c Features
+        % --------------------------------------------------------------------
+        function setDisplayType(obj,displayTypeStr)
+            if(any(strcmpi({'Time Series','Aggregate Bins','Features'},displayTypeStr)))
+                obj.displayType = displayTypeStr;
+                if(strcmpi(displayTypeStr,'Features'))
+                    set(obj.menuhandle.displayFeature,'enable','on');
+                else
+                    set(obj.menuhandle.displayFeature,'enable','off');
+                end
+            else
+                fprintf('Warning, this string (%s) is not an acceptable option.\n',displayTypeStr);
+            end
+        end        
         
+        % --------------------------------------------------------------------
+        %> @brief Retrieves the aggregate duration edit box value as a
+        %> number.
+        %> @param Instance of PAView.
+        %> @retval The frame duration (in minutes) currently set in the text edit box
+        %> as a numeric value.
+        % --------------------------------------------------------------------
+        function frameDurMin = getFrameDuration(obj)
+            frameDurMin = str2double(get(obj.texthandle.frameDuration,'string'));
+        end        
         
         % --------------------------------------------------------------------
         % --------------------------------------------------------------------
@@ -248,7 +298,10 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         function clearWidgets(obj)            
             handles = guidata(obj.getFigHandle());            
+            
             obj.initWidgets();
+            buttonGroupChildren = get(handles.panel_displayButtonGroup,'children');
+            
             widgetList = [handles.edit_curEpoch
                 handles.menu_windowDurSec
                 handles.menu_prefilter
@@ -257,7 +310,8 @@ classdef PAView < handle
                 handles.text_aggregate
                 handles.text_frameSize
                 handles.menu_extractor
-                handles.button_go];  
+                handles.button_go
+                buttonGroupChildren];  
             set(widgetList,'enable','off'); 
             
         end
@@ -382,6 +436,10 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         function initWidgets(obj)
             handles = guidata(obj.getFigHandle());
+            %buttonGroupChildren = get(handles.panel_displayButtonGroup,'children');
+            % do not enable all radio button group children on init.  Only
+            % if features and aggregate bins are available would we do
+            % this.  However, we do not know if that is the case here.
             
             widgetList = [handles.menu_windowDurSec
                 handles.edit_curEpoch
@@ -392,7 +450,9 @@ classdef PAView < handle
                 handles.text_aggregate
                 handles.text_frameSize
                 handles.menu_extractor
-                handles.button_go];                
+                handles.button_go
+                handles.radio_time;
+                ];                
             
             set(handles.edit_aggregate,'string','');
             set(handles.edit_frameSize,'string','');
@@ -422,9 +482,16 @@ classdef PAView < handle
                 86400,'24 hours'};
             
             set(handles.menu_windowDurSec,'userdata',cell2mat(windowMinSelection(:,1)), 'string',windowMinSelection(:,2),'value',1);
+
+            %             obj.displayType = 'Time Series';
+            %             set(obj.menuhandle.displayFeature,'enable','off');
+            
             set(widgetList,'enable','on','visible','on');
-        end
-        
+            
+            obj.setDisplayType('Time Series');
+
+            
+        end        
         
         % --------------------------------------------------------------------
         %> @brief Updates the secondary axes x and y axes limits.
@@ -496,6 +563,30 @@ classdef PAView < handle
             obj.recurseHandleSetter(obj.labelhandle, labelProps);
         end
         
+        function enableAggregateRadioButton(obj)
+            handles = guidata(obj.getFigHandle());
+            set(handles.radio_bins,'enable','on');
+        end
+        
+        function enableFeatureRadioButton(obj)
+            handles = guidata(obj.getFigHandle());
+            set(handles.radio_features,'enable','on');
+            set(handles.radio_features,'enable','on');
+        end
+        
+        function appendFeatureMenu(obj,newFeature)
+            
+            handles = guidata(obj.getFigHandle());
+            featureOptions = get(handles.menu_displayFeature,'string');
+            if(~iscell(featureOptions))
+                featureOptions = {featureOptions};
+            end
+            if(isempty(intersect(featureOptions,newFeature)))
+                featureOptions{end+1} = newFeature;
+                set(handles.menu_displayFeature,'string',featureOptions);
+            end;
+        end        
+        
         % --------------------------------------------------------------------
         %> @brief Displays the string argument in the view.
         %> @param PADataObject Instance of PAData
@@ -520,29 +611,37 @@ classdef PAView < handle
         %> @param PADataObject Instance of PAData
         % --------------------------------------------------------------------
         function draw(obj)
+            
             axesRange   = obj.dataObj.getCurEpochRangeAsUncorrectedSamples();
+            offsetProps = obj.dataObj.getStruct('displayoffset',obj.displayType);
+            offsetStyle.LineStyle = '--';
+            offsetStyle.color = [0.6 0.6 0.6];
             
-            offsetProps = obj.dataObj.getStruct('displayoffset');
-            style.LineStyle = '--';
-            %style.LineWidth = 0.1;
-            style.color = [0.6 0.6 0.6];
+            offsetProps = PAData.appendStruct(offsetProps,offsetStyle);
             
-            offsetProps = PAData.appendStruct(offsetProps,style);
+            lineProps   = obj.dataObj.getStruct('currentdisplay',obj.displayType);
 
+            switch lower(obj.displayType)
+                case 'time series'
+                    
+                    % draw the reference lines first so that the regular lines
+                    % appear on top (or set a z-value, but this is easier for now
+                    obj.recurseHandleSetter(obj.referencelinehandle,offsetProps);
+                    
+                    obj.recurseHandleSetter(obj.linehandle,lineProps);
+                    
+                    % update label text positions based on the axes position...
+                    % link the x position with the axis x-position ...
+                    obj.initLabelHandles(obj.getLabelhandlePosition());
+                case 'aggregate bins'
+                case 'features'
+                    lineProps = obj.dataObj.getStruct('currentfeatures');
+                    obj.recurseHandleSetter(obj.linehandle,lineProps);
+                otherwise
+                    fprintf('Unhandled case: %s\n',obj.displayType);
+            end
             
-            lineProps   = obj.dataObj.getStruct('currentdisplay');
-            set(obj.axeshandle.primary,'xlim',axesRange);  
-
-            % draw the reference lines first so that the regular lines
-            % appear on top (or set a z-value, but this is easier for now
-            obj.recurseHandleSetter(obj.referencelinehandle,offsetProps);
-
-            obj.recurseHandleSetter(obj.linehandle,lineProps);
-            
-            
-            % update label text positions based on the axes position...
-            % link the x position with the axis x-position ...            
-            obj.initLabelHandles(obj.getLabelhandlePosition());
+            set(obj.axeshandle.primary,'xlim',axesRange);
         end
 
         % --------------------------------------------------------------------
@@ -564,7 +663,9 @@ classdef PAView < handle
         %> to labelhandle instance variable.
         % --------------------------------------------------------------------
         function labelPosStruct = getLabelhandlePosition(obj)    
-            labelPosStruct = PAData.structEval('calculateposition',obj.dataObj.offset,obj.dataObj.getStruct('displayoffset'));
+            dummyStruct = obj.dataObj.getStruct('dummystruct',obj.displayType);
+            offsetStruct = obj.dataObj.getStruct('displayoffset',obj.displayType);
+            labelPosStruct = PAData.structEval('calculateposition',dummyStruct,offsetStruct);
             xOffset = 1/120*diff(get(obj.axeshandle.primary,'xlim'));            
             offset = [xOffset, 15, 0];
             labelPosStruct = PAData.structScalarEval('plus',labelPosStruct,offset);            
@@ -615,7 +716,6 @@ classdef PAView < handle
         function obj = clear_handles(obj)
             obj.showReady();
         end
-
         
     end
     methods(Static)
