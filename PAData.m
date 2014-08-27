@@ -67,16 +67,16 @@ classdef PAData < handle
    end
    
    properties (Access = private)
-       %> Current epoch.  Current position in the raw data.  The first epoch is '1' (i.e. not zero because this is MATLAB programming)
-       curEpoch; 
+       %> Current window.  Current position in the raw data.  The first window is '1' (i.e. not zero because this is MATLAB programming)
+       curWindow; 
        %> Number of samples contained in the data (accelRaw.x)
        durSamples;
        %> @brief Defined in the accelerometer's file output and converted to seconds.
        %> This is, most likely, the sampling rate of the output file.
-       epochPeriodSec;
-       %> @brief Epoch duration (in seconds). 
+       windowPeriodSec;
+       %> @brief Window duration (in seconds). 
        %> This can be adjusted by the user, but is 30 s by default.
-       epochDurSec;    
+       windowDurSec;    
        
        %> @brief Initial aggregation duration in minutes.  Frames are
        %comprised of consecutive aggregated windows of data.
@@ -93,17 +93,18 @@ classdef PAData < handle
        
        %> @brief
        bins;
-       %> @frames
-       frames;
        
-       %> @brief Struct of features as extracted from frames.
-       features;
+       %> @brief Vector magnitude signal at frame rate.
+       frames;
        
        %> @brief Number of frames that the time series data can be aggregated
        %> into.  It is calculated as the ceiling of the study's duration in
        %> minutes divided by the current frame duration in minutes.       
        numFrames;
-       
+
+       %> @brief Struct of features as extracted from frames.
+       features;
+
        %> @brief Sample rate of time series data.
        sampleRate;
    end
@@ -146,33 +147,9 @@ classdef PAData < handle
            obj.numBins = 0;
            obj.bins = [];
            obj.numFrames = 0;
-           obj.frames = [];
            obj.features = [];
            
-           obj.color.accelRaw.x.color = 'r';
-           obj.color.accelRaw.y.color = 'b';
-           obj.color.accelRaw.z.color = 'g';           
-           obj.color.vecMag.color = 'm';
-           obj.color.steps.color = [1 0.5 0.5];
-           obj.color.lux.color = 'y';           
-           obj.color.inclinometer.standing.color = 'k';
-           obj.color.inclinometer.lying.color = 'k';
-           obj.color.inclinometer.sitting.color = 'k';
-           obj.color.inclinometer.off.color = 'k';
            
-           
-           % scale to show at - place before the loadFile command, 
-           % b/c it will differe based on the type of file loading done.
-           obj.scale.timeSeries.accelRaw.x = 1;
-           obj.scale.timeSeries.accelRaw.y = 1;
-           obj.scale.timeSeries.accelRaw.z = 1;
-           obj.scale.timeSeries.vecMag = 1;
-           obj.scale.timeSeries.steps = 5; 
-           obj.scale.timeSeries.lux = 1;
-           obj.scale.timeSeries.inclinometer.standing = 5;
-           obj.scale.timeSeries.inclinometer.sitting = 5;
-           obj.scale.timeSeries.inclinometer.lying = 5;
-           obj.scale.timeSeries.inclinometer.off = 5;
            
            % Removed in place of getSampleRate()
            %            obj.sampleRate.accelRaw = 40;
@@ -180,38 +157,44 @@ classdef PAData < handle
            %            obj.sampleRate.lux = 40;
            %            obj.sampleRate.vecMag = 40;
            
-           obj.curEpoch = 1;
-           obj.epochDurSec = 30;  %this is the window size
+           obj.curWindow = 1;
+           obj.windowDurSec = 30;  %this is the window size
            
            obj.loadFile();
            
+           obj.yDelta = 0.05*diff(obj.getMinmax('all'));
            
-           obj.offset.features.median = obj.yDelta;
-           obj.offset.features.mean = obj.yDelta*4;
-           obj.offset.features.rms = obj.yDelta*8;
-           obj.offset.features.std = obj.yDelta*12;
-           obj.offset.features.variance = obj.yDelta*16;
+           featureStruct = PAData.getFeatureDescriptionStruct();
+           fnames = fieldnames(featureStruct);
+           featuresYDelta = diff(obj.getMinmax('all'))/(numel(fnames)+1);
            
-           obj.scale.features.median = 1;
-           obj.scale.features.mean = 1;
-           obj.scale.features.rms = 1;
-           obj.scale.features.std = 1;
-           obj.scale.features.variance = 1;
-           
-           obj.label.features.median.string = 'Median';
-           obj.label.features.mean.string = 'Mean';
-           obj.label.features.rms.string = 'RMS';
-           obj.label.features.std.string = 'Standard Deviation';
-           obj.label.features.variance.string = 'Variance';
-           
-           obj.label.features.median.position = [0 0 0];
-           obj.label.features.mean.position = [0 0 0];
-           obj.label.features.rms.position = [0 0 0];
-           obj.label.features.std.position = [0 0 0];
-           obj.label.features.variance.position = [0 0 0];
+           colorChoices = {'r','g','b','k','y'};
+           for f=1:numel(fnames)
+               curFeature = fnames{f};
+               curColor = colorChoices{mod(f,numel(colorChoices))+1};
+               curDescription = featureStruct.(curFeature);
+               obj.offset.features.(curFeature) = featuresYDelta*f;
+               
+               if(strcmpi(curFeature,'rms'))
+                   scaleVal = 2;
+               elseif(strcmpi(curFeature,'sum'))
+                   scaleVal = 0.01;
+               elseif(strcmpi(curFeature,'std'))
+                   scaleVal = 1;
+               elseif(strcmpi(curFeature,'var'))
+                   scaleVal = 0.1;
+               else
+                   
+                   scaleVal = 1;
+               end
+                   
+               obj.scale.features.(curFeature) = scaleVal;
+               obj.label.features.(curFeature).string = curDescription;
+               obj.label.features.(curFeature).position = [0 0 0];
+               obj.color.features.(curFeature).color = curColor;
+           end
            
            % yDelta = 1/20 of the vertical screen space (i.e. 20 can fit)
-           obj.yDelta = 0.05*diff(obj.getMinmax('all'));
            obj.offset.timeSeries.accelRaw.x = obj.yDelta*1;
            obj.offset.timeSeries.accelRaw.y = obj.yDelta*4;
            obj.offset.timeSeries.accelRaw.z = obj.yDelta*7;
@@ -222,6 +205,7 @@ classdef PAData < handle
            obj.offset.timeSeries.inclinometer.sitting = obj.yDelta*18.25;
            obj.offset.timeSeries.inclinometer.lying = obj.yDelta*17.5;
            obj.offset.timeSeries.inclinometer.off = obj.yDelta*16.75;
+           
            
                       
            % label properties for visualization
@@ -254,76 +238,195 @@ classdef PAData < handle
            obj.label.timeSeries.inclinometer.off.position = [0 0 0];
            
            
+           obj.color.timeSeries.accelRaw.x.color = 'r';
+           obj.color.timeSeries.accelRaw.y.color = 'b';
+           obj.color.timeSeries.accelRaw.z.color = 'g';           
+           obj.color.timeSeries.vecMag.color = 'm';
+           obj.color.timeSeries.steps.color = [1 0.5 0.5];
+           obj.color.timeSeries.lux.color = 'y';           
+           obj.color.timeSeries.inclinometer.standing.color = 'k';
+           obj.color.timeSeries.inclinometer.lying.color = 'k';
+           obj.color.timeSeries.inclinometer.sitting.color = 'k';
+           obj.color.timeSeries.inclinometer.off.color = 'k';
+           
+           
+           % scale to show at - place before the loadFile command, 
+           % b/c it will differe based on the type of file loading done.
+           obj.scale.timeSeries.accelRaw.x = 1;
+           obj.scale.timeSeries.accelRaw.y = 1;
+           obj.scale.timeSeries.accelRaw.z = 1;
+           obj.scale.timeSeries.vecMag = 1;
+           obj.scale.timeSeries.steps = 5; 
+           obj.scale.timeSeries.lux = 1;
+           obj.scale.timeSeries.inclinometer.standing = 5;
+           obj.scale.timeSeries.inclinometer.sitting = 5;
+           obj.scale.timeSeries.inclinometer.lying = 5;
+           obj.scale.timeSeries.inclinometer.off = 5;
+           
        end
        
 
        % ======================================================================
        %> @brief Returns a structure of an instnace PAData's time series data.
        %> @param Instance of PAData.
-       %> @retval A 2x1 vector with start, stop range of the current epoch returned as
+       %> @param Optional string identifying the type of data to obtain the
+       %> offset from.  Can be 
+       %> @li @c time series (default)
+       %> @li @c features
+       %> @li @c aggregate bins
+       %> @retval A 2x1 vector with start, stop range of the current window returned as
        %> samples beginning with 1 for the first sample.  The second value
        %> (i.e. the stop sample) is capped at the current value of
        %> durationSamples().
-       %> @note This uses instance variables epochDurSec, curEpoch, and sampleRate to
-       %> determine the sample range for the current epoch.
+       %> @note This uses instance variables windowDurSec, curWindow, and sampleRate to
+       %> determine the sample range for the current window.
        % =================================================================      
-       function correctedEpochRange = getCurEpochRangeAsSamples(obj)
-           correctedEpochRange = obj.getCurEpochRangeAsUncorrectedSamples();
-           correctedEpochRange(2) = min([correctedEpochRange(2),obj.durationSamples()]);
+       function correctedWindowRange = getCurWindowRange(obj,structType)
+           if(nargin<2 || isempty(structType))
+               structType = 'time series';
+           end
+           
+           correctedWindowRange = obj.getCurUncorrectedWindowRange(structType);
+                   
+           switch lower(structType)
+               case 'time series'
+                   maxValue = obj.durationSamples();
+               case 'aggregate bins'
+                   maxValue = obj.getBinCount();
+               case 'features'
+                   maxValue = obj.getFrameCount();
+               otherwise
+                   fprintf('This structure type is not handled (%s).\n',structType);
+                   maxValue = nan;                   
+           end
+           correctedWindowRange(2) = min([correctedWindowRange(2),maxValue]);
+
        end
 
        
        % ======================================================================
        %> @brief Returns a structure of an instnace PAData's time series data.
        %> @param Instance of PAData.
-       %> @retval A 2x1 vector with start, stop range of the current epoch returned as
+       %> @param Optional string identifying the type of data to obtain the
+       %> offset from.  Can be 
+       %> @li @c time series (default)
+       %> @li @c features
+       %> @li @c aggregate bins
+       %> @retval A 2x1 vector with start, stop range of the current window returned as
        %> samples beginning with 1 for the first sample.  
-       %> @note This uses instance variables epochDurSec, curEpoch, and sampleRate to
-       %> determine the sample range for the current epoch.
+       %> @note This uses instance variables windowDurSec, curWindow, and sampleRate to
+       %> determine the sample range for the current window.
        % =================================================================      
-       function epochRange = getCurEpochRangeAsUncorrectedSamples(obj)
-           epochDurSamples = obj.getEpochDurSamples();
-           epochRange = (obj.curEpoch-1)*epochDurSamples+[1,epochDurSamples];
+       function windowRange = getCurUncorrectedWindowRange(obj,structType)
+           if(nargin<2 || isempty(structType))
+               structType = 'time series';
+           end
+           
+           windowDur = obj.getWindowDuration(structType);
+           windowRange = (obj.curWindow-1)*windowDur+[1,windowDur];
+           
        end
        
        % ======================================================================
-       %> @brief Returns the duration of an epoch in terms of sample points.
-       %> @param Instance of PAData.
-       %> @retval (Integer) Duration of the epoch window in units of sample points.
-       %> @note Calcuation based on instance variables epochDurSec and sampleRate
-       % =================================================================      
-       function epochDurSamples = getEpochDurSamples(obj)
-           epochDurSamples = obj.epochDurSec*obj.getSampleRate();
+       %> @brief Returns the duration of an window in units of samples,
+       %> aggregate bins, or frame count.
+       %> @param Instance of PAData.       
+       %> @param Optional string identifying the type of data to obtain the
+       %> offset from.  Can be 
+       %> @li @c time series (default) - units are sample points
+       %> @li @c features - units are frames
+       %> @li @c aggregate bins - units are bins
+       %> @retval (Integer, floored) Duration of the window window in units of sample points, aggregate bins, or frame count.
+       %> @note Calcuation based on instance variables windowDurSec and
+       %sampleRate and raised to the nearest integer value.
+       function windowDur = getWindowDuration(obj,structType)
+           if(nargin<2 || isempty(structType))
+               structType = 'time series';
+           end
+           windowDur = ceil(obj.windowDurSec*obj.getWindowRate(structType));
+       end  
+       
+       % --------------------------------------------------------------------
+       %> @brief Returns the window ratesamplerate of the x-axis accelerometer.
+       %> @param Instance of PAData   
+       %> @param Optional string identifying the type of data to obtain the
+       %> offset from.  Can be 
+       %> @li @c time series (default) - units are sample points
+       %> @li @c features - units are frames
+       %> @li @c aggregate bins - units are bins
+       %> @retval Sample rate of the x-axis accelerometer.
+       % --------------------------------------------------------------------
+       function windowRate = getWindowRate(obj,structType)
+           if(nargin<2 || isempty(structType))
+               structType = 'time series';
+           end
+           
+           switch lower(structType)
+               case 'time series'                   
+                   windowRate = obj.getSampleRate();
+               case 'aggregate bins'
+                   windowRate = obj.getBinRate();
+               case 'features'
+                   windowRate = obj.getFrameRate();
+               otherwise
+                   fprintf('This structure type is not handled (%s).\n',structType);
+           end
+                      
        end
        
        % --------------------------------------------------------------------
-       %> @brief Set the current epoch for the instance variable accelObj
+       %> @brief Returns the samplerate of the x-axis accelerometer.
+       %> @param Instance of PAData
+       %> @retval Sample rate of the x-axis accelerometer.
+       % --------------------------------------------------------------------
+       function fs = getSampleRate(obj)
+           fs = obj.sampleRate;           
+       end
+       
+       % --------------------------------------------------------------------
+       %> @brief Returns the frame rate in units of frames/second.
+       %> @param Instance of PAData
+       %> @retval Frames rate in Hz.
+       % --------------------------------------------------------------------
+       function fs = getFrameRate(obj)
+           fs = 1/60/obj.frameDurMin;
+       end
+       
+       % --------------------------------------------------------------------
+       %> @brief Returns the aggregate bin rate in units of aggregate bins/second.
+       %> @param Instance of PAData
+       %> @retval Aggregate bins per second.
+       % --------------------------------------------------------------------
+       function fs = getBinRate(obj)
+           fs = 1/60/obj.aggregateDurMin;
+       end
+       
+       % --------------------------------------------------------------------
+       %> @brief Set the current window for the instance variable accelObj
        %> (PAData)
        %> @param Instance of PAData
-       %> @param The epoch to set curEpoch to.
-       %> @retval The current value of instance variable curEpoch.
-       %> @note If the input argument for epoch is negative or exceeds 
-       %> the maximum epoch value for the time series data, then it is not used
-       %> and the curEpoch value is retained, and also returned.
+       %> @param The window to set curWindow to.
+       %> @retval The current value of instance variable curWindow.
+       %> @note If the input argument for window is negative or exceeds 
+       %> the maximum window value for the time series data, then it is not used
+       %> and the curWindow value is retained, and also returned.
        % --------------------------------------------------------------------
-       function curEpoch = setCurEpoch(obj,epoch)
-           if(epoch>0 && epoch<=obj.getEpochCount())
-               obj.curEpoch = epoch;
-               %obj.setCurrentStruct();
+       function curWindow = setCurWindow(obj,window)
+           if(window>0 && window<=obj.getWindowCount())
+               obj.curWindow = window;
            end
-           %returns the current epoch, wether it be 'epoch' or not.
-           curEpoch = obj.getCurEpoch();
+           %returns the current window, wether it be 'window' or not.
+           curWindow = obj.getCurWindow();
        end
        
        % --------------------------------------------------------------------
-       %> @brief Returns the current epoch.
+       %> @brief Returns the current window.
        %> @param Instance of PAData
-       %> @retval The current epoch;
+       %> @retval The current window;
        % --------------------------------------------------------------------
-       function curEpoch = getCurEpoch(obj)
-           curEpoch = obj.curEpoch;
-       end
-              
+       function curWindow = getCurWindow(obj)
+           curWindow = obj.curWindow;
+       end    
        
        % --------------------------------------------------------------------
        %> @brief Set the aggregate duration (in minutes) instance variable.
@@ -345,11 +448,25 @@ classdef PAData < handle
        % --------------------------------------------------------------------
        % @brief Returns the current aggregate duration in minutes.
        % @param Instance of PAData
-       % @retval The current epoch;
+       % @retval The current window;
        % --------------------------------------------------------------------
        function aggregateDuration = getAggregateDuration(obj)
            aggregateDuration = obj.aggregateDurMin;
        end       
+       
+       % --------------------------------------------------------------------
+       %> @brief Returns the total number of aggregated bins the data can be divided
+       %> into based on frame rate and the duration of the time series data.
+       %> @param Instance of PAData
+       %> @retval The total number of frames contained in the data.
+       %> @note In the case of data size is not broken perfectly into frames, but has an incomplete frame, the
+       %> window count is rounded down.  For example, if the frame duration 1 min, and the study is 1.5 minutes long, then 
+       %> the frame count is 1.
+       % --------------------------------------------------------------------
+       function binCount = getBinCount(obj)
+           binCount = floor(obj.durationSec/60/obj.getAggregateDuration());        
+       end
+       
        
        % --------------------------------------------------------------------
        %> @brief Set the frame duration (in minutes) instance variable.
@@ -378,6 +495,19 @@ classdef PAData < handle
        end
        
        % --------------------------------------------------------------------
+       %> @brief Returns the total number of frames the data can be divided
+       %> into evenly based on frame rate and the duration of the time series data.
+       %> @param Instance of PAData
+       %> @retval The total number of frames contained in the data.
+       %> @note In the case of data size is not broken perfectly into frames, but has an incomplete frame, the
+       %> window count is rounded down (floor).  For example, if the frame duration 1 min, and the study is 1.5 minutes long, then 
+       %> the frame count is 1.
+       % --------------------------------------------------------------------
+       function frameCount = getFrameCount(obj)
+           frameCount = floor(obj.durationSec/60/obj.getFrameDuration());        
+       end
+       
+       % --------------------------------------------------------------------
        % @brief Returns the number of samples contained in the time series data.
        % @param Instance of PAData
        % @retval Number of elements contained in durSamples instance var
@@ -385,42 +515,52 @@ classdef PAData < handle
        % --------------------------------------------------------------------
        function durationSamp = durationSamples(obj)
            durationSamp = obj.durSamples;
-       end
+       end       
        
        % --------------------------------------------------------------------
-       %> @brief Set the epoch duration value in seconds.  This is the
-       %> displays window size (i.e. one epoch shown at a time), in seconds.
+       %> @brief Set the window duration value in seconds.  This is the
+       %> displays window size (i.e. one window shown at a time), in seconds.
        %> @param Instance of PAData
        %> @param Duration in seconds.  Must be positive.  Value is first
        %> rounded to ensure it is an integer.
-       %> @retval Epoch duration in seconds of obj.
-       %> @note Instance variable curEpoch is recalculated based on new
-       %> epoch duration.
+       %> @retval Window duration in seconds of obj.
+       %> @note Instance variable curWindow is recalculated based on new
+       %> window duration.
        % --------------------------------------------------------------------
-       function durSec = setEpochDurSec(obj,durSec)
+       function durSec = setWindowDurSec(obj,durSec)
            durSec = round(durSec);
            if(durSec>0)
-               % requires the current epochDurSec value be initialized
+               % requires the current windowDurSec value be initialized
                % already.
-               epochRange = obj.getCurEpochRangeAsSamples();                            
-               obj.epochDurSec = durSec;
+               windowRange = obj.getCurWindowRange();                            
+               obj.windowDurSec = durSec;
                
-               %calculate the current epoch based on the start sample using
-               %the previous versions epoch
-               obj.setCurEpoch(obj.sample2epoch(epochRange(1)));      
+               %calculate the current window based on the start sample using
+               %the previous versions window
+               obj.setCurWindow(obj.sample2window(windowRange(1)));      
            else
-               durSec = obj.epochDurSec;
+               durSec = obj.windowDurSec;
            end
        end
        
        % --------------------------------------------------------------------
        %> @brief Returns the color instance variable
        %> @param Instance of PAData
-       %> @retval A struct of color values correspodning to the time series
+       %> @param String specifying the structure type of label to retrieve.
+       %> Possible values include:
+       %> @li @c time series (default)
+       %> @li @c features
+       %> @li @c aggregate bins
+       %%> @retval A struct of color values correspodning to the time series
        %> fields of obj.
        % --------------------------------------------------------------------
-       function color = getColor(obj)
-           color = obj.color;
+       function color = getColor(obj,structType)
+           if(nargin<2 || isempty(structType))
+               structType = 'time series';
+           end
+           fname = PAData.getStructNameFromDescription(structType);
+           
+           color = obj.color.(fname);
        end
 
        % --------------------------------------------------------------------
@@ -430,6 +570,7 @@ classdef PAData < handle
        %> Possible values include:
        %> @li @c time series (default)
        %> @li @c features
+       %> @li @c aggregate bins
        %> @retval A struct of string values which serve to label the correspodning to the time series
        %> fields of obj.
        % --------------------------------------------------------------------
@@ -450,26 +591,17 @@ classdef PAData < handle
        end
        
        % --------------------------------------------------------------------
-       %> @brief Returns the samplerate of the x-axis accelerometer.
-       %> @param Instance of PAData
-       %> @retval Sample rate of the x-axis accelerometer.
-       % --------------------------------------------------------------------
-       function fs = getSampleRate(obj)
-           fs = obj.sampleRate;           
-       end
-       
-       % --------------------------------------------------------------------
-       %> @brief Returns the total number of epochs the data can be divided
-       %> into based on sampling rate, epoch resolution (i.e. duration), and the size of the time
+       %> @brief Returns the total number of windows the data can be divided
+       %> into based on sampling rate, window resolution (i.e. duration), and the size of the time
        %> series data.
        %> @param Instance of PAData
-       %> @param The maximum/last epoch allowed
-       %> @note In the case of data size is not broken perfectly into epochs, but has an incomplete epoch, the
-       %> epoch count is rounded up.  For example, if the time series data is 10 s in duration and the epoch size is 
-       %> defined as 30 seconds, then the epochCount is 1.  
+       %> @param The maximum/last window allowed
+       %> @note In the case of data size is not broken perfectly into windows, but has an incomplete window, the
+       %> window count is rounded up.  For example, if the time series data is 10 s in duration and the window size is 
+       %> defined as 30 seconds, then the windowCount is 1.  
        % --------------------------------------------------------------------
-       function epochCount = getEpochCount(obj)
-           epochCount = ceil(obj.durationSec/obj.epochDurSec);
+       function windowCount = getWindowCount(obj)
+           windowCount = ceil(obj.durationSec/obj.windowDurSec);
        end
        
        % ======================================================================
@@ -526,8 +658,6 @@ classdef PAData < handle
            end
        end
        
-       
-       
        % ======================================================================
        %> @brief Returns the filename, pathname, and full filename (pathname + filename) of
        %> the file that the accelerometer data was loaded from.
@@ -554,7 +684,7 @@ classdef PAData < handle
        end
 
        % ======================================================================
-       %> @brief Load CSV header values (start time, start date, and epoch
+       %> @brief Load CSV header values (start time, start date, and window
        %> period).
        %> @param obj Instance of PAData.
        %> @param Filename to open and examine.
@@ -564,7 +694,7 @@ classdef PAData < handle
            %  Serial Number: NEO1C15110135
            %  Start Time 18:00:00
            %  Start Date 1/23/2014
-           %  Epoch Period (hh:mm:ss) 00:00:01
+           %  Window Period (hh:mm:ss) 00:00:01
            %  Download Time 12:59:00
            %  Download Date 1/24/2014
            %  Current Memory Address: 0
@@ -591,15 +721,15 @@ classdef PAData < handle
                        
                        % Pull the following line from the file and convert hh:mm:ss
                        % to total seconds
-                       %  Epoch Period (hh:mm:ss) 00:00:01
+                       %  Window Period (hh:mm:ss) 00:00:01
                        a=fscanf(fid,'%*s %*s %*s %d:%d:%d');
-                       obj.epochPeriodSec = [3600 60 1]* a;                       
+                       obj.windowPeriodSec = [3600 60 1]* a;                       
                    else
                        % unset - we don't know - assume 1 per second
-                       obj.epochPeriodSec = 1;
+                       obj.windowPeriodSec = 1;
                        obj.startTime = 'N/A';
                        obj.startDate = 'N/A';
-                       fprintf(' File does not include header.  Default values set for start date and epochPeriodSec (1).\n');
+                       fprintf(' File does not include header.  Default values set for start date and windowPeriodSec (1).\n');
                    end
                    fclose(fid);
                catch me
@@ -613,7 +743,7 @@ classdef PAData < handle
        %> Results include
        %> - Filename
        %> - Duration (hh:mm:ss)
-       %> - Epoch count
+       %> - Window count
        %> - Start Date
        %> - Start Time
        %> @param obj Instance of PAData.
@@ -623,9 +753,9 @@ classdef PAData < handle
        % =================================================================
        function headerStr = getHeaderAsString(obj)
            durStr = datestr(datenum([0 0 0 0 0 obj.durationSec]),'HH:MM:SS'); 
-           epochPeriod = datestr(datenum([0 0 0 0 0 obj.epochPeriodSec]),'HH:MM:SS'); 
-           headerStr = sprintf('Filename:\t%s\nStart Date: %s\nStart Time: %s\nDuration:\t%s\nEpoch Count:\t%4u\nEpoch Period:\t%s\nSample Rate:\t%u Hz',...
-               obj.filename,obj.startDate,obj.startTime,durStr,obj.getEpochCount,epochPeriod,obj.getSampleRate());
+           windowPeriod = datestr(datenum([0 0 0 0 0 obj.windowPeriodSec]),'HH:MM:SS'); 
+           headerStr = sprintf('Filename:\t%s\nStart Date: %s\nStart Time: %s\nDuration:\t%s\nWindow Count:\t%4u\nWindow Period:\t%s\nSample Rate:\t%u Hz',...
+               obj.filename,obj.startDate,obj.startTime,durStr,obj.getWindowCount,windowPeriod,obj.getSampleRate());
        end
        
        % ======================================================================
@@ -655,8 +785,12 @@ classdef PAData < handle
                [path, name, ext] = fileparts(fullfilename);
                if(strcmpi(ext,'.raw'))
                    fullCountFilename = fullfile(path,strcat(name,'.csv'));
+                   tic
                    obj.loadCountFile(fullCountFilename);
+                   toc
+                   tic
                    obj.loadRawFile(fullfilename);
+                   toc
                else
                    obj.loadCountFile(fullfilename);
                end
@@ -671,39 +805,63 @@ classdef PAData < handle
        function loadCountFile(obj,fullCountFilename)           
            
            if(exist(fullCountFilename,'file'))
-               [path, name, ext] = fileparts(fullCountFilename);              
-               
                fid = fopen(fullCountFilename,'r');
                if(fid>0)
                    try
                        obj.loadFileHeader(fullCountFilename);
-                       delimiter = ',';
+%                        delimiter = ',';
                        % header = 'Date	 Time	 Axis1	Axis2	Axis3	Steps	Lux	Inclinometer Off	Inclinometer Standing	Inclinometer Sitting	Inclinometer Lying	Vector Magnitude';
                        headerLines = 11; %number of lines to skip
-                       % Date, Time, Axis1,Axis2,Axis3,Steps,Lux,Inclinometer Off,Inclinometer Standing,Inclinometer Sitting,Inclinometer Lying,Vector Magnitude
+                       % Date,Time,Axis1,Axis2,Axis3,Steps,Lux,Inclinometer Off,Inclinometer Standing,Inclinometer Sitting,Inclinometer Lying,Vector Magnitude
 
                        %scanFormat = '%s %s %u16 %u16 %u16 %u8 %u8 %u8 %u8 %u8 %u8 %f32';
                        % 1/23/2014 18:00:00.000, --> MM/DD/YYYY HH:MM:SS.FFF,
-                       scanFormat = '%f/%f/%f %f:%f:%f %u16 %u16 %u16 %u8 %u8 %u8 %u8 %u8 %u8 %f32';
-                       tmpDataCell = textscan(fid,scanFormat,'delimiter',delimiter,'headerlines',headerLines);
-
+%                        scanFormat = '%u8/%u8/%u16,%u8:%u8:%u8,%u16,%u16,%u16,%u8,%u8,%u8,%u8,%u8,%u8,%f32';
+                       %                        scanFormat = '%f/%f/%f %f:%f:%f %u16 %u16 %u16 %u8 %u8 %u8 %u8 %u8 %u8 %f32';
+                       %                        tmpDataCell = textscan(fid,scanFormat,'headerlines',headerLines);
+                       %                        tic
+                       
+                       scanFormat = '%2d/%2d/%4d,%2d:%2d:%2d,%d,%d,%d,%d,%d,%1d,%1d,%1d,%1d,%f32';
+                       frewind(fid);
+                       for f=1:headerLines
+                           fgetl(fid);
+                       end
+                       A  = fread(fid,'*char');
+                       tmpDataCell = textscan(A, scanFormat);
+                       
+%                        scanFormat = '%[^,],%[^,],%d,%d,%d,%d,%d,%1d,%1d,%1d,%1d,%f32';
+                       
+                       % This takes 7.16 seconds
+                       %                        tmpDataCell = textscan(fid,scanFormat,'delimiter',delimiter,'headerlines',headerLines);
+                       %                        toc                       
+                       %This takes 13.1 seconds
+                       %                        for f=1:headerLines
+                       %                            fgetl(fid);
+                       %                        end
+                       %
+                       %                        fseek(fid,558,'bof');
+                       %                        tic
+                       %                        A=fscanf(fid,'%2d%*c%2d%*c%4d,%2d%*c%2d%*c%2d,%d,%d,%d,%d,%d,%1d,%1d,%1d,%1d,%f',[16,inf])';
+                       %
+                       %                        toc
+                       
                        %Date time handling
                        %                        dateTime = strcat(tmpDataCell{1},{' '},tmpDataCell{2});
                        % dateVecFound = round(datevec(dateTime,'mm/dd/yyyy HH:MM:SS'));
-                       dateVecFound = [tmpDataCell{3},tmpDataCell{1},tmpDataCell{2},tmpDataCell{4},tmpDataCell{5},tmpDataCell{6}];
+                       dateVecFound = double([tmpDataCell{3},tmpDataCell{1},tmpDataCell{2},tmpDataCell{4},tmpDataCell{5},tmpDataCell{6}]);
                        samplesFound = size(dateVecFound,1);  
                        
                        startDateNum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
                        stopDateNum = datenum(dateVecFound(end,:));
                                               
-                       epochDateNumDelta = datenum([0,0,0,0,0,obj.epochPeriodSec]);
+                       windowDateNumDelta = datenum([0,0,0,0,0,obj.windowPeriodSec]);
                        
                        missingValue = nan;
                        
                        % NOTE:  Chopping off the first six columns: date time values;
                        tmpDataCell(1:6) = [];
                        
-                       [dataCell, ~, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,epochDateNumDelta,dateVecFound,tmpDataCell,missingValue);
+                       [dataCell, ~, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,missingValue);
                        
                        tmpDataCell = []; %free up this memory;
                        
@@ -721,8 +879,6 @@ classdef PAData < handle
                        if(obj.durationSamples()==samplesFound)
                            fprintf('%d rows loaded from %s\n',samplesFound,fullCountFilename); 
                        else
-                           
-                           
                            if(numMissing>0)
                                fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullCountFilename,numMissing,num2str(missingValue));
                            else
@@ -741,14 +897,17 @@ classdef PAData < handle
                        obj.inclinometer.sitting = dataCell{8};
                        obj.inclinometer.lying = dataCell{9};
                        obj.inclinometer.off = dataCell{6};
-                       obj.vecMag = dataCell{10};
                        
-                       %either use epochPeriodSec or use samplerate.
-                       if(obj.epochPeriodSec>0)
-                           obj.sampleRate = 1/obj.epochPeriodSec;
-                           obj.durationSec = obj.durationSamples()*obj.epochPeriodSec;
+%                        inclinometerMat = cell2mat(dataCell(6:9));
+%                        unique(inclinometerMat,'rows');
+                       obj.vecMag = dataCell{10};
+
+                       %either use windowPeriodSec or use samplerate.
+                       if(obj.windowPeriodSec>0)
+                           obj.sampleRate = 1/obj.windowPeriodSec;
+                           obj.durationSec = obj.durationSamples()*obj.windowPeriodSec;
                        else
-                           fprintf('There was an error when loading the epoch period second value (non-positive value found in %s).\n',fullCountFilename);
+                           fprintf('There was an error when loading the window period second value (non-positive value found in %s).\n',fullCountFilename);
                            obj.durationSec = 0;
                        end                       
                        fclose(fid);
@@ -777,7 +936,7 @@ classdef PAData < handle
        % =================================================================
        function loadRawFile(obj,fullRawFilename)
            if(exist(fullRawFilename,'file'))
-                              
+               
                fid = fopen(fullRawFilename,'r');
                if(fid>0)
                    try
@@ -785,11 +944,66 @@ classdef PAData < handle
                        % header = 'Date	 Time	 Axis1	Axis2	Axis3
                        headerLines = 11; %number of lines to skip
                        %                        scanFormat = '%s %f32 %f32 %f32'; %load as a 'single' (not double) floating-point number
-                       scanFormat = '%f/%f/%f %f:%f:%f %f32 %f32 %f32';
-                       tmpDataCell = textscan(fid,scanFormat,'delimiter',delimiter,'headerlines',headerLines);
+%                        scanFormat = '%f/%f/%f %f:%f:%f %f32 %f32 %f32';
+%                        tmpDataCell = textscan(fid,scanFormat,'delimiter',delimiter,'headerlines',headerLines);
 
+                       
+                       scanFormat = '%2d/%2d/%4d %2d:%2d:%f,%f32,%f32,%f32';
+                       frewind(fid);
+                       for f=1:headerLines
+                           fgetl(fid);
+                       end
+                       l = fgetl(fid);
+                       
+                       %This takes 46 seconds; //or 24 seconds or 4.547292
+                       %or 8.8 ...
+                       %seconds. or 219.960772 seconds (what is going on
+                       %here?)
+                       tic                       
+                       A  = fread(fid,'*char');
+                       toc
+                       tic
+                       tmpDataCell = textscan(A(1:100000000),scanFormat)
+                       toc
+                       pattern = '(?<datetimestamp>[^,]+),(?<axis1>[^,]+),(?<axis2>[^,]+),(?<axis3>[^\s]+)\s*';
+                       tic
+                       result = regexp(A(1:2e+8)',pattern,'names')  % seconds
+%                        result = regexp(A(1:1e+8)',pattern,'names')  %23.7 seconds
+                       toc
+                       
+                       %                        scanFormat = '%u8/%u8/%u16 %2d:%2d:%f,%f32,%f32,%f32';
+                       %tmpDataCell = textscan(A(1:1e+9),scanFormat)
+%                        tmpDataCell = textscan(A(1:1e+8),scanFormat)
+%                        tmpDataCell = textscan(A(1e+8+2:2e+8),scanFormat)
+%                        tmpDataCell = textscan(A(2e+8-15:3e+8),scanFormat)
+%                        tmpDataCell = textscan(A(3e+8:4e+8),scanFormat) %12.7 seconds
+%                        tmpDataCell = textscan(A(4e+8-3:5e+8),scanFormat) %8.8 seconds
+%                        tmpDataCell = textscan(A(5e+8+10:6e+8+100)',scanFormat) %7.9 seconds
+%                        tmpDataCell = textscan(A(6e+8+15:7e+8+100)',scanFormat) %7.86 seconds
+%                        tmpDataCell = textscan(A(7e+8+7:8e+8+100)',scanFormat) %7.8 seconds
+%                        tmpDataCell = textscan(A(8e+8-13:9e+8+100)',scanFormat) %7.9 seconds
+%                        tmpDataCell = textscan(A(9e+8-1:10e+8+100)',scanFormat) %7.87 seconds
+
+tic
+tmpDataCell = textscan(A(10e+8-17:11e+8+100)',scanFormat) %7.94 seconds
+toc,tic
+tmpDataCell = textscan(A(11e+8+4:12e+8+100)',scanFormat) %7.73 seconds
+toc,tic
+tmpDataCell = textscan(A(12e+8-2:13e+8+100)',scanFormat) %8.08 seconds
+toc,tic
+tmpDataCell = textscan(A(13e+8-3:14e+8+100)',scanFormat) %9.45 seconds
+toc,tic
+tmpDataCell = textscan(A(14e+8+4:14.106e+8)',scanFormat) %1.03 seconds
+toc                       
+                       
+                       
+                       
+                       
+                       toc
+
+                       
                        %Date time handling
-                       dateVecFound = [tmpDataCell{3},tmpDataCell{1},tmpDataCell{2},tmpDataCell{4},tmpDataCell{5},tmpDataCell{6}];
+                       dateVecFound = double([tmpDataCell{3},tmpDataCell{1},tmpDataCell{2},tmpDataCell{4},tmpDataCell{5},tmpDataCell{6}]);
                        
                        %Date time handling
                        %dateVecFound = datevec(tmpDataCell{1},'mm/dd/yyyy HH:MM:SS.FFF');
@@ -801,12 +1015,12 @@ classdef PAData < handle
                        %start, stop and delta date nums
                        startDateNum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
                        stopDateNum = datenum(dateVecFound(end,:));                       
-                       epochDateNumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
+                       windowDateNumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
                        missingValue = nan;
 
                        % NOTE:  Chopping off the first six columns: date time values;
                        tmpDataCell(1:6) = [];                       
-                       [dataCell, ~, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,epochDateNumDelta,dateVecFound,tmpDataCell,missingValue);                       
+                       [dataCell, ~, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,missingValue);                       
                        tmpDataCell = []; %free up this memory;
                        
                        obj.durSamples = numel(obj.dateTimeNum);
@@ -830,7 +1044,7 @@ classdef PAData < handle
                        obj.accelRaw.y = dataCell{2};
                        obj.accelRaw.z = dataCell{3};
                        
-                       N = obj.epochPeriodSec*obj.sampleRate;
+                       N = obj.windowPeriodSec*obj.sampleRate;
                        
                        obj.steps = reshape(repmat(obj.steps(:),N,1),[],1);
                        obj.lux = reshape(repmat(obj.lux(:)',N,1),[],1);
@@ -873,21 +1087,21 @@ classdef PAData < handle
        end
        
        % ======================================================================
-       %> @brief Calculates, and returns, the epoch for the given sample index of a signal.
+       %> @brief Calculates, and returns, the window for the given sample index of a signal.
        %> @param Instance of PAData.
-       %> @param Sample point to discover the containing epoch of.
-       %> @param epoch Epoch duration in seconds (scalar) (optional)
+       %> @param Sample point to discover the containing window of.
+       %> @param window Window duration in seconds (scalar) (optional)
        %> @param Sample rate of the data (optional)
-       %> @retval The epoch.
+       %> @retval The window.
        % ======================================================================
-       function epoch = sample2epoch(obj,sample,epochDurSec,samplerate)           
+       function window = sample2window(obj,sample,windowDurSec,samplerate)           
            if(nargin<4)
                samplerate = obj.getSampleRate();
            end
            if(nargin<3)
-               epochDurSec = obj.epochDurSec;
+               windowDurSec = obj.windowDurSec;
            end;
-           epoch = ceil(sample/(epochDurSec*samplerate));
+           window = ceil(sample/(windowDurSec*samplerate));
        end
        
        
@@ -911,7 +1125,7 @@ classdef PAData < handle
        end
 
        function obj = extractFeature(obj,method)
-           currentNumFrames = floor((obj.durationSec/60)/obj.frameDurMin);
+           currentNumFrames = obj.getFrameCount();
            if(currentNumFrames~=obj.numFrames)
                obj.numFrames = currentNumFrames;
                frameableSamples = obj.numFrames*obj.frameDurMin*60*obj.getSampleRate();
@@ -919,16 +1133,27 @@ classdef PAData < handle
                obj.features = [];
            end
            
+           
+           %frames are stored in consecutive columns.
            data = obj.frames;
            switch(lower(method))
                case 'none'
-               case 'rms'
-                   %obj.frames.rms = rms(data)
-               case 'median'
+               case 'all'
+                   obj.features.rms = sqrt(mean(data.^2))';
                    obj.features.median = median(data)';
+                   obj.features.mean = mean(data)';
+                   obj.features.sum = sum(data)';
+                   obj.features.var = var(data)';
+                   obj.features.std = std(data)';
+                   obj.features.hash = mode(data)';
+               case 'rms'
+                   obj.features.rms = sqrt(mean(data.^2))';
                case 'mean'
                    obj.features.mean = mean(data)';
+               case 'sum'
+                   obj.features.sum = sum(data)';
                case 'hash'
+                   obj.features.hash = mode(data)';
                otherwise
                    fprintf(1,'Unknown method (%s)\n',method);
            end
@@ -1001,8 +1226,13 @@ classdef PAData < handle
        %> - @b displayoffset [x,y,z] offsets of the current time series
        %> data being displayed.  Values are stored in .position child field
        %> - @b all All, original time series data.
-       %> @retval tsStruct A struct of PAData's time series instance data.  The fields
-       %> include:
+       %> @param Optional string identifying the type of data to obtain the
+       %> offset from.  Can be 
+       %> @li @c time series (default) - units are sample points
+       %> @li @c features - units are frames
+       %> @li @c aggregate bins - units are bins       
+       %> @retval A struct of PAData's time series, aggregate bins, or features instance data.  The fields
+       %> for time series data include:
        %> - accelRaw.x
        %> - accelRaw.y
        %> - accelRaw.z
@@ -1010,28 +1240,28 @@ classdef PAData < handle
        %> - lux
        %> - vecMag
        % =================================================================      
-       function dat = getStruct(obj,choice,displayType)
+       function dat = getStruct(obj,choice,structType)
            if(nargin<3)
-               displayType = 'time series';
+               structType = 'time series';
                if(nargin<2)
                    choice = 'all';
                end
            end
            switch(choice)
                case 'dummy'
-                   dat = obj.getDummyStruct();
+                   dat = obj.getDummyStruct(structType);
                case 'dummydisplay'
-                   dat = obj.getDummyDisplayStruct();
+                   dat = obj.getDummyDisplayStruct(structType);
                case 'current'
-                   dat = obj.getCurrentStruct(displayType);
+                   dat = obj.getCurrentStruct(structType);
                 case 'displayoffset'
-                    dat = obj.getCurrentOffsetStruct(displayType);
+                    dat = obj.getCurrentOffsetStruct(structType);
                case 'currentdisplay'
-                   dat = obj.getCurrentDisplayStruct(displayType);               
+                   dat = obj.getCurrentDisplayStruct(structType);               
                case 'all'                   
-                   dat = obj.getAllStruct(displayType);
+                   dat = obj.getAllStruct(structType);
                otherwise
-                   dat = obj.getAllStruct(displayType);
+                   dat = obj.getAllStruct(structType);
            end
        end
        
@@ -1043,7 +1273,12 @@ classdef PAData < handle
        % ======================================================================
        %> @brief Returns a structure of an insance PAData's time series data.
        %> @param Instance of PAData.
-       %> @retval tsStruct A struct of PAData's time series instance data.  The fields
+       %> @param Optional string identifying the type of data to obtain the
+       %> offset from.  Can be 
+       %> @li @c time series (default) - units are sample points
+       %> @li @c features - units are frames
+       %> @li @c aggregate bins - units are bins       
+       %> @retval A struct of PAData's time series instance data.  The fields
        %> include:
        %> - accelRaw.x
        %> - accelRaw.y
@@ -1064,7 +1299,9 @@ classdef PAData < handle
                    dat.vecMag = obj.vecMag;
                    dat.steps = obj.steps;
                    dat.lux = obj.lux;
-                   dat.inclinometer = obj.inclinometer;           
+                   dat.inclinometer = obj.inclinometer;
+               case 'aggregate bins'
+                   dat = obj.bins;
                case 'features'
                    dat = obj.features;
                otherwise
@@ -1076,12 +1313,14 @@ classdef PAData < handle
        
        % ======================================================================
        %> @brief Returns a structure of an insance PAData's time series
-       %> data at the current epoch.
+       %> data at the current window.
        %> @param Instance of PAData.
-       %> @param String specifying which structure type to return.  Can be
-       %> @li @c time series
-       %> @li @c features
-       %> @retval tsStruct A struct of PAData's time series or features instance data.  The fields
+       %> @param Optional string identifying the type of data to obtain the
+       %> offset from.  Can be 
+       %> @li @c time series (default) - units are sample points
+       %> @li @c features - units are frames
+       %> @li @c aggregate bins - units are bins
+       %> @retval A struct of PAData's time series or features instance data.  The fields
        %> for time series include:
        %> - accelRaw.x
        %> - accelRaw.y
@@ -1100,17 +1339,19 @@ classdef PAData < handle
                structType = 'time series';
            end
            
-           epochRange = obj.getCurEpochRangeAsSamples();
-           curStruct = obj.subsindex(epochRange(1):epochRange(end),structType);
+           windowRange = obj.getCurWindowRange(structType);
+           curStruct = obj.subsindex(windowRange(1):windowRange(end),structType);
        end
        
        % ======================================================================
-       %> @brief Returns the time series data as a struct for the current epoch range,
+       %> @brief Returns the time series data as a struct for the current window range,
        %> adjusted for visual offset and scale.
        %> @param Instance of PAData.
-       %> @param String specifying which structure type to return.  Can be
-       %> @li @c time series
-       %> @li @c features
+       %> @param Optional string identifying the type of data to obtain the
+       %> offset from.  Can be 
+       %> @li @c time series (default) - units are sample points
+       %> @li @c features - units are frames
+       %> @li @c aggregate bins - units are bins
        %> @retval A struct of PAData's time series or features instance data.  The fields
        %> for time series data include:
        %> - accelRaw.x
@@ -1140,22 +1381,24 @@ classdef PAData < handle
            end
            dat = PAData.structEval('times',obj.getStruct('current',structType),obj.scale.(structFieldName));
            
-           epochRange = obj.getCurEpochRangeAsSamples();
-           lineProp.xdata = epochRange(1):epochRange(end);
+           windowRange = obj.getCurWindowRange(structType);
+           lineProp.xdata = windowRange(1):windowRange(end);
            % put the output into a 'ydata' field for graphical display
            % property of a line.
            dat = PAData.structEval('plus',dat,obj.offset.(structFieldName),'ydata');
            dat = PAData.appendStruct(dat,lineProp);
-       end
-       
+       end       
        
        % ======================================================================
        %> @brief Returns [x,y,z] offsets of the current time series
        %> data being displayed.  Values are stored in .position child field
        %> @param Instance of PAData.
        %> @param Optional string identifying the type of data to obtain the
-       %> offset from.  Can be 'time series' (default) or 'features'.
-       %> @retval tsStruct A struct of [x,y,z] starting location of each
+       %> offset from.  Can be 
+       %> @li @c time series (default)
+       %> @li @c features
+       %> @li @c aggregate bins
+       %> @retval A struct of [x,y,z] starting location of each
        %> data field.  The fields (for 'time series') include:
        %> - accelRaw.x
        %> - accelRaw.y
@@ -1165,25 +1408,25 @@ classdef PAData < handle
        %> - lux
        %> - inclinometer (struct with more fields)
        % =================================================================
-       function dat = getCurrentOffsetStruct(obj,offsetType)
-           if(nargin<2 || isempty(offsetType))
-               offsetType = 'time series';
+       function dat = getCurrentOffsetStruct(obj,structType)
+           if(nargin<2 || isempty(structType))
+               structType = 'time series';
            end
-           switch(lower(offsetType))
+           switch(lower(structType))
                case 'time series'
                    dat = obj.offset.timeSeries;
                case 'features'
                    dat = obj.offset.features;
                otherwise
-                   fprintf('Unknown offset type (%s).\n',offsetType)
+                   fprintf('Unknown offset type (%s).\n',structType)
            end
            
-           epochRange = obj.getCurEpochRangeAsSamples();
-           %            lineProp.xdata = epochRange(1);
-           lineProp.xdata = epochRange;
+           windowRange = obj.getCurWindowRange(structType);
+           %            lineProp.xdata = windowRange(1);
+           lineProp.xdata = windowRange;
            % put the output into a 'position'
            
-           dat = PAData.structEval('repmat',dat,dat,size(epochRange));
+           dat = PAData.structEval('repmat',dat,dat,size(windowRange));
            
            dat = PAData.structEval('passthrough',dat,dat,'ydata');
            
@@ -1206,7 +1449,7 @@ classdef PAData < handle
                fnames = fieldnames(structIn);
                structOut = struct();
                for f=1:numel(fnames)
-                   structOut.(fnames{f}) = subsStruct(structIn.(fnames{f}),indices);
+                   structOut.(fnames{f}) = PAData.subsStruct(structIn.(fnames{f}),indices);
                end
            elseif(isempty(structIn))
                structOut = [];
@@ -1518,6 +1761,55 @@ classdef PAData < handle
            end           
        end
        
+       
+       % ======================================================================
+       %> @brief Inserts the second argument into any empty fields of the first
+       %> struct argument.
+       %> @param A structure whose empty fields will be set to the second argument.
+       %> @param A structure 
+       %> @note For example:
+       %> @note ltStruct =
+       %> @note     accel: [1x1 struct]
+       %> @note            [x]: []
+       %> @note            [y]: []
+       %> @note     lux: []     
+       %> @note
+       %> @note rtStruct =
+       %> @note     color: 'k'
+       %> @note     data: [1x1 struct]
+       %> @note            [pos]: [0.5000, 1, 0]
+       %> @note            
+       %> @note     
+       %> @note PAData.structEval(rtStruct,ltStruct)
+       %> @note ans =   
+       %> @note     accel: [1x1 struct]
+       %> @note              [x]: [1x1 struct]
+       %> @note                   color: 'k'
+       %> @note                   data: [1x1 struct]
+       %> @note                         [pos]: [0.5000, 1, 0]
+       %> @note              [y]: [1x1 struct]
+       %> @note                   color: 'k'
+       %> @note                   data: [1x1 struct]
+       %> @note                         [pos]: [0.5000, 1, 0]
+       %> @note     lux: [1x1 struct]
+       %> @note          color: 'k'
+       %> @note          data: [1x1 struct]
+       %> @note                [pos]: [0.5000, 1, 0]
+       %> @note
+       % ======================================================================
+       function ltStruct = overwriteEmptyStruct(ltStruct,rtStruct)
+           if(isstruct(ltStruct))               
+               fnames = fieldnames(ltStruct);
+               for f=1:numel(fnames)
+                   curField = fnames{f};
+                   ltStruct.(curField) = PAData.overwriteEmptyStruct(ltStruct.(curField),rtStruct);
+               end
+           elseif(isempty(ltStruct))
+               ltStruct = rtStruct;
+           end           
+       end
+       
+       
        % ======================================================================
        %> @brief Evaluates the range (min, max) of components found in the
        %> input struct argument and returns the range as struct values with
@@ -1567,8 +1859,13 @@ classdef PAData < handle
        % ======================================================================
        %> @brief Returns an empty struct with fields that mirror PAData's
        %> time series instance variables that contain 
-       %> @retval tsStruct A struct of PAData's time series instance variables, which 
-       %> include:
+       %> @param Optional string identifying the type of data to obtain the
+       %> offset from.  Can be 
+       %> @li @c time series (default) - units are sample points
+       %> @li @c features - units are frames
+       %> @li @c aggregate bins - units are bins       
+       %> @retval A struct of PAData's time series, feature, or aggregate bin instance variables.
+       %> Time series include:
        %> - accelRaw.x
        %> - accelRaw.y
        %> - accelRaw.z
@@ -1595,26 +1892,37 @@ classdef PAData < handle
                    dat.steps = [];
                    dat.lux = [];
                    dat.inclinometer = incl;
+               case 'aggregate bins'
+                   binNames =  PAData.getPrefilterMethods();
+                   dat = struct;
+                   for f=1:numel(binNames)
+                       dat.(lower(binNames{f})) = [];
+                   end
+                   dat = rmfield(dat,{'none','all'});
+                   
                case 'features'
-                   featureNames =  PAData.getExtractorMethods();
+                   %                    featureNames =  PAData.getExtractorMethods();
+                   featureNames = fieldnames(PAData.getFeatureDescriptionStruct());
                    dat = struct;
                    for f=1:numel(featureNames)
                        dat.(lower(featureNames{f})) = [];
                    end
-                   dat = rmfield(dat,{'none','all'});
-                   
+                   % dat = rmfield(dat,{'none','all'});                   
                otherwise
                    dat = [];
                    fprintf('Unknown offset type (%s).\n',structType)
            end
-           
-
        end
        
        % ======================================================================
        %> @brief Returns a struct with subfields that hold the line properties
        %> for graphic display of the time series instance variables.
-       %> @retval tsStruct A struct of PAData's time series instance variables, which 
+       %> @param Optional string identifying the type of data to obtain the
+       %> offset from.  Can be 
+       %> @li @c time series (default) - units are sample points
+       %> @li @c features - units are frames
+       %> @li @c aggregate bins - units are bins       
+       %> @retval A struct of PAData's time series instance variables, which 
        %> include:
        %> - accelRaw.x.(xdata, ydata, color)
        %> - accelRaw.y.(xdata, ydata, color)
@@ -1623,27 +1931,50 @@ classdef PAData < handle
        %> - lux.(xdata, ydata, color)
        %> - vecMag.(xdata, ydata, color)
        % =================================================================      
-       function dat = getDummyDisplayStruct()
+       function dat = getDummyDisplayStruct(structType)
            lineProps.xdata = [1 1200];
            lineProps.ydata = [1 1];
            lineProps.color = 'k';
            lineProps.visible = 'on';
            
-           accelR.x = lineProps;
-           accelR.y = lineProps;
-           accelR.z = lineProps;
            
-           incl.standing = lineProps;
-           incl.sitting = lineProps;
-           incl.lying = lineProps;
-           incl.off = lineProps;
+           if(nargin<1 || isempty(structType))
+               structType = 'time series';
+           end
            
-           dat.accelRaw = accelR;
-           dat.vecMag = lineProps;
-           dat.steps = lineProps;
-           dat.lux = lineProps;
-           dat.inclinometer = incl;
-       end       
+           dat = PAData.getDummyStruct(structType);
+           dat = PAData.overwriteEmptyStruct(dat,lineProps);
+%            
+%            switch(lower(structType))
+%                case 'time series'
+%                    accelR.x = lineProps;
+%                    accelR.y = lineProps;
+%                    accelR.z = lineProps;
+%                    
+%                    incl.standing = lineProps;
+%                    incl.sitting = lineProps;
+%                    incl.lying = lineProps;
+%                    incl.off = lineProps;
+%                    
+%                    dat.accelRaw = accelR;
+%                    dat.vecMag = lineProps;
+%                    dat.steps = lineProps;
+%                    dat.lux = lineProps;
+%                    dat.inclinometer = incl;
+%                case 'aggregate bins'
+%                    
+%                    
+%                case 'features'
+%                    
+%                otherwise
+%                    dat = [];
+%                    fprintf('Unknown offset type (%s).\n',structType)
+%            end
+           
+       end
+       
+       
+       
       
        % --------------------------------------------------------------------
        %> @brief Returns a cell listing of available prefilter methods as strings.
@@ -1674,8 +2005,103 @@ classdef PAData < handle
        %> prefilter() method.
        % --------------------------------------------------------------------
        function extractorMethods = getExtractorMethods()
-           extractorMethods = {'None','RMS','Hash','Sum','Median','Mean','All'};           
+           featureStruct = PAData.getFeatureDescriptionStruct();
+           
+           fnames = fieldnames(featureStruct);
+           
+           extractorMethods = cell(numel(fnames),1);
+           for f=1:numel(fnames)
+               extractorMethods{f} = featureStruct.(fnames{f});
+           end
+           extractorMethods = ['All';extractorMethods;'None'];   
        end
        
+       % --------------------------------------------------------------------
+       %> @brief Returns a struct of feature extraction methods and string descriptions as the corresponding values.
+       %> @retval A struct of  feature extraction methods and string descriptions as the corresponding values.
+       % --------------------------------------------------------------------
+       function featureStruct = getFeatureDescriptionStruct()           
+           featureStruct.rms = 'Root mean square';
+           featureStruct.hash = 'Hash';
+           featureStruct.median = 'Median';
+           featureStruct.mean = 'Mean';
+           featureStruct.sum = 'sum';           
+           featureStruct.std = 'Standard Deviation';           
+           featureStruct.var = 'Variance';           
+       end
+       
+       
+       % --------------------------------------------------------------------
+       %> @brief Returns a struct representing the internal architecture
+       %> used by PAData to hold and process acceleration data.  
+       %> @li @c timeSeries = 'time series';
+       %> @li @c bins = 'aggregate bins';
+       %> @li @c features = 'features';
+       %> @retval Struct with the following fields and corresponding string
+       %> values.
+       %> @note This is helpful in identifying different offset, scale, label, color,  and
+       %> miscellaneous graphic and data choices.
+       % --------------------------------------------------------------------
+       function structType = getStructTypes()
+           structType.timeSeries = 'time series';
+           %            structType.bins = 'aggregate bins';
+           structType.features = 'features';
+       end
+       
+       % --------------------------------------------------------------------
+       %> @brief Returns the fieldname of PAData's struct types (see getStructTypes())
+       %> that matches the string argument.  
+       %> @param String description that can be 
+       %> @li @c timeSeries = 'time series';
+       %> @li @c bins = 'aggregate bins';
+       %> @li @c features = 'features';
+       %> @retval Name of the field that matches the description.
+       %> @note For example:
+       %> @note structName = PAData.getStructNameFromDescription('time series');
+       %> @note results in structName = 'timeSeries'
+       % --------------------------------------------------------------------
+       function structName = getStructNameFromDescription(description)
+           structType = PAData.getStructTypes();
+           fnames = fieldnames(structType);
+           structName = [];
+           for f=1:numel(fnames)
+               if(strcmpi(description,structType.(fnames{f})))
+                   structName = fnames{f};
+                   break;
+               end
+           end
+       end
    end
 end
+
+
+
+% obj.offset.features.median = obj.yDelta;
+% obj.offset.features.mean = obj.yDelta*4;
+% obj.offset.features.rms = obj.yDelta*8;
+% obj.offset.features.std = obj.yDelta*12;
+% obj.offset.features.variance = obj.yDelta*16;
+% 
+% obj.scale.features.median = 1;
+% obj.scale.features.mean = 1;
+% obj.scale.features.rms = 1;
+% obj.scale.features.std = 1;
+% obj.scale.features.variance = 1;
+% 
+% obj.label.features.median.string = 'Median';
+% obj.label.features.mean.string = 'Mean';
+% obj.label.features.rms.string = 'RMS';
+% obj.label.features.std.string = 'Standard Deviation';
+% obj.label.features.variance.string = 'Variance';
+% 
+% obj.label.features.median.position = [0 0 0];
+% obj.label.features.mean.position = [0 0 0];
+% obj.label.features.rms.position = [0 0 0];
+% obj.label.features.std.position = [0 0 0];
+% obj.label.features.variance.position = [0 0 0];
+% 
+% obj.color.features.median.color = 'r';
+% obj.color.features.mean.color = 'g';
+% obj.color.features.rms.color = 'b';
+% obj.color.features.std.color = 'k';
+% obj.color.features.variance.color = 'y';

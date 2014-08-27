@@ -396,7 +396,7 @@ classdef  PASettings < handle
             for f = 1:numel(fieldNames)
                 switch fieldNames{f}
                     case 'DATA'
-                        obj.DATA.epochDurSec = 30; %perhaps want to base this off of the hpn file if it exists...
+                        obj.DATA.windowDurSec = 30; %perhaps want to base this off of the hpn file if it exists...
                         obj.DATA.samplerate = 100;
                         obj.DATA.lastPathname = '.'; %directory of accelerometer data.
                         obj.DATA.lastFilename = ''; %last accelerometer data opened.

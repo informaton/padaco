@@ -36,18 +36,18 @@ classdef PAView < handle
         
         %> @brief struct whose fields are axes handles.  Fields include:
         %> - @b.primary handle to the main axes an instance of this class is associated with
-        %> - @b.secondary Epoch view of events (over view)
+        %> - @b.secondary Window view of events (over view)
         axeshandle;
 
         %> @brief struct whose fields are structs with names of the axes and whose fields are property values for those axes.  Fields include:
         %> - @b.primary handle to the main axes an instance of this class is associated with
-        %> - @b.secondary Epoch view of events (over view)
+        %> - @b.secondary Window view of events (over view)
         axesproperty;
         
         %> @brief struct of text handles.  Fields are: 
         %> - .status; %handle to the text status location of the Padaco figure where updates can go
         %> - .src_filename; %handle to the text box for display of loaded filename
-        %> - .edit_epoch;  %handle to the editable epoch handle        
+        %> - .edit_window;  %handle to the editable window handle        
         texthandle; 
         
         %> @brief struct of menu handles.  Fields are: 
@@ -69,7 +69,7 @@ classdef PAView < handle
         labelhandle;
         
         %> @brief Graphic handle of the vertical bar which provides a
-        %> visual reference of where the epoch is comparison to the entire
+        %> visual reference of where the window is comparison to the entire
         %> study.
         positionBarHandle;
         
@@ -78,9 +78,9 @@ classdef PAView < handle
          
         %> PAData instance
         dataObj;
-        epoch_resolution;%struct of different time resolutions, field names correspond to the units of time represented in the field        
-        %> The epoch currently in view.
-        current_epoch;
+        window_resolution;%struct of different time resolutions, field names correspond to the units of time represented in the field        
+        %> The window currently in view.
+        current_window;
         
     end
     
@@ -113,7 +113,8 @@ classdef PAView < handle
             set(handles.panel_study,'backgroundcolor',[0.95,0.95,0.95]);
             
             whiteHandles = [handles.text_aggregate
-                handles.text_frameSize
+                handles.text_frameSizeMinutes
+                handles.text_frameSizeHours
                 handles.panel_features_prefilter
                 handles.panel_features_aggregate
                 handles.panel_features_frame
@@ -123,9 +124,10 @@ classdef PAView < handle
             obj.texthandle.status = handles.text_status;
             obj.texthandle.filename = handles.text_filename;
             obj.texthandle.studyinfo = handles.text_studyinfo;
-            obj.texthandle.curEpoch = handles.edit_curEpoch;
+            obj.texthandle.curWindow = handles.edit_curWindow;
             obj.texthandle.aggregateDuration = handles.edit_aggregate;
-            obj.texthandle.frameDuration = handles.edit_frameSize;
+            obj.texthandle.frameDurationMinutes = handles.edit_frameSizeMinutes;
+            obj.texthandle.frameDurationHours = handles.edit_frameSizeHours;
             
             obj.menuhandle.extractorMethod = handles.menu_extractor;
             obj.menuhandle.prefilterMethod = handles.menu_prefilter;
@@ -134,26 +136,30 @@ classdef PAView < handle
             obj.axeshandle.primary = handles.axes_primary;
             obj.axeshandle.secondary = handles.axes_secondary;
 
-            % Clear the figure and such.
+            
+            % Clear the figure and such.  
             obj.clearAxesHandles();
             obj.clearTextHandles(); 
             obj.clearWidgets();
-            
+
             %creates and initializes line handles (obj.linehandle fields)
             % However, all lines are invisible.
             obj.createLineAndLabelHandles();
+
+            
+            
             
         end
         
         % --------------------------------------------------------------------
-        %> @brief Sets current epoch edit box string value
+        %> @brief Sets current window edit box string value
         %> @param Instance of PAView.
         %> @param A string.
         % --------------------------------------------------------------------
-        function setCurEpoch(obj,epochStr)
-           set(obj.texthandle.curEpoch,'string',epochStr); 
-           epochNum = str2double(epochStr);
-           set(obj.positionBarHandle,'xdata',repmat(epochNum,1,2));
+        function setCurWindow(obj,windowStr)
+           set(obj.texthandle.curWindow,'string',windowStr); 
+           windowNum = str2double(windowStr);
+           set(obj.positionBarHandle,'xdata',repmat(windowNum,1,2));
            obj.draw();
         end
         
@@ -197,12 +203,28 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         function setDisplayType(obj,displayTypeStr)
             if(any(strcmpi({'Time Series','Aggregate Bins','Features'},displayTypeStr)))
+                structName = PAData.getStructNameFromDescription(obj.displayType);
+                allProps.visible = 'off';
+                if(~isempty(structName))
+                    obj.recurseHandleInit(obj.labelhandle.(structName), allProps);
+                    obj.recurseHandleInit(obj.referencelinehandle.(structName), allProps);
+                    obj.recurseHandleInit(obj.linehandle.(structName), allProps);
+                end
+                
                 obj.displayType = displayTypeStr;
+                
                 if(strcmpi(displayTypeStr,'Features'))
                     set(obj.menuhandle.displayFeature,'enable','on');
                 else
                     set(obj.menuhandle.displayFeature,'enable','off');
                 end
+                
+                structName = PAData.getStructNameFromDescription(obj.displayType);
+                allProps.visible = 'on';
+                obj.recurseHandleInit(obj.labelhandle.(structName), allProps)
+                obj.recurseHandleInit(obj.referencelinehandle.(structName), allProps)
+                obj.recurseHandleInit(obj.linehandle.(structName), allProps)
+                
             else
                 fprintf('Warning, this string (%s) is not an acceptable option.\n',displayTypeStr);
             end
@@ -249,7 +271,7 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> @brief Initialize text handles that will be used in the view.
-        %> resets the currentEpoch to 1.
+        %> resets the currentWindow to 1.
         %> @param obj Instance of PAView
         % --------------------------------------------------------------------
         function clearTextHandles(obj)
@@ -302,13 +324,15 @@ classdef PAView < handle
             obj.initWidgets();
             buttonGroupChildren = get(handles.panel_displayButtonGroup,'children');
             
-            widgetList = [handles.edit_curEpoch
+            widgetList = [handles.edit_curWindow
                 handles.menu_windowDurSec
                 handles.menu_prefilter
                 handles.edit_aggregate
-                handles.edit_frameSize
+                handles.edit_frameSizeMinutes
+                handles.edit_frameSizeHours
                 handles.text_aggregate
-                handles.text_frameSize
+                handles.text_frameSizeMinutes
+                handles.text_frameSizeHours
                 handles.menu_extractor
                 handles.button_go
                 buttonGroupChildren];  
@@ -317,76 +341,82 @@ classdef PAView < handle
         end
         
         % --------------------------------------------------------------------
-        %> @brief Set the acceleration data instance variable and assigns
+        %> @brief Initializes the graphic handles (label and line handles) and maps figure tag names
+        %> to PAView instance variables.  Initializes the menubar and various widgets.  Also set the acceleration data instance variable and assigns
         %> line handle y values to those found with corresponding field
-        %> names in PADataObject.
-        %> resets the currentEpoch to 1.
+        %> names in PADataObject.        
+        %> @note Resets the currentWindow to 1.
         %> @param obj Instance of PAView
         %> @param PADataObject Instance of PAData
-        % --------------------------------------------------------------------
-        function obj = initWithAccelData(obj, PADataObject)
-            obj.dataObj = PADataObject;          
-            axesProps.primary.xlim = obj.dataObj.getCurEpochRangeAsSamples();
-            axesProps.primary.ylim = obj.dataObj.getDisplayMinMax();
-            
-            axesProps.secondary.xlim = [1 obj.dataObj.getEpochCount()];
-            axesProps.secondary.ylim = [0 1];
-            
-            labelProps = obj.dataObj.getLabel();
-            labelPosStruct = obj.getLabelhandlePosition();            
-            labelProps = PAData.mergeStruct(labelProps,labelPosStruct);
-            
-            visibleProp.visible = 'on';
-            labelProps = PAData.appendStruct(labelProps,visibleProp);
-            
-            obj.initView(axesProps,obj.dataObj.getStruct('dummydisplay'),labelProps);
-            
-            obj.setLinehandleColor(PADataObject.getColor());
-            obj.setFilename(obj.dataObj.getFilename());  
-            
-            obj.setStudyPanelContents(PADataObject.getHeaderAsString);
-            
-            obj.setAggregateDuration(num2str(PADataObject.aggregateDurMin));
-            obj.setFrameDuration(num2str(PADataObject.frameDurMin));
+        %> @brief 
         
-        end        
-        
-        % --------------------------------------------------------------------
-        %> @brief Initializes the graphic handles and maps figure tag names
-        %> to PAView instance variables.
-        %> @param obj Instance of PAView
         %> @param (Optional) PAData display struct that matches the linehandle struct of
         %> obj and whose values will be assigned to the 'ydata','xdata', and 'color' fields of the
-        %> line handles.  
+        %> line handles.
         %> @param (Optional) PAData label struct containing string labels and whose fields match
         %> the linehandle struct of obj.  A label property struct will be created
         %> using the string values of labelStruct and the initial x, y value of the line
         %> props to initialize the 'string' and 'position' properties of 
         %> obj's corresponding label handles.          
         % --------------------------------------------------------------------
-        function initView(obj,axesProps,lineProps,labelProps)
-            if(nargin<4 || isempty(labelProps))
-                labelProps = [];
+        % --------------------------------------------------------------------
+        function obj = initWithAccelData(obj, PADataObject)
+            
+            obj.dataObj = PADataObject;
+
+            axesProps.primary.xlim = PADataObject.getCurWindowRange();
+            axesProps.primary.ylim = PADataObject.getDisplayMinMax();
+            
+            axesProps.secondary.xlim = [1 PADataObject.getWindowCount()];
+            axesProps.secondary.ylim = [0 1];
+            
+            obj.initAxesHandles(axesProps);
+            
+            
+            %initialize the various line handles and label content and
+            %color.
+            structType = PAData.getStructTypes();
+            fnames = fieldnames(structType);
+            for f=1:numel(fnames)
+                curName = fnames{f};
+                curDescription = structType.(curName);
+                
+                labelProps = obj.dataObj.getLabel(curDescription);
+                labelPosStruct = obj.getLabelhandlePosition(curDescription);
+                labelProps = PAData.mergeStruct(labelProps,labelPosStruct);
+                
+                %                 visibleProp.visible = 'off';
+                %                 labelProps = PAData.appendStruct(labelProps,visibleProp);
+                
+                
+                
+                
+                lineProps = PADataObject.getStruct('dummydisplay',curDescription);
+                obj.recurseHandleSetter(obj.linehandle.(curName),lineProps);
+                obj.recurseHandleSetter(obj.referencelinehandle.(curName),lineProps);
+                
+                obj.setStructWithStruct(obj.linehandle.(curName),PADataObject.getColor(curDescription));
+                obj.setStructWithStruct(obj.referencelinehandle.(curName),PADataObject.getColor(curDescription));
+                
+                %                 obj.setLinehandleColor(obj.linehandle.(curName),PADataObject.getColor());
+                %                 obj.setLinehandleColor(obj.referencelinehandle.(curName),PADataObject.getColor());
+                %
+                obj.recurseHandleSetter(obj.labelhandle.(curName),labelProps);                
             end
             
-            if(nargin<3 || isempty(lineProps))
-                lineProps = PAData.getDummyDisplayStruct();
-            end
             
-            if(nargin>1 && ~isempty(axesProps))
-                obj.initAxesHandles(axesProps);
-            end
             
-            if(~isempty(lineProps))
-                obj.initLineHandles(lineProps);
-            end
+            obj.setFilename(obj.dataObj.getFilename());  
             
-            if(~isempty(labelProps))                
-                obj.initLabelHandles(labelProps);
-            end
+            obj.setStudyPanelContents(PADataObject.getHeaderAsString);
+            
+            obj.setAggregateDuration(num2str(PADataObject.aggregateDurMin));
+            obj.setFrameDuration(num2str(PADataObject.frameDurMin));
             
             obj.initMenubar();
             obj.initWidgets();
+            
+            set(obj.positionBarHandle,'visible','on','ydata',[0 1]); 
             
             obj.restore_state();
         end       
@@ -407,8 +437,6 @@ classdef PAView < handle
                 axesName = axesNames{a};
                 set(obj.axeshandle.(axesName),axesProps.(axesName));
             end
-            %             set(obj.axeshandle.primary,axesProps.primary);
-            %             set(obj.axeshandle.secondary,axesProps.secondary);
         end
 
         % --------------------------------------------------------------------
@@ -442,21 +470,24 @@ classdef PAView < handle
             % this.  However, we do not know if that is the case here.
             
             widgetList = [handles.menu_windowDurSec
-                handles.edit_curEpoch
+                handles.edit_curWindow
                 handles.menu_windowDurSec
                 handles.menu_prefilter
                 handles.edit_aggregate
-                handles.edit_frameSize
+                handles.edit_frameSizeMinutes
+                handles.edit_frameSizeHours
                 handles.text_aggregate
-                handles.text_frameSize
+                handles.text_frameSizeMinutes
+                handles.text_frameSizeHours
                 handles.menu_extractor
                 handles.button_go
                 handles.radio_time;
                 ];                
             
             set(handles.edit_aggregate,'string','');
-            set(handles.edit_frameSize,'string','');
-            set(handles.edit_curEpoch,'string','');
+            set(handles.edit_frameSizeHours,'string','');
+            set(handles.edit_frameSizeMinutes,'string','');
+            set(handles.edit_curWindow,'string','');
             
             prefilterSelection = PAData.getPrefilterMethods();
             set(handles.menu_prefilter,'string',prefilterSelection,'value',1);
@@ -487,10 +518,6 @@ classdef PAView < handle
             %             set(obj.menuhandle.displayFeature,'enable','off');
             
             set(widgetList,'enable','on','visible','on');
-            
-            obj.setDisplayType('Time Series');
-
-            
         end        
         
         % --------------------------------------------------------------------
@@ -500,8 +527,12 @@ classdef PAView < handle
         %> primary axes.  This will be xlim(2) for the secondary axes (i.e.
         %> timeline/overview axes).
         % --------------------------------------------------------------------
-        function updateSecondaryAxes(obj,epochCount)
-            axesProps.secondary.xlim = [1 epochCount];
+        function updateSecondaryAxes(obj,windowCount)
+            if(windowCount<=1)
+                axesProps.secondary.xlim = [1 1.1];
+            else
+                axesProps.secondary.xlim = [1 windowCount];
+            end
             axesProps.secondary.ylim = [0 1];
             obj.initAxesHandles(axesProps);
         end
@@ -517,51 +548,27 @@ classdef PAView < handle
             handleProps.Parent = obj.axeshandle.primary;
 
             handleProps.visible = 'off';
-            dataStruct = PAData.getDummyStruct();
             
-            handleType = 'line';
-            obj.linehandle = obj.recurseHandleGenerator(dataStruct,handleType,handleProps);
+            structType = PAData.getStructTypes();
+            fnames = fieldnames(structType);
+            for f=1:numel(fnames)
+                curName = fnames{f};
+                curDescription = structType.(curName);
+                dataStruct = PAData.getDummyStruct(curDescription);
             
-            obj.referencelinehandle = obj.recurseHandleGenerator(dataStruct,handleType,handleProps);
+                handleType = 'line';
+                obj.linehandle.(curName) = obj.recurseHandleGenerator(dataStruct,handleType,handleProps);
             
-            handleType = 'text';
-            obj.labelhandle = obj.recurseHandleGenerator(dataStruct,handleType,handleProps);
+                obj.referencelinehandle.(curName) = obj.recurseHandleGenerator(dataStruct,handleType,handleProps);
             
-            obj.positionBarHandle = line('parent',obj.axeshandle.secondary,'visible','off');%annotation(obj.figurehandle.sev,'line',[1, 1], [pos(2) pos(2)+pos(4)],'hittest','off');
-        end
-        
-        % --------------------------------------------------------------------
-        %> @brief Initialize the line handles that will be used in the view.
-        %> Also turns on the vertical positioning line seen in the
-        %> secondary axes.
-        %> @param Instance of PAView.
-        %> @param Structure of line properties corresponding to the
-        %> fields of the linehandle instance variable.
-        %> If empty ([]) then default PAData.getDummyDisplayStruct is used.
-        % --------------------------------------------------------------------
-        function initLineHandles(obj,lineProps)
-            
-            if(nargin<2 || isempty(lineProps))
-                lineProps = PAData.getDummyDisplayStruct();
+                handleType = 'text';
+                obj.labelhandle.(curName) = obj.recurseHandleGenerator(dataStruct,handleType,handleProps);
             end
             
-            obj.recurseHandleSetter(obj.linehandle, lineProps);
-            obj.recurseHandleSetter(obj.referencelinehandle, lineProps);
-            
-            set(obj.positionBarHandle,'visible','on','ydata',[0 1]);            
+            %secondary axes
+            obj.positionBarHandle = line('parent',obj.axeshandle.secondary,'visible','off');%annotation(obj.figurehandle.sev,'line',[1, 1], [pos(2) pos(2)+pos(4)],'hittest','off');
         end
-        
-        % --------------------------------------------------------------------
-        %> @brief Initialize the label handles that will be used in the view.
-        %> Also turns on the vertical positioning line seen in the
-        %> secondary axes.
-        %> @param Instance of PAView.
-        %> @param Structure of label properties corresponding to the
-        %> fields of the labelhandle instance variable.
-        % --------------------------------------------------------------------
-        function initLabelHandles(obj,labelProps)
-            obj.recurseHandleSetter(obj.labelhandle, labelProps);
-        end
+
         
         function enableAggregateRadioButton(obj)
             handles = guidata(obj.getFigHandle());
@@ -611,48 +618,46 @@ classdef PAView < handle
         %> @param PADataObject Instance of PAData
         % --------------------------------------------------------------------
         function draw(obj)
+            % Axes range must occur at the top as it is used to determine
+            % the position of text labels.
+            axesRange   = obj.dataObj.getCurUncorrectedWindowRange(obj.displayType);
+            if(diff(axesRange)==0)
+                axesRange(2) = axesRange(1)+eps;
+            end
+            set(obj.axeshandle.primary,'xlim',axesRange);
+
             
-            axesRange   = obj.dataObj.getCurEpochRangeAsUncorrectedSamples();
+            structFieldName = PAData.getStructNameFromDescription(obj.displayType);
+            lineProps   = obj.dataObj.getStruct('currentdisplay',obj.displayType);
+            obj.recurseHandleSetter(obj.linehandle.(structFieldName),lineProps);
+                        
             offsetProps = obj.dataObj.getStruct('displayoffset',obj.displayType);
             offsetStyle.LineStyle = '--';
             offsetStyle.color = [0.6 0.6 0.6];
-            
             offsetProps = PAData.appendStruct(offsetProps,offsetStyle);
+           
+            obj.recurseHandleSetter(obj.referencelinehandle.(structFieldName),offsetProps);
+                        
+            % update label text positions based on the axes position.
+            % So the axes range must be set above this!
+            % link the x position with the axis x-position ...
+            labelProps = obj.dataObj.getLabel(obj.displayType);
+            labelPosStruct = obj.getLabelhandlePosition();            
+            labelProps = PAData.mergeStruct(labelProps,labelPosStruct);             
+            obj.recurseHandleSetter(obj.labelhandle.(structFieldName),labelProps);
             
-            lineProps   = obj.dataObj.getStruct('currentdisplay',obj.displayType);
-
-            switch lower(obj.displayType)
-                case 'time series'
-                    
-                    % draw the reference lines first so that the regular lines
-                    % appear on top (or set a z-value, but this is easier for now
-                    obj.recurseHandleSetter(obj.referencelinehandle,offsetProps);
-                    
-                    obj.recurseHandleSetter(obj.linehandle,lineProps);
-                    
-                    % update label text positions based on the axes position...
-                    % link the x position with the axis x-position ...
-                    obj.initLabelHandles(obj.getLabelhandlePosition());
-                case 'aggregate bins'
-                case 'features'
-                    lineProps = obj.dataObj.getStruct('currentfeatures');
-                    obj.recurseHandleSetter(obj.linehandle,lineProps);
-                otherwise
-                    fprintf('Unhandled case: %s\n',obj.displayType);
-            end
-            
-            set(obj.axeshandle.primary,'xlim',axesRange);
         end
 
         % --------------------------------------------------------------------
         %> @brief Sets the color of the line handles.
         %> @param Instance of PAView
+        %> @param Struct of line handles to set the color of.        
         %> @param Struct with field organization corresponding to that of
-        %> instance variable linehandle.  The values are the colors to set
+        %> input line handles.  The values are the colors to set
         %> the matching line handle to.
         % --------------------------------------------------------------------
-        function setLinehandleColor(obj,colorStruct)
-            obj.setStructWithStruct(obj.linehandle,colorStruct);
+        function setLinehandleColor(obj,lineHandleStruct,colorStruct)
+            obj.setStructWithStruct(lineHandleStruct,colorStruct);
         end
         
         % --------------------------------------------------------------------
@@ -662,9 +667,12 @@ classdef PAView < handle
         %> @retval A struct of 'position' properties that can be assigned
         %> to labelhandle instance variable.
         % --------------------------------------------------------------------
-        function labelPosStruct = getLabelhandlePosition(obj)    
-            dummyStruct = obj.dataObj.getStruct('dummystruct',obj.displayType);
-            offsetStruct = obj.dataObj.getStruct('displayoffset',obj.displayType);
+        function labelPosStruct = getLabelhandlePosition(obj,displayTypeStr)
+            if(nargin<2 || isempty(displayTypeStr))
+                displayTypeStr = obj.displayType;
+            end
+            dummyStruct = obj.dataObj.getStruct('dummy',displayTypeStr);
+            offsetStruct = obj.dataObj.getStruct('displayoffset',displayTypeStr);
             labelPosStruct = PAData.structEval('calculateposition',dummyStruct,offsetStruct);
             xOffset = 1/120*diff(get(obj.axeshandle.primary,'xlim'));            
             offset = [xOffset, 15, 0];
@@ -690,6 +698,10 @@ classdef PAView < handle
         end
         
         
+        % --------------------------------------------------------------------
+        %> @brief Shows busy status (mouse becomes a watch).
+        %> @param obj Instance of PAView        
+        % --------------------------------------------------------------------
         function showBusy(obj,status_label)
             set(obj.getFigHandle(),'pointer','watch');
             if(nargin>1)
@@ -698,6 +710,10 @@ classdef PAView < handle
             drawnow();
         end  
         
+        % --------------------------------------------------------------------
+        %> @brief Shows ready status (mouse becomes the default pointer).
+        %> @param obj Instance of PAView        
+        % --------------------------------------------------------------------
         function showReady(obj)
             set(obj.getFigHandle(),'pointer','arrow');
             set(obj.texthandle.status,'string','');
@@ -705,7 +721,7 @@ classdef PAView < handle
         end
         
      
-        %VIEW parts of the class....        
+        %VIEW parts of the class....  to be implemented later.      
         function obj = restore_state(obj)
             obj.clear_handles();
             
@@ -862,4 +878,38 @@ classdef PAView < handle
         end
     end
 end
+
+
+% % --------------------------------------------------------------------
+% %> @brief Initialize the line handles that will be used in the view.
+% %> Also turns on the vertical positioning line seen in the
+% %> secondary axes.
+% %> @param Instance of PAView.
+% %> @param Structure of line properties corresponding to the
+% %> fields of the linehandle instance variable.
+% %> If empty ([]) then default PAData.getDummyDisplayStruct is used.
+% % --------------------------------------------------------------------
+% function initLineHandles(obj,lineProps)
+% 
+% if(nargin<2 || isempty(lineProps))
+%     lineProps = PAData.getDummyDisplayStruct();
+% end
+% 
+% obj.recurseHandleSetter(obj.linehandle, lineProps);
+% obj.recurseHandleSetter(obj.referencelinehandle, lineProps);
+% 
+% 
+% end
+% 
+% % --------------------------------------------------------------------
+% %> @brief Initialize the label handles that will be used in the view.
+% %> Also turns on the vertical positioning line seen in the
+% %> secondary axes.
+% %> @param Instance of PAView.
+% %> @param Structure of label properties corresponding to the
+% %> fields of the labelhandle instance variable.
+% % --------------------------------------------------------------------
+% function initLabelHandles(obj,labelProps)
+% obj.recurseHandleSetter(obj.labelhandle, labelProps);
+% end
 

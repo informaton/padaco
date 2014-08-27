@@ -7,7 +7,6 @@
 %> In the model, view, controller paradigm, this is the
 %> controller. 
 
-
 classdef PAController < handle
     
     properties
@@ -35,8 +34,8 @@ classdef PAController < handle
         linehandle;         
         
         %> struct of different time resolutions, field names correspond to the units of time represented in the field        
-        epoch_resolution;
-        num_epochs;
+        window_resolution;
+        num_windows;
         display_samples; %vector of the samples to be displayed
         shift_display_samples_delta; %number of samples to adjust display by for moving forward or back
         startDateTime;
@@ -80,7 +79,7 @@ classdef PAController < handle
                 obj.configureCallbacks();
                 
                 % Synthesize edit callback to trigger first display
-                obj.edit_curEpochCallback(handles.edit_curEpoch,[]);
+                obj.edit_curWindowCallback(handles.edit_curWindow,[]);
                 
             end                
         end
@@ -116,7 +115,6 @@ classdef PAController < handle
             set(figH,'KeyReleaseFcn',@obj.keyReleaseCallback);
             set(figH,'WindowButtonDownFcn',@obj.windowButtonDownCallback);
             set(figH,'WindowButtonUpFcn',@obj.windowButtonUpCallback);
-            
 
             %configure the menu bar
             obj.configureMenubar();
@@ -152,24 +150,24 @@ classdef PAController < handle
             % key=double(get(hObject,'CurrentCharacter')); % compare the values to the list
             key=eventdata.Key;
             handles = guidata(hObject);
-            epoch = obj.curEpoch;
+            window = obj.curWindow;
             
             if(strcmp(key,'add'))
                 
             elseif(strcmp(key,'subtract'))
                        
             elseif(strcmp(key,'leftarrow')||strcmp(key,'pagedown'))
-                %go backward 1 epoch
-                obj.setCurEpoch(epoch-1);                
+                %go backward 1 window
+                obj.setCurWindow(window-1);                
             elseif(strcmp(key,'rightarrow')||strcmp(key,'pageup'))
-                %go forward 1 epoch
-                obj.setCurEpoch(epoch+1);                    
+                %go forward 1 window
+                obj.setCurWindow(window+1);                    
             elseif(strcmp(key,'uparrow'))
-                %go forward 10 epochs
-                obj.setCurEpoch(epoch+10);
+                %go forward 10 windows
+                obj.setCurWindow(window+10);
             elseif(strcmp(key,'downarrow'))
-                %go back 10 epochs
-                obj.setCurEpoch(epoch-10);                
+                %go back 10 windows
+                obj.setCurWindow(window-10);                
             end
             
             if(strcmp(eventdata.Key,'shift'))
@@ -193,7 +191,6 @@ classdef PAController < handle
             end;
         end
         
-        
         % --------------------------------------------------------------------
         %> @brief  Executes on key press with focus on figure and no controls selected.
         %> @param Instance of PAController
@@ -211,7 +208,7 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         %> @brief  Executes when user releases mouse click
         %> If the currentObject selected is the secondary axes, then 
-        %> the current epoch is set to the closest epoch corresponding to
+        %> the current window is set to the closest window corresponding to
         %> the mouse's x-position.
         %> @param Instance of PAController
         %> @param hObject    handle to figure (gcf), unused
@@ -223,8 +220,8 @@ classdef PAController < handle
             if(~isempty(selected_obj))
                 if(selected_obj==obj.VIEW.axeshandle.secondary)
                     pos = get(selected_obj,'currentpoint');
-                    clicked_epoch = round(pos(1));
-                    obj.setCurEpoch(clicked_epoch);
+                    clicked_window = round(pos(1));
+                    obj.setCurWindow(clicked_window);
                 end;
             end;
         end
@@ -251,7 +248,6 @@ classdef PAController < handle
 %                 set(obj.current_linehandle,'selected','off');
 %             end
         end
-        
 
         
         %-- Menubar configuration --
@@ -279,9 +275,10 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function configureWidgetCallbacks(obj)
             handles = guidata(obj.VIEW.getFigHandle());
-            set(handles.edit_curEpoch,'callback',@obj.edit_curEpochCallback);
+            set(handles.edit_curWindow,'callback',@obj.edit_curWindowCallback);
             set(handles.edit_aggregate,'callback',@obj.edit_aggregateCallback);
-            set(handles.edit_frameSize,'callback',@obj.edit_frameSizeCallback);
+            set(handles.edit_frameSizeMinutes,'callback',@obj.edit_frameSizeMinutesCallback);
+            set(handles.edit_frameSizeHours,'callback',@obj.edit_frameSizeHoursCallback);
             
             set(handles.menu_windowDurSec,'callback',@obj.menu_windowDurSecCallback);
             set(handles.panel_displayButtonGroup,'selectionChangeFcn',@obj.displayChangeCallback);
@@ -307,7 +304,6 @@ classdef PAController < handle
             obj.VIEW.setDisplayType(displayType);  
             obj.VIEW.draw();
         end
-        
         
         % --------------------------------------------------------------------
         %> @brief Executes a radio button group callback (i.e.
@@ -370,6 +366,7 @@ classdef PAController < handle
                 displayType = 'features';
                 obj.setRadioButton(displayType); 
             end
+            obj.VIEW.draw();
         end
         
         % --------------------------------------------------------------------
@@ -402,7 +399,6 @@ classdef PAController < handle
             end
         end
         
-        
         % --------------------------------------------------------------------
         %> @brief Callback for menu with window duration selections (values
         %> are in seconds)
@@ -416,28 +412,25 @@ classdef PAController < handle
             % grab the currently selected window size (in seconds)
             windowDurSec = windowDurSec(get(hObject,'value'));
             
-            
-            
-            %change it - this internally recalculates the cur epoch
-            obj.accelObj.setEpochDurSec(windowDurSec);
+            %change it - this internally recalculates the cur window
+            obj.accelObj.setWindowDurSec(windowDurSec);
             
             %resize the secondary axes according to the new window
             %resolution
-            obj.VIEW.updateSecondaryAxes(obj.accelObj.getEpochCount);
-
-            obj.setCurEpoch(obj.curEpoch());
+            obj.VIEW.updateSecondaryAxes(obj.accelObj.getWindowCount);
+            obj.setCurWindow(obj.curWindow());
         end
         
         
         % --------------------------------------------------------------------
-        %> @brief Callback for current epoch's edit textbox.
+        %> @brief Callback for current window's edit textbox.
         %> @param Instance of PAController
         %> @param Handle to the edit text widget
         %> @param Required by MATLAB, but not used
         % --------------------------------------------------------------------
-        function edit_curEpochCallback(obj,hObject,eventdata)
-            epoch = str2double(get(hObject,'string'));
-            obj.setCurEpoch(epoch);
+        function edit_curWindowCallback(obj,hObject,eventdata)
+            window = str2double(get(hObject,'string'));
+            obj.setCurWindow(window);
         end
         
         % --------------------------------------------------------------------
@@ -453,16 +446,29 @@ classdef PAController < handle
         end
         
         % --------------------------------------------------------------------
-        %> @brief Callback for aggregate size edit textbox.
+        %> @brief Callback for frame size in minutes edit textbox.
         %> @param Instance of PAController
         %> @param Handle to the edit text widget
         %> @param Required by MATLAB, but not used
         %> @note Entered values are interepreted as minutes.
         % --------------------------------------------------------------------
-        function edit_frameSizeCallback(obj,hObject,eventdata)
-            frameDuration = str2double(get(hObject,'string'));
-            obj.setFameDuration(frameDuration);
+        function edit_frameSizeMinutesCallback(obj,hObject,eventdata)
+            frameDurationMinutes = str2double(get(hObject,'string'));
+            obj.setFrameDuration(frameDurationMinutes);
+        end 
+        
+        % --------------------------------------------------------------------
+        %> @brief Callback for frame size in hours edit textbox.
+        %> @param Instance of PAController
+        %> @param Handle to the edit text widget
+        %> @param Required by MATLAB, but not used
+        %> @note Entered values are interepreted as hours.
+        % --------------------------------------------------------------------
+        function edit_frameSizeHoursCallback(obj,hObject,eventdata)
+            frameDurationHours = str2double(get(hObject,'string'));
+            obj.setFrameDuration(frameDurationHours);
         end        
+        
         
         % --------------------------------------------------------------------
         %> @brief Set the aggregate duration in minutes.
@@ -487,49 +493,50 @@ classdef PAController < handle
         %> @param Aggregate duration in minutes.
         %> @retval True if the frame duration is changed, and false otherwise.
         % --------------------------------------------------------------------
-        function success = setFrameDuration(obj,new_frameDuration)
+        function success = setFrameDuration(obj,new_frameDurationMinutes,new_frameDurationHours)
             success = false;
             if(~isempty(obj.accelObj))                
-                cur_frameDuration = obj.accelObj.setFrameDuration(new_frameDuration);
-                obj.VIEW.setFrameDuration(num2str(cur_frameDuration));
+                cur_frameDuration = obj.accelObj.setFrameDuration(new_frameDurationMinutes+new_frameDurationHours*60);
+                
+%                 obj.VIEW.setFrameDurationMinutes(num2str(cur_frameDuration));
+                
                 if(new_frameDuration==cur_frameDuration)
                     success=true;
                 end
             end
         end
         
-        
         % --------------------------------------------------------------------
-        %> @brief Set the current epoch for the instance variable accelObj
+        %> @brief Set the current window for the instance variable accelObj
         %> (PAData)
         %> @param Instance of PAController
-        %> @param Value of the new epoch to set.
-        %> @retval True if the epoch is set successfully, and false otherwise.
-        %> @note Reason for failure include epoch values that are outside
+        %> @param Value of the new window to set.
+        %> @retval True if the window is set successfully, and false otherwise.
+        %> @note Reason for failure include window values that are outside
         %> the range allowed by accelObj (e.g. negative values or those
         %> longer than the duration given.  
         % --------------------------------------------------------------------
-        function success = setCurEpoch(obj,new_epoch)
+        function success = setCurWindow(obj,new_window)
             success= false;
             if(~isempty(obj.accelObj))                
-                cur_epoch = obj.accelObj.setCurEpoch(new_epoch);
-                obj.VIEW.setCurEpoch(num2str(cur_epoch));
-                if(new_epoch==cur_epoch)
+                cur_window = obj.accelObj.setCurWindow(new_window);
+                obj.VIEW.setCurWindow(num2str(cur_window));
+                if(new_window==cur_window)
                     success=true;
                 end
             end
         end
         
         % --------------------------------------------------------------------
-        %> @brief Returns the current epoch of the instance variable accelObj
+        %> @brief Returns the current window of the instance variable accelObj
         %> (PAData)
         %> @param Instance of PAController
-        %> @retval The  current epoch, or null if it has not been initialized.
-        function epoch = curEpoch(obj)
+        %> @retval The  current window, or null if it has not been initialized.
+        function window = curWindow(obj)
             if(isempty(obj.accelObj))
-                epoch = [];
+                window = [];
             else
-                epoch = obj.accelObj.getCurEpoch;
+                window = obj.accelObj.getCurWindow;
             end
         end
         
@@ -582,13 +589,13 @@ classdef PAController < handle
             
             % set the display to show time series data initially.
             displayType = 'Time Series';
-            obj.VIEW.setDisplayType(displayType); 
             
-            obj.setCurEpoch(1);
+            obj.setRadioButton(displayType);
+            obj.VIEW.setDisplayType(displayType);
+            
+            obj.setCurWindow(1);
             obj.setFrameDuration(15);
             obj.setAggregateDuration(3);
-            
-            
         end
     end
     
