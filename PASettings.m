@@ -1,4 +1,4 @@
-%> @file PAsettings.m
+%> @file PAsettings.cpp
 %> @brief PAsettings Control user settings and preferences of Padaco toolbox.
 % ======================================================================
 %> @brief PASettings used by Padaco to initialize, store, and update
@@ -19,7 +19,7 @@ classdef  PASettings < handle
         %> @brief name of text file that stores the toolkit's settings
         parameters_filename
         %> @brief cell of string names corresponding to the struct properties that
-        %> contain settings  <b><i> {'DATA','VIEW', 'BATCH_PROCESS', 'PSD','MUSIC'}</b></i>
+        %> contain settings  <b><i> {'DATA','VIEW', 'BATCH_PROCESS', 'PSD','MUSIC'}</i></b>
         fieldNames;
         %> struct of PAData preferences.
         DATA;
@@ -140,7 +140,7 @@ classdef  PASettings < handle
         % ======================================================================
         %> @brief helper function for loadStruct
         %> @param pstruct parent struct by which the tok cell will be converted to
-        %> @tok cell array - the last cell is the value to be assigned while the
+        %> @param tok cell array - the last cell is the value to be assigned while the
         %> previous cells are increasing nestings of the structure (i.e. tok{1} is
         %> the highest parent structure, tok{2} is the substructure of tok{1} and so
         %> and on and so forth until tok{end-1}.  tok{end} is the value to be
@@ -181,11 +181,10 @@ classdef  PASettings < handle
         %> method.  Default settings are used if no parameters filename is
         %> provided or found.
         %>
-        %> @param string rootpathname Pathname of Padaco execution directory (string)
-        %> @param string parameters_filename Name of text file to load
-        %> settings from.
-        %>
-        %> @return instance of the classDocumentationExample class.
+        %> @param rootpathname Pathname of Padaco execution directory (string)
+        %> @param parameters_filename Name of text file to load
+        %> settings from (string)
+        %> @return obj Instance of PASettings class.
         % =================================================================
         function obj = PASettings(rootpathname,parameters_filename)
             %initialize settings in Padaco....
@@ -204,7 +203,6 @@ classdef  PASettings < handle
         %> @brief Constructor helper function.  Initializes class
         %> either from parameters_filename if such a file exists, or
         %> hardcoded default values (i.e. setDefaults).
-        %>
         %> @param obj instance of the PASettings class.
         % =================================================================
         function initialize(obj)            
@@ -255,8 +253,14 @@ classdef  PASettings < handle
         % =================================================================
         %> @brief Activates GUI for editing single study mode settings
         %> (<b>VIEW</b>,<b>PSD</b>,<b>MUSIC</b>)
-        %>
-        %> @param obj instance of PASettings.        
+        %> @param obj instance of PASettings.      
+        %> @param settingsField String indicating which settings to update.
+        %> Can be
+        %> - @c PSD
+        %> - @c MUSIC
+        %> - @c CLASSIFIER
+        %> - @c BATCH_PROCESS
+        %> - @c DEFAULTS
         %> @retval wasModified a boolean value; true if any changes were
         %> made to the settings in the GUI and false otherwise.
         % =================================================================
@@ -285,8 +289,14 @@ classdef  PASettings < handle
         % =================================================================
         %> @brief Activates GUI for editing single study mode settings
         %> (<b>VIEW</b>,<b>PSD</b>,<b>MUSIC</b>)
-        %>
         %> @param obj instance of PASettings class.
+        %> @param optional_fieldName (Optional)  String indicating which settings to update.
+        %> Can be
+        %> - @c PSD
+        %> - @c MUSIC
+        %> - @c CLASSIFIER
+        %> - @c BATCH_PROCESS
+        %> - @c DEFAULTS
         %> @retval wasModified a boolean value; true if any changes were
         %> made to the settings in the GUI and false otherwise.
         % =================================================================
@@ -323,7 +333,7 @@ classdef  PASettings < handle
         %
         %
         %> @param obj instance of PASettings class.
-        %> @param saveStruct (optional) structure of parameters and values
+        %> @param dataStruct2Save (optional) structure of parameters and values
         %> to save to the text file identfied by obj property filename or
         %> the input paramater filename.  Enter empty (i.e., []) to save
         %> all available fields

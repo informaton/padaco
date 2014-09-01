@@ -1,5 +1,5 @@
 % ======================================================================
-%> @file PAData.m
+%> @file PAData.cpp
 %> @brief Accelerometer data loading class.
 % ======================================================================
 %> @brief The class loads and stores accelerometer data used in the 
@@ -56,14 +56,6 @@ classdef PAData < handle
        scale;
        yDelta;
        
-%        > @brief Struct of sample rates corresponding to time series data stored
-%        %> by class instances.  Fields include:
-%        %> - accelRaw [default is 40Hz]
-%        %> - inclinometer
-%        %> - lux
-%        %> - vecMag
-%        sampleRate;
-       
    end
    
    properties (Access = private)
@@ -82,8 +74,15 @@ classdef PAData < handle
        %comprised of consecutive aggregated windows of data.
        aggregateDurMin;
        
-       %> @brief Frame duration (in minutes).  Features are extracted from frames. 
+       %> @brief Frame duration minute's units.  Features are extracted
+       %from frames.
+       %> @note  Frame duration is calculated as
+       %> obj.frameDurMin+obj.frameDurHour*60
        frameDurMin;
+       %> @brief Frame duration hour's units.  Features are extracted from frames. 
+       %> @note  Frame duration is calculated as
+       %> obj.frameDurMin+obj.frameDurHour*60
+       frameDurHour;
        
        
        %> @brief Number of bins that the time series data can be aggregated
@@ -114,10 +113,10 @@ classdef PAData < handle
        
        % ======================================================================
        %> @brief Constructor for PAData class.
-       %> @param Optional entries can be either
+       %> @param fullfileOrPath Optional entries can be either
        %> @li Full filename (i.e. with pathname) of accelerometer data to load.
        %> %li Pathname containing accelerometer files to be loaded.
-       %> @param Optional Filename of accelerometer data to load.
+       %> @param filename Optional Filename of accelerometer data to load.
        %> @note: This is only supplied in the event that the first
        %> parameter is passed as the pathname for the acceleromter files.
        %> @retval Instance of PAData.
@@ -142,7 +141,8 @@ classdef PAData < handle
            
             
            obj.aggregateDurMin = 1;
-           obj.frameDurMin = 4;
+           obj.frameDurMin = 0;
+           obj.frameDurHour = 1;
            
            obj.numBins = 0;
            obj.bins = [];
@@ -268,8 +268,8 @@ classdef PAData < handle
 
        % ======================================================================
        %> @brief Returns a structure of an instnace PAData's time series data.
-       %> @param Instance of PAData.
-       %> @param Optional string identifying the type of data to obtain the
+       %> @param obj Instance of PAData.
+       %> @param structType Optional string identifying the type of data to obtain the
        %> offset from.  Can be 
        %> @li @c time series (default)
        %> @li @c features
@@ -306,8 +306,8 @@ classdef PAData < handle
        
        % ======================================================================
        %> @brief Returns a structure of an instnace PAData's time series data.
-       %> @param Instance of PAData.
-       %> @param Optional string identifying the type of data to obtain the
+       %> @param obj Instance of PAData.
+       %> @param structType Optional string identifying the type of data to obtain the
        %> offset from.  Can be 
        %> @li @c time series (default)
        %> @li @c features
@@ -315,48 +315,50 @@ classdef PAData < handle
        %> @retval A 2x1 vector with start, stop range of the current window returned as
        %> samples beginning with 1 for the first sample.  
        %> @note This uses instance variables windowDurSec, curWindow, and sampleRate to
-       %> determine the sample range for the current window.
+       %> determine the sample range for the current window.  The first
+       %value is floored and the second is ceil'ed.
        % =================================================================      
        function windowRange = getCurUncorrectedWindowRange(obj,structType)
            if(nargin<2 || isempty(structType))
                structType = 'time series';
            end
            
-           windowDur = obj.getWindowDuration(structType);
-           windowRange = (obj.curWindow-1)*windowDur+[1,windowDur];
-           
+           windowResolution = obj.getSamplesPerWindow(structType);
+           windowRange = (obj.curWindow-1)*windowResolution+[1,windowResolution];
+           windowRange = [floor(windowRange(1)), ceil(windowRange(2))];
        end
        
        % ======================================================================
-       %> @brief Returns the duration of an window in units of samples,
-       %> aggregate bins, or frame count.
-       %> @param Instance of PAData.       
-       %> @param Optional string identifying the type of data to obtain the
+       %> @brief Returns the number of sample units (samples, bins, frames) for the
+       %> for the current window resolution (duration in seconds).
+       %> @param obj Instance of PAData.       
+       %> @param structType Optional string identifying the type of data to obtain the
        %> offset from.  Can be 
        %> @li @c time series (default) - units are sample points
        %> @li @c features - units are frames
        %> @li @c aggregate bins - units are bins
-       %> @retval (Integer, floored) Duration of the window window in units of sample points, aggregate bins, or frame count.
+       %> @retval Number of samples, frames, or bins per window display;
+       %not necessarily an integer result; can be a fraction.
        %> @note Calcuation based on instance variables windowDurSec and
-       %sampleRate and raised to the nearest integer value.
-       function windowDur = getWindowDuration(obj,structType)
+       %> sampleRate
+       function windowDur = getSamplesPerWindow(obj,structType)
            if(nargin<2 || isempty(structType))
                structType = 'time series';
            end
-           windowDur = ceil(obj.windowDurSec*obj.getWindowRate(structType));
+           windowDur = obj.windowDurSec*obj.getWindowSamplerate(structType);
        end  
        
        % --------------------------------------------------------------------
-       %> @brief Returns the window ratesamplerate of the x-axis accelerometer.
-       %> @param Instance of PAData   
-       %> @param Optional string identifying the type of data to obtain the
+       %> @brief Returns the sampling rate for the current window display selection
+       %> @param obj Instance of PAData   
+       %> @param structType Optional string identifying the type of data to obtain the
        %> offset from.  Can be 
-       %> @li @c time series (default) - units are sample points
-       %> @li @c features - units are frames
-       %> @li @c aggregate bins - units are bins
-       %> @retval Sample rate of the x-axis accelerometer.
+       %> @li @c time series (default) - sample units are sample points
+       %> @li @c features - sample units are frames
+       %> @li @c aggregate bins - sample units are bins
+       %> @retval Sample rate of the data being viewed in Hz.  
        % --------------------------------------------------------------------
-       function windowRate = getWindowRate(obj,structType)
+       function windowRate = getWindowSamplerate(obj,structType)
            if(nargin<2 || isempty(structType))
                structType = 'time series';
            end
@@ -376,8 +378,8 @@ classdef PAData < handle
        
        % --------------------------------------------------------------------
        %> @brief Returns the samplerate of the x-axis accelerometer.
-       %> @param Instance of PAData
-       %> @retval Sample rate of the x-axis accelerometer.
+       %> @param obj Instance of PAData
+       %> @retval fs Sample rate of the x-axis accelerometer.
        % --------------------------------------------------------------------
        function fs = getSampleRate(obj)
            fs = obj.sampleRate;           
@@ -385,17 +387,19 @@ classdef PAData < handle
        
        % --------------------------------------------------------------------
        %> @brief Returns the frame rate in units of frames/second.
-       %> @param Instance of PAData
-       %> @retval Frames rate in Hz.
+       %> @param obj Instance of PAData
+       %> @retval fs Frames rate in Hz.
        % --------------------------------------------------------------------
        function fs = getFrameRate(obj)
-           fs = 1/60/obj.frameDurMin;
+           [frameDurationMinutes, frameDurationHours] = obj.getFrameDuration();
+           frameDurationSeconds = frameDurationMinutes*60+frameDurationHours*60*60;
+           fs = 1/frameDurationSeconds;
        end
        
        % --------------------------------------------------------------------
        %> @brief Returns the aggregate bin rate in units of aggregate bins/second.
-       %> @param Instance of PAData
-       %> @retval Aggregate bins per second.
+       %> @param obj Instance of PAData
+       %> @retval fs Aggregate bins per second.
        % --------------------------------------------------------------------
        function fs = getBinRate(obj)
            fs = 1/60/obj.aggregateDurMin;
@@ -404,9 +408,9 @@ classdef PAData < handle
        % --------------------------------------------------------------------
        %> @brief Set the current window for the instance variable accelObj
        %> (PAData)
-       %> @param Instance of PAData
-       %> @param The window to set curWindow to.
-       %> @retval The current value of instance variable curWindow.
+       %> @param obj Instance of PAData
+       %> @param window The window to set curWindow to.
+       %> @retval curWindow The current value of instance variable curWindow.
        %> @note If the input argument for window is negative or exceeds 
        %> the maximum window value for the time series data, then it is not used
        %> and the curWindow value is retained, and also returned.
@@ -421,8 +425,8 @@ classdef PAData < handle
        
        % --------------------------------------------------------------------
        %> @brief Returns the current window.
-       %> @param Instance of PAData
-       %> @retval The current window;
+       %> @param obj Instance of PAData
+       %> @retval curWindow The current window;
        % --------------------------------------------------------------------
        function curWindow = getCurWindow(obj)
            curWindow = obj.curWindow;
@@ -430,15 +434,15 @@ classdef PAData < handle
        
        % --------------------------------------------------------------------
        %> @brief Set the aggregate duration (in minutes) instance variable.
-       %> @param Instance of PAData
-       %> @param The aggregate duration to set aggregateDurMin to.
-       %> @retval The current value of instance variable aggregateDurMin.
+       %> @param obj Instance of PAData
+       %> @param aggregateDurationMin The aggregate duration to set aggregateDurMin to.
+       %> @retval aggregateDurationMin The current value of instance variable aggregateDurMin.
        %> @note If the input argument for aggregateDurationMin is negative or exceeds 
        %> the current frame duration value (in minutes), then it is not used
        %> and the current frame duration is retained (and also returned).
        % --------------------------------------------------------------------
        function aggregateDurationMin = setAggregateDuration(obj,aggregateDurationMin)
-           if(aggregateDurationMin>0 && aggregateDurationMin<=obj.getFrameDuration())
+           if(aggregateDurationMin>0 && aggregateDurationMin<=obj.getAggregateDuration())
                obj.aggregateDurMin = aggregateDurationMin;
            end
            %returns the current frame duration, whether it be 'frameDurationMin' or not.
@@ -447,8 +451,8 @@ classdef PAData < handle
        
        % --------------------------------------------------------------------
        % @brief Returns the current aggregate duration in minutes.
-       % @param Instance of PAData
-       % @retval The current window;
+       % @param obj Instance of PAData
+       % @retval aggregateDuration The current window;
        % --------------------------------------------------------------------
        function aggregateDuration = getAggregateDuration(obj)
            aggregateDuration = obj.aggregateDurMin;
@@ -457,8 +461,8 @@ classdef PAData < handle
        % --------------------------------------------------------------------
        %> @brief Returns the total number of aggregated bins the data can be divided
        %> into based on frame rate and the duration of the time series data.
-       %> @param Instance of PAData
-       %> @retval The total number of frames contained in the data.
+       %> @param obj Instance of PAData
+       %> @retval binCount The total number of frames contained in the data.
        %> @note In the case of data size is not broken perfectly into frames, but has an incomplete frame, the
        %> window count is rounded down.  For example, if the frame duration 1 min, and the study is 1.5 minutes long, then 
        %> the frame count is 1.
@@ -470,47 +474,72 @@ classdef PAData < handle
        
        % --------------------------------------------------------------------
        %> @brief Set the frame duration (in minutes) instance variable.
-       %> @param Instance of PAData
-       %> @param The frame duration to set frameDurMin to.
-       %> @retval The current value of instance variable frameDurMin.
+       %> @param obj Instance of PAData
+       %> @param frameDurationMin The frame duration to set frameDurMin to.
+       %> @retval frameDurationMin The current value of instance variable frameDurMin.
        %> @note If the input argument for frameDurationMin is negative or exceeds 
        %> the maximum duration of data, then it is not used
        %> and the current frame duration is retained (and also returned).
        % --------------------------------------------------------------------
-       function frameDurationMin = setFrameDuration(obj,frameDurationMin)
-           if(frameDurationMin>0 && frameDurationMin<=obj.durationSec/60)
+       function frameDurationMin = setFrameDurationMinutes(obj,frameDurationMin)
+           if(frameDurationMin>=0 && frameDurationMin<=obj.durationSec/60)
                obj.frameDurMin = frameDurationMin;
            end
            %returns the current frame duration, whether it be 'frameDurationMin' or not.
-           frameDurationMin = obj.getFrameDuration();
+           [frameDurationMin,~] = obj.getFrameDuration();
        end
        
        % --------------------------------------------------------------------
-       % @brief Returns the frame duration (in minutes)
-       % @param Instance of PAData
-       % @retval The current frame duration in minutes;
+       %> @brief Set the frame duration (hours) instance variable.
+       %> @param obj Instance of PAData
+       %> @param frameDurationHours The frame duration to set frameDurHours instance variable to.
+       %> @retval frameDurationHours The current value of instance variable frameDurHour.
+       %> @note If the input argument for frameDurationHours is negative or exceeds 
+       %> the maximum duration of data, then it is not used
+       %> and the current frame duration is retained (and also returned).
        % --------------------------------------------------------------------
-       function curFrameDurationMin = getFrameDuration(obj)
+       function frameDurationHours = setFrameDurationHours(obj,frameDurationHours)
+           if(frameDurationHours>=0 && frameDurationHours<=obj.durationSec/60/60)
+               obj.frameDurHour = frameDurationHours;
+           end
+           %returns the current frame duration, whether it be 'frameDurationMin' or not.
+           [~,frameDurationHours] = obj.getFrameDuration();
+       end
+       
+       
+       
+       
+       % --------------------------------------------------------------------
+       % @brief Returns the frame duration (in minutes)
+       % @param obj Instance of PAData
+       % @retval curFrameDurationMin The current frame duration minutes field;
+       % @retval curFramDurationHour The current frame duration hours field;
+       % --------------------------------------------------------------------
+       function [curFrameDurationMin, curFrameDurationHour] = getFrameDuration(obj)
            curFrameDurationMin = obj.frameDurMin;
+           curFrameDurationHour = obj.frameDurHour;
+           
        end
        
        % --------------------------------------------------------------------
        %> @brief Returns the total number of frames the data can be divided
        %> into evenly based on frame rate and the duration of the time series data.
-       %> @param Instance of PAData
-       %> @retval The total number of frames contained in the data.
+       %> @param obj Instance of PAData
+       %> @retval frameCount The total number of frames contained in the data.
        %> @note In the case of data size is not broken perfectly into frames, but has an incomplete frame, the
        %> window count is rounded down (floor).  For example, if the frame duration 1 min, and the study is 1.5 minutes long, then 
        %> the frame count is 1.
        % --------------------------------------------------------------------
        function frameCount = getFrameCount(obj)
-           frameCount = floor(obj.durationSec/60/obj.getFrameDuration());        
+           [frameDurationMinutes, frameDurationHours] = obj.getFrameDuration();
+           frameDurationSeconds = frameDurationMinutes*60+frameDurationHours*60*60;
+           frameCount = floor(obj.durationSec/frameDurationSeconds);        
        end
        
        % --------------------------------------------------------------------
        % @brief Returns the number of samples contained in the time series data.
-       % @param Instance of PAData
-       % @retval Number of elements contained in durSamples instance var
+       % @param obj Instance of PAData
+       % @retval durationSamp Number of elements contained in durSamples instance var
        %> (initialized by number of elements in accelRaw.x
        % --------------------------------------------------------------------
        function durationSamp = durationSamples(obj)
@@ -520,10 +549,10 @@ classdef PAData < handle
        % --------------------------------------------------------------------
        %> @brief Set the window duration value in seconds.  This is the
        %> displays window size (i.e. one window shown at a time), in seconds.
-       %> @param Instance of PAData
-       %> @param Duration in seconds.  Must be positive.  Value is first
+       %> @param obj Instance of PAData
+       %> @param durSec Duration in seconds.  Must be positive.  Value is first
        %> rounded to ensure it is an integer.
-       %> @retval Window duration in seconds of obj.
+       %> @retval durSec Window duration in seconds of obj.
        %> @note Instance variable curWindow is recalculated based on new
        %> window duration.
        % --------------------------------------------------------------------
@@ -545,13 +574,13 @@ classdef PAData < handle
        
        % --------------------------------------------------------------------
        %> @brief Returns the color instance variable
-       %> @param Instance of PAData
-       %> @param String specifying the structure type of label to retrieve.
+       %> @param obj Instance of PAData
+       %> @param structType String specifying the structure type of label to retrieve.
        %> Possible values include:
        %> @li @c time series (default)
        %> @li @c features
        %> @li @c aggregate bins
-       %%> @retval A struct of color values correspodning to the time series
+       %%> @retval color A struct of color values correspodning to the time series
        %> fields of obj.
        % --------------------------------------------------------------------
        function color = getColor(obj,structType)
@@ -565,13 +594,13 @@ classdef PAData < handle
 
        % --------------------------------------------------------------------
        %> @brief Returns the label instance variable
-       %> @param Instance of PAData
-       %> @param String specifying the structure type of label to retrieve.
+       %> @param obj Instance of PAData
+       %> @param structType String specifying the structure type of label to retrieve.
        %> Possible values include:
        %> @li @c time series (default)
        %> @li @c features
        %> @li @c aggregate bins
-       %> @retval A struct of string values which serve to label the correspodning to the time series
+       %> @retval label A struct of string values which serve to label the correspodning to the time series
        %> fields of obj.
        % --------------------------------------------------------------------
        function label = getLabel(obj,structType)
@@ -594,8 +623,8 @@ classdef PAData < handle
        %> @brief Returns the total number of windows the data can be divided
        %> into based on sampling rate, window resolution (i.e. duration), and the size of the time
        %> series data.
-       %> @param Instance of PAData
-       %> @param The maximum/last window allowed
+       %> @param obj Instance of PAData
+       %> @retval windowCount The maximum/last window allowed
        %> @note In the case of data size is not broken perfectly into windows, but has an incomplete window, the
        %> window count is rounded up.  For example, if the time series data is 10 s in duration and the window size is 
        %> defined as 30 seconds, then the windowCount is 1.  
@@ -607,8 +636,8 @@ classdef PAData < handle
        % ======================================================================
        %> @brief Returns the minimum and maximum amplitudes that can be
        %> displayed uner the current configuration.
-       %> @param Instance of PAData.
-       %> @retval 1x2 vector containing ymin and ymax.
+       %> @param obj Instance of PAData.
+       %> @retval yLim 1x2 vector containing ymin and ymax.
        % ======================================================================
        function yLim = getDisplayMinMax(obj)           
            yLim = [0, 20 ]*obj.yDelta;
@@ -618,8 +647,8 @@ classdef PAData < handle
        %> @brief Returns the minmax value(s) for the object's (obj) time series data
        %> Returns either a structure or 1x2 vector of [min, max] values for the field
        %> specified.
-       %> @param Instance of PAData.
-       %> @param String value identifying the time series data to perform
+       %> @param obj Instance of PAData.
+       %> @param fieldType String value identifying the time series data to perform
        %> the minmax operation on.  Can be one of the following:
        %> - @b struct Returns a structure of minmax values with organization 
        %> correspoding to that found by getStruct() instance method.
@@ -631,28 +660,28 @@ classdef PAData < handle
        %> - @b lux Returns a 1x2 minmax vector for lux values.
        %> - @b inclinometer Returns a struct of minmax values for lux fields.
        %> - @b steps Returns a struct of minmax values for step fields.
-       %> @retval Minimum maximum values for each time series field
+       %> @retval minMax Minimum maximum values for each time series field
        %> contained in obj.getStruct() or a single 2x1 vector of min max
        %> values for the field name specified.
        % =================================================================      
-       function minMax = getMinmax(obj,field)
+       function minMax = getMinmax(obj,fieldType)
            
            % get all data for all structs.
            dataStruct = obj.getStruct('all'); 
            
-           if(nargin<2 || isempty(field))
-               field = 'all';
+           if(nargin<2 || isempty(fieldType))
+               fieldType = 'all';
            end
 
            % get all fields
-           if(strcmpi(field,'all'))
+           if(strcmpi(fieldType,'all'))
                minMax = obj.getRecurseMinmax(dataStruct);
            else
                
                % if it is not a struct (and is a 'string')
                % then get the value for it.
-               if(~strcmpi(field,'struct'))
-                   dataStruct = dataStruct.(field);
+               if(~strcmpi(fieldType,'struct'))
+                   dataStruct = dataStruct.(fieldType);
                end
                minMax = obj.minmax(dataStruct);
            end
@@ -662,9 +691,9 @@ classdef PAData < handle
        %> @brief Returns the filename, pathname, and full filename (pathname + filename) of
        %> the file that the accelerometer data was loaded from.
        %> @param obj Instance of PAData
-       %> @retval The short filename of the accelerometer data.
-       %> @retval The pathname of the accelerometer data.
-       %> @retval The full filename of the accelerometer data.
+       %> @retval filename The short filename of the accelerometer data.
+       %> @retval pathname The pathname of the accelerometer data.
+       %> @retval fullFilename The full filename of the accelerometer data.
        % =================================================================
        function [filename,pathname,fullFilename] = getFilename(obj)
            filename = obj.filename;
@@ -676,7 +705,7 @@ classdef PAData < handle
        %> @brief Returns the full filename (pathname + filename) of
        %> the accelerometer data.
        %> @param obj Instance of PAData
-       %> @retval The full filenmae of the accelerometer data.
+       %> @retval fullFilename The full filenmae of the accelerometer data.
        %> @note See also getFilename()
        % =================================================================
        function fullFilename = getFullFilename(obj)
@@ -687,9 +716,9 @@ classdef PAData < handle
        %> @brief Load CSV header values (start time, start date, and window
        %> period).
        %> @param obj Instance of PAData.
-       %> @param Filename to open and examine.
+       %> @param fullFilename The full filename to open and examine.
        % =================================================================
-       function loadFileHeader(obj,fullfilename)
+       function loadFileHeader(obj,fullFilename)
            %  ------------ Data Table File Created By ActiGraph GT3XPlus ActiLife v6.9.2 Firmware v3.2.1 date format M/d/yyyy Filter Normal -----------
            %  Serial Number: NEO1C15110135
            %  Start Time 18:00:00
@@ -700,7 +729,7 @@ classdef PAData < handle
            %  Current Memory Address: 0
            %  Current Battery Voltage: 4.13     Mode = 61
            %  --------------------------------------------------           
-           fid = fopen(fullfilename,'r');
+           fid = fopen(fullFilename,'r');
            if(fid>0)
                try
                    tline = fgetl(fid);
@@ -742,7 +771,7 @@ classdef PAData < handle
        %> @brief Returns header values as a single, printable string.  
        %> Results include
        %> - Filename
-       %> - Duration (hh:mm:ss)
+       %> - Duration ([dd] Days, [hh] hr [mm] min [ss] sec]
        %> - Window count
        %> - Start Date
        %> - Start Time
@@ -752,10 +781,11 @@ classdef PAData < handle
        %> while field:values are separated from each other with newlines (\n).
        % =================================================================
        function headerStr = getHeaderAsString(obj)
-           durStr = datestr(datenum([0 0 0 0 0 obj.durationSec]),'HH:MM:SS'); 
-           windowPeriod = datestr(datenum([0 0 0 0 0 obj.windowPeriodSec]),'HH:MM:SS'); 
-           headerStr = sprintf('Filename:\t%s\nStart Date: %s\nStart Time: %s\nDuration:\t%s\nWindow Count:\t%4u\nWindow Period:\t%s\nSample Rate:\t%u Hz',...
-               obj.filename,obj.startDate,obj.startTime,durStr,obj.getWindowCount,windowPeriod,obj.getSampleRate());
+           durStr = strrep(strrep(strrep(strrep(datestr(datenum([0 0 0 0 0 obj.durationSec]),'\tdd x1 HH x2\n\f\t\tMM x3 SS x4'),'x1','day(s)'),'x2','hr'),'x3','min'),'x4','sec');
+%            windowPeriod = datestr(datenum([0 0 0 0 0 obj.windowPeriodSec]),'HH:MM:SS'); 
+%            obj.getWindowCount,windowPeriod
+           headerStr = sprintf('Filename:\t%s\nStart Date: %s\nStart Time: %s\nDuration:\t%s\n\nSample Rate:\t%u Hz',...
+               obj.filename,obj.startDate,obj.startTime,durStr,obj.getSampleRate());
        end
        
        % ======================================================================
@@ -765,11 +795,9 @@ classdef PAData < handle
        %> is not included, or does not exist, then the instance variables pathname and filename
        %> are used to identify the file to load.
        % =================================================================
-       
-       
+       function loadFile(obj,fullfilename)
        % Ensure that we have a negative number or some way of making sure
        % that we have sequential data (fill in all with Nan or -1 eg)
-       function loadFile(obj,fullfilename)
            
            if(nargin<2 || ~exist(fullfilename,'file'))
                fullfilename = obj.getFullFilename();
@@ -800,7 +828,7 @@ classdef PAData < handle
        % ======================================================================
        %> @brief Loads an accelerometer "count" data file.
        %> @param obj Instance of PAData.
-       %> @param Full filename to load. 
+       %> @param fullCountFilename The full (i.e. with path) filename to load. 
        % =================================================================
        function loadCountFile(obj,fullCountFilename)           
            
@@ -932,7 +960,7 @@ classdef PAData < handle
        %> auxialiary measures (e.g. lux, vecMag) are upsampled to the
        %> sampling rate of the raw data (typically 40 Hz).
        %> @param obj Instance of PAData.
-       %> @param fullfilename Full filename to load.
+       %> @param fullRawFilename The full (i.e. with path) filename for raw data to load.
        % =================================================================
        function loadRawFile(obj,fullRawFilename)
            if(exist(fullRawFilename,'file'))
@@ -1088,11 +1116,11 @@ toc
        
        % ======================================================================
        %> @brief Calculates, and returns, the window for the given sample index of a signal.
-       %> @param Instance of PAData.
-       %> @param Sample point to discover the containing window of.
-       %> @param window Window duration in seconds (scalar) (optional)
-       %> @param Sample rate of the data (optional)
-       %> @retval The window.
+       %> @param obj Instance of PAData.
+       %> @param sample Sample point to discover the containing window of.
+       %> @param windowDurSec Window duration in seconds (scalar) (optional)
+       %> @param samplerate Sample rate of the data (optional)
+       %> @retval window The window.
        % ======================================================================
        function window = sample2window(obj,sample,windowDurSec,samplerate)           
            if(nargin<4)
@@ -1127,8 +1155,10 @@ toc
        function obj = extractFeature(obj,method)
            currentNumFrames = obj.getFrameCount();
            if(currentNumFrames~=obj.numFrames)
+               [frameDurMinutes, frameDurHours ] = obj.getFrameDuration();
+               frameDurSeconds = frameDurMinutes*60+frameDurHours*60*60;
                obj.numFrames = currentNumFrames;
-               frameableSamples = obj.numFrames*obj.frameDurMin*60*obj.getSampleRate();
+               frameableSamples = obj.numFrames*frameDurSeconds*obj.getSampleRate();
                obj.frames =  reshape(obj.vecMag(1:frameableSamples),[],obj.numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
                obj.features = [];
            end
@@ -1164,10 +1194,15 @@ toc
        % ======================================================================
        %> @brief overloaded subsindex method returns structure of time series data
        %> at indices provided. 
-       %> @param Instance of PAData
-       %> @param Vector (logical or ordinal) of indices to select time
+       %> @param obj Instance of PAData
+       %> @param indices Vector (logical or ordinal) of indices to select time
        %> series data by.
-       %> @retval A struct of PAData's time series instance data for the indices provided.  The fields
+       %> @param structType String (optional) identifying the type of data to obtain the
+       %> offset from.  Can be 
+       %> @li @c time series (default) - units are sample points
+       %> @li @c features - units are frames
+       %> @li @c aggregate bins - units are bins       
+       %> @retval dat A struct of PAData's time series instance data for the indices provided.  The fields
        %> include:
        %> - accelRaw.x
        %> - accelRaw.y
@@ -1177,12 +1212,12 @@ toc
        %> - lux
        %> - inclinometer
        % ======================================================================
-       function dat = subsindex(obj,indices,optionalFieldType)
+       function dat = subsindex(obj,indices,structType)
            
-           if(nargin<3 ||isempty(optionalFieldType))
-               optionalFieldType = 'time series';
+           if(nargin<3 ||isempty(structType))
+               structType = 'time series';
            end
-           switch(lower(optionalFieldType))
+           switch(lower(structType))
                case 'time series'
                    dat.accelRaw.x = double(obj.accelRaw.x(indices));
                    dat.accelRaw.y = double(obj.accelRaw.y(indices));
@@ -1199,25 +1234,29 @@ toc
                case 'aggregate bins'
                    dat.median = double(obj.feature.median(indices));
                otherwise
-                   fprintf('Warning!  This case is not handled (%s).\n',optionalFieldType);
+                   fprintf('Warning!  This case is not handled (%s).\n',structType);
            end
        end
        
-       function sref = subsref(obj,s)
+       function [sref,varargout] = subsref(obj,s)
+           
            if(strcmp(s(1).type,'()') && length(s)<2)
                % Note that obj.Data is passed to subsref
                sref = obj.subsindex(cell2mat(s.subs));               
            else
-               sref = builtin('subsref',obj,s);
+               if(strcmpi(s(1).subs,'getFrameDuration'))
+                   [sref, varargout{1}] = builtin('subsref',obj,s);
+               else
+                   sref = builtin('subsref',obj,s);
+               end
            end
        end
        
        % ======================================================================
        %> @brief Returns a structure of PAData's time series fields and
        %> values, depending on the user's input selection.
-       %> @param Instance of PAData.
-       %> @param Type of structure to be returned; optional.  A string.  Possible
-       %> values include:
+       %> @param obj Instance of PAData.
+       %> @param choice (optional) String indicating the type of structure to be returned; optional. Can be
        %> - @b dummy Empty data.
        %> - @b dummydisplay Holds generic line properties for the time series structure.
        %> - @b current Time series data with offset and scaling values applied.
@@ -1225,13 +1264,13 @@ toc
        %> and stored as 'ydata' child fields.
        %> - @b displayoffset [x,y,z] offsets of the current time series
        %> data being displayed.  Values are stored in .position child field
-       %> - @b all All, original time series data.
-       %> @param Optional string identifying the type of data to obtain the
+       %> - @b all All (default) original time series data.
+       %> @param structType String (optional) identifying the type of data to obtain the
        %> offset from.  Can be 
        %> @li @c time series (default) - units are sample points
        %> @li @c features - units are frames
        %> @li @c aggregate bins - units are bins       
-       %> @retval A struct of PAData's time series, aggregate bins, or features instance data.  The fields
+       %> @retval dat A struct of PAData's time series, aggregate bins, or features instance data.  The fields
        %> for time series data include:
        %> - accelRaw.x
        %> - accelRaw.y
@@ -1272,13 +1311,13 @@ toc
    
        % ======================================================================
        %> @brief Returns a structure of an insance PAData's time series data.
-       %> @param Instance of PAData.
-       %> @param Optional string identifying the type of data to obtain the
+       %> @param obj Instance of PAData.
+       %> @param structType String (optional) identifying the type of data to obtain the
        %> offset from.  Can be 
        %> @li @c time series (default) - units are sample points
        %> @li @c features - units are frames
        %> @li @c aggregate bins - units are bins       
-       %> @retval A struct of PAData's time series instance data.  The fields
+       %> @retval dat A struct of PAData's time series instance data.  The fields
        %> include:
        %> - accelRaw.x
        %> - accelRaw.y
@@ -1314,13 +1353,13 @@ toc
        % ======================================================================
        %> @brief Returns a structure of an insance PAData's time series
        %> data at the current window.
-       %> @param Instance of PAData.
-       %> @param Optional string identifying the type of data to obtain the
+       %> @param obj Instance of PAData.
+       %> @param structType String (optional) identifying the type of data to obtain the
        %> offset from.  Can be 
        %> @li @c time series (default) - units are sample points
        %> @li @c features - units are frames
-       %> @li @c aggregate bins - units are bins
-       %> @retval A struct of PAData's time series or features instance data.  The fields
+       %> @li @c aggregate bins - units are bins       
+       %> @retval curStruct A struct of PAData's time series or features instance data.  The fields
        %> for time series include:
        %> - accelRaw.x
        %> - accelRaw.y
@@ -1346,13 +1385,13 @@ toc
        % ======================================================================
        %> @brief Returns the time series data as a struct for the current window range,
        %> adjusted for visual offset and scale.
-       %> @param Instance of PAData.
-       %> @param Optional string identifying the type of data to obtain the
+       %> @param obj Instance of PAData.
+       %> @param structType (Optional) String identifying the type of data to obtain the
        %> offset from.  Can be 
        %> @li @c time series (default) - units are sample points
        %> @li @c features - units are frames
        %> @li @c aggregate bins - units are bins
-       %> @retval A struct of PAData's time series or features instance data.  The fields
+       %> @retval dat A struct of PAData's time series or features instance data.  The fields
        %> for time series data include:
        %> - accelRaw.x
        %> - accelRaw.y
@@ -1382,6 +1421,14 @@ toc
            dat = PAData.structEval('times',obj.getStruct('current',structType),obj.scale.(structFieldName));
            
            windowRange = obj.getCurWindowRange(structType);
+           
+           %we have run into the problem of trying to zoom in on more than
+           %we have resolution to display.  
+           if(diff(windowRange)==0)
+               windowRange(2)=windowRange(2)+1;
+               dat = PAData.structEval('repmat',dat,dat,size(windowRange));
+           end
+           
            lineProp.xdata = windowRange(1):windowRange(end);
            % put the output into a 'ydata' field for graphical display
            % property of a line.
@@ -1392,13 +1439,13 @@ toc
        % ======================================================================
        %> @brief Returns [x,y,z] offsets of the current time series
        %> data being displayed.  Values are stored in .position child field
-       %> @param Instance of PAData.
-       %> @param Optional string identifying the type of data to obtain the
+       %> @param obj Instance of PAData.
+       %> @param structType (Optional) String identifying the type of data to obtain the
        %> offset from.  Can be 
        %> @li @c time series (default)
        %> @li @c features
        %> @li @c aggregate bins
-       %> @retval A struct of [x,y,z] starting location of each
+       %> @retval dat A struct of [x,y,z] starting location of each
        %> data field.  The fields (for 'time series') include:
        %> - accelRaw.x
        %> - accelRaw.y
@@ -1440,10 +1487,10 @@ toc
        % ======================================================================
        %> @brief Returns structure whose values are taken from the struct
        %> and indices provided.
-       %> @param Struct of indicable data.
-       %> @param Vector (logical or ordinal) of indices to select time
+       %> @param structIn Struct of indicable data.
+       %> @param indices Vector (logical or ordinal) of indices to select time
        %> series data by.
-       %> @retval Struct with matching fields as input struct, with values taken at indices.
+       %> @retval structOut Struct with matching fields as input struct, with values taken at indices.
        function structOut = subsStruct(structIn,indices)
            if(isstruct(structIn))
                fnames = fieldnames(structIn);
@@ -1462,26 +1509,26 @@ toc
        % ======================================================================
        %> @brief Helper function for loading raw and count file
        %> formats to ensure proper ordering and I/O error handling.
-       %> @param The start date number that the ordered data cell should
+       %> @param startDateNum The start date number that the ordered data cell should
        %> begin at.  (should be generated using datenum())
-       %> @param The date number (generated using datenum()) that the ordered data cell 
+       %> @param stopDateNum The date number (generated using datenum()) that the ordered data cell 
        %> ends at.
-       %> @param The difference between two successive date number samples.
-       %> @param Vector of date number values taken between startDateNum
+       %> @param dateNumDelta The difference between two successive date number samples.
+       %> @param sampledDateVec Vector of date number values taken between startDateNum
        %> and stopDateNum (inclusive) and are in the order and size as the
        %> individual cell components of tmpDataCell
-       %> @param A cell of vectors whose individual values correspond to
+       %> @param tmpDataCell A cell of vectors whose individual values correspond to
        %> the order of sampledDateVec
-       %> @param (Optional) Value to be used in the ordered output data
+       %> @param missingValue (Optional) Value to be used in the ordered output data
        %> cell where the tmpDataCell does not have corresponding values.
        %> The default is 'nan'.
-       %> @retval A cell of vectors that are taken from tmpDataCell but
+       %> @retval orderedDataCell A cell of vectors that are taken from tmpDataCell but
        %> initially filled with the missing value parameter and ordered
        %> according to synthDateNum.
-       %> @retval Matrix of date vectors ([Y, Mon,Day, Hr, Mn, Sec]) generated by
+       %> @retval synthDateVec Matrix of date vectors ([Y, Mon,Day, Hr, Mn, Sec]) generated by
        %> startDateNum:dateNumDelta:stopDateNum which correponds to the
        %> row order of orderedDataCell cell values/vectors
-       %> @retval Vector of date numbers corresponding to the date vector
+       %> @retval synthDateNum Vector of date numbers corresponding to the date vector
        %> matrix return argument.
        %> @note This is a helper function for loading raw and count file
        %> formats to ensure proper ordering and I/O error handling.
@@ -1518,19 +1565,19 @@ toc
        % ======================================================================
        %> @brief Evaluates the two structures, field for field, using the function name
        %> provided.
-       %> @param A string name of the operation (via 'eval') to conduct at
+       %> @param operand A string name of the operation (via 'eval') to conduct at
        %> the lowest level.  Additional operands include:
        %> - passthrough Requires Optional field name to be set.
        %> - calculateposition (requires rtStruct to have .xdata and .ydata
        %> fields.
-       %> @param A structure whose fields are either structures or vectors.
-       %> @param A structure whose fields are either structures or vectors.
-       %> @param Optional field name to subset the resulting output
+       %> @param ltStruct A structure whose fields are either structures or vectors.
+       %> @param rtStruct A structure whose fields are either structures or vectors.
+       %> @param optionalDestField Optional field name to subset the resulting output
        %> structure to (see last example).  This can be useful if the
        %> output structure will be passed as input that expects a specific
        %> sub field name for the values (e.g. line properties).  See last
        %> example below.
-       %> @retval A structure with same fields as ltStruct and rtStruct
+       %> @retval resultStruct A structure with same fields as ltStruct and rtStruct
        %> whose values are the result of applying operand to corresponding
        %> fields.  
        %> @note In the special case that operand is set to 'passthrough'
@@ -1612,17 +1659,17 @@ toc
        % ======================================================================
        %> @brief Evaluates the two structures, field for field, using the function name
        %> provided.
-       %> @param A string name of the operation (via 'eval') to conduct at
+       %> @param operand A string name of the operation (via 'eval') to conduct at
        %> the lowest level. 
-       %> @param A structure whose fields are either structures or vectors.
-       %> @param A matrix value of the same dimension as the first structure's (ltStruct)
+       %> @param ltStruct A structure whose fields are either structures or vectors.
+       %> @param A Matrix value of the same dimension as the first structure's (ltStruct)
        %> non-struct field values.
-       %> @param Optional field name to subset the resulting output
+       %> @param optionalDestField Optional field name to subset the resulting output
        %> structure to (see last example).  This can be useful if the
        %> output structure will be passed as input that expects a specific
        %> sub field name for the values (e.g. line properties).  See last
        %> example below.
-       %> @retval A structure with same fields as ltStruct and optionally 
+       %> @retval resultStruct A structure with same fields as ltStruct and optionally 
        %> the optionalDestField whose values are the result of applying operand to corresponding
        %> fields and the input matrix.
        %> 
@@ -1672,8 +1719,9 @@ toc
        
        % ======================================================================
        %> @brief Appends the fields of one to another.
-       %> @param A structure whose fields are to be appended by the other.
-       %> @param A structure whose fields are will be appened to the other.
+       %> @param ltStruct A structure whose fields are to be appended by the other.
+       %> @param rtStruct A structure whose fields are will be appened to the other.
+       %> @retval ltStruct The resultof append rtStruct to ltStruct.
        %> @note For example:
        %> @note ltStruct =
        %> @note     ydata: [1 1]
@@ -1716,8 +1764,9 @@ toc
        %> matching field values.  Similar to appendStruct, but now the second argument 
        %> is itself a struct with similar organization as the first
        %> argument.
-       %> @param A structure whose fields are to be appended by the other.
-       %> @param A structure whose fields are will be appened to the other.
+       %> @param ltStruct A structure whose fields are to be appended by the other.
+       %> @param rtStruct A structure whose fields are will be appened to the other.
+       %> @retval ltStruct The result of merging rtStruct with ltStruct.
        %> @note For example:
        %> @note ltStruct =
        %> @note     accel: [1x1 struct]
@@ -1765,8 +1814,9 @@ toc
        % ======================================================================
        %> @brief Inserts the second argument into any empty fields of the first
        %> struct argument.
-       %> @param A structure whose empty fields will be set to the second argument.
-       %> @param A structure 
+       %> @param ltStruct A structure whose empty fields will be set to the second argument.
+       %> @param rtStruct A structure 
+       %> @retval ltStruct The structure that results from inserting rtStruct into ltStruct.
        %> @note For example:
        %> @note ltStruct =
        %> @note     accel: [1x1 struct]
@@ -1814,8 +1864,8 @@ toc
        %> @brief Evaluates the range (min, max) of components found in the
        %> input struct argument and returns the range as struct values with
        %> matching fieldnames/organization as the input struct's highest level.
-       %> @param A structure whose fields are either structures or vectors.
-       %> @retval structRange a struct whose fields correspond to those of
+       %> @param dataStruct A structure whose fields are either structures or vectors.
+       %> @retval structMinMax a struct whose fields correspond to those of
        %the input struct and whose values are [min, max] vectors that
        %correspond to the minimum and maximum values found in the input
        %structure for that field.
@@ -1839,8 +1889,8 @@ toc
        %> @brief Recursive helper function for minmax()
        %> input struct argument and returns the range as struct values with
        %> matching fieldnames/organization as the input struct's highest level.
-       %> @param A structure whose fields are either structures or vectors.
-       %> @retval Nx2 vector of minmax values for the given dataStruct.
+       %> @param dataStruct A structure whose fields are either structures or vectors.
+       %> @retval minmaxVec Nx2 vector of minmax values for the given dataStruct.
        % ======================================================================
        function minmaxVec = getRecurseMinmax(dataStruct)
            if(isstruct(dataStruct))
@@ -1859,12 +1909,12 @@ toc
        % ======================================================================
        %> @brief Returns an empty struct with fields that mirror PAData's
        %> time series instance variables that contain 
-       %> @param Optional string identifying the type of data to obtain the
+       %> @param structType (Optional) String identifying the type of data to obtain the
        %> offset from.  Can be 
        %> @li @c time series (default) - units are sample points
        %> @li @c features - units are frames
        %> @li @c aggregate bins - units are bins       
-       %> @retval A struct of PAData's time series, feature, or aggregate bin instance variables.
+       %> @retval dat A struct of PAData's time series, feature, or aggregate bin instance variables.
        %> Time series include:
        %> - accelRaw.x
        %> - accelRaw.y
@@ -1917,12 +1967,12 @@ toc
        % ======================================================================
        %> @brief Returns a struct with subfields that hold the line properties
        %> for graphic display of the time series instance variables.
-       %> @param Optional string identifying the type of data to obtain the
+       %> @param structType (Optional) String identifying the type of data to obtain the
        %> offset from.  Can be 
        %> @li @c time series (default) - units are sample points
        %> @li @c features - units are frames
        %> @li @c aggregate bins - units are bins       
-       %> @retval A struct of PAData's time series instance variables, which 
+       %> @retval dat A struct of PAData's time series instance variables, which 
        %> include:
        %> - accelRaw.x.(xdata, ydata, color)
        %> - accelRaw.y.(xdata, ydata, color)
@@ -1978,13 +2028,13 @@ toc
       
        % --------------------------------------------------------------------
        %> @brief Returns a cell listing of available prefilter methods as strings.
-       %> @retval Cell listing of prefilter methods.
-       %> - none No prefiltering
-       %> - rms  Root mean square
-       %> - hash
-       %> - sum
-       %> - median
-       %> - mean
+       %> @retval prefilterMethods Cell listing of prefilter methods.
+       %> - @c none No prefiltering
+       %> - @c rms  Root mean square
+       %> - @c hash
+       %> - @c sum
+       %> - @c median
+       %> - @c mean
        %> @note These methods can be passed as the argument to PAData's
        %> prefilter() method.
        % --------------------------------------------------------------------
@@ -1994,13 +2044,13 @@ toc
        
        % --------------------------------------------------------------------
        %> @brief Returns a cell listing of available feature extraction methods as strings.
-       %> @retval Cell listing of prefilter methods.
-       %> - none No feature extraction
-       %> - rms  Root mean square
-       %> - hash
-       %> - sum
-       %> - median
-       %> - mean
+       %> @retval extractorMethods Cell listing of prefilter methods.
+       %> - @c none No feature extraction
+       %> - @c rms  Root mean square
+       %> - @c hash
+       %> - @c sum
+       %> - @c median
+       %> - @c mean
        %> @note These methods can be passed as the argument to PAData's
        %> prefilter() method.
        % --------------------------------------------------------------------
@@ -2018,7 +2068,7 @@ toc
        
        % --------------------------------------------------------------------
        %> @brief Returns a struct of feature extraction methods and string descriptions as the corresponding values.
-       %> @retval A struct of  feature extraction methods and string descriptions as the corresponding values.
+       %> @retval featureStruct A struct of  feature extraction methods and string descriptions as the corresponding values.
        % --------------------------------------------------------------------
        function featureStruct = getFeatureDescriptionStruct()           
            featureStruct.rms = 'Root mean square';
@@ -2037,7 +2087,7 @@ toc
        %> @li @c timeSeries = 'time series';
        %> @li @c bins = 'aggregate bins';
        %> @li @c features = 'features';
-       %> @retval Struct with the following fields and corresponding string
+       %> @retval structType Struct with the following fields and corresponding string
        %> values.
        %> @note This is helpful in identifying different offset, scale, label, color,  and
        %> miscellaneous graphic and data choices.
@@ -2051,11 +2101,11 @@ toc
        % --------------------------------------------------------------------
        %> @brief Returns the fieldname of PAData's struct types (see getStructTypes())
        %> that matches the string argument.  
-       %> @param String description that can be 
+       %> @param description String description that can be 
        %> @li @c timeSeries = 'time series';
        %> @li @c bins = 'aggregate bins';
        %> @li @c features = 'features';
-       %> @retval Name of the field that matches the description.
+       %> @retval structName Name of the field that matches the description.
        %> @note For example:
        %> @note structName = PAData.getStructNameFromDescription('time series');
        %> @note results in structName = 'timeSeries'

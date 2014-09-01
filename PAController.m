@@ -1,4 +1,4 @@
-%> @file PAController.m
+%> @file PAController.cpp
 %> @brief PAController serves as Padaco's controller component (i.e. in the model, view, controller paradigm).
 % ======================================================================
 %> @brief PAController serves as the UI component of event marking in
@@ -104,7 +104,7 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         %> @brief Configure callbacks for the figure, menubar, and widets.
         %> Called internally during class construction.
-        %> @param Instance of PAController
+        %> @param obj Instance of PAController
         % --------------------------------------------------------------------        
         function configureCallbacks(obj)   
             figH = obj.VIEW.getFigHandle();
@@ -125,7 +125,7 @@ classdef PAController < handle
         
         % --------------------------------------------------------------------
         %> @brief Executes when user attempts to close figure_padaco.
-        %> @param Instance of PAController
+        %> @param obj Instance of PAController
         %> @param hObject    handle to menu_file_quit (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
@@ -142,9 +142,9 @@ classdef PAController < handle
         
         % --------------------------------------------------------------------
         %> @brief  Executes on key press with focus on figure and no controls selected.
-        %> @param Instance of PAController
+        %> @param obj Instance of PAController
         %> @param hObject    handle to figure (gcf)
-        %> @param Structure of key press information.
+        %> @param eventdata Structure of key press information.
         % --------------------------------------------------------------------
         function keyPressCallback(obj,hObject, eventdata)
             % key=double(get(hObject,'CurrentCharacter')); % compare the values to the list
@@ -193,11 +193,11 @@ classdef PAController < handle
         
         % --------------------------------------------------------------------
         %> @brief  Executes on key press with focus on figure and no controls selected.
-        %> @param Instance of PAController
+        %> @param obj Instance of PAController
         %> @param hObject    handle to figure (gcf), unused
-        %> @param Structure of key press information.
+        %> @param eventdata Structure of key press information.
         % --------------------------------------------------------------------
-        function keyReleaseCallback(obj,~, eventdata)
+        function keyReleaseCallback(obj,hObject, eventdata)
             
             key=eventdata.Key;
             if(strcmp(key,'shift'))
@@ -210,9 +210,9 @@ classdef PAController < handle
         %> If the currentObject selected is the secondary axes, then 
         %> the current window is set to the closest window corresponding to
         %> the mouse's x-position.
-        %> @param Instance of PAController
+        %> @param obj Instance of PAController
         %> @param hObject    handle to figure (gcf), unused
-        %> @param Structure of mouse press information; unused
+        %> @param eventData Structure of mouse press information; unused
         % --------------------------------------------------------------------
         function windowButtonUpCallback(obj,hObject,eventData)
             
@@ -228,9 +228,9 @@ classdef PAController < handle
         
         % --------------------------------------------------------------------
         %> @brief  Executes when user first clicks the mouse.
-        %> @param Instance of PAController
+        %> @param obj Instance of PAController
         %> @param hObject    handle to figure (gcf), unused
-        %> @param Structure of mouse press information; unused
+        %> @param eventData Structure of mouse press information; unused
         % --------------------------------------------------------------------
         function windowButtonDownCallback(obj,hObject,eventData)
 %             if(strcmpi(obj.marking_state,'off')) %don't want to reset the state if we are marking events
@@ -254,7 +254,7 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         %> @brief Assign figure's menubar callbacks.
         %> Called internally during class construction.
-        %> @param Instance of PAController
+        %> @param obj Instance of PAController
         % --------------------------------------------------------------------        
         function configureMenubar(obj)
             figH = obj.VIEW.getFigHandle();
@@ -271,7 +271,7 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         %> @brief Assign callbacks to various user interface widgets.
         %> Called internally during class construction.
-        %> @param Instance of PAController
+        %> @param obj Instance of PAController
         % --------------------------------------------------------------------
         function configureWidgetCallbacks(obj)
             handles = guidata(obj.VIEW.getFigHandle());
@@ -292,14 +292,14 @@ classdef PAController < handle
         %> 'features'.  If 'Features' is selected, then the Feature dropdown
         %> menu is enabled, and is disabled otherwise.  The view is
         %> redrawn.
-        %> @param Instance of PAController
-        %> @param Handle to button group panel.  
-        %> @param Structure of event data to include:
+        %> @param obj Instance of PAController
+        %> @param hObject Handle to button group panel.  
+        %> @param eventData Structure of event data to include:
         %> @li @c EventName 'SelectionChanged'
         %> @li @c OldValue Handle to the previous callback
         %> @li @c NewValue Handle to the current callback
         % --------------------------------------------------------------------
-        function displayChangeCallback(obj,~,eventData)
+        function displayChangeCallback(obj,hObject,eventData)
             displayType = get(eventData.NewValue,'string');
             obj.VIEW.setDisplayType(displayType);  
             obj.VIEW.draw();
@@ -308,8 +308,8 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         %> @brief Executes a radio button group callback (i.e.
         %> displayChangeCallback).
-        %> @param Instance of PAController
-        %> @param String value of the radio button to set.  Can be
+        %> @param obj Instance of PAController
+        %> @param displayType String value of the radio button to set.  Can be
         %> @li @c time series
         %> @li @c aggregate bins
         %> @li @c features        
@@ -339,9 +339,9 @@ classdef PAController < handle
         %> @brief Callback for pressing the Go push button.  Method
         %> determines parameters from current view settings (i.e. menu
         %> selections for prefilter and aggregate methods).
-        %> @param Instance of PAController
-        %> @param Handle to the edit text widget
-        %> @param Required by MATLAB, but not used
+        %> @param obj Instance of PAController
+        %> @param hObject Handle to the edit text widget
+        %> @param eventdata Required by MATLAB, but not used
         % --------------------------------------------------------------------
         function button_goCallback(obj,hObject,eventdata)
             %obtain the prefilter and feature extraction methods
@@ -371,8 +371,8 @@ classdef PAController < handle
         
         % --------------------------------------------------------------------
         %> @brief Retrieves current prefilter method from the GUI
-        %> @param Instance of PAController
-        %> @param String value of the current prefilter method.
+        %> @param obj Instance of PAController
+        %> @retval prefilterMethod value of the current prefilter method.
         % --------------------------------------------------------------------
         function prefilterMethod = getPrefilterMethod(obj)
             prefilterMethods = get(obj.VIEW.menuhandle.prefilterMethod,'string');
@@ -386,8 +386,8 @@ classdef PAController < handle
         
         % --------------------------------------------------------------------
         %> @brief Retrieves current extractor method from the GUI
-        %> @param Instance of PAController
-        %> @param String value of the current feature extraction method.
+        %> @param obj Instance of PAController
+        %> @retval extractorMethod String value of the current feature extraction method.
         % --------------------------------------------------------------------
         function extractorMethod = getExtractorMethod(obj)
             extractorMethods = get(obj.VIEW.menuhandle.extractorMethod,'string');
@@ -402,9 +402,9 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         %> @brief Callback for menu with window duration selections (values
         %> are in seconds)
-        %> @param Instance of PAController
-        %> @param Handle to the edit text widget
-        %> @param Required by MATLAB, but not used
+        %> @param obj Instance of PAController
+        %> @param hObject Handle to the edit text widget
+        %> @param eventdata Required by MATLAB, but not used
         % --------------------------------------------------------------------
         function menu_windowDurSecCallback(obj,hObject,eventdata)
             %get the array of window sizes in seconds
@@ -421,12 +421,11 @@ classdef PAController < handle
             obj.setCurWindow(obj.curWindow());
         end
         
-        
         % --------------------------------------------------------------------
         %> @brief Callback for current window's edit textbox.
-        %> @param Instance of PAController
-        %> @param Handle to the edit text widget
-        %> @param Required by MATLAB, but not used
+        %> @param obj Instance of PAController
+        %> @param hObject Handle to the edit text widget
+        %> @param eventdata Required by MATLAB, but not used
         % --------------------------------------------------------------------
         function edit_curWindowCallback(obj,hObject,eventdata)
             window = str2double(get(hObject,'string'));
@@ -435,9 +434,9 @@ classdef PAController < handle
         
         % --------------------------------------------------------------------
         %> @brief Callback for aggregate size edit textbox.
-        %> @param Instance of PAController
-        %> @param Handle to the edit text widget
-        %> @param Required by MATLAB, but not used
+        %> @param obj Instance of PAController
+        %> @param hObject Handle to the edit text widget
+        %> @param eventdata Required by MATLAB, but not used
         %> @note Entered values are interepreted as minutes.
         % --------------------------------------------------------------------
         function edit_aggregateCallback(obj,hObject,eventdata)
@@ -447,34 +446,34 @@ classdef PAController < handle
         
         % --------------------------------------------------------------------
         %> @brief Callback for frame size in minutes edit textbox.
-        %> @param Instance of PAController
-        %> @param Handle to the edit text widget
-        %> @param Required by MATLAB, but not used
+        %> @param obj Instance of PAController
+        %> @param hObject Handle to the edit text widget
+        %> @param eventdata Required by MATLAB, but not used
         %> @note Entered values are interepreted as minutes.
         % --------------------------------------------------------------------
         function edit_frameSizeMinutesCallback(obj,hObject,eventdata)
             frameDurationMinutes = str2double(get(hObject,'string'));
-            obj.setFrameDuration(frameDurationMinutes);
+            obj.setFrameDurationMinutes(frameDurationMinutes);
         end 
         
         % --------------------------------------------------------------------
         %> @brief Callback for frame size in hours edit textbox.
-        %> @param Instance of PAController
-        %> @param Handle to the edit text widget
-        %> @param Required by MATLAB, but not used
+        %> @param obj Instance of PAController
+        %> @param hObject Handle to the edit text widget
+        %> @param eventdata Required by MATLAB, but not used
         %> @note Entered values are interepreted as hours.
         % --------------------------------------------------------------------
         function edit_frameSizeHoursCallback(obj,hObject,eventdata)
             frameDurationHours = str2double(get(hObject,'string'));
-            obj.setFrameDuration(frameDurationHours);
+            obj.setFrameDurationHours(frameDurationHours);
         end        
         
         
         % --------------------------------------------------------------------
         %> @brief Set the aggregate duration in minutes.
-        %> @param Instance of PAController
-        %> @param Aggregate duration in minutes.
-        %> @retval True if the aggregate duration is changed, and false otherwise.
+        %> @param obj Instance of PAController
+        %> @param new_aggregateDuration Aggregate duration in minutes.
+        %> @retval success True if the aggregate duration is changed, and false otherwise.
         % --------------------------------------------------------------------
         function success = setAggregateDuration(obj,new_aggregateDuration)
             success = false;
@@ -488,19 +487,33 @@ classdef PAController < handle
         end
         
         % --------------------------------------------------------------------
-        %> @brief Set the frame size in minutes.
-        %> @param Instance of PAController
-        %> @param Aggregate duration in minutes.
-        %> @retval True if the frame duration is changed, and false otherwise.
+        %> @brief Set the frame size minute's units.
+        %> @param obj Instance of PAController
+        %> @param new_frameDurationMinutes Frame duration minutes measure.
+        %> @retval success True if the frame duration is changed, and false otherwise.
         % --------------------------------------------------------------------
-        function success = setFrameDuration(obj,new_frameDurationMinutes,new_frameDurationHours)
+        function success = setFrameDurationMinutes(obj,new_frameDurationMinutes)
             success = false;
             if(~isempty(obj.accelObj))                
-                cur_frameDuration = obj.accelObj.setFrameDuration(new_frameDurationMinutes+new_frameDurationHours*60);
-                
-%                 obj.VIEW.setFrameDurationMinutes(num2str(cur_frameDuration));
-                
-                if(new_frameDuration==cur_frameDuration)
+                cur_frameDurationMinutes = obj.accelObj.setFrameDurationMinutes(new_frameDurationMinutes);
+                obj.VIEW.setFrameDurationMinutes(num2str(cur_frameDurationMinutes));
+                if(new_frameDurationMinutes==cur_frameDurationMinutes)
+                    success=true;
+                end
+            end
+        end
+         % --------------------------------------------------------------------
+        %> @brief Set the frame size hour's units
+        %> @param obj Instance of PAController
+        %> @param new_frameDurationHours Hours for frame duration.
+        %> @retval success True if the frame duration is changed, and false otherwise.
+        % --------------------------------------------------------------------
+        function success = setFrameDurationHours(obj,new_frameDurationHours)
+            success = false;
+            if(~isempty(obj.accelObj))                
+                cur_frameDurationHours = obj.accelObj.setFrameDurationHours(new_frameDurationHours);
+                obj.VIEW.setFrameDurationHours(num2str(cur_frameDurationHours));
+                if(new_frameDurationHours==cur_frameDurationHours)
                     success=true;
                 end
             end
@@ -509,9 +522,9 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         %> @brief Set the current window for the instance variable accelObj
         %> (PAData)
-        %> @param Instance of PAController
-        %> @param Value of the new window to set.
-        %> @retval True if the window is set successfully, and false otherwise.
+        %> @param obj Instance of PAController
+        %> @param new_window Value of the new window to set.
+        %> @retval success True if the window is set successfully, and false otherwise.
         %> @note Reason for failure include window values that are outside
         %> the range allowed by accelObj (e.g. negative values or those
         %> longer than the duration given.  
@@ -530,8 +543,8 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         %> @brief Returns the current window of the instance variable accelObj
         %> (PAData)
-        %> @param Instance of PAController
-        %> @retval The  current window, or null if it has not been initialized.
+        %> @param obj Instance of PAController
+        %> @retval window The  current window, or null if it has not been initialized.
         function window = curWindow(obj)
             if(isempty(obj.accelObj))
                 window = [];
@@ -542,25 +555,31 @@ classdef PAController < handle
         
         % --------------------------------------------------------------------
         %> @brief Menubar callback for opening a file.
-        %> @param Instance of PAController
-        %> @param hObject    handle to menu_file_open (see GCBO)
+        %> @param obj Instance of PAController
+        %> @param hObject  handle to menu_file_open (see GCBO)
+        %> @param eventdata Required by MATLAB, but not used.
         % --------------------------------------------------------------------
         function menuFileOpenCallback(obj,hObject,eventdata)
             f=uigetfullfile({'*.csv;*.raw','All (Count or raw)';'*.csv','Comma Separated Values';'*.raw','Raw Format (comma separated values)'},'Select a file','off',fullfile(obj.SETTINGS.DATA.lastPathname,obj.SETTINGS.DATA.lastFilename));
-            
-            if(~isempty(f))
-                obj.VIEW.showBusy('Loading');
-                obj.accelObj = PAData(f);
-                
-                %initialize the PAData object's visual properties
-                obj.initView();
+            try
+                if(~isempty(f))
+                    
+                    obj.VIEW.showBusy('Loading');
+                    obj.accelObj = PAData(f);
+                    
+                    %initialize the PAData object's visual properties
+                    obj.initView(); %calls show obj.VIEW.showReady() Ready...
+                end
+            catch me
+                showME(me);
+                obj.VIEW.showReady();
             end
         end
         
         % --------------------------------------------------------------------
         %> @brief Menubar callback for quitting the program.
         %> Executes when user attempts to close padaco fig.
-        %> @param Instance of PAController
+        %> @param obj Instance of PAController
         %> @param hObject    handle to menu_file_quit (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
@@ -576,14 +595,13 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         %> @brief Initializes the display using instantiated instance
         %> variables VIEW (PAView) and accelObj (PAData)
-        %> @param Instance of PAController
+        %> @param obj Instance of PAController
         % --------------------------------------------------------------------
         function initView(obj)
             %keep record of our settings
             obj.SETTINGS.DATA.lastPathname = obj.accelObj.pathname;
             obj.SETTINGS.DATA.lastFilename = obj.accelObj.filename;
             
-            obj.VIEW.showReady();
             
             obj.VIEW.initWithAccelData(obj.accelObj);
             
@@ -594,8 +612,11 @@ classdef PAController < handle
             obj.VIEW.setDisplayType(displayType);
             
             obj.setCurWindow(1);
-            obj.setFrameDuration(15);
+            obj.setFrameDurationMinutes(15);
+            obj.setFrameDurationHours(0);
             obj.setAggregateDuration(3);
+            obj.VIEW.showReady();
+            
         end
     end
     

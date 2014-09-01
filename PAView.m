@@ -1,17 +1,13 @@
-%> @file PAView.m
-%> @brief PAView serves as Padaco's controller component (i.e. in the model, view, controller paradigm).
+%> @file PAView.cpp
+%> @brief PAView serves as Padaco's view component (i.e. in the model, view, controller paradigm).
 % ======================================================================
-%> @brief PAView serves as the UI component of event marking in
-%> the Padaco.  
-%
-%> In the model, view, controller paradigm, this is the
-%> controller. 
-
+%> @brief PAView serves as Padaco's view component.
+%> In the model, view, controller paradigm, this is the view.
 classdef PAView < handle
     
     properties (Access = private)
         
-        %> String representing the current type of display being used.
+        %> @brief String representing the current type of display being used.
         %> Can be
         %> @li @c Time Series
         %> @li @c Aggregate Bins
@@ -35,25 +31,25 @@ classdef PAView < handle
         figurehandle;
         
         %> @brief struct whose fields are axes handles.  Fields include:
-        %> - @b.primary handle to the main axes an instance of this class is associated with
-        %> - @b.secondary Window view of events (over view)
+        %> - @b primary handle to the main axes an instance of this class is associated with
+        %> - @b secondary Window view of events (over view)
         axeshandle;
 
         %> @brief struct whose fields are structs with names of the axes and whose fields are property values for those axes.  Fields include:
-        %> - @b.primary handle to the main axes an instance of this class is associated with
-        %> - @b.secondary Window view of events (over view)
+        %> - @b primary handle to the main axes an instance of this class is associated with
+        %> - @b secondary Window view of events (over view)
         axesproperty;
         
         %> @brief struct of text handles.  Fields are: 
-        %> - .status; %handle to the text status location of the Padaco figure where updates can go
-        %> - .src_filename; %handle to the text box for display of loaded filename
-        %> - .edit_window;  %handle to the editable window handle        
+        %> - @c status handle to the text status location of the Padaco figure where updates can go
+        %> - @c src_filename handle to the text box for display of loaded filename
+        %> - @c edit_window  handle to the editable window handle        
         texthandle; 
         
         %> @brief struct of menu handles.  Fields are: 
-        %> - .menu_windowDurSec The window display duration in seconds
-        %> - .menu_prefilter The selection of prefilter methods
-        %> - .menu_extractor The selection of feature extraction methods
+        %> - @c menu_windowDurSec The window display duration in seconds
+        %> - @c menu_prefilter The selection of prefilter methods
+        %> - @c menu_extractor The selection of feature extraction methods
         menuhandle;
         %> @brief Struct of line handles (graphic handle class) for showing
         %> activity data.
@@ -89,8 +85,8 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> PAView class constructor.
-        %> @param Figure handle to assign PAView instance to.
-        %> @retval Instance of PAView
+        %> @param Padaco_fig_h Figure handle to assign PAView instance to.
+        %> @retval obj Instance of PAView
         % --------------------------------------------------------------------
         function obj = PAView(Padaco_fig_h)
             if(ishandle(Padaco_fig_h))
@@ -104,7 +100,7 @@ classdef PAView < handle
                 
         % --------------------------------------------------------------------
         %> @brief Creates line handles and maps figure tags to PAView instance variables.
-        %> @param Instance of PAView.
+        %> @param obj Instance of PAView.
         % --------------------------------------------------------------------
         function createView(obj)
             handles = guidata(obj.getFigHandle());
@@ -145,16 +141,13 @@ classdef PAView < handle
             %creates and initializes line handles (obj.linehandle fields)
             % However, all lines are invisible.
             obj.createLineAndLabelHandles();
-
-            
-            
-            
         end
         
         % --------------------------------------------------------------------
         %> @brief Sets current window edit box string value
-        %> @param Instance of PAView.
-        %> @param A string.
+        %> @param obj Instance of PAView.
+        %> @param windowStr A string to display in the current window edit
+        %> box.
         % --------------------------------------------------------------------
         function setCurWindow(obj,windowStr)
            set(obj.texthandle.curWindow,'string',windowStr); 
@@ -163,12 +156,10 @@ classdef PAView < handle
            obj.draw();
         end
         
-        
-        
         % --------------------------------------------------------------------
         %> @brief Sets aggregate duration edit box string value
-        %> @param Instance of PAView.
-        %> @param A string representing the aggregate duration as minutes.
+        %> @param obj Instance of PAView.
+        %> @param aggregateDurationStr A string representing the aggregate duration as minutes.
         % --------------------------------------------------------------------
         function setAggregateDuration(obj,aggregateDurationStr)
            set(obj.texthandle.aggregateDuration,'string',aggregateDurationStr);            
@@ -176,8 +167,8 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         %> @brief Retrieves the aggregate duration edit box value as a
         %> number.
-        %> @param Instance of PAView.
-        %> @retval The aggregate duration (in minutes) currently set in the text edit box
+        %> @param obj Instance of PAView.
+        %> @retval aggregateDurMin The aggregate duration (in minutes) currently set in the text edit box
         %> as a numeric value.
         % --------------------------------------------------------------------
         function aggregateDurMin = getAggregateDuration(obj)
@@ -185,18 +176,27 @@ classdef PAView < handle
         end
         
         % --------------------------------------------------------------------
-        %> @brief Sets frame duration edit box string value
-        %> @param Instance of PAView.
-        %> @param A string representing the frame duration as minutes.
+        %> @brief Sets frame duration edit box (minutes) string value
+        %> @param obj Instance of PAView.
+        %> @param frameDurationMinutesStr A string representing the frame duration as minutes.
         % --------------------------------------------------------------------
-        function setFrameDuration(obj,frameDurationStr)
-           set(obj.texthandle.frameDuration,'string',frameDurationStr);            
+        function setFrameDurationMinutes(obj,frameDurationMinutesStr)
+           set(obj.texthandle.frameDurationMinutes,'string',frameDurationMinutesStr);            
+        end   
+        
+        % --------------------------------------------------------------------
+        %> @brief Sets frame duration edit box (hours) string value
+        %> @param obj Instance of PAView.
+        %> @param frameDurationHoursStr A string representing the frame duration as minutes.
+        % --------------------------------------------------------------------
+        function setFrameDurationHours(obj,frameDurationHoursStr)
+           set(obj.texthandle.frameDurationHours,'string',frameDurationHoursStr);            
         end   
         
         % --------------------------------------------------------------------
         %> @brief Sets display type instance variable.    
-        %> @param Instance of PAView.
-        %> @param A string representing the display type.  Can be 
+        %> @param obj Instance of PAView.
+        %> @param displayTypeStr A string representing the display type.  Can be 
         %> @li @c Time Series
         %> @li @c Aggregate Bins
         %> @li @c Features
@@ -231,14 +231,24 @@ classdef PAView < handle
         end        
         
         % --------------------------------------------------------------------
-        %> @brief Retrieves the aggregate duration edit box value as a
+        %> @brief Retrieves the frame duration edit box value (minutes) as a
         %> number.
-        %> @param Instance of PAView.
-        %> @retval The frame duration (in minutes) currently set in the text edit box
+        %> @param obj Instance of PAView.
+        %> @retval frameDurMinutes The frame duration (in minutes) currently set in the text edit box
         %> as a numeric value.
         % --------------------------------------------------------------------
-        function frameDurMin = getFrameDuration(obj)
-            frameDurMin = str2double(get(obj.texthandle.frameDuration,'string'));
+        function frameDurMinutes = getFrameDurationMinutes(obj)
+            frameDurMinutes = str2double(get(obj.texthandle.frameDurationMinutes,'string'));
+        end        
+        % --------------------------------------------------------------------
+        %> @brief Retrieves the frame duration hours edit box value ) as a
+        %> number.
+        %> @param obj Instance of PAView.
+        %> @retval frameDurHours The frame duration (hours) currently set in the text edit box
+        %> as a numeric value.
+        % --------------------------------------------------------------------
+        function frameDurHours = getFrameDurationHours(obj)
+            frameDurHours = str2double(get(obj.texthandle.frameDurationHours,'string'));
         end        
         
         % --------------------------------------------------------------------
@@ -251,6 +261,9 @@ classdef PAView < handle
         
        
         % --------------------------------------------------------------------
+        %> @brief Clears the main figure's handles (deletes all children
+        %> handles).
+        %> @param obj Instance of PAView.
         % --------------------------------------------------------------------
         function clearFigure(obj)
             
@@ -347,14 +360,9 @@ classdef PAView < handle
         %> names in PADataObject.        
         %> @note Resets the currentWindow to 1.
         %> @param obj Instance of PAView
-        %> @param PADataObject Instance of PAData
-        %> @brief 
-        
-        %> @param (Optional) PAData display struct that matches the linehandle struct of
+        %> @param PADataObject (Optional) PAData display struct that matches the linehandle struct of
         %> obj and whose values will be assigned to the 'ydata','xdata', and 'color' fields of the
-        %> line handles.
-        %> @param (Optional) PAData label struct containing string labels and whose fields match
-        %> the linehandle struct of obj.  A label property struct will be created
+        %> line handles.  A label property struct will be created
         %> using the string values of labelStruct and the initial x, y value of the line
         %> props to initialize the 'string' and 'position' properties of 
         %> obj's corresponding label handles.          
@@ -371,8 +379,7 @@ classdef PAView < handle
             axesProps.secondary.ylim = [0 1];
             
             obj.initAxesHandles(axesProps);
-            
-            
+                        
             %initialize the various line handles and label content and
             %color.
             structType = PAData.getStructTypes();
@@ -388,9 +395,6 @@ classdef PAView < handle
                 %                 visibleProp.visible = 'off';
                 %                 labelProps = PAData.appendStruct(labelProps,visibleProp);
                 
-                
-                
-                
                 lineProps = PADataObject.getStruct('dummydisplay',curDescription);
                 obj.recurseHandleSetter(obj.linehandle.(curName),lineProps);
                 obj.recurseHandleSetter(obj.referencelinehandle.(curName),lineProps);
@@ -404,14 +408,14 @@ classdef PAView < handle
                 obj.recurseHandleSetter(obj.labelhandle.(curName),labelProps);                
             end
             
-            
-            
             obj.setFilename(obj.dataObj.getFilename());  
             
             obj.setStudyPanelContents(PADataObject.getHeaderAsString);
             
             obj.setAggregateDuration(num2str(PADataObject.aggregateDurMin));
-            obj.setFrameDuration(num2str(PADataObject.frameDurMin));
+            [frameDurationMinutes, frameDurationHours] = PADataObject.getFrameDuration();
+            obj.setFrameDurationMinutes(num2str(frameDurationMinutes));
+            obj.setFrameDurationHours(num2str(frameDurationHours));
             
             obj.initMenubar();
             obj.initWidgets();
@@ -426,10 +430,10 @@ classdef PAView < handle
         %> Set the x and y limits of the axes based on limits found in
         %> dataStruct struct.
         %> @param obj Instance of PAView
-        %> @param Structure of axes property structures.  First fields
+        %> @param axesProps Structure of axes property structures.  First fields
         %> are:
-        %> - primary (for the primary axes);
-        %> - secondary (for the secondary axes, lower, timeline axes)
+        %> - @c primary (for the primary axes);
+        %> - @c secondary (for the secondary axes, lower, timeline axes)
         % --------------------------------------------------------------------
         function initAxesHandles(obj,axesProps)
             axesNames = fieldnames(axesProps);
@@ -523,7 +527,7 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         %> @brief Updates the secondary axes x and y axes limits.
         %> @param obj Instance of PAView
-        %> @param The total number of windows that can be displayed in the
+        %> @param windowCount The total number of windows that can be displayed in the
         %> primary axes.  This will be xlim(2) for the secondary axes (i.e.
         %> timeline/overview axes).
         % --------------------------------------------------------------------
@@ -570,17 +574,34 @@ classdef PAView < handle
         end
 
         
+        % --------------------------------------------------------------------
+        %> @brief Enables the aggregate radio button.  
+        %> @note Requires aggregate data exists in the associated
+        %> PAData object instance variable 
+        %> @param obj Instance of PAView
+        % --------------------------------------------------------------------
         function enableAggregateRadioButton(obj)
             handles = guidata(obj.getFigHandle());
             set(handles.radio_bins,'enable','on');
         end
         
+        % --------------------------------------------------------------------
+        %> @brief Enables the Feature radio button.  
+        %> @note Requires feature data exist in the associated
+        %> PAData object instance variable 
+        %> @param obj Instance of PAView
+        % --------------------------------------------------------------------
         function enableFeatureRadioButton(obj)
             handles = guidata(obj.getFigHandle());
             set(handles.radio_features,'enable','on');
             set(handles.radio_features,'enable','on');
         end
         
+        % --------------------------------------------------------------------
+        %> @brief Appends the new feature to the drop down feature menu.
+        %> @param obj Instance of PAView
+        %> @param newFeature String label to append to the drop down feature menu.
+        % --------------------------------------------------------------------
         function appendFeatureMenu(obj,newFeature)
             
             handles = guidata(obj.getFigHandle());
@@ -596,8 +617,8 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> @brief Displays the string argument in the view.
-        %> @param PADataObject Instance of PAData
-        %> @param String that will be displayed in the view as the source filename when provided.
+        %> @param obj PADataObject Instance of PAData
+        %> @param sourceFilename String that will be displayed in the view as the source filename when provided.
         % --------------------------------------------------------------------
         function setFilename(obj,sourceFilename)
             set(obj.texthandle.filename,'string',sourceFilename,'visible','on');
@@ -605,8 +626,8 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> @brief Displays the contents of cellString in the study panel
-        %> @param PADataObject Instance of PAData
-        %> @param Cell of string that will be displayed in the study panel.  Each 
+        %> @param obj PADataObject Instance of PAData
+        %> @param cellString Cell of string that will be displayed in the study panel.  Each 
         %> cell element is given its own display line.
         % --------------------------------------------------------------------
         function setStudyPanelContents(obj,cellString)
@@ -615,17 +636,18 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> @brief Draws the view
-        %> @param PADataObject Instance of PAData
+        %> @param obj PADataObject Instance of PAData
         % --------------------------------------------------------------------
         function draw(obj)
             % Axes range must occur at the top as it is used to determine
             % the position of text labels.
             axesRange   = obj.dataObj.getCurUncorrectedWindowRange(obj.displayType);
+            
+            %make it increasing
             if(diff(axesRange)==0)
-                axesRange(2) = axesRange(1)+eps;
+                axesRange(2) = axesRange(2)+1;
             end
             set(obj.axeshandle.primary,'xlim',axesRange);
-
             
             structFieldName = PAData.getStructNameFromDescription(obj.displayType);
             lineProps   = obj.dataObj.getStruct('currentdisplay',obj.displayType);
@@ -650,9 +672,9 @@ classdef PAView < handle
 
         % --------------------------------------------------------------------
         %> @brief Sets the color of the line handles.
-        %> @param Instance of PAView
-        %> @param Struct of line handles to set the color of.        
-        %> @param Struct with field organization corresponding to that of
+        %> @param obj Instance of PAView
+        %> @param lineHandleStruct Struct of line handles to set the color of.        
+        %> @param colorStruct Struct with field organization corresponding to that of
         %> input line handles.  The values are the colors to set
         %> the matching line handle to.
         % --------------------------------------------------------------------
@@ -663,8 +685,13 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         %> @brief Calculates the 'position' property of the labelhandle
         %> instance variable.
-        %> @param Instance of PAView.        
-        %> @retval A struct of 'position' properties that can be assigned
+        %> @param obj Instance of PAView.      
+        %> @param displayTypeStr String representing the current display
+        %> type.  This can be
+        %> @li @c time series
+        %> @li @c aggregate bins
+        %> @li @c Features        
+        %> @retval labelPosStruct A struct of 'position' properties that can be assigned
         %> to labelhandle instance variable.
         % --------------------------------------------------------------------
         function labelPosStruct = getLabelhandlePosition(obj,displayTypeStr)
@@ -691,7 +718,7 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         %> @brief Get the view's line handles as a struct.
         %> @param obj Instance of PAView
-        %> @retval View's line handles as a struct.
+        %> @retval linehandle View's line handles as a struct.
         % --------------------------------------------------------------------
         function lineHandle = getLinehandle(obj)
             lineHandle = obj.linehandle;
@@ -700,7 +727,10 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> @brief Shows busy status (mouse becomes a watch).
-        %> @param obj Instance of PAView        
+        %> @param obj Instance of PAView  
+        %> @param status_label Optional string which, if included, is displayed
+        %> in the figure's status text field (currently at the top right of
+        %> the view).
         % --------------------------------------------------------------------
         function showBusy(obj,status_label)
             set(obj.getFigHandle(),'pointer','watch');
@@ -721,7 +751,10 @@ classdef PAView < handle
         end
         
      
-        %VIEW parts of the class....  to be implemented later.      
+        % --------------------------------------------------------------------
+        %> @brief Restores the view to ready state (mouse becomes the default pointer).
+        %> @param obj Instance of PAView        
+        % --------------------------------------------------------------------
         function obj = restore_state(obj)
             obj.clear_handles();
             
@@ -729,6 +762,10 @@ classdef PAView < handle
             obj.marking_state = 'off';
         end
         
+        % --------------------------------------------------------------------
+        %> @brief An alias for showReady()
+        %> @param obj Instance of PAView        
+        % --------------------------------------------------------------------
         function obj = clear_handles(obj)
             obj.showReady();
         end
@@ -742,12 +779,12 @@ classdef PAView < handle
         %> has numeric values in its deepest nodes, then these values are
         %> assigned as the y-values of the corresponding line handle, and the
         %> x-value is a vector from 1 to the number of elements in y.
-        %> @param obj Instance of PAView
         %> @param dummyStruct Structure with arbitrarily deep number fields.
-        %> @param String name of the type of handle to be created:
+        %> @param handleType String name of the type of handle to be created:
         %> - @c line
         %> - @c text
-        %> @param Struct of line handle properties to initialize line handles with.  
+        %> @param handleProperties Struct of line handle properties to initialize line handles with.  
+        %> @param destStruct Optional struct; see note.
         %> @retval destStruct The filled in struct, with the same field
         %> layout as dummyStruct but with line handles filled in at the
         %> deepest nodes.
@@ -797,7 +834,7 @@ classdef PAView < handle
         %> of handle properties.
         %> @param handleStruct The struct of matlab graphic handles.  This
         %> is searched recursively until a handle is found (i.e. ishandle())
-        %> @param Structure of property/value pairings to set the graphic
+        %> @param propertyStruct Structure of property/value pairings to set the graphic
         %> handles found in handleStruct to.
         %==================================================================
         function recurseHandleSetter(handleStruct, propertyStruct)
@@ -825,7 +862,7 @@ classdef PAView < handle
         %> in the propStruct argument.
         %> @param handleStruct The struct of line handles to set the
         %> properties of.  
-        %> @param Structure of property structs (i.e. property/value pairings) to set the graphic
+        %> @param propertyStruct Structure of property structs (i.e. property/value pairings) to set the graphic
         %> handles found in handleStruct to.
         %==================================================================
         function setStructWithStruct(handleStruct,propertyStruct)
@@ -850,7 +887,7 @@ classdef PAView < handle
         %> provided structure with the handle properties provided.
         %> @param handleStruct The struct of line handles to set the
         %> properties of.  
-        %> @param Structure of property/value pairings to set the graphic
+        %> @param properties Structure of property/value pairings to set the graphic
         %> handles found in handleStruct to.
         %==================================================================
         function recurseHandleInit(handleStruct,properties)
@@ -866,15 +903,6 @@ classdef PAView < handle
                     end
                 end
             end
-        end
-        
-        % --------------------------------------------------------------------
-        function popout_axes(~, ~, axes_h)
-            % hObject    handle to context_menu_pop_out (see GCBO)
-            % eventdata  reserved - to be defined in a future version of MATLAB
-            % handles    structure with handles and user data (see GUIDATA)
-            fig = figure;
-            copyobj(axes_h,fig); %or get parent of hObject's parent
         end
     end
 end
@@ -913,3 +941,16 @@ end
 % obj.recurseHandleSetter(obj.labelhandle, labelProps);
 % end
 
+
+
+% % --------------------------------------------------------------------
+% %> @brief Restores the view to ready state (mouse becomes the default pointer).
+% %> @param obj Instance of PAView
+% % --------------------------------------------------------------------
+% function popout_axes(~, ~, axes_h)
+% % hObject    handle to context_menu_pop_out (see GCBO)
+% % eventdata  reserved - to be defined in a future version of MATLAB
+% % handles    structure with handles and user data (see GUIDATA)
+% fig = figure;
+% copyobj(axes_h,fig); %or get parent of hObject's parent
+% end
