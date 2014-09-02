@@ -220,8 +220,9 @@ classdef PAController < handle
             if(~isempty(selected_obj))
                 if(selected_obj==obj.VIEW.axeshandle.secondary)
                     pos = get(selected_obj,'currentpoint');
-                    clicked_window = round(pos(1));
-                    obj.setCurWindow(clicked_window);
+                    clicked_datenum = pos(1); 
+                    cur_window = obj.accelObj.datenum2window(clicked_datenum,obj.VIEW.getDisplayType());
+                    obj.setCurWindow(cur_window,clicked_datenum);
                 end;
             end;
         end
@@ -415,9 +416,6 @@ classdef PAController < handle
             %change it - this internally recalculates the cur window
             obj.accelObj.setWindowDurSec(windowDurSec);
             
-            %resize the secondary axes according to the new window
-            %resolution
-            obj.VIEW.updateSecondaryAxes(obj.accelObj.getWindowCount);
             obj.setCurWindow(obj.curWindow());
         end
         
@@ -466,8 +464,7 @@ classdef PAController < handle
         function edit_frameSizeHoursCallback(obj,hObject,eventdata)
             frameDurationHours = str2double(get(hObject,'string'));
             obj.setFrameDurationHours(frameDurationHours);
-        end        
-        
+        end
         
         % --------------------------------------------------------------------
         %> @brief Set the aggregate duration in minutes.
@@ -524,17 +521,25 @@ classdef PAController < handle
         %> (PAData)
         %> @param obj Instance of PAController
         %> @param new_window Value of the new window to set.
+        %> @param windowStartDateNum The datenum value that the window
+        %> starts at (optional) (see MATLAB's datenum).
         %> @retval success True if the window is set successfully, and false otherwise.
         %> @note Reason for failure include window values that are outside
         %> the range allowed by accelObj (e.g. negative values or those
         %> longer than the duration given.  
         % --------------------------------------------------------------------
-        function success = setCurWindow(obj,new_window)
+        function success = setCurWindow(obj,new_window,windowStartDateNum)
             success= false;
-            if(~isempty(obj.accelObj))                
+            if(~isempty(obj.accelObj))                 
                 cur_window = obj.accelObj.setCurWindow(new_window);
-                obj.VIEW.setCurWindow(num2str(cur_window));
+                
+                if(nargin<3 || isempty(windowStartDateNum))
+                    windowStartDateNum = obj.accelObj.window2datenum(new_window);
+                end
+                
+                obj.VIEW.setCurWindow(num2str(cur_window),windowStartDateNum);
                 if(new_window==cur_window)
+                    
                     success=true;
                 end
             end

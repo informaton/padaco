@@ -205,8 +205,6 @@ classdef PAData < handle
            obj.offset.timeSeries.inclinometer.sitting = obj.yDelta*18.25;
            obj.offset.timeSeries.inclinometer.lying = obj.yDelta*17.5;
            obj.offset.timeSeries.inclinometer.off = obj.yDelta*16.75;
-           
-           
                       
            % label properties for visualization
            obj.label.timeSeries.accelRaw.x.string = 'X';
@@ -222,8 +220,6 @@ classdef PAData < handle
            obj.label.timeSeries.inclinometer.lying.string = 'Lying';
            obj.label.timeSeries.inclinometer.off.string = 'Off';
            
-           
-           
            obj.label.timeSeries.accelRaw.x.position = [0 0 0];
            obj.label.timeSeries.accelRaw.y.position = [0 0 0];
            obj.label.timeSeries.accelRaw.z.position = [0 0 0];
@@ -237,7 +233,6 @@ classdef PAData < handle
            obj.label.timeSeries.inclinometer.lying.position = [0 0 0];
            obj.label.timeSeries.inclinometer.off.position = [0 0 0];
            
-           
            obj.color.timeSeries.accelRaw.x.color = 'r';
            obj.color.timeSeries.accelRaw.y.color = 'b';
            obj.color.timeSeries.accelRaw.z.color = 'g';           
@@ -248,7 +243,6 @@ classdef PAData < handle
            obj.color.timeSeries.inclinometer.lying.color = 'k';
            obj.color.timeSeries.inclinometer.sitting.color = 'k';
            obj.color.timeSeries.inclinometer.off.color = 'k';
-           
            
            % scale to show at - place before the loadFile command, 
            % b/c it will differe based on the type of file loading done.
@@ -262,7 +256,6 @@ classdef PAData < handle
            obj.scale.timeSeries.inclinometer.sitting = 5;
            obj.scale.timeSeries.inclinometer.lying = 5;
            obj.scale.timeSeries.inclinometer.off = 5;
-           
        end
        
 
@@ -631,6 +624,18 @@ classdef PAData < handle
        % --------------------------------------------------------------------
        function windowCount = getWindowCount(obj)
            windowCount = ceil(obj.durationSec/obj.windowDurSec);
+       end
+       
+       % --------------------------------------------------------------------
+       %> @brief Returns the start and stop datenums for the study.
+       %> @param obj Instance of PAData
+       %> @retval startstopnum A 1x2 vector.  
+       %> - startstopnum(1) The datenum of the study's start
+       %> - startstopnum(2) The datenum of the study's end.
+       % --------------------------------------------------------------------
+       function startstopnum =  getStartStopDatenum(obj)
+           startstopnum = [obj.dateTimeNum(1), obj.dateTimeNum(end)];
+           
        end
        
        % ======================================================================
@@ -1131,7 +1136,47 @@ toc
            end;
            window = ceil(sample/(windowDurSec*samplerate));
        end
+
+       % ======================================================================
+       %> @brief Returns the display window for the given datenum
+       %> @param obj Instance of PAData.
+       %> @param datenumSample A date number (datenum) that should be in the range of
+       %> instance variable dateTimeNum
+       %> @param structType String (optional) identifying the type of data to obtain the
+       %> offset from.  Can be 
+       %> @li @c time series (default) - units are sample points
+       %> @li @c features - units are frames
+       %> @li @c aggregate bins - units are bins       
+       %> @retval window The window.
+       % ======================================================================
+       function window = datenum2window(obj,datenumSample,structType)           
+           if(nargin<3 || isempty(structType))
+               structType = 'time series';
+           end           
+           
+           startstopDatenum = obj.getStartStopDatenum();
+           elapsed_time = datenumSample - startstopDatenum(1);
+           [y,m,d,mi,s] = datevec(elapsed_time);
+           elapsedSec = [d, mi, s] * [24*60; 60; 1/60]*60;
+           windowSamplerate = obj.getWindowSamplerate(structType);
+           
+           window = ceil(elapsedSec/(obj.windowDurSec*windowSamplerate));
+       end
        
+       
+       % ======================================================================
+       %> @brief Returns the starting datenum for the window given.
+       %> @param obj Instance of PAData.
+       %> @param windowSample Index of the window to check.       %   
+       %> @retval dateNum the datenum value at the start of windowSample.
+       %> @note The starting point is adjusted based on obj startDatenum
+       %> value and its windowDurSec instance variable.
+       % ======================================================================
+       function dateNum = window2datenum(obj,windowSample)           
+           elapsed_time_sec = (windowSample-1) * obj.windowDurSec;
+           startStopDatenum = obj.getStartStopDatenum();
+           dateNum  = startStopDatenum(1)+datenum([0,0,0,0,0,elapsed_time_sec]);
+       end
        
        function obj = prefilter(obj,method)
            currentNumBins = floor((obj.durationSec/60)/obj.aggregateDurMin);

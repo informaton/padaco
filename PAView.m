@@ -148,11 +148,12 @@ classdef PAView < handle
         %> @param obj Instance of PAView.
         %> @param windowStr A string to display in the current window edit
         %> box.
+        %> @param xpos The position on the x-axis of where the window is.
+        %> This will be a datenum for padaco.
         % --------------------------------------------------------------------
-        function setCurWindow(obj,windowStr)
+        function setCurWindow(obj,windowStr,xpos)
            set(obj.texthandle.curWindow,'string',windowStr); 
-           windowNum = str2double(windowStr);
-           set(obj.positionBarHandle,'xdata',repmat(windowNum,1,2));
+           set(obj.positionBarHandle,'xdata',repmat(xpos,1,2));
            obj.draw();
         end
         
@@ -229,6 +230,19 @@ classdef PAView < handle
                 fprintf('Warning, this string (%s) is not an acceptable option.\n',displayTypeStr);
             end
         end        
+        
+        % --------------------------------------------------------------------
+        %> @brief Returns the display type instance variable.    
+        %> @param obj Instance of PAView.
+        %> @retva; displayTypeStr A string representing the display type.
+        %> Will be one of:
+        %> @li @c Time Series
+        %> @li @c Aggregate Bins
+        %> @li @c Features
+        % --------------------------------------------------------------------
+        function displayTypeStr = getDisplayType(obj)
+            displayTypeStr = obj.displayType;
+        end
         
         % --------------------------------------------------------------------
         %> @brief Retrieves the frame duration edit box value (minutes) as a
@@ -367,7 +381,6 @@ classdef PAView < handle
         %> props to initialize the 'string' and 'position' properties of 
         %> obj's corresponding label handles.          
         % --------------------------------------------------------------------
-        % --------------------------------------------------------------------
         function obj = initWithAccelData(obj, PADataObject)
             
             obj.dataObj = PADataObject;
@@ -375,10 +388,13 @@ classdef PAView < handle
             axesProps.primary.xlim = PADataObject.getCurWindowRange();
             axesProps.primary.ylim = PADataObject.getDisplayMinMax();
             
-            axesProps.secondary.xlim = [1 PADataObject.getWindowCount()];
-            axesProps.secondary.ylim = [0 1];
-            
             obj.initAxesHandles(axesProps);
+            
+            
+            %resize the secondary axes according to the new window
+            %resolution
+            obj.updateSecondaryAxes(PADataObject.getStartStopDatenum());
+            
                         
             %initialize the various line handles and label content and
             %color.
@@ -527,18 +543,45 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         %> @brief Updates the secondary axes x and y axes limits.
         %> @param obj Instance of PAView
+        %> @param startStopDatenum A 1x2 vector of the starting and stoping
+        %> date numbers.
         %> @param windowCount The total number of windows that can be displayed in the
         %> primary axes.  This will be xlim(2) for the secondary axes (i.e.
-        %> timeline/overview axes).
+        %> timeline/overview axes) in the event that startStopDatenum is
+        %> not used.
         % --------------------------------------------------------------------
-        function updateSecondaryAxes(obj,windowCount)
-            if(windowCount<=1)
-                axesProps.secondary.xlim = [1 1.1];
+        function updateSecondaryAxes(obj,startStopDatenum)
+            
+            axesProps.secondary.xlim = startStopDatenum;
+            [y,m,d,h,mi,s] = datevec(diff(startStopDatenum));
+            durationDays = d+h/24+mi/60/24+s/3600/24;
+            if(durationDays<0.25)
+                dateScale = 1/48; %show every 30 minutes
+            elseif(durationDays<0.5)
+                dateScale = 1/24; %show every hour
+            elseif(durationDays<0.75)
+                dateScale = 1/12; %show every couple hours
+            elseif(durationDays<=1)
+                dateScale = 1/6; %show every four hours
+            elseif(durationDays<=2)
+                dateScale = 1/3; %show every 8 hours
+            elseif(durationDays<=10)
+                dateScale = 1/2; %show every 12 hurs
             else
-                axesProps.secondary.xlim = [1 windowCount];
-            end
+                dateScale = 1; %show every 24 hours.
+                
+            end    
+            
+            timeDelta = datenum(0,0,1)*dateScale; 
+            xTick = [startStopDatenum(1):timeDelta:startStopDatenum(2), startStopDatenum(2)];
+            
             axesProps.secondary.ylim = [0 1];
+            axesProps.secondary.xlim = startStopDatenum;
+            axesProps.secondary.XTick = xTick;
+            axesProps.secondary.XTickLabel = datestr(xTick,'ddd HH:MM');
+           
             obj.initAxesHandles(axesProps);
+%             datetick(obj.axeshandle.secondary,'x','ddd HH:MM')
         end
         
         % --------------------------------------------------------------------
