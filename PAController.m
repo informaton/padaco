@@ -87,6 +87,10 @@ classdef PAController < handle
         %% Shutdown functions        
         %> Destructor
         function close(obj)
+            if(~isempty(obj.accelObj))
+                obj.SETTINGS.DATA = obj.accelObj.getSaveParameters();
+               
+            end
             obj.saveParameters(); %requires SETTINGS variable
             obj.SETTINGS = [];
         end        
@@ -222,7 +226,7 @@ classdef PAController < handle
                     pos = get(selected_obj,'currentpoint');
                     clicked_datenum = pos(1); 
                     cur_window = obj.accelObj.datenum2window(clicked_datenum,obj.VIEW.getDisplayType());
-                    obj.setCurWindow(cur_window,clicked_datenum);
+                    obj.setCurWindow(cur_window);
                 end;
             end;
         end
@@ -439,7 +443,7 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function edit_aggregateCallback(obj,hObject,eventdata)
             aggregateDuration = str2double(get(hObject,'string'));
-            obj.setAggregateDuration(aggregateDuration);
+            obj.setAggregateDurationMinutes(aggregateDuration);
         end
         
         % --------------------------------------------------------------------
@@ -472,11 +476,11 @@ classdef PAController < handle
         %> @param new_aggregateDuration Aggregate duration in minutes.
         %> @retval success True if the aggregate duration is changed, and false otherwise.
         % --------------------------------------------------------------------
-        function success = setAggregateDuration(obj,new_aggregateDuration)
+        function success = setAggregateDurationMinutes(obj,new_aggregateDuration)
             success = false;
             if(~isempty(obj.accelObj))                
-                cur_aggregateDuration = obj.accelObj.setAggregateDuration(new_aggregateDuration);
-                obj.VIEW.setAggregateDuration(num2str(cur_aggregateDuration));
+                cur_aggregateDuration = obj.accelObj.setAggregateDurationMinutes(new_aggregateDuration);
+                obj.VIEW.setAggregateDurationMinutes(num2str(cur_aggregateDuration));
                 if(new_aggregateDuration==cur_aggregateDuration)
                     success=true;
                 end
@@ -521,25 +525,18 @@ classdef PAController < handle
         %> (PAData)
         %> @param obj Instance of PAController
         %> @param new_window Value of the new window to set.
-        %> @param windowStartDateNum The datenum value that the window
-        %> starts at (optional) (see MATLAB's datenum).
         %> @retval success True if the window is set successfully, and false otherwise.
         %> @note Reason for failure include window values that are outside
         %> the range allowed by accelObj (e.g. negative values or those
         %> longer than the duration given.  
         % --------------------------------------------------------------------
-        function success = setCurWindow(obj,new_window,windowStartDateNum)
+        function success = setCurWindow(obj,new_window)
             success= false;
             if(~isempty(obj.accelObj))                 
-                cur_window = obj.accelObj.setCurWindow(new_window);
-                
-                if(nargin<3 || isempty(windowStartDateNum))
-                    windowStartDateNum = obj.accelObj.window2datenum(new_window);
-                end
-                
-                obj.VIEW.setCurWindow(num2str(cur_window),windowStartDateNum);
-                if(new_window==cur_window)
-                    
+                curWindow = obj.accelObj.setCurWindow(new_window);
+                windowStartDateNum = obj.accelObj.window2datenum(new_window);
+                obj.VIEW.setCurWindow(num2str(curWindow),windowStartDateNum);
+                if(new_window==curWindow)
                     success=true;
                 end
             end
@@ -565,12 +562,12 @@ classdef PAController < handle
         %> @param eventdata Required by MATLAB, but not used.
         % --------------------------------------------------------------------
         function menuFileOpenCallback(obj,hObject,eventdata)
-            f=uigetfullfile({'*.csv;*.raw','All (Count or raw)';'*.csv','Comma Separated Values';'*.raw','Raw Format (comma separated values)'},'Select a file','off',fullfile(obj.SETTINGS.DATA.lastPathname,obj.SETTINGS.DATA.lastFilename));
+            f=uigetfullfile({'*.csv;*.raw','All (Count or raw)';'*.csv','Comma Separated Values';'*.raw','Raw Format (comma separated values)'},'Select a file','off',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
             try
                 if(~isempty(f))
                     
                     obj.VIEW.showBusy('Loading');
-                    obj.accelObj = PAData(f);
+                    obj.accelObj = PAData(f,obj.SETTINGS.DATA);
                     
                     %initialize the PAData object's visual properties
                     obj.initView(); %calls show obj.VIEW.showReady() Ready...
@@ -593,7 +590,106 @@ classdef PAController < handle
             obj.figureCloseCallback(gcbf,eventdata,handles);
         end
         
-
+        % --------------------------------------------------------------------
+        %> @brief Calculates the median lux value for a given number of sections.
+        %> @param obj Instance of PAController
+        %> @param numPatches (optional) Number of patches to break the
+        %> accelObj lux time series data into and calculate the median
+        %> lumens over.
+        %> @retval medianLumens Vector of median lumen values calculated
+        %> from the lux field of the accelObj PAData object instance
+        %> variable.  Vector values are in consecutive order of the section they are calculated from.
+        %> @retval startStopDatenums Nx2 matrix of datenum values whose
+        %> rows correspond to the start/stop range that the medianLumens
+        %> value (at the same row position) was derived from.
+        %> @note  Sections will not be calculated on equally lenghted        
+        %> sections when numSections does not evenly divide the total number
+        %> of samples.  In this case, the last section may be shorter or
+        %> longer than the others.
+        function [medianLumens,startStopDatenums] = getMedianLumenPatches(obj,numSections)
+            if(nargin<2 || isempty(numSections) || numSections <=1)
+                numSections = 100;
+            end
+            luxData = obj.accelObj.lux;
+            indices = ceil(linspace(1,numel(luxData),numSections+1));
+            medianLumens = zeros(numSections,1);
+            startStopDatenums = zeros(numSections,2);
+            for i=1:numSections
+                medianLumens(i) = median(luxData(indices(i):indices(i+1)));
+                startStopDatenums(i,:) = [obj.accelObj.dateTimeNum(indices(i)),obj.accelObj.dateTimeNum(indices(i+1))];
+            end
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Calculates the mean lux value for a given number of sections.
+        %> @param obj Instance of PAController
+        %> @param numPatches (optional) Number of patches to break the
+        %> accelObj lux time series data into and calculate the mean
+        %> lumens over.
+        %> @retval meanLumens Vector of mean lumen values calculated
+        %> from the lux field of the accelObj PAData object instance
+        %> variable.  Vector values are in consecutive order of the section they are calculated from.
+        %> @retval startStopDatenums Nx2 matrix of datenum values whose
+        %> rows correspond to the start/stop range that the meanLumens
+        %> value (at the same row position) was derived from.
+        %> @note  Sections will not be calculated on equally lenghted        
+        %> sections when numSections does not evenly divide the total number
+        %> of samples.  In this case, the last section may be shorter or
+        %> longer than the others.
+        function [meanLumens,startStopDatenums] = getMeanLumenPatches(obj,numSections)
+            if(nargin<2 || isempty(numSections) || numSections <=1)
+                numSections = 100;
+            end
+            luxData = obj.accelObj.lux;
+            indices = ceil(linspace(1,numel(luxData),numSections+1));
+            meanLumens = zeros(numSections,1);
+            startStopDatenums = zeros(numSections,2);
+            for i=1:numSections
+                meanLumens(i) = mean(luxData(indices(i):indices(i+1)));
+                startStopDatenums(i,:) = [obj.accelObj.dateTimeNum(indices(i)),obj.accelObj.dateTimeNum(indices(i+1))];
+            end
+        end
+        
+        
+        % --------------------------------------------------------------------
+        %> @brief Calculates a desired feature for a particular acceleration object's field value.
+        %> @note This is the general form of getMeanLuxPatches
+        %> @param obj Instance of PAController
+        %> @param featureFcn Function name or handle to use to obtain
+        %> features.
+        %> @param fieldName String name of the accelObj field to obtain data from.  
+        %> @note Data is obtained using dynamic indexing of
+        %> accelObj instance variable (ie.. data = obj.accelObj.(fildName))
+        %> @param numPatches (optional) Number of patches to break the
+        %> accelObj lux time series data into and calculate the mean
+        %> lumens over.
+        %> @retval featureVec Vector of specified feature values calculated
+        %> from the specified (fieldName) field of the accelObj PAData object instance
+        %> variable.  Vector values are in consecutive order of the section they are calculated from.
+        %> @retval startStopDatenums Nx2 matrix of datenum values whose
+        %> rows correspond to the start/stop range that the feature vector
+        %> value (at the same row position) was derived from.
+        %> @note  Sections will not be calculated on equally lenghted        
+        %> sections when numSections does not evenly divide the total number
+        %> of samples.  In this case, the last section may be shorter or
+        %> longer than the others.
+        function [featureVec,startStopDatenums] = getFeatureVecPatches(obj,featureFcn,fieldName,numSections)
+            if(nargin<2 || isempty(numSections) || numSections <=1)
+                numSections = 100;
+            end
+            fieldData = obj.accelObj.(fieldName);
+            indices = ceil(linspace(1,numel(fieldData),numSections+1));
+            featureVec = zeros(numSections,1);
+            startStopDatenums = zeros(numSections,2);
+            for i=1:numSections
+                featureVec(i) = feval(featureFcn,fieldData(indices(i):indices(i+1)));
+                startStopDatenums(i,:) = [obj.accelObj.dateTimeNum(indices(i)),obj.accelObj.dateTimeNum(indices(i+1))];
+            end
+        end
+        
+        
+        
+        
     end
     
     methods(Access=private)
@@ -603,12 +699,16 @@ classdef PAController < handle
         %> @param obj Instance of PAController
         % --------------------------------------------------------------------
         function initView(obj)
-            %keep record of our settings
-            obj.SETTINGS.DATA.lastPathname = obj.accelObj.pathname;
-            obj.SETTINGS.DATA.lastFilename = obj.accelObj.filename;
-            
             
             obj.VIEW.initWithAccelData(obj.accelObj);
+            
+%             [medianLumens,startStopDatenums] = obj.getMedianLumenPatches(1000);
+            [meanLumens,startStopDatenums] = obj.getMeanLumenPatches(1000);
+
+            obj.VIEW.addLumensOverlayToSecondaryAxes(meanLumens,startStopDatenums);
+            
+            [featureVec, startStopDatenums] = getFeatureVecPatches(obj,'mean','vecMag',1000);
+            obj.VIEW.addFeaturesOverlayToSecondaryAxes(featureVec,startStopDatenums);
             
             % set the display to show time series data initially.
             displayType = 'Time Series';
@@ -616,13 +716,19 @@ classdef PAController < handle
             obj.setRadioButton(displayType);
             obj.VIEW.setDisplayType(displayType);
             
-            obj.setCurWindow(1);
-            obj.setFrameDurationMinutes(15);
-            obj.setFrameDurationHours(0);
-            obj.setAggregateDuration(3);
+%             curWindow = obj.SETTINGS.DATA.curWindow;
+%             frameDurMin = obj.SETTINGS.DATA.frameDurationMinutes;
+%             frameDurHour = obj.SETTINGS.DATA.frameDurationHour;
+%             aggregateDur = obj.SETTINGS.DATA.aggregateDuration;
+            obj.setCurWindow(obj.accelObj.getCurWindow());
+            
+%             obj.setFrameDurationMinutes(frameDurMin);
+%             obj.setFrameDurationHours(frameDurHour);
+%             obj.setAggregateDurationMinutes(aggregateDur);
             obj.VIEW.showReady();
             
         end
+        
     end
     
 end

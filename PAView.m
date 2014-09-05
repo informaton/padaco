@@ -47,9 +47,10 @@ classdef PAView < handle
         texthandle; 
         
         %> @brief struct of menu handles.  Fields are: 
-        %> - @c menu_windowDurSec The window display duration in seconds
-        %> - @c menu_prefilter The selection of prefilter methods
-        %> - @c menu_extractor The selection of feature extraction methods
+        %> - @c windowDurSec The window display duration in seconds
+        %> - @c prefilter The selection of prefilter methods
+        %> - @c extractor The selection of feature extraction methods
+        %> - @c displayFeature Which feature to display (Default is all)
         menuhandle;
         %> @brief Struct of line handles (graphic handle class) for showing
         %> activity data.
@@ -125,6 +126,7 @@ classdef PAView < handle
             obj.texthandle.frameDurationMinutes = handles.edit_frameSizeMinutes;
             obj.texthandle.frameDurationHours = handles.edit_frameSizeHours;
             
+            obj.menuhandle.windowDurSec = handles.menu_windowDurSec;
             obj.menuhandle.extractorMethod = handles.menu_extractor;
             obj.menuhandle.prefilterMethod = handles.menu_prefilter;
             obj.menuhandle.displayFeature = handles.menu_displayFeature;
@@ -141,6 +143,52 @@ classdef PAView < handle
             %creates and initializes line handles (obj.linehandle fields)
             % However, all lines are invisible.
             obj.createLineAndLabelHandles();
+        end
+
+        % --------------------------------------------------------------------
+        %> @brief Retrieves the window duration drop down menu's current value as a number.
+        %> @param obj Instance of PAView.
+        %> @retval windowDurSec Duration of the current view's window as seconds.
+        % --------------------------------------------------------------------
+        function windowDurSec = getWindowDurSec(obj)
+            userChoice = get(obj.menuhandle.windowDurSec,'value');
+            userData = get(obj.menuhandle.windowDurSec,'userdata');
+            windowDurSec = userData(userChoice);
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Sets the window duration drop down menu's current value
+        %> based on the input parameter (as seconds).  If the duration in
+        %> seconds is not found, then the value is appended to the drop down
+        %> menu prior to being set.
+        %> @param obj Instance of PAView.
+        %> @param windowDurSec Duration in seconds to set the drop downmenu's selection to
+        % --------------------------------------------------------------------
+        function windowDurSec = setWindowDurSecMenu(obj, windowDurSec)
+            windowDurSecMat = get(obj.menuhandle.windowDurSec,'userdata');
+            userChoice = find(windowDurSecMat==windowDurSec,1);
+            
+            % We did not find a match!  and need to append
+            if(isempty(userChoice))
+                windowDurStrCell = get(obj.menuhandle.windowDurSec,'string');
+                windowDurStrCell(end+1) = num2str(windowDurSec);
+                windowDurSecMat(end+1) = windowDurSec;
+                userChoice =numel(windowDurStrCell);
+                
+                set(obj.menuhandle.windowDurSec,'userdata',windowDurSecMat,'string',windowDurStrCell);
+            end
+            set(obj.menuhandle.windowDurSec,'value',userChoice);
+        end
+        
+        
+        % --------------------------------------------------------------------
+        %> @brief Retrieves the current window's edit box string value as a
+        %> number
+        %> @param obj Instance of PAView.
+        %> @retval curWindow Numeric value of the current window displayed in the edit box.
+        % --------------------------------------------------------------------
+        function curWindow = getCurWindow(obj)
+           curWindow = str2double(get(obj.texthandle.curWindow,'string')); 
         end
         
         % --------------------------------------------------------------------
@@ -162,9 +210,10 @@ classdef PAView < handle
         %> @param obj Instance of PAView.
         %> @param aggregateDurationStr A string representing the aggregate duration as minutes.
         % --------------------------------------------------------------------
-        function setAggregateDuration(obj,aggregateDurationStr)
+        function setAggregateDurationMinutes(obj,aggregateDurationStr)
            set(obj.texthandle.aggregateDuration,'string',aggregateDurationStr);            
         end
+        
         % --------------------------------------------------------------------
         %> @brief Retrieves the aggregate duration edit box value as a
         %> number.
@@ -172,7 +221,7 @@ classdef PAView < handle
         %> @retval aggregateDurMin The aggregate duration (in minutes) currently set in the text edit box
         %> as a numeric value.
         % --------------------------------------------------------------------
-        function aggregateDurMin = getAggregateDuration(obj)
+        function aggregateDurMin = getAggregateDurationMinutes(obj)
             aggregateDurMin = str2double(get(obj.texthandle.aggregateDuration,'string'));
         end
         
@@ -351,16 +400,21 @@ classdef PAView < handle
             obj.initWidgets();
             buttonGroupChildren = get(handles.panel_displayButtonGroup,'children');
             
-            widgetList = [handles.edit_curWindow
-                handles.menu_windowDurSec
-                handles.menu_prefilter
+            fields = fieldnames(obj.menuhandle);
+            
+            menuHandles = zeros(numel(fields),1);
+            for f=1:numel(fields)
+                menuHandles(f) = obj.menuhandle.(fields{f});
+            end
+            
+            widgetList = [menuHandles
+                handles.edit_curWindow
                 handles.edit_aggregate
                 handles.edit_frameSizeMinutes
                 handles.edit_frameSizeHours
                 handles.text_aggregate
                 handles.text_frameSizeMinutes
                 handles.text_frameSizeHours
-                handles.menu_extractor
                 handles.button_go
                 buttonGroupChildren];  
             set(widgetList,'enable','off'); 
@@ -390,11 +444,9 @@ classdef PAView < handle
             
             obj.initAxesHandles(axesProps);
             
-            
             %resize the secondary axes according to the new window
             %resolution
             obj.updateSecondaryAxes(PADataObject.getStartStopDatenum());
-            
                         
             %initialize the various line handles and label content and
             %color.
@@ -428,13 +480,18 @@ classdef PAView < handle
             
             obj.setStudyPanelContents(PADataObject.getHeaderAsString);
             
-            obj.setAggregateDuration(num2str(PADataObject.aggregateDurMin));
+            % clears the widgets (drop down menus, edit boxes, etc.)
+            obj.initWidgets();
+            
+            obj.setAggregateDurationMinutes(num2str(PADataObject.aggregateDurMin));
             [frameDurationMinutes, frameDurationHours] = PADataObject.getFrameDuration();
             obj.setFrameDurationMinutes(num2str(frameDurationMinutes));
             obj.setFrameDurationHours(num2str(frameDurationHours));
             
+            windowDurationSec = PADataObject.getWindowDurSec();
+            obj.setWindowDurSecMenu(windowDurationSec);
             obj.initMenubar();
-            obj.initWidgets();
+            
             
             set(obj.positionBarHandle,'visible','on','ydata',[0 1]); 
             
@@ -489,17 +546,21 @@ classdef PAView < handle
             % if features and aggregate bins are available would we do
             % this.  However, we do not know if that is the case here.
             
-            widgetList = [handles.menu_windowDurSec
+            fields = fieldnames(obj.menuhandle);
+            
+            menuHandles = zeros(numel(fields),1);
+            for f=1:numel(fields)
+                menuHandles(f) = obj.menuhandle.(fields{f});
+            end
+            
+            widgetList = [menuHandles
                 handles.edit_curWindow
-                handles.menu_windowDurSec
-                handles.menu_prefilter
                 handles.edit_aggregate
                 handles.edit_frameSizeMinutes
                 handles.edit_frameSizeHours
                 handles.text_aggregate
                 handles.text_frameSizeMinutes
                 handles.text_frameSizeHours
-                handles.menu_extractor
                 handles.button_go
                 handles.radio_time;
                 ];                
@@ -510,16 +571,17 @@ classdef PAView < handle
             set(handles.edit_curWindow,'string','');
             
             prefilterSelection = PAData.getPrefilterMethods();
-            set(handles.menu_prefilter,'string',prefilterSelection,'value',1);
+            set(obj.menuhandle.prefilterMethod,'string',prefilterSelection,'value',1);
             
             % feature extractor
             extractorMethods = PAData.getExtractorMethods();
-            set(handles.menu_extractor,'string',extractorMethods,'value',1);
+            set(obj.menuhandle.extractorMethod,'string',extractorMethods,'value',1);
             
             % Window display resolution
-            windowMinSelection = {30,'30 s';
-                60,'1 min';
-                120,'2 min';
+            windowMinSelection = {
+                %30,'30 s';
+                %60,'1 min';
+                %120,'2 min';
                 300,'5 min';
                 600,'10 min';
                 900,'15 min';
@@ -532,7 +594,7 @@ classdef PAView < handle
                 57600,'16 hours';
                 86400,'24 hours'};
             
-            set(handles.menu_windowDurSec,'userdata',cell2mat(windowMinSelection(:,1)), 'string',windowMinSelection(:,2),'value',1);
+            set(obj.menuhandle.windowDurSec,'userdata',cell2mat(windowMinSelection(:,1)), 'string',windowMinSelection(:,2),'value',5);
 
             %             obj.displayType = 'Time Series';
             %             set(obj.menuhandle.displayFeature,'enable','off');
@@ -540,20 +602,137 @@ classdef PAView < handle
             set(widgetList,'enable','on','visible','on');
         end        
         
+        
+     
+
         % --------------------------------------------------------------------
         %> @brief Updates the secondary axes x and y axes limits.
         %> @param obj Instance of PAView
         %> @param startStopDatenum A 1x2 vector of the starting and stoping
         %> date numbers.
-        %> @param windowCount The total number of windows that can be displayed in the
-        %> primary axes.  This will be xlim(2) for the secondary axes (i.e.
-        %> timeline/overview axes) in the event that startStopDatenum is
-        %> not used.
+        % --------------------------------------------------------------------
+        function updatePrimaryAxes(obj,axesRange)
+            axesProps.primary.xlim = axesRange;
+            curWindow = obj.getCurWindow();
+            windowDurSec = obj.getWindowDurSec();
+            curDateNum = obj.dataObj.window2datenum(curWindow);
+            nextDateNum = obj.dataObj.window2datenum(curWindow+1); 
+            numTicks = 5;
+            xTick = linspace(axesRange(1),axesRange(2),numTicks);
+            dateTicks = linspace(curDateNum,nextDateNum,numTicks);
+            % if number of seconds or window length is less than 10 minute then include seconds;
+            if(windowDurSec < 60*10)
+                axesProps.primary.XTickLabel = datestr(dateTicks,'ddd HH:MM:SS');                
+            %  else if it is less than 120 minutes then include minutes.
+            elseif(windowDurSec < 60*120)
+                axesProps.primary.XTickLabel = datestr(dateTicks,'ddd HH:MM');
+            %  otherwise just include day and hours.
+            else 
+                axesProps.primary.XTickLabel = datestr(dateTicks,'ddd HH:MM PM');
+            end    
+            
+            axesProps.primary.XTick = xTick;
+            
+           
+            obj.initAxesHandles(axesProps);
+%             datetick(obj.axeshandle.secondary,'x','ddd HH:MM')
+        end
+
+
+        function addFeaturesOverlayToSecondaryAxes(obj, featureVector, startStopDatenum)
+            yLim = get(obj.axeshandle.secondary,'ylim');
+            yLim = yLim*1/3+1/3;
+            minColor = [.0 0.25 0.25];
+            minColor = [0.1 0.1 0.1];
+            
+            maxValue = max(featureVector);  
+            maxValue = quantile(featureVector,0.90);
+            nFaces = numel(featureVector);
+            
+            x = nan(4,nFaces);
+            y = repmat(yLim([1 2 2 1])',1,nFaces);
+            vertexColor = nan(4,nFaces,3);
+            
+            % each column represent a face color triplet            
+            featureColorMap = (featureVector/maxValue)*[1,1,1]+ repmat(minColor,nFaces,1);
+       
+            % patches are drawn clock wise in matlab
+            
+            for f=1:nFaces
+                if(f==nFaces)
+                    vertexColor(:,f,:) = featureColorMap([f,f,f,f],:);
+                    
+                else
+                    vertexColor(:,f,:) = featureColorMap([f,f,f+1,f+1],:);
+                    
+                end
+                x(:,f) = startStopDatenum(f,[1 1 2 2])';
+                
+            end
+            patch(x,y,vertexColor,'parent',obj.axeshandle.secondary,'edgecolor','interp','facecolor','interp');
+        end        
+        
+        
+        function addLumensOverlayToSecondaryAxes(obj, lumenVector, startStopDatenum)
+            yLim = get(obj.axeshandle.secondary,'ylim');
+            yLim = yLim*1/3+2/3;
+            minColor = [.2 0.1 0];
+            
+            maxLumens = 250;
+            
+            
+            nFaces = numel(lumenVector);
+            x = nan(4,nFaces);
+            y = repmat(yLim([1 2 2 1])',1,nFaces);
+            vertexColor = nan(4,nFaces,3);
+            
+            % each column represent a face color triplet            
+            luxColorMap = (lumenVector/maxLumens)*[0.8,0.9,1]+ repmat(minColor,nFaces,1);
+       
+            % patches are drawn clock wise in matlab
+            
+            for f=1:nFaces
+                if(f==nFaces)
+                    vertexColor(:,f,:) = luxColorMap([f,f,f,f],:);
+                    
+                else
+                    vertexColor(:,f,:) = luxColorMap([f,f,f+1,f+1],:);
+                    
+                end
+                x(:,f) = startStopDatenum(f,[1 1 2 2])';
+                
+            end
+            patch(x,y,vertexColor,'parent',obj.axeshandle.secondary,'edgecolor','interp','facecolor','interp');
+            
+            
+            
+            
+%         x  = [  1,3
+%                 3,5
+%                 3,5
+%                 1,3];
+%         y  = repmat([1;1;10;10],1,size(x,2));
+%                     
+%         c = [0.5 0.5 0.5;
+%             1   0   0];
+%         c = ['rg'];   
+        
+%         If C is mxnx3, where X and Y are mxn, then each vertex
+%         (X(i,j),Y(i,j)) is colored by the RGB triplet C(i,j,:) and the
+%         face is colored using interpolation.
+        
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Updates the secondary axes x and y axes limits.
+        %> @param obj Instance of PAView
+        %> @param startStopDatenum A 1x2 vector of the starting and stoping
+        %> date numbers.
         % --------------------------------------------------------------------
         function updateSecondaryAxes(obj,startStopDatenum)
             
             axesProps.secondary.xlim = startStopDatenum;
-            [y,m,d,h,mi,s] = datevec(diff(startStopDatenum));
+            [~,~,d,h,mi,s] = datevec(diff(startStopDatenum));
             durationDays = d+h/24+mi/60/24+s/3600/24;
             if(durationDays<0.25)
                 dateScale = 1/48; %show every 30 minutes
@@ -647,14 +826,13 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         function appendFeatureMenu(obj,newFeature)
             
-            handles = guidata(obj.getFigHandle());
-            featureOptions = get(handles.menu_displayFeature,'string');
+            featureOptions = get(obj.menuhandle.displayFeature,'string');
             if(~iscell(featureOptions))
                 featureOptions = {featureOptions};
             end
             if(isempty(intersect(featureOptions,newFeature)))
                 featureOptions{end+1} = newFeature;
-                set(handles.menu_displayFeature,'string',featureOptions);
+                set(obj.menuhandle.displayFeature,'string',featureOptions);
             end;
         end        
         
@@ -690,7 +868,10 @@ classdef PAView < handle
             if(diff(axesRange)==0)
                 axesRange(2) = axesRange(2)+1;
             end
+            
             set(obj.axeshandle.primary,'xlim',axesRange);
+            
+            obj.updatePrimaryAxes(axesRange);
             
             structFieldName = PAData.getStructNameFromDescription(obj.displayType);
             lineProps   = obj.dataObj.getStruct('currentdisplay',obj.displayType);

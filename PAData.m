@@ -8,10 +8,6 @@
 % ======================================================================
 classdef PAData < handle
    properties
-       %> @brief Pathname of file containing accelerometer data.
-       pathname;
-       %> @brief Name of file containing accelerometer data that is loaded.
-       filename;
        %> @brief Type of acceleration stored; can be 
        %> - raw This is not processed
        %> - count This is preprocessed
@@ -21,6 +17,11 @@ classdef PAData < handle
        %> @li - y y-axis
        %> @li - z z-axis       
        accelRaw;
+       %> @brief Structure of actigraph derived counts for x,y,z acceleration readings.  Fields are:
+       %> @li - x x-axis
+       %> @li - y y-axis
+       %> @li - z z-axis       
+       accelCount;
        %> @brief Structure of inclinometer values.  Fields include:
        %> @li - off
        %> @li - standing
@@ -59,6 +60,11 @@ classdef PAData < handle
    end
    
    properties (Access = private)
+       %> @brief Pathname of file containing accelerometer data.
+       pathname;
+       %> @brief Name of file containing accelerometer data that is loaded.
+       filename;
+
        %> Current window.  Current position in the raw data.  The first window is '1' (i.e. not zero because this is MATLAB programming)
        curWindow; 
        %> Number of samples contained in the data (accelRaw.x)
@@ -113,43 +119,45 @@ classdef PAData < handle
        
        % ======================================================================
        %> @brief Constructor for PAData class.
-       %> @param fullfileOrPath Optional entries can be either
-       %> @li Full filename (i.e. with pathname) of accelerometer data to load.
-       %> %li Pathname containing accelerometer files to be loaded.
-       %> @param filename Optional Filename of accelerometer data to load.
-       %> @note: This is only supplied in the event that the first
-       %> parameter is passed as the pathname for the acceleromter files.
+       %> @param fullFilename The full filename (i.e. with pathname) of accelerometer data to load.
+       %> @param pStruct Optional struct of parameters to use.  If it is not
+       %> included then parameters from getDefaultParameters method are used.
        %> @retval Instance of PAData.
        % =================================================================
-       function obj = PAData(fullfileOrPath,filename)
-           
-           if(nargin==2)
-               if(isdir(fullfileOrPath))
-                   obj.pathname = fullfileOrPath;               
+       function obj = PAData(fullFilename,pStruct)
+           if(exist(fullFilename,'file'))
+               [p,name,ext] = fileparts(fullFilename);
+               if(isempty(p))
+                   obj.pathname = pwd;
+               else
+                   obj.pathname = p;
                end
-               if(exist(fullfile(fullfileOrPath,filename),'file'))
-                   obj.filename = filename;
-               end
-           elseif(nargin==1)
-               if(isdir(fullfileOrPath))
-                   obj.pathname = fullfileOrPath;               
-               elseif(exist(fullfileOrPath,'file'))
-                   [obj.pathname, obj.filename, ext] = fileparts(fullfileOrPath);
-                   obj.filename = strcat(obj.filename,ext);
-               end               
+               obj.filename = strcat(name,ext);
+           end
+           if(nargin<2 || isempty(pStruct))
+               pStruct = obj.getDefaultParameters();
            end
            
-            
-           obj.aggregateDurMin = 1;
-           obj.frameDurMin = 0;
-           obj.frameDurHour = 1;
+           % Can summarize these with defaults from below...last f(X) call.
+           %            obj.aggregateDurMin = 1;
+           %            obj.frameDurMin = 0;
+           %            obj.frameDurHour = 1;
+           %            obj.curWindow = 1;
+           %            obj.windowDurSec = 60*5;  %this is the window size                     
+           fields = fieldnames(pStruct);
+           for f=1:numel(fields)
+               
+               %need to make sure we are not overwriting the filename we just
+               %brought in
+               if(~strcmpi(fields{f},'pathname') && ~strcmpi(fields{f},'filename'))
+                   obj.(fields{f}) = pStruct.(fields{f});
+               end
+           end                
            
            obj.numBins = 0;
            obj.bins = [];
            obj.numFrames = 0;
            obj.features = [];
-           
-           
            
            % Removed in place of getSampleRate()
            %            obj.sampleRate.accelRaw = 40;
@@ -157,8 +165,9 @@ classdef PAData < handle
            %            obj.sampleRate.lux = 40;
            %            obj.sampleRate.vecMag = 40;
            
-           obj.curWindow = 1;
-           obj.windowDurSec = 30;  %this is the window size
+       
+           
+           
            
            obj.loadFile();
            
@@ -168,7 +177,7 @@ classdef PAData < handle
            fnames = fieldnames(featureStruct);
            featuresYDelta = diff(obj.getMinmax('all'))/(numel(fnames)+1);
            
-           colorChoices = {'r','g','b','k','y'};
+           colorChoices = {'y','r','k','g','b','k'};
            for f=1:numel(fnames)
                curFeature = fnames{f};
                curColor = colorChoices{mod(f,numel(colorChoices))+1};
@@ -178,13 +187,12 @@ classdef PAData < handle
                if(strcmpi(curFeature,'rms'))
                    scaleVal = 2;
                elseif(strcmpi(curFeature,'sum'))
-                   scaleVal = 0.01;
+                   scaleVal = 0.001;
                elseif(strcmpi(curFeature,'std'))
                    scaleVal = 1;
                elseif(strcmpi(curFeature,'var'))
                    scaleVal = 0.1;
                else
-                   
                    scaleVal = 1;
                end
                    
@@ -207,9 +215,9 @@ classdef PAData < handle
            obj.offset.timeSeries.inclinometer.off = obj.yDelta*16.75;
                       
            % label properties for visualization
-           obj.label.timeSeries.accelRaw.x.string = 'X';
-           obj.label.timeSeries.accelRaw.y.string = 'Y';
-           obj.label.timeSeries.accelRaw.z.string = 'Z';
+           obj.label.timeSeries.accelRaw.x.string = 'X_R_A_W';
+           obj.label.timeSeries.accelRaw.y.string = 'Y_R_A_W';
+           obj.label.timeSeries.accelRaw.z.string = 'Z_R_A_W';
            
            obj.label.timeSeries.vecMag.string = 'Magnitude';
            obj.label.timeSeries.steps.string = 'Steps';  
@@ -298,7 +306,7 @@ classdef PAData < handle
 
        
        % ======================================================================
-       %> @brief Returns a structure of an instnace PAData's time series data.
+       %> @brief Returns the current windows range
        %> @param obj Instance of PAData.
        %> @param structType Optional string identifying the type of data to obtain the
        %> offset from.  Can be 
@@ -434,7 +442,7 @@ classdef PAData < handle
        %> the current frame duration value (in minutes), then it is not used
        %> and the current frame duration is retained (and also returned).
        % --------------------------------------------------------------------
-       function aggregateDurationMin = setAggregateDuration(obj,aggregateDurationMin)
+       function aggregateDurationMin = setAggregateDurationMinutes(obj,aggregateDurationMin)
            if(aggregateDurationMin>0 && aggregateDurationMin<=obj.getAggregateDuration())
                obj.aggregateDurMin = aggregateDurationMin;
            end
@@ -718,6 +726,16 @@ classdef PAData < handle
        end
 
        % ======================================================================
+       %> @brief Returns the private intance variable windowDurSec.
+       %> @param obj Instance of PAData
+       %> @retval windowDurationSec The value of windowDurSec
+       % =================================================================
+       function windowDurationSec = getWindowDurSec(obj)
+           windowDurationSec = obj.windowDurSec();
+       end
+
+       
+       % ======================================================================
        %> @brief Load CSV header values (start time, start date, and window
        %> period).
        %> @param obj Instance of PAData.
@@ -786,9 +804,11 @@ classdef PAData < handle
        %> while field:values are separated from each other with newlines (\n).
        % =================================================================
        function headerStr = getHeaderAsString(obj)
-           durStr = strrep(strrep(strrep(strrep(datestr(datenum([0 0 0 0 0 obj.durationSec]),'\tdd x1 HH x2\n\f\t\tMM x3 SS x4'),'x1','day(s)'),'x2','hr'),'x3','min'),'x4','sec');
-%            windowPeriod = datestr(datenum([0 0 0 0 0 obj.windowPeriodSec]),'HH:MM:SS'); 
-%            obj.getWindowCount,windowPeriod
+           numTabs = 16;
+           durStr = strrep(strrep(strrep(strrep(datestr(datenum([0 0 0 0 0 obj.durationSec]),['\n',repmat('\t',1,numTabs),'dd x1\tHH x2\n',repmat('\t',1,numTabs),'MM x3\tSS x4']),'x1','days'),'x2','hr'),'x3','min'),'x4','sec');
+           %            windowPeriod = datestr(datenum([0 0 0 0 0 obj.windowPeriodSec]),'HH:MM:SS');
+           %            obj.getWindowCount,windowPeriod
+           
            headerStr = sprintf('Filename:\t%s\nStart Date: %s\nStart Time: %s\nDuration:\t%s\n\nSample Rate:\t%u Hz',...
                obj.filename,obj.startDate,obj.startTime,durStr,obj.getSampleRate());
        end
@@ -925,7 +945,7 @@ classdef PAData < handle
                        obj.accelRaw.z = dataCell{3};
                        
                        obj.steps = dataCell{4}; %what are steps?
-                       obj.lux = dataCell{5};
+                       obj.lux = dataCell{5}; %0 to 612 - a measure of lumins...
                        obj.inclinometer.standing = dataCell{7};
                        obj.inclinometer.sitting = dataCell{8};
                        obj.inclinometer.lying = dataCell{9};
@@ -986,7 +1006,6 @@ classdef PAData < handle
                        for f=1:headerLines
                            fgetl(fid);
                        end
-                       l = fgetl(fid);
                        
                        %This takes 46 seconds; //or 24 seconds or 4.547292
                        %or 8.8 ...
@@ -996,13 +1015,14 @@ classdef PAData < handle
                        A  = fread(fid,'*char');
                        toc
                        tic
-                       tmpDataCell = textscan(A(1:100000000),scanFormat)
+                       tmpDataCell = textscan(A,scanFormat);
                        toc
-                       pattern = '(?<datetimestamp>[^,]+),(?<axis1>[^,]+),(?<axis2>[^,]+),(?<axis3>[^\s]+)\s*';
-                       tic
-                       result = regexp(A(1:2e+8)',pattern,'names')  % seconds
-%                        result = regexp(A(1:1e+8)',pattern,'names')  %23.7 seconds
-                       toc
+%                        toc
+%                        pattern = '(?<datetimestamp>[^,]+),(?<axis1>[^,]+),(?<axis2>[^,]+),(?<axis3>[^\s]+)\s*';
+%                        tic
+%                        result = regexp(A(1:2e+8)',pattern,'names')  % seconds
+% %                        result = regexp(A(1:1e+8)',pattern,'names')  %23.7 seconds
+%                        toc
                        
                        %                        scanFormat = '%u8/%u8/%u16 %2d:%2d:%f,%f32,%f32,%f32';
                        %tmpDataCell = textscan(A(1:1e+9),scanFormat)
@@ -1016,23 +1036,19 @@ classdef PAData < handle
 %                        tmpDataCell = textscan(A(7e+8+7:8e+8+100)',scanFormat) %7.8 seconds
 %                        tmpDataCell = textscan(A(8e+8-13:9e+8+100)',scanFormat) %7.9 seconds
 %                        tmpDataCell = textscan(A(9e+8-1:10e+8+100)',scanFormat) %7.87 seconds
-
-tic
-tmpDataCell = textscan(A(10e+8-17:11e+8+100)',scanFormat) %7.94 seconds
-toc,tic
-tmpDataCell = textscan(A(11e+8+4:12e+8+100)',scanFormat) %7.73 seconds
-toc,tic
-tmpDataCell = textscan(A(12e+8-2:13e+8+100)',scanFormat) %8.08 seconds
-toc,tic
-tmpDataCell = textscan(A(13e+8-3:14e+8+100)',scanFormat) %9.45 seconds
-toc,tic
-tmpDataCell = textscan(A(14e+8+4:14.106e+8)',scanFormat) %1.03 seconds
-toc                       
-                       
-                       
-                       
-                       
-                       toc
+% 
+% tic
+% tmpDataCell = textscan(A(10e+8-17:11e+8+100)',scanFormat) %7.94 seconds
+% toc,tic
+% tmpDataCell = textscan(A(11e+8+4:12e+8+100)',scanFormat) %7.73 seconds
+% toc,tic
+% tmpDataCell = textscan(A(12e+8-2:13e+8+100)',scanFormat) %8.08 seconds
+% toc,tic
+% tmpDataCell = textscan(A(13e+8-3:14e+8+100)',scanFormat) %9.45 seconds
+% toc,tic
+% tmpDataCell = textscan(A(14e+8+4:14.106e+8)',scanFormat) %1.03 seconds
+% toc                       
+%                        toc
 
                        
                        %Date time handling
@@ -1073,9 +1089,9 @@ toc
                            end
                        end
                        
-                       obj.accelRaw.x = dataCell{1};
-                       obj.accelRaw.y = dataCell{2};
-                       obj.accelRaw.z = dataCell{3};
+                       obj.accelCount.x = dataCell{1};
+                       obj.accelCount.y = dataCell{2};
+                       obj.accelCount.z = dataCell{3};
                        
                        N = obj.windowPeriodSec*obj.sampleRate;
                        
@@ -1197,6 +1213,8 @@ toc
            end
        end
 
+       
+       
        function obj = extractFeature(obj,method)
            currentNumFrames = obj.getFrameCount();
            if(currentNumFrames~=obj.numFrames)
@@ -1220,15 +1238,16 @@ toc
                    obj.features.sum = sum(data)';
                    obj.features.var = var(data)';
                    obj.features.std = std(data)';
-                   obj.features.hash = mode(data)';
+                   obj.features.mode = mode(data)';
+%                    obj.features.count = obj.getCount(data)';
                case 'rms'
                    obj.features.rms = sqrt(mean(data.^2))';
                case 'mean'
                    obj.features.mean = mean(data)';
                case 'sum'
                    obj.features.sum = sum(data)';
-               case 'hash'
-                   obj.features.hash = mode(data)';
+               case 'mode'
+                   obj.features.mode = mode(data)';
                otherwise
                    fprintf(1,'Unknown method (%s)\n',method);
            end
@@ -1349,6 +1368,33 @@ toc
            end
        end
        
+       
+       % ======================================================================
+       %> @brief Returns a structure of PAData's saveable parameters as a struct.
+       %> @param obj Instance of PAData.
+       %> @retval pStruct A structure of save parameters which include the following
+       %> fields
+       %> - @c curWindow
+       %> - @c pathname
+       %> - @c filename
+       %> - @c windowDurSec
+       %> - @c aggregateDurMin
+       %> - @c frameDurMin
+       %> - @c frameDurHour
+       function pStruct = getSaveParameters(obj)
+           fields= {'curWindow';
+               'pathname';
+               'filename';
+               'windowDurSec';
+               'aggregateDurMin';       
+               'frameDurMin';
+               'frameDurHour'
+               };
+           pStruct = struct();
+           for f=1:numel(fields)
+               pStruct.(fields{f}) = obj.(fields{f});
+           end
+       end
 
    end
    
@@ -1371,6 +1417,7 @@ toc
        %> - steps
        %> - lux
        %> - inclinometer
+       %> - windowDurSec
        % =================================================================      
        function dat = getAllStruct(obj,structType)
            if(nargin<2 || isempty(structType))
@@ -1529,6 +1576,31 @@ toc
    
    methods(Static)
 
+       % ======================================================================
+       %> @brief Returns a structure of PAData's default parameters as a struct.
+       %> @param obj Instance of PAData.
+       %> @retval pStruct A structure of default parameters which include the following
+       %> fields
+       %> - @c curWindow
+       %> - @c pathname
+       %> - @c filename
+       %> - @c windowDurSec
+       %> - @c aggregateDurMin
+       %> - @c frameDurMin
+       %> - @c frameDurHour
+       %> - @c windowDurSec
+       
+       %> @note This is useful with the PASettings companion class.
+       function pStruct = getDefaultParameters()           
+           pStruct.pathname = '.'; %directory of accelerometer data.
+           pStruct.filename = ''; %last accelerometer data opened.
+           pStruct.curWindow = 1;
+           pStruct.frameDurMin = 15;
+           pStruct.frameDurHour = 0;
+           pStruct.aggregateDurMin = 3;
+           pStruct.windowDurSec = 60*5;
+       end
+       
        % ======================================================================
        %> @brief Returns structure whose values are taken from the struct
        %> and indices provided.
@@ -2116,13 +2188,14 @@ toc
        %> @retval featureStruct A struct of  feature extraction methods and string descriptions as the corresponding values.
        % --------------------------------------------------------------------
        function featureStruct = getFeatureDescriptionStruct()           
-           featureStruct.rms = 'Root mean square';
-           featureStruct.hash = 'Hash';
            featureStruct.median = 'Median';
            featureStruct.mean = 'Mean';
-           featureStruct.sum = 'sum';           
            featureStruct.std = 'Standard Deviation';           
-           featureStruct.var = 'Variance';           
+           featureStruct.rms = 'Root mean square';
+           featureStruct.sum = 'sum';           
+           featureStruct.var = 'Variance';
+           featureStruct.mode = 'Mode';
+           %            featureStruct.count = 'Count';
        end
        
        

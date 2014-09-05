@@ -26,10 +26,7 @@ classdef  PASettings < handle
         %> struct of viewer related settings.
         VIEW;
         %> struct of batch processing settings.
-        BATCH_PROCESS;
-        %> struct of power spectral density settings.
-        PSD;
-        MUSIC;          
+        BATCH_PROCESS;        
     end
     
     methods(Static)
@@ -206,7 +203,7 @@ classdef  PASettings < handle
         %> @param obj instance of the PASettings class.
         % =================================================================
         function initialize(obj)            
-            obj.fieldNames = {'DATA','VIEW','BATCH_PROCESS','PSD','MUSIC'};
+            obj.fieldNames = {'DATA','VIEW','BATCH_PROCESS'};
             obj.setDefaults();
             
             full_paramsFile = fullfile(obj.rootpathname,obj.parameters_filename);
@@ -256,9 +253,6 @@ classdef  PASettings < handle
         %> @param obj instance of PASettings.      
         %> @param settingsField String indicating which settings to update.
         %> Can be
-        %> - @c PSD
-        %> - @c MUSIC
-        %> - @c CLASSIFIER
         %> - @c BATCH_PROCESS
         %> - @c DEFAULTS
         %> @retval wasModified a boolean value; true if any changes were
@@ -267,18 +261,7 @@ classdef  PASettings < handle
         % --------------------------------------------------------------------
         function wasModified = update_callback(obj,settingsField)
             wasModified = false;
-            switch settingsField
-                case 'PSD'
-                    newPSD = psd_dlg(obj.PSD);
-                    if(newPSD.modified)
-                        newPSD = rmfield(newPSD,'modified');
-                        obj.PSD = newPSD;
-                        wasModified = true;
-                    end;                
-                case 'MUSIC'
-                    wasModified = obj.defaultsEditor('MUSIC');
-                case 'CLASSIFIER'
-                    plist_editor_dlg();
+            switch settingsField                
                 case 'BATCH_PROCESS'
                 case 'DEFAULTS'
                     wasModified= obj.defaultsEditor();
@@ -292,9 +275,6 @@ classdef  PASettings < handle
         %> @param obj instance of PASettings class.
         %> @param optional_fieldName (Optional)  String indicating which settings to update.
         %> Can be
-        %> - @c PSD
-        %> - @c MUSIC
-        %> - @c CLASSIFIER
         %> - @c BATCH_PROCESS
         %> - @c DEFAULTS
         %> @retval wasModified a boolean value; true if any changes were
@@ -303,7 +283,7 @@ classdef  PASettings < handle
         function wasModified = defaultsEditor(obj,optional_fieldName)
             tmp_obj = obj.copy();
             if(nargin<2)
-                lite_fieldNames = {'DATA','VIEW','PSD','MUSIC'}; %these are only one structure deep
+                lite_fieldNames = {'DATA','VIEW'}; %these are only one structure deep
             else
                 lite_fieldNames = optional_fieldName;
                 if(~iscell(lite_fieldNames))
@@ -406,11 +386,7 @@ classdef  PASettings < handle
             for f = 1:numel(fieldNames)
                 switch fieldNames{f}
                     case 'DATA'
-                        obj.DATA.windowDurSec = 30; %perhaps want to base this off of the hpn file if it exists...
-                        obj.DATA.samplerate = 100;
-                        obj.DATA.lastPathname = '.'; %directory of accelerometer data.
-                        obj.DATA.lastFilename = ''; %last accelerometer data opened.
-                        
+                        obj.DATA = PAData.getDefaultParameters();
                     case 'VIEW'
                         obj.VIEW.yDir = 'normal';  %or can be 'reverse'
                         obj.VIEW.screenshot_path = obj.rootpathname; %initial directory to look in for EDF files to load
@@ -430,20 +406,7 @@ classdef  PASettings < handle
                         obj.VIEW.filter_inf_file = 'filter.inf';
                         obj.VIEW.database_inf_file = 'database.inf';
                         obj.VIEW.parameters_filename = '_padaco.parameters.txt';
-                    case 'MUSIC'                        
-                        obj.MUSIC.window_length_sec = 2;
-                        obj.MUSIC.interval_sec = 2;
-                        obj.MUSIC.num_sinusoids = 6;
-                        obj.MUSIC.freq_min = 0; %display min
-                        obj.MUSIC.freq_max = 30; %display max                        
-                    case 'PSD'                        
-                        obj.PSD.wintype = 'hann';
-                        obj.PSD.removemean = 'true';
-                        obj.PSD.FFT_window_sec = 2; %length in second over which to calculate the PSD
-                        obj.PSD.interval = 2; %how often to take the FFT's
-                        obj.PSD.freq_min = 0; %display min
-                        obj.PSD.freq_max = 30; %display max                        
-                    case 'BATCH_PROCESS'
+                   case 'BATCH_PROCESS'
                         obj.BATCH_PROCESS.src_folder = '.'; %the folder to do a batch job on.
             
                         %power spectrum analysis
