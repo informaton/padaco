@@ -100,6 +100,8 @@ classdef PAView < handle
                 end
                 
                 obj.figurehandle = Padaco_fig_h;
+                set(obj.figurehandle,'renderer','OpenGL');
+                set(obj.figurehandle,'renderer','zbuffer');
                 obj.createView(contextmenuHandle);                
             else
                 obj = [];
@@ -663,6 +665,8 @@ classdef PAView < handle
             x = nan(4,nFaces);
             y = repmat(yLim([1 2 2 1])',1,nFaces);
             vertexColor = nan(4,nFaces,3);
+            normalizedFeatureVector = featureVector/max(featureVector)*1/3;
+            normalizedFeatureVector = featureVector/quantile(featureVector,0.99)*1/3;
             
             % each column represent a face color triplet            
             featureColorMap = (featureVector/maxValue)*[1,1,1]+ repmat(minColor,nFaces,1);
@@ -681,6 +685,21 @@ classdef PAView < handle
                 
             end
             patch(x,y,vertexColor,'parent',obj.axeshandle.secondary,'edgecolor','interp','facecolor','interp');
+
+            % draw the line...
+%             line('parent',obj.axeshandle.secondary,'ydata',normalizedFeatureVector,'xdata',startStopDatenum(:,1),'color','b','linewidth',0.25);
+            n = 10;
+            b = repmat(1/n,1,n);
+            smoothY = filtfilt(b,1,normalizedFeatureVector);
+            line('parent',obj.axeshandle.secondary,'ydata',smoothY,'xdata',startStopDatenum(:,1),'color','b');
+            
+            
+            vectorSum = cumsum(featureVector)/sum(featureVector)/3;
+            h=line('parent',obj.axeshandle.secondary,'ydata',vectorSum,'xdata',startStopDatenum(:,1),'color','g');
+            %             h=stem(obj.axeshandle.secondary,startStopDatenum(:,1),vectorSum,'color','g','linestyle','none','marker','.','markersize',1);
+            %              h=stairs(obj.axeshandle.secondary,startStopDatenum(:,1),vectorSum,'color','g','linestyle','none','marker','.','markersize',1);
+
+            
         end        
         
         
