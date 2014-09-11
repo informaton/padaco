@@ -557,13 +557,30 @@ classdef PAData < handle
        end
        
 
+       
+       % --------------------------------------------------------------------
+       %> @brief Sets the offset instance variable for a particular sub
+       %> field.
+       %> @param obj Instance of PAData
+       %> @param fieldName Dynamic field name to set in the 'offset' struct.
+       %> @note For example if fieldName = 'timeSeries.vecMag' then
+       %> obj.offset.timeSeries.vecMag = newOffset; is evaluated.
+       %> @param newOffset y-axis offset to set obj.offset.(fieldName) to.
+       % --------------------------------------------------------------------
+       function varargout = setOffset(obj,fieldName,newOffset)
+           eval(['obj.offset.',fieldName,' = ',num2str(newOffset)]);
+           if(nargout>0)
+               varargout = cell(1,nargout);
+           end
+       end
+              
        % --------------------------------------------------------------------
        %> @brief Sets the scale instance variable for a particular sub
        %> field.
        %> @param obj Instance of PAData
        %> @param fieldName Dynamic field name to set in the 'scale' struct.
        %> @note For example if fieldName = 'timeSeries.vecMag' then
-       %> obj.timerSeries.vecMag = newScale; is evaluated.
+       %> obj.scale.timeSeries.vecMag = newScale; is evaluated.
        %> @param newScale Scalar value to set obj.scale.(fieldName) to.
        % --------------------------------------------------------------------
        function varargout = setScale(obj,fieldName,newScale)

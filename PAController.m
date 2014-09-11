@@ -251,6 +251,8 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function windowButtonDownCallback(obj,hObject,eventData)
             if(ishandle(obj.current_linehandle))                
+                set(obj.VIEW.figurehandle,'windowbuttonmotionfcn',[]);
+                
                 set(obj.current_linehandle,'selected','off');
                 obj.current_linehandle = [];
                 obj.VIEW.showReady();
@@ -771,6 +773,45 @@ classdef PAController < handle
         end
         
         % =================================================================
+        %> @brief A line handle's contextmenu 'move' callback.
+        %> @param obj instance of PAController.
+        %> @param hObject gui handle object
+        %> @param eventdata unused
+        % =================================================================
+        function contextmenu_line_move_callback(obj,hObject,eventdata)
+            y_lim = get(obj.VIEW.axeshandle.primary,'ylim');
+            
+            tagLine = get(gco,'tag');
+            set(obj.VIEW.figurehandle,'pointer','hand',...
+                'windowbuttonmotionfcn',...
+                {@obj.move_line_mouseFcnCallback,tagLine,y_lim}...
+                );
+        end;  
+        
+                        
+        % =================================================================
+        %> @brief Channel contextmenu callback to move the selected
+        %> channel's position in the SEV.
+        %> @param obj instance of CLASS_channels_container.
+        %> @param hObject Handle of callback object (unused).
+        %> @param eventdata Unused.
+        %> @param lineTag The tag for the current selected linehandle.
+        %> @note lineTag = 'timeSeries.accelCount.x'
+        %> This is used for dynamic indexing into the accelObj's datastructs.
+        %> @param ylim Y-axes limits; cannot move the channel above or below
+        %> these bounds.
+        %> @retval obj instance of CLASS_channels_container.
+        % =================================================================
+        function move_line_mouseFcnCallback(obj,hObject,eventdata,lineTag,y_lim)
+            %windowbuttonmotionfcn set by contextmenu_line_move_callback
+            %axes_h is the axes that the current object (channel_object) is in
+            pos = get(obj.VIEW.axeshandle.primary,'currentpoint');
+            curOffset = max(min(pos(1,2),y_lim(2)),y_lim(1));
+            obj.accelObj.setOffset(lineTag,curOffset);
+            obj.VIEW.draw();
+        end
+        
+        % =================================================================
         %> @brief Resize callback for channel object contextmenu.
         %> @param obj instance of CLASS_channels_container.
         %> @param hObject Handle of callback object (unused).
@@ -795,8 +836,6 @@ classdef PAController < handle
             drawnow();
         end;
         
-        
-        
         % =================================================================
         %> @brief Contextmenu callback to set a line's default scale.
         %> @param obj instance of PAController
@@ -817,25 +856,6 @@ classdef PAController < handle
             end;
             set(gco,'selected','off');
         end
-                
-        % =================================================================
-        %> @brief Channel contextmenu callback to move the selected
-        %> channel's position in the SEV.
-        %> @param obj instance of CLASS_channels_container.
-        %> @param hObject Handle of callback object (unused).
-        %> @param eventdata Unused.
-        %> @param channel_object The CLASS_channel object being moved.
-        %> @param ylim Y-axes limits; cannot move the channel above or below
-        %> these bounds.
-        %> @retval obj instance of CLASS_channels_container.
-        % =================================================================
-        function move_line(obj,hObject,eventdata,channel_object,y_lim)
-            %windowbuttonmotionfcn set by contextmenu_line_move_callback
-            %axes_h is the axes that the current object (channel_object) is in
-            pos = get(obj.main_axes,'currentpoint');
-            channel_object.setLineOffset(max(min(pos(1,2),y_lim(2)),y_lim(1)));
-        end
-        
         
         % =================================================================
         %> @brief Mouse wheel callback to resize the selected channel.
@@ -844,7 +864,6 @@ classdef PAController < handle
         %> @param eventdata Mouse scroll event data.
         %> @param lineTag The tag for the current selected linehandle.
         %> @note lineTag = 'timeSeries.accelCount.x'
-        %> 
         %> This is used for dynamic indexing into the accelObj's datastructs.
         %> @param text_h Text handle for outputing the channel's size/scale.         
         % =================================================================
