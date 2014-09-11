@@ -709,7 +709,7 @@ classdef PAController < handle
             
             uicontextmenu_handle = uicontextmenu('callback',@obj.contextmenu_line_callback);%,get(parentAxes,'parent'));
             uimenu(uicontextmenu_handle,'Label','Resize','separator','off','callback',@obj.contextmenu_line_resize_callback);
-            uimenu(uicontextmenu_handle,'Label','Use Default Scale','separator','off','callback',@obj.contextmenu_line_default_callback);
+            uimenu(uicontextmenu_handle,'Label','Use Default Scale','separator','off','callback',@obj.contextmenu_line_defaultScale_callback,'tag','defaultScale');
             uimenu(uicontextmenu_handle,'Label','Move','separator','off','callback',@obj.contextmenu_line_move_callback);
             uimenu(uicontextmenu_handle,'Label','Add Reference Line','separator','on','callback',@obj.contextmenu_line_referenceline_callback);
             uimenu(uicontextmenu_handle,'Label','Change Color','separator','off','callback',@obj.contextmenu_line_color_callback);
@@ -733,17 +733,26 @@ classdef PAController < handle
             %             obj_handle = get(parent_fig,'currentobject');
             obj.current_linehandle = gco;
             set(gco,'selected','on');
-            tag = get(gco,'tag');
-            set(obj.VIEW.texthandle.status,'string',tag);
+            lineTag = get(gco,'tag');
+            set(obj.VIEW.texthandle.status,'string',lineTag);
             
-%             child_menu_handles = get(hObject,'children');  %this is all of the handles of the children menu options
-%             default_scale_handle = child_menu_handles(find(~cellfun('isempty',strfind(get(child_menu_handles,'Label'),'Use Default Scale')),1));
+            child_menu_handles = get(hObject,'children');  %this is all of the handles of the children menu options
+            default_scale_handle = child_menu_handles(find(~cellfun('isempty',strfind(get(child_menu_handles,'tag'),'defaultScale')),1));
+
+            allScale = obj.accelObj.getScale();
+            curScale = eval(['allScale.',lineTag]);
             
-%             if(channelObj.scale==1)
-%                 set(default_scale_handle,'checked','on');
-%             else
-%                 set(default_scale_handle,'checked','off');
-%             end;
+            pStruct = PAData.getDefaultParameters;                
+            defaultScale = eval(strcat('pStruct.scale.',lineTag));
+
+
+            if(curScale==defaultScale)
+                set(default_scale_handle,'Label',sprintf('Default Scale (%0.2f)',defaultScale))
+                set(default_scale_handle,'checked','on');
+            else
+                set(default_scale_handle,'Label',sprintf('Use Default Scale (%0.2f)',defaultScale))
+                set(default_scale_handle,'checked','off');
+            end;
 %             
 %             %show/hide the show filter handle
 %             if(isempty(channelObj.filter_data))
@@ -769,10 +778,45 @@ classdef PAController < handle
         %> @retval obj instance of CLASS_channels_container.
         % =================================================================
         function contextmenu_line_resize_callback(obj,hObject,eventdata)
+            
+            lineTag = get(gco,'tag');
             set(obj.VIEW.figurehandle,'pointer','crosshair','WindowScrollWheelFcn',...
                 {@obj.resize_WindowScrollWheelFcn,...
-                get(gco,'tag'),obj.VIEW.texthandle.status});
+                lineTag,obj.VIEW.texthandle.status});
+            
+            allScale = obj.accelObj.getScale();
+            curScale = eval(['allScale.',lineTag]);
+            
+            %show the current scale 
+            click_str = sprintf('Scale: %0.2f',curScale);
+            set(obj.VIEW.texthandle.status,'string',click_str);
+            
+            %flush the draw queue
+            drawnow();
         end;
+        
+        
+        
+        % =================================================================
+        %> @brief Contextmenu callback to set a line's default scale.
+        %> @param obj instance of PAController
+        %> @param hObject gui handle object
+        %> @param eventdata unused
+        % =================================================================
+        function contextmenu_line_defaultScale_callback(obj,hObject,eventdata)
+            
+            if(strcmp(get(hObject,'checked'),'off'))
+                set(hObject,'checked','on');
+                lineTag = get(gco,'tag');
+                
+                pStruct = PAData.getDefaultParameters;                
+                defaultScale = eval(strcat('pStruct.scale.',lineTag));
+            
+                obj.accelObj.setScale(lineTag,defaultScale);
+                obj.VIEW.draw();           
+            end;
+            set(gco,'selected','off');
+        end
                 
         % =================================================================
         %> @brief Channel contextmenu callback to move the selected
