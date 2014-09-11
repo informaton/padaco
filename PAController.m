@@ -47,7 +47,6 @@ classdef PAController < handle
         Padaco_mainaxes_ylim;
         Padaco_mainaxes_xlim;        
     end
-    
 
 
     methods
@@ -72,7 +71,10 @@ classdef PAController < handle
 
             if(ishandle(Padaco_fig_h))
                 %let's create a VIEW class
-                obj.VIEW = PAView(Padaco_fig_h);
+                uicontextmenu_handle = obj.getContextmenuHandle();
+        
+                
+                obj.VIEW = PAView(Padaco_fig_h,uicontextmenu_handle);
                 
                 handles = guidata(Padaco_fig_h);
                 
@@ -120,6 +122,16 @@ classdef PAController < handle
             set(figH,'WindowButtonDownFcn',@obj.windowButtonDownCallback);
             set(figH,'WindowButtonUpFcn',@obj.windowButtonUpCallback);
 
+% 
+%         
+%         function setLinehandle(obj, line_h)
+%             obj.clear_handles();
+%             obj.current_linehandle = line_h;
+%             set(obj.current_linehandle,'selected','on');
+%         end
+            
+            
+            
             %configure the menu bar
             obj.configureMenubar();
             
@@ -238,20 +250,11 @@ classdef PAController < handle
         %> @param eventData Structure of mouse press information; unused
         % --------------------------------------------------------------------
         function windowButtonDownCallback(obj,hObject,eventData)
-%             if(strcmpi(obj.marking_state,'off')) %don't want to reset the state if we are marking events
-%                 if(~isempty(obj.current_linehandle))
-%                     obj.restore_state();
-%                 end;
-%             else
-%                 if(ishghandle(obj.hg_group))
-%                     if(~any(gco==allchild(obj.hg_group))) %did not click on a member of the object being drawn...
-%                         obj.clear_handles();
-%                     end;
-%                 end;
-%             end;
-%             if(~isempty(obj.current_linehandle)&&ishandle(obj.current_linehandle) && strcmpi(get(obj.current_linehandle,'selected'),'on'))
-%                 set(obj.current_linehandle,'selected','off');
-%             end
+            if(ishandle(obj.current_linehandle))                
+                set(obj.current_linehandle,'selected','off');
+                obj.current_linehandle = [];
+                obj.VIEW.showReady();
+            end
         end
 
         
@@ -688,6 +691,164 @@ classdef PAController < handle
         end
         
         
+        %% context menu's for the lines
+        % --------------------------------------------------------------------
+        % Main Channel Line callback section
+        % --------------------------------------------------------------------
+        % =================================================================
+        %> @brief Configure contextmenu for channel instances.
+        %> @param obj instance of PAController.
+        %> @param parent_fig The figure handle that the context menu handle
+        %> is assigned to (i.e. the 'parent' handle).  (Optional, [] is
+        %> default)
+        %> @retval uicontextmenu_handle A contextmenu handle.  This should
+        %> be assigned to the line handles drawn by the PAController and
+        %> PAView classes.
+        % =================================================================
+        function uicontextmenu_handle = getContextmenuHandle(obj)
+            
+            uicontextmenu_handle = uicontextmenu('callback',@obj.contextmenu_line_callback);%,get(parentAxes,'parent'));
+            uimenu(uicontextmenu_handle,'Label','Resize','separator','off','callback',@obj.contextmenu_line_resize_callback);
+            uimenu(uicontextmenu_handle,'Label','Use Default Scale','separator','off','callback',@obj.contextmenu_line_default_callback);
+            uimenu(uicontextmenu_handle,'Label','Move','separator','off','callback',@obj.contextmenu_line_move_callback);
+            uimenu(uicontextmenu_handle,'Label','Add Reference Line','separator','on','callback',@obj.contextmenu_line_referenceline_callback);
+            uimenu(uicontextmenu_handle,'Label','Change Color','separator','off','callback',@obj.contextmenu_line_color_callback);
+            uimenu(uicontextmenu_handle,'Label','Align Channel','separator','off','callback',@obj.align_channels_on_axes);
+            uimenu(uicontextmenu_handle,'Label','Hide','separator','on','callback',@obj.contextmenu_line_hide_callback);
+            uimenu(uicontextmenu_handle,'Label','Copy window to clipboard','separator','off','callback',@obj.window2clipboard,'tag','copy_window2clipboard');
+        end
+        
+        
+        % =================================================================
+        %> @brief Contextmenu callback for primary axes line handles
+        %> @param obj instance of PAController
+        %> @param hObject Handle of callback object (unused).
+        %> @param eventdata Unused.
+        % =================================================================
+        function contextmenu_line_callback(obj,hObject,eventdata)
+            %parent context menu that pops up before any of the children contexts are
+            %drawn...
+            %             handles = guidata(hObject);
+            %             parent_fig = get(hObject,'parent');
+            %             obj_handle = get(parent_fig,'currentobject');
+            obj.current_linehandle = gco;
+            set(gco,'selected','on');
+            tag = get(gco,'tag');
+            set(obj.VIEW.texthandle.status,'string',tag);
+            
+%             child_menu_handles = get(hObject,'children');  %this is all of the handles of the children menu options
+%             default_scale_handle = child_menu_handles(find(~cellfun('isempty',strfind(get(child_menu_handles,'Label'),'Use Default Scale')),1));
+            
+%             if(channelObj.scale==1)
+%                 set(default_scale_handle,'checked','on');
+%             else
+%                 set(default_scale_handle,'checked','off');
+%             end;
+%             
+%             %show/hide the show filter handle
+%             if(isempty(channelObj.filter_data))
+%                 set(show_filtered_handle,'visible','off');
+%             else
+%                 set(show_filtered_handle,'visible','on');
+%                 if(channelObj.show_filtered)
+%                     set(show_filtered_handle,'Label','Show Raw Data');
+%                     %         set(show_filtered_handle,'checked','on');
+%                 else
+%                     set(show_filtered_handle,'Label','Show Filtered Data');
+%                     %         set(show_filtered_handle,'checked','off');
+%                 end
+%             end
+%             guidata(hObject,handles);
+        end
+        
+        % =================================================================
+        %> @brief Resize callback for channel object contextmenu.
+        %> @param obj instance of CLASS_channels_container.
+        %> @param hObject Handle of callback object (unused).
+        %> @param eventdata Unused.
+        %> @retval obj instance of CLASS_channels_container.
+        % =================================================================
+        function contextmenu_line_resize_callback(obj,hObject,eventdata)
+            set(obj.VIEW.figurehandle,'pointer','crosshair','WindowScrollWheelFcn',...
+                {@obj.resize_WindowScrollWheelFcn,...
+                get(gco,'tag'),obj.VIEW.texthandle.status});
+        end;
+                
+        % =================================================================
+        %> @brief Channel contextmenu callback to move the selected
+        %> channel's position in the SEV.
+        %> @param obj instance of CLASS_channels_container.
+        %> @param hObject Handle of callback object (unused).
+        %> @param eventdata Unused.
+        %> @param channel_object The CLASS_channel object being moved.
+        %> @param ylim Y-axes limits; cannot move the channel above or below
+        %> these bounds.
+        %> @retval obj instance of CLASS_channels_container.
+        % =================================================================
+        function move_line(obj,hObject,eventdata,channel_object,y_lim)
+            %windowbuttonmotionfcn set by contextmenu_line_move_callback
+            %axes_h is the axes that the current object (channel_object) is in
+            pos = get(obj.main_axes,'currentpoint');
+            channel_object.setLineOffset(max(min(pos(1,2),y_lim(2)),y_lim(1)));
+        end
+        
+        
+        % =================================================================
+        %> @brief Mouse wheel callback to resize the selected channel.
+        %> @param obj instance of PAController.
+        %> @param hObject Handle of callback object (unused).
+        %> @param eventdata Mouse scroll event data.
+        %> @param lineTag The tag for the current selected linehandle.
+        %> @note lineTag = 'timeSeries.accelCount.x'
+        %> 
+        %> This is used for dynamic indexing into the accelObj's datastructs.
+        %> @param text_h Text handle for outputing the channel's size/scale.         
+        % =================================================================
+        function resize_WindowScrollWheelFcn(obj,hObject,eventdata,lineTag,text_h)
+            %the windowwheelscrollfcn set by contextmenu_line_resize_callback
+            %it is used to adjust the size of the selected channel object (channelObj)
+            scroll_step = 0.05;
+            lowerbound = 0.01;
+            
+            %kind of hacky
+            allScale = obj.accelObj.getScale();
+            curScale = eval(['allScale.',lineTag]);
+            
+            
+            newScale = max(lowerbound,curScale-eventdata.VerticalScrollCount*scroll_step);
+            obj.accelObj.setScale(lineTag,newScale);
+            obj.VIEW.draw();
+            
+            %update this text scale...
+            click_str = sprintf('Scale: %0.2f',newScale);
+            set(text_h,'string',click_str);
+        end
+        
+        
+        % =================================================================
+        %> @brief configures a contextmenu selection to be hidden or to have
+        %> attached uimenus with labels of hidden channels displayed.
+        %> @param obj instance of CLASS_channels_container.
+        %> @param contextmenu_h Handle of parent contextmenu to unhide
+        %> channels.
+        %> @param eventdata Unused.
+        %> @retval obj instance of CLASS_channels_container.
+        % =================================================================
+        function configure_contextmenu_unhidechannels(obj,contextmenu_h,eventdata)
+            delete(get(contextmenu_h,'children'));
+            set(contextmenu_h,'enable','off');
+            for k=1:obj.num_channels
+                tmp = obj.cell_of_channels{k};
+                if(tmp.hidden)
+                    set(contextmenu_h,'enable','on');
+                    uimenu(contextmenu_h,'Label',tmp.title,'separator','off','callback',@tmp.show);
+                end;
+            end;
+            set(gco,'selected','off');
+            
+        end
+        
+        
         
         
     end
@@ -702,9 +863,9 @@ classdef PAController < handle
             
             obj.VIEW.initWithAccelData(obj.accelObj);
             
-%             [medianLumens,startStopDatenums] = obj.getMedianLumenPatches(1000);
+            %             [medianLumens,startStopDatenums] = obj.getMedianLumenPatches(1000);
             [meanLumens,startStopDatenums] = obj.getMeanLumenPatches(1000);
-
+            
             obj.VIEW.addLumensOverlayToSecondaryAxes(meanLumens,startStopDatenums);
             
             [featureVec, startStopDatenums] = getFeatureVecPatches(obj,'mean','vecMag',1000);
@@ -716,20 +877,49 @@ classdef PAController < handle
             obj.setRadioButton(displayType);
             obj.VIEW.setDisplayType(displayType);
             
-%             curWindow = obj.SETTINGS.DATA.curWindow;
-%             frameDurMin = obj.SETTINGS.DATA.frameDurationMinutes;
-%             frameDurHour = obj.SETTINGS.DATA.frameDurationHour;
-%             aggregateDur = obj.SETTINGS.DATA.aggregateDuration;
+            %             curWindow = obj.SETTINGS.DATA.curWindow;
+            %             frameDurMin = obj.SETTINGS.DATA.frameDurationMinutes;
+            %             frameDurHour = obj.SETTINGS.DATA.frameDurationHour;
+            %             aggregateDur = obj.SETTINGS.DATA.aggregateDuration;
             obj.setCurWindow(obj.accelObj.getCurWindow());
             
-%             obj.setFrameDurationMinutes(frameDurMin);
-%             obj.setFrameDurationHours(frameDurHour);
-%             obj.setAggregateDurationMinutes(aggregateDur);
+            %             obj.setFrameDurationMinutes(frameDurMin);
+            %             obj.setFrameDurationHours(frameDurHour);
+            %             obj.setAggregateDurationMinutes(aggregateDur);
             obj.VIEW.showReady();
             
         end
         
     end
+
+    methods (Static)
+        
+        % =================================================================
+        %> @brief Channel contextmenu callback to hide the selected
+        %> channel.
+        %> @param hObject Handle of callback object (unused).
+        %> @param eventdata Unused.
+        % =================================================================
+        function contextmenu_line_hide_callback(hObject,eventdata)
+            
+            set(gco,'selected','off');
+        end
+        
+        % =================================================================
+        %> @brief Copy the selected linehandle's ydata to the system
+        %> clipboard.
+        %> @param hObject Handle of callback object (unused).
+        %> @param eventdata Unused.
+        % =================================================================
+        function window2clipboard(hObject,eventdata)
+            data =get(hObject,'ydata');
+            clipboard('copy',data);
+            disp([num2str(numel(range)),' items copied to the clipboard.  Press Control-V to access data items, or type "str=clipboard(''paste'')"']);
+            set(gco,'selected','off');
+        end
+        
+    end
+    
     
 end
 

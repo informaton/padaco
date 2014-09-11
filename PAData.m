@@ -123,6 +123,7 @@ classdef PAData < handle
        %> @param pStruct Optional struct of parameters to use.  If it is not
        %> included then parameters from getDefaultParameters method are used.
        %> @retval Instance of PAData.
+       %fullFile = '~/Google Drive/work/Stanford - Pediatrics/sampledata/female child 1 second epoch.csv'
        % =================================================================
        function obj = PAData(fullFilename,pStruct)
            if(exist(fullFilename,'file'))
@@ -137,6 +138,8 @@ classdef PAData < handle
            if(nargin<2 || isempty(pStruct))
                pStruct = obj.getDefaultParameters();
            end
+           
+           
            
            % Can summarize these with defaults from below...last f(X) call.
            %            obj.aggregateDurMin = 1;
@@ -165,62 +168,14 @@ classdef PAData < handle
            %            obj.sampleRate.lux = 40;
            %            obj.sampleRate.vecMag = 40;
            
-       
            
-           
-           
-           obj.loadFile();
-           
-           obj.yDelta = 0.05*diff(obj.getMinmax('all'));
-           
-           featureStruct = PAData.getFeatureDescriptionStruct();
-           fnames = fieldnames(featureStruct);
-           featuresYDelta = diff(obj.getMinmax('all'))/(numel(fnames)+1);
-           
-           colorChoices = {'y','r','k','g','b','k'};
-           for f=1:numel(fnames)
-               curFeature = fnames{f};
-               curColor = colorChoices{mod(f,numel(colorChoices))+1};
-               curDescription = featureStruct.(curFeature);
-               obj.offset.features.(curFeature) = featuresYDelta*f;
-               
-               if(strcmpi(curFeature,'rms'))
-                   scaleVal = 2;
-               elseif(strcmpi(curFeature,'sum'))
-                   scaleVal = 0.001;
-               elseif(strcmpi(curFeature,'std'))
-                   scaleVal = 1;
-               elseif(strcmpi(curFeature,'var'))
-                   scaleVal = 0.1;
-               else
-                   scaleVal = 1;
-               end
-                   
-               obj.scale.features.(curFeature) = scaleVal;
-               obj.label.features.(curFeature).string = curDescription;
-               obj.label.features.(curFeature).position = [0 0 0];
-               obj.color.features.(curFeature).color = curColor;
-           end
-           
-           % yDelta = 1/20 of the vertical screen space (i.e. 20 can fit)
-           obj.offset.timeSeries.accelRaw.x = obj.yDelta*1;
-           obj.offset.timeSeries.accelRaw.y = obj.yDelta*4;
-           obj.offset.timeSeries.accelRaw.z = obj.yDelta*7;
-           obj.offset.timeSeries.vecMag = obj.yDelta*10;
-           obj.offset.timeSeries.steps = obj.yDelta*14; 
-           obj.offset.timeSeries.lux = obj.yDelta*15;
-           obj.offset.timeSeries.inclinometer.standing = obj.yDelta*19.0;
-           obj.offset.timeSeries.inclinometer.sitting = obj.yDelta*18.25;
-           obj.offset.timeSeries.inclinometer.lying = obj.yDelta*17.5;
-           obj.offset.timeSeries.inclinometer.off = obj.yDelta*16.75;
-                      
            % label properties for visualization
            obj.label.timeSeries.accelRaw.x.string = 'X_R_A_W';
            obj.label.timeSeries.accelRaw.y.string = 'Y_R_A_W';
            obj.label.timeSeries.accelRaw.z.string = 'Z_R_A_W';
            
            obj.label.timeSeries.vecMag.string = 'Magnitude';
-           obj.label.timeSeries.steps.string = 'Steps';  
+           obj.label.timeSeries.steps.string = 'Steps';
            obj.label.timeSeries.lux.string = 'Lux';
            
            obj.label.timeSeries.inclinometer.standing.string = 'Standing';
@@ -228,42 +183,27 @@ classdef PAData < handle
            obj.label.timeSeries.inclinometer.lying.string = 'Lying';
            obj.label.timeSeries.inclinometer.off.string = 'Off';
            
-           obj.label.timeSeries.accelRaw.x.position = [0 0 0];
-           obj.label.timeSeries.accelRaw.y.position = [0 0 0];
-           obj.label.timeSeries.accelRaw.z.position = [0 0 0];
+%            pStruct.label.timeSeries.accelRaw.x.position = [0 0 0];
+%            pStruct.label.timeSeries.accelRaw.y.position = [0 0 0];
+%            pStruct.label.timeSeries.accelRaw.z.position = [0 0 0];
+%            
+%            pStruct.label.timeSeries.vecMag.position = [0 0 0];
+%            pStruct.label.timeSeries.steps.position = [0 0 0];
+%            pStruct.label.timeSeries.lux.position = [0 0 0];
+%            
+%            pStruct.label.timeSeries.inclinometer.standing.position = [0 0 0];
+%            pStruct.label.timeSeries.inclinometer.sitting.position = [0 0 0];
+%            pStruct.label.timeSeries.inclinometer.lying.position = [0 0 0];
+%            pStruct.label.timeSeries.inclinometer.off.position = [0 0 0];
            
-           obj.label.timeSeries.vecMag.position = [0 0 0];
-           obj.label.timeSeries.steps.position = [0 0 0]; 
-           obj.label.timeSeries.lux.position = [0 0 0];
+       
            
-           obj.label.timeSeries.inclinometer.standing.position = [0 0 0];
-           obj.label.timeSeries.inclinometer.sitting.position = [0 0 0];
-           obj.label.timeSeries.inclinometer.lying.position = [0 0 0];
-           obj.label.timeSeries.inclinometer.off.position = [0 0 0];
            
-           obj.color.timeSeries.accelRaw.x.color = 'r';
-           obj.color.timeSeries.accelRaw.y.color = 'b';
-           obj.color.timeSeries.accelRaw.z.color = 'g';           
-           obj.color.timeSeries.vecMag.color = 'm';
-           obj.color.timeSeries.steps.color = [1 0.5 0.5];
-           obj.color.timeSeries.lux.color = 'y';           
-           obj.color.timeSeries.inclinometer.standing.color = 'k';
-           obj.color.timeSeries.inclinometer.lying.color = 'k';
-           obj.color.timeSeries.inclinometer.sitting.color = 'k';
-           obj.color.timeSeries.inclinometer.off.color = 'k';
            
-           % scale to show at - place before the loadFile command, 
-           % b/c it will differe based on the type of file loading done.
-           obj.scale.timeSeries.accelRaw.x = 1;
-           obj.scale.timeSeries.accelRaw.y = 1;
-           obj.scale.timeSeries.accelRaw.z = 1;
-           obj.scale.timeSeries.vecMag = 1;
-           obj.scale.timeSeries.steps = 5; 
-           obj.scale.timeSeries.lux = 1;
-           obj.scale.timeSeries.inclinometer.standing = 5;
-           obj.scale.timeSeries.inclinometer.sitting = 5;
-           obj.scale.timeSeries.inclinometer.lying = 5;
-           obj.scale.timeSeries.inclinometer.off = 5;
+           obj.loadFile();
+           
+           
+           
        end
        
 
@@ -577,22 +517,62 @@ classdef PAData < handle
        %> @brief Returns the color instance variable
        %> @param obj Instance of PAData
        %> @param structType String specifying the structure type of label to retrieve.
-       %> Possible values include:
-       %> @li @c time series (default)
+       %> Possible values include (all are included if this is not)
+       %> @li @c time series
        %> @li @c features
        %> @li @c aggregate bins
        %%> @retval color A struct of color values correspodning to the time series
        %> fields of obj.
        % --------------------------------------------------------------------
        function color = getColor(obj,structType)
-           if(nargin<2 || isempty(structType))
-               structType = 'time series';
+           if(nargin<2 || isempty(structType))               
+               color = obj.color;
+           else
+               fname = PAData.getStructNameFromDescription(structType);
+               color = obj.color.(fname);
            end
-           fname = PAData.getStructNameFromDescription(structType);
            
-           color = obj.color.(fname);
        end
+       
 
+       % --------------------------------------------------------------------
+       %> @brief Returns the scale instance variable
+       %> @param obj Instance of PAData
+       %> @param structType String specifying the structure type of label to retrieve.
+       %> Possible values include (all are included if this not):
+       %> @li @c time series 
+       %> @li @c features
+       %> @li @c aggregate bins
+       %%> @retval scale A struct of scalar values correspodning to the time series
+       %> fields of obj.
+       % --------------------------------------------------------------------
+       function scale = getScale(obj,structType)
+           if(nargin<2 || isempty(structType))
+               scale = obj.scale;
+           else
+               fname = PAData.getStructNameFromDescription(structType);
+           
+               scale = obj.scale.(fname);
+           end
+       end
+       
+
+       % --------------------------------------------------------------------
+       %> @brief Sets the scale instance variable for a particular sub
+       %> field.
+       %> @param obj Instance of PAData
+       %> @param fieldName Dynamic field name to set in the 'scale' struct.
+       %> @note For example if fieldName = 'timeSeries.vecMag' then
+       %> obj.timerSeries.vecMag = newScale; is evaluated.
+       %> @param newScale Scalar value to set obj.scale.(fieldName) to.
+       % --------------------------------------------------------------------
+       function varargout = setScale(obj,fieldName,newScale)
+           eval(['obj.scale.',fieldName,' = ',num2str(newScale)]);
+           if(nargout>0)
+               varargout = cell(1,nargout);
+           end
+       end
+       
        % --------------------------------------------------------------------
        %> @brief Returns the label instance variable
        %> @param obj Instance of PAData
@@ -619,6 +599,7 @@ classdef PAData < handle
            end
            
        end
+       
        
        % --------------------------------------------------------------------
        %> @brief Returns the total number of windows the data can be divided
@@ -1388,7 +1369,12 @@ classdef PAData < handle
                'windowDurSec';
                'aggregateDurMin';       
                'frameDurMin';
-               'frameDurHour'
+               'frameDurHour';
+               'scale';
+               'label';
+               'offset';
+               'color';
+               'yDelta'
                };
            pStruct = struct();
            for f=1:numel(fields)
@@ -1588,8 +1574,7 @@ classdef PAData < handle
        %> - @c aggregateDurMin
        %> - @c frameDurMin
        %> - @c frameDurHour
-       %> - @c windowDurSec
-       
+       %> - @c windowDurSec       
        %> @note This is useful with the PASettings companion class.
        function pStruct = getDefaultParameters()           
            pStruct.pathname = '.'; %directory of accelerometer data.
@@ -1599,6 +1584,79 @@ classdef PAData < handle
            pStruct.frameDurHour = 0;
            pStruct.aggregateDurMin = 3;
            pStruct.windowDurSec = 60*5;
+           
+           featureStruct = PAData.getFeatureDescriptionStruct();
+           fnames = fieldnames(featureStruct);
+
+           windowHeight = 1000; %diff(obj.getMinmax('all'))
+
+           pStruct.yDelta = 0.05*windowHeight; %diff(obj.getMinmax('all'));
+
+           featuresYDelta = windowHeight/(numel(fnames)+1);
+           
+           colorChoices = {'y','r','k','g','b','k'};
+           for f = 1 : numel(fnames)
+               curFeature = fnames{f};
+               curColor = colorChoices{mod(f,numel(colorChoices))+1};
+               curDescription = featureStruct.(curFeature);
+               pStruct.offset.features.(curFeature) = featuresYDelta*f;
+               
+               if(strcmpi(curFeature,'rms'))
+                   scaleVal = 2;
+               elseif(strcmpi(curFeature,'sum'))
+                   scaleVal = 0.001;
+               elseif(strcmpi(curFeature,'std'))
+                   scaleVal = 1;
+               elseif(strcmpi(curFeature,'var'))
+                   scaleVal = 0.1;
+               else
+                   scaleVal = 1;
+               end
+               
+               pStruct.scale.features.(curFeature) = scaleVal;
+               pStruct.label.features.(curFeature).string = curDescription;
+               pStruct.label.features.(curFeature).position = [0 0 0];
+               pStruct.color.features.(curFeature).color = curColor;
+           end
+           
+           % yDelta = 1/20 of the vertical screen space (i.e. 20 can fit)
+           pStruct.offset.timeSeries.accelRaw.x = pStruct.yDelta*1;
+           pStruct.offset.timeSeries.accelRaw.y = pStruct.yDelta*4;
+           pStruct.offset.timeSeries.accelRaw.z = pStruct.yDelta*7;
+           pStruct.offset.timeSeries.vecMag = pStruct.yDelta*10;
+           pStruct.offset.timeSeries.steps = pStruct.yDelta*14;
+           pStruct.offset.timeSeries.lux = pStruct.yDelta*15;
+           pStruct.offset.timeSeries.inclinometer.standing = pStruct.yDelta*19.0;
+           pStruct.offset.timeSeries.inclinometer.sitting = pStruct.yDelta*18.25;
+           pStruct.offset.timeSeries.inclinometer.lying = pStruct.yDelta*17.5;
+           pStruct.offset.timeSeries.inclinometer.off = pStruct.yDelta*16.75;
+           
+
+           
+           pStruct.color.timeSeries.accelRaw.x.color = 'r';
+           pStruct.color.timeSeries.accelRaw.y.color = 'b';
+           pStruct.color.timeSeries.accelRaw.z.color = 'g';
+           pStruct.color.timeSeries.vecMag.color = 'm';
+           pStruct.color.timeSeries.steps.color = 'k'; %[1 0.5 0.5];
+           pStruct.color.timeSeries.lux.color = 'y';
+           pStruct.color.timeSeries.inclinometer.standing.color = 'k';
+           pStruct.color.timeSeries.inclinometer.lying.color = 'k';
+           pStruct.color.timeSeries.inclinometer.sitting.color = 'k';
+           pStruct.color.timeSeries.inclinometer.off.color = 'k';
+           
+           % scale to show at - place before the loadFile command,
+           % b/c it will differe based on the type of file loading done.
+           pStruct.scale.timeSeries.accelRaw.x = 1;
+           pStruct.scale.timeSeries.accelRaw.y = 1;
+           pStruct.scale.timeSeries.accelRaw.z = 1;
+           pStruct.scale.timeSeries.vecMag = 1;
+           pStruct.scale.timeSeries.steps = 5;
+           pStruct.scale.timeSeries.lux = 1;
+           pStruct.scale.timeSeries.inclinometer.standing = 5;
+           pStruct.scale.timeSeries.inclinometer.sitting = 5;
+           pStruct.scale.timeSeries.inclinometer.lying = 5;
+           pStruct.scale.timeSeries.inclinometer.off = 5;         
+           
        end
        
        % ======================================================================
@@ -2139,9 +2197,6 @@ classdef PAData < handle
 %            end
            
        end
-       
-       
-       
       
        % --------------------------------------------------------------------
        %> @brief Returns a cell listing of available prefilter methods as strings.
