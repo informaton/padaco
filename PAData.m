@@ -195,17 +195,8 @@ classdef PAData < handle
 %            pStruct.label.timeSeries.inclinometer.sitting.position = [0 0 0];
 %            pStruct.label.timeSeries.inclinometer.lying.position = [0 0 0];
 %            pStruct.label.timeSeries.inclinometer.off.position = [0 0 0];
-           
-       
-           
-           
-           
            obj.loadFile();
-           
-           
-           
        end
-       
 
        % ======================================================================
        %> @brief Returns a structure of an instnace PAData's time series data.
@@ -241,9 +232,7 @@ classdef PAData < handle
                    maxValue = nan;                   
            end
            correctedWindowRange(2) = min([correctedWindowRange(2),maxValue]);
-
        end
-
        
        % ======================================================================
        %> @brief Returns the current windows range
@@ -1367,6 +1356,7 @@ classdef PAData < handle
        end
        
        
+       
        % ======================================================================
        %> @brief Returns a structure of PAData's saveable parameters as a struct.
        %> @param obj Instance of PAData.
@@ -1579,6 +1569,38 @@ classdef PAData < handle
    
    methods(Static)
 
+       %> @brief returns a cell of tag lines and the associated label
+       %> describing the tag line.
+       %> @retval tagLines Cell of tag lines
+       %> @retval labels Cell of string descriptions that correspond to tag
+       %> lines in the tagLines cell.
+       %> @note Tag lines are useful for dynamic struct indexing into
+       %> structs returned by getStruct.
+       function [tagLines,labels] = getDefaultTagLineLabels()
+           tagLines = {'accelRaw.x';
+                   'accelRaw.y';
+                   'accelRaw.z';
+                   'vecMag';
+                   'steps';
+                   'lux';
+                   'inclinometer.standing';
+                   'inclinometer.sitting';
+                   'inclinometer.lying';
+                   'inclinometer.off';
+                   };
+           labels = {'X';
+                   'Y';
+                   'Z';
+                   'Magnitude';
+                   'Steps';
+                   'Luminance'
+                   'inclinometer.standing';
+                   'inclinometer.sitting';
+                   'inclinometer.lying';
+                   'inclinometer.off';
+                   };    
+       end
+       
        % ======================================================================
        %> @brief Returns a structure of PAData's default parameters as a struct.
        %> @param obj Instance of PAData.
@@ -2252,7 +2274,7 @@ classdef PAData < handle
            for f=1:numel(fnames)
                extractorMethods{f} = featureStruct.(fnames{f});
            end
-           extractorMethods = ['All';extractorMethods;'None'];   
+           %extractorMethods = ['All';extractorMethods;'None'];   
        end
        
        % --------------------------------------------------------------------

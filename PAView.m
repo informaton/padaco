@@ -128,7 +128,7 @@ classdef PAView < handle
                 handles.panel_features_prefilter
                 handles.panel_features_aggregate
                 handles.panel_features_frame
-                handles.panel_features_extractor];
+                handles.panel_features_signal];
             set(whiteHandles,'backgroundcolor',[0.95,0.95,0.95]);
             
             obj.texthandle.status = handles.text_status;
@@ -140,7 +140,7 @@ classdef PAView < handle
             obj.texthandle.frameDurationHours = handles.edit_frameSizeHours;
             
             obj.menuhandle.windowDurSec = handles.menu_windowDurSec;
-            obj.menuhandle.extractorMethod = handles.menu_extractor;
+            obj.menuhandle.signalSelection = handles.menu_signalSelection;
             obj.menuhandle.prefilterMethod = handles.menu_prefilter;
             obj.menuhandle.displayFeature = handles.menu_displayFeature;
             
@@ -583,31 +583,6 @@ classdef PAView < handle
             set(handles.edit_frameSizeMinutes,'string','');
             set(handles.edit_curWindow,'string','');
             
-            prefilterSelection = PAData.getPrefilterMethods();
-            set(obj.menuhandle.prefilterMethod,'string',prefilterSelection,'value',1);
-            
-            % feature extractor
-            extractorMethods = PAData.getExtractorMethods();
-            set(obj.menuhandle.extractorMethod,'string',extractorMethods,'value',1);
-            
-            % Window display resolution
-            windowMinSelection = {
-                %30,'30 s';
-                %60,'1 min';
-                %120,'2 min';
-                300,'5 min';
-                600,'10 min';
-                900,'15 min';
-                1800,'30 min';
-                3600,'1 hour';
-                7200,'2 hours';
-                14400,'4 hours';
-                28800,'8 hours';
-                43200,'12 hours';
-                57600,'16 hours';
-                86400,'24 hours'};
-            
-            set(obj.menuhandle.windowDurSec,'userdata',cell2mat(windowMinSelection(:,1)), 'string',windowMinSelection(:,2),'value',5);
 
             %             obj.displayType = 'Time Series';
             %             set(obj.menuhandle.displayFeature,'enable','off');

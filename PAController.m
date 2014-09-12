@@ -77,7 +77,7 @@ classdef PAController < handle
                 obj.VIEW = PAView(Padaco_fig_h,uicontextmenu_handle);
                 
                 handles = guidata(Padaco_fig_h);
-                
+                obj.initWidgets();
                 obj.configureCallbacks();
                 
                 % Synthesize edit callback to trigger first display
@@ -278,6 +278,43 @@ classdef PAController < handle
             
         end
         
+        function initWidgets(obj)
+            
+            obj.initSignalSelectionMenu();
+
+            prefilterSelection = PAData.getPrefilterMethods();
+            set(obj.VIEW.menuhandle.prefilterMethod,'string',prefilterSelection,'value',1);
+            
+            % feature extractor
+            extractorMethods = PAData.getExtractorMethods();            
+            set(obj.VIEW.menuhandle.displayFeature,'string',extractorMethods,'value',1);
+            
+%             set(obj.menuhandle.signalSelection,'string',extractorMethods,'value',1);
+            
+            % Window display resolution
+            windowMinSelection = {
+                %30,'30 s';
+                %60,'1 min';
+                %120,'2 min';
+                300,'5 min';
+                600,'10 min';
+                900,'15 min';
+                1800,'30 min';
+                3600,'1 hour';
+                7200,'2 hours';
+                14400,'4 hours';
+                28800,'8 hours';
+                43200,'12 hours';
+                57600,'16 hours';
+                86400,'24 hours'};
+            
+            set(obj.VIEW.menuhandle.windowDurSec,'userdata',cell2mat(windowMinSelection(:,1)), 'string',windowMinSelection(:,2),'value',5);
+
+            obj.configureWidgetCallbacks();
+            
+            
+        end
+        
         % --------------------------------------------------------------------
         %> @brief Assign callbacks to various user interface widgets.
         %> Called internally during class construction.
@@ -356,8 +393,10 @@ classdef PAController < handle
         function button_goCallback(obj,hObject,eventdata)
             %obtain the prefilter and feature extraction methods
             prefilterMethod = obj.getPrefilterMethod();
-            extractorMethod = obj.getExtractorMethod();
             
+            
+            %extractorMethod = obj.getExtractorMethod();
+            extractorMethod = 'all';
             % get the prefilter duration in minutes. 
             % aggregateDurMin = obj.VIEW.getAggregateDuration();
             
@@ -369,10 +408,11 @@ classdef PAController < handle
                 displayType = 'aggregate bins';
                 obj.setRadioButton(displayType);  
             end
+            
             if(~strcmpi(extractorMethod,'none'))            
                 obj.accelObj.extractFeature(extractorMethod);
                 obj.VIEW.enableFeatureRadioButton();
-                obj.VIEW.appendFeatureMenu(extractorMethod);                
+                % obj.VIEW.appendFeatureMenu(extractorMethod);                
                 displayType = 'features';
                 obj.setRadioButton(displayType); 
             end
@@ -395,18 +435,40 @@ classdef PAController < handle
         end
         
         % --------------------------------------------------------------------
-        %> @brief Retrieves current extractor method from the GUI
+        %> @brief Retrieves current extractor method to be displayed from the GUI
         %> @param obj Instance of PAController
-        %> @retval extractorMethod String value of the current feature extraction method.
+        %> @retval extractorMethod String value of the current feature
+        %extraction method to be displayed in the VIEW's secondary axes.
         % --------------------------------------------------------------------
         function extractorMethod = getExtractorMethod(obj)
-            extractorMethods = get(obj.VIEW.menuhandle.extractorMethod,'string');
-            extractorIndex =  get(obj.VIEW.menuhandle.extractorMethod,'value');
+            extractorMethods = get(obj.VIEW.menuhandle.displayFeature,'string');
+            extractorIndex =  get(obj.VIEW.menuhandle.displayFeature,'value');
             if(~iscell(extractorMethods))
                 extractorMethod = extractorMethods;
             else
                 extractorMethod = extractorMethods{extractorIndex};
             end
+        end
+
+        % --------------------------------------------------------------------
+        %> @brief Retrieves current signal selection from the GUI's
+        %> signalSelection dropdown menu.
+        %> @param obj Instance of PAController
+        %> @retval signalSelection The tag line of the selected signal.
+        % --------------------------------------------------------------------
+        function signalSelection = getSignalSelection(obj)
+            signalSelections = get(obj.VIEW.menuhandle.signalSelection,'userdata');
+            selectionIndex =  get(obj.VIEW.menuhandle.signalSelection,'value');
+            if(~iscell(signalSelections))
+                signalSelection= signalSelections;
+            else
+                signalSelection = signalSelections{selectionIndex};
+            end
+        end
+        
+        function initSignalSelectionMenu(obj)
+            [tagLines,labels] = PAData.getDefaultTagLineLabels();
+            set(obj.VIEW.menuhandle.signalSelection,'string',labels,'userdata',tagLines,'value',1);
         end
         
         % --------------------------------------------------------------------
@@ -423,8 +485,7 @@ classdef PAController < handle
             windowDurSec = windowDurSec(get(hObject,'value'));
             
             %change it - this internally recalculates the cur window
-            obj.accelObj.setWindowDurSec(windowDurSec);
-            
+            obj.accelObj.setWindowDurSec(windowDurSec);            
             obj.setCurWindow(obj.curWindow());
         end
         
@@ -682,7 +743,8 @@ classdef PAController < handle
             if(nargin<2 || isempty(numSections) || numSections <=1)
                 numSections = 100;
             end
-            fieldData = obj.accelObj.(fieldName);
+            timeSeriesStruct = obj.accelObj.getStruct('all','time series');
+            fieldData = eval(['timeSeriesStruct.',fieldName]);
             indices = ceil(linspace(1,numel(fieldData),numSections+1));
             featureVec = zeros(numSections,1);
             startStopDatenums = zeros(numSections,2);
@@ -926,13 +988,19 @@ classdef PAController < handle
             
             obj.VIEW.initWithAccelData(obj.accelObj);
             
+
             %             [medianLumens,startStopDatenums] = obj.getMedianLumenPatches(1000);
             [meanLumens,startStopDatenums] = obj.getMeanLumenPatches(1000);
             
+            
+            
             obj.VIEW.addLumensOverlayToSecondaryAxes(meanLumens,startStopDatenums);
             
-            [featureVec, startStopDatenums] = getFeatureVecPatches(obj,'mean','vecMag',1000);
-            obj.VIEW.addFeaturesOverlayToSecondaryAxes(featureVec,startStopDatenums);
+            featureType = 'mean';
+            signalName = 'vecMag';
+            numSamples = 1000;
+            
+            obj.drawFeatureVecPatches(featureType,signalName,numSamples);
             
             % set the display to show time series data initially.
             displayType = 'Time Series';
@@ -953,6 +1021,17 @@ classdef PAController < handle
             
         end
         
+        % --------------------------------------------------------------------
+        %> @brief Calculates feature vectors and places visualizations on secondary axes.
+        %> @param obj Instance of PAController
+        %> @param featureType
+        %> @param signalName
+        %> @param numSamples        
+        % --------------------------------------------------------------------
+        function drawFeatureVecPatches(obj,featureType,signalName,numSamples)
+            [featureVec, startStopDatenums] = obj.getFeatureVecPatches(featureType,signalName,numSamples);
+            obj.VIEW.addFeaturesOverlayToSecondaryAxes(featureVec,startStopDatenums);
+        end        
     end
 
     methods (Static)
