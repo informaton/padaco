@@ -83,6 +83,9 @@ classdef PAController < handle
                 % Synthesize edit callback to trigger first display
                 obj.edit_curWindowCallback(handles.edit_curWindow,[]);
                 
+                
+                
+                
             end                
         end
         
@@ -93,6 +96,7 @@ classdef PAController < handle
                 obj.SETTINGS.DATA = obj.accelObj.getSaveParameters();
                
             end
+            obj.SETTINGS.CONTROLLER = obj.getSaveParameters();
             obj.saveParameters(); %requires SETTINGS variable
             obj.SETTINGS = [];
         end        
@@ -305,9 +309,8 @@ classdef PAController < handle
                 86400*2,'2 days';
                 86400*3,'3 days';
                 86400*5,'5 days';
-                86400*7,'1 week';
-                
-                };
+                86400*7,'1 week';                
+            };
             
             set(obj.VIEW.menuhandle.windowDurSec,'userdata',cell2mat(windowMinSelection(:,1)), 'string',windowMinSelection(:,2),'value',5);
 
@@ -431,8 +434,6 @@ classdef PAController < handle
             obj.VIEW.draw();
         end
         
-        
-        
         function updateSecondaryFeaturesDisplay(obj,varargin)
             featureFcn = obj.getExtractorMethod();
             signalTagLine = obj.getSignalSelection();
@@ -473,6 +474,25 @@ classdef PAController < handle
                 extractorMethod = extractorFcns{extractorIndex};
             end
         end
+        
+        
+        % --------------------------------------------------------------------
+        %> @brief Sets the extractor method (i.e. function name) associated with the GUI displayed description.
+        %> @param obj Instance of PAController
+        %> @param featureFcn String value of the function call represented by
+        %> the current feature extraction method displayed in the VIEW's displayFeature drop down menu.
+        %> @note No change is made if featureFcn is not found listed in
+        %> menu handle's userdata.
+        % --------------------------------------------------------------------
+        function setExtractorMethod(obj,featureFcn)
+            extractorFcns = get(obj.VIEW.menuhandle.displayFeature,'userdata');
+            extractorInd = find(strcmpi(extractorFcns,featureFcn));
+            if(~isempty(extractorInd))
+                set(obj.VIEW.menuhandle.displayFeature,'value',extractorInd);
+            end
+        end
+        
+        
 
         % --------------------------------------------------------------------
         %> @brief Retrieves current signal selection from the GUI's
@@ -487,6 +507,23 @@ classdef PAController < handle
                 signalSelection= signalSelections;
             else
                 signalSelection = signalSelections{selectionIndex};
+            end
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Sets the Signal Selection's drop down menu's value based on
+        %> the input parameter.        
+        %> @param obj Instance of PAController.
+        %> @param signalTagLine String representing the tag line associated with each
+        %> signal choice selection and listed as dropdown menus userdata.
+        %> @note No change is made if signalTagLine is not found listed in
+        %> menu handle's userdata.
+        % --------------------------------------------------------------------
+        function signalTagLine = setSignalSelection(obj, signalTagLine)
+            signalTagLines = get(obj.VIEW.menuhandle.signalSelection,'userdata');
+            selectionIndex = find(strcmpi(signalTagLines,signalTagLine)) ;
+            if(~isempty(selectionIndex))
+                set(obj.VIEW.menuhandle.signalSelection,'value',selectionIndex);
             end
         end
         
@@ -1019,18 +1056,17 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function initView(obj)
             
+            % accelObj has already been initialized with default/saved
+            % settings (i.e. obj.SETTINGS.DATA) and these are in turn
+            % passed along to the VIEW class here and used to initialize 
+            % many of the selected widgets.
+            
             obj.VIEW.initWithAccelData(obj.accelObj);
             
-
-            %             [medianLumens,startStopDatenums] = obj.getMedianLumenPatches(1000);
-            [meanLumens,startStopDatenums] = obj.getMeanLumenPatches(1000);
-            
-            
-            
-            obj.VIEW.addLumensOverlayToSecondaryAxes(meanLumens,startStopDatenums);
-            
-            
-            obj.updateSecondaryFeaturesDisplay();            
+            %set signal choice 
+            obj.setSignalSelection(obj.SETTINGS.CONTROLLER.signalTagLine);
+            obj.setExtractorMethod(obj.SETTINGS.CONTROLLER.featureFcn);
+         
             
             % set the display to show time series data initially.
             displayType = 'Time Series';
@@ -1038,15 +1074,17 @@ classdef PAController < handle
             obj.setRadioButton(displayType);
             obj.VIEW.setDisplayType(displayType);
             
-            %             curWindow = obj.SETTINGS.DATA.curWindow;
-            %             frameDurMin = obj.SETTINGS.DATA.frameDurationMinutes;
-            %             frameDurHour = obj.SETTINGS.DATA.frameDurationHour;
-            %             aggregateDur = obj.SETTINGS.DATA.aggregateDuration;
             obj.setCurWindow(obj.accelObj.getCurWindow());
             
-            %             obj.setFrameDurationMinutes(frameDurMin);
-            %             obj.setFrameDurationHours(frameDurHour);
-            %             obj.setAggregateDurationMinutes(aggregateDur);
+            
+            
+            %             [medianLumens,startStopDatenums] = obj.getMedianLumenPatches(1000);
+            [meanLumens,startStopDatenums] = obj.getMeanLumenPatches(1000);
+            
+            obj.VIEW.addLumensOverlayToSecondaryAxes(meanLumens,startStopDatenums);
+            
+            obj.updateSecondaryFeaturesDisplay();   
+            
             obj.VIEW.showReady();
             
         end
@@ -1061,7 +1099,20 @@ classdef PAController < handle
         function drawFeatureVecPatches(obj,featureType,signalName,numSamples)
             [featureVec, startStopDatenums] = obj.getFeatureVecPatches(featureType,signalName,numSamples);
             obj.VIEW.addFeaturesOverlayToSecondaryAxes(featureVec,startStopDatenums);
-        end        
+        end   
+        
+        % ======================================================================
+        %> @brief Returns a structure of PAControllers saveable parameters as a struct.
+        %> @param obj Instance of PAView.
+        %> @retval pStruct A structure of save parameters which include the following
+        %> fields
+        %> - @c featureFcn
+        %> - @c signalTagLine
+        function pStruct = getSaveParameters(obj)
+            pStruct.featureFcn = obj.getExtractorMethod();
+            pStruct.signalTagLine = obj.getSignalSelection();
+        end
+        
     end
 
     methods (Static)
@@ -1088,6 +1139,21 @@ classdef PAController < handle
             clipboard('copy',data);
             disp([num2str(numel(range)),' items copied to the clipboard.  Press Control-V to access data items, or type "str=clipboard(''paste'')"']);
             set(gco,'selected','off');
+        end
+        
+        % ======================================================================
+        %> @brief Returns a structure of PAControllers default, saveable parameters as a struct.
+        %> @param obj Instance of PAController.
+        %> @retval pStruct A structure of parameters which include the following
+        %> fields
+        %> - @c featureFcn
+        %> - @c signalTagLine
+        function pStruct = getDefaultParameters()
+            [tagLines,~] = PAData.getDefaultTagLineLabels();
+            featureStruct = PAData.getFeatureDescriptionStruct();
+            featureFcns = fieldnames(featureStruct);
+            pStruct.featureFcn = featureFcns{1};
+            pStruct.signalTagLine = tagLines{1};
         end
         
     end

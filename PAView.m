@@ -174,6 +174,9 @@ classdef PAView < handle
             userData = get(obj.menuhandle.windowDurSec,'userdata');
             windowDurSec = userData(userChoice);
         end
+
+
+        
         
         % --------------------------------------------------------------------
         %> @brief Sets the window duration drop down menu's current value
@@ -1031,6 +1034,8 @@ classdef PAView < handle
         end
         
     end
+    
+    
     methods(Static)
         
         %==================================================================

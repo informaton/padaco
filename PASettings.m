@@ -21,6 +21,8 @@ classdef  PASettings < handle
         %> @brief cell of string names corresponding to the struct properties that
         %> contain settings  <b><i> {'DATA','VIEW', 'BATCH_PROCESS', 'PSD','MUSIC'}</i></b>
         fieldNames;
+        %> struct of PAController preferences.
+        CONTROLLER;
         %> struct of PAData preferences.
         DATA;
         %> struct of viewer related settings.
@@ -203,7 +205,7 @@ classdef  PASettings < handle
         %> @param obj instance of the PASettings class.
         % =================================================================
         function initialize(obj)            
-            obj.fieldNames = {'DATA','VIEW','BATCH_PROCESS'};
+            obj.fieldNames = {'DATA','CONTROLLER','VIEW','BATCH_PROCESS'};
             obj.setDefaults();
             
             full_paramsFile = fullfile(obj.rootpathname,obj.parameters_filename);
@@ -283,7 +285,7 @@ classdef  PASettings < handle
         function wasModified = defaultsEditor(obj,optional_fieldName)
             tmp_obj = obj.copy();
             if(nargin<2)
-                lite_fieldNames = {'DATA','VIEW'}; %these are only one structure deep
+                lite_fieldNames = {'DATA','CONTROLLER','VIEW'}; %these are only one structure deep
             else
                 lite_fieldNames = optional_fieldName;
                 if(~iscell(lite_fieldNames))
@@ -387,6 +389,8 @@ classdef  PASettings < handle
                 switch fieldNames{f}
                     case 'DATA'
                         obj.DATA = PAData.getDefaultParameters();
+                    case 'CONTROLLER'
+                        obj.CONTROLLER = PAController.getDefaultParameters();
                     case 'VIEW'
                         obj.VIEW.yDir = 'normal';  %or can be 'reverse'
                         obj.VIEW.screenshot_path = obj.rootpathname; %initial directory to look in for EDF files to load
@@ -399,13 +403,8 @@ classdef  PASettings < handle
                                 obj.VIEW.output_pathname = fileparts(mfilename('fullpath'));
                             end;
                         end
-                        
-                        obj.VIEW.detection_inf_file = 'detection.inf';
-                        obj.VIEW.detection_path = '+detection';
-                        obj.VIEW.filter_path = '+filter';
                         obj.VIEW.filter_inf_file = 'filter.inf';
                         obj.VIEW.database_inf_file = 'database.inf';
-                        obj.VIEW.parameters_filename = '_padaco.parameters.txt';
                    case 'BATCH_PROCESS'
                         obj.BATCH_PROCESS.src_folder = '.'; %the folder to do a batch job on.
             
