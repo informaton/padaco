@@ -128,8 +128,6 @@ classdef PAController < handle
 %             set(obj.current_linehandle,'selected','on');
 %         end
             
-            %configure the menu bar
-            obj.initMenubar();
             
             %configure the user interface widgets
             obj.initWidgetCallbacks();
@@ -261,7 +259,7 @@ classdef PAController < handle
         %> Called internally during class construction.
         %> @param obj Instance of PAController
         % --------------------------------------------------------------------        
-        function initMenubar(obj)
+        function initMenubarCallbacks(obj)
             figH = obj.VIEW.getFigHandle();
             handles = guidata(figH);
             
@@ -281,10 +279,12 @@ classdef PAController < handle
             set(obj.VIEW.menuhandle.prefilterMethod,'string',prefilterSelection,'value',1);
             
             % feature extractor
-            extractorMethods = PAData.getExtractorMethods();            
-            set(obj.VIEW.menuhandle.displayFeature,'string',extractorMethods,'value',1);
+            extractorMethodDescriptions = PAData.getExtractorDescriptions(); 
+            extractorStruct = PAData.getFeatureDescriptionStruct(); 
+            extractorMethodFcns = fieldnames(extractorStruct);
+            set(obj.VIEW.menuhandle.displayFeature,'string',extractorMethodDescriptions,'userdata',extractorMethodFcns,'value',1);
             
-%             set(obj.menuhandle.signalSelection,'string',extractorMethods,'value',1);
+            % set(obj.menuhandle.signalSelection,'string',extractorMethods,'value',1);
             
             % Window display resolution
             windowMinSelection = {
@@ -301,7 +301,13 @@ classdef PAController < handle
                 28800,'8 hours';
                 43200,'12 hours';
                 57600,'16 hours';
-                86400,'24 hours'};
+                86400,'1 day';
+                86400*2,'2 days';
+                86400*3,'3 days';
+                86400*5,'5 days';
+                86400*7,'1 week';
+                
+                };
             
             set(obj.VIEW.menuhandle.windowDurSec,'userdata',cell2mat(windowMinSelection(:,1)), 'string',windowMinSelection(:,2),'value',5);
 
@@ -319,11 +325,20 @@ classdef PAController < handle
             set(handles.edit_frameSizeMinutes,'callback',@obj.edit_frameSizeMinutesCallback);
             set(handles.edit_frameSizeHours,'callback',@obj.edit_frameSizeHoursCallback);
             
+            
+            %initialize dropdown menu callbacks
             set(obj.VIEW.menuhandle.displayFeature,'callback',@obj.updateSecondaryFeaturesDisplay);
             set(handles.menu_windowDurSec,'callback',@obj.menu_windowDurSecCallback);
+            
+            set(obj.VIEW.menuhandle.signalSelection,'callback',@obj.updateSecondaryFeaturesDisplay);
+            
             set(handles.panel_displayButtonGroup,'selectionChangeFcn',@obj.displayChangeCallback);
             
             set(handles.button_go,'callback',@obj.button_goCallback);
+            
+            %configure the menu bar callbacks.
+            obj.initMenubarCallbacks();
+
         end
         
         % --------------------------------------------------------------------
@@ -416,11 +431,13 @@ classdef PAController < handle
             obj.VIEW.draw();
         end
         
+        
+        
         function updateSecondaryFeaturesDisplay(obj,varargin)
-            featureType = obj.getExtractorMethod();
+            featureFcn = obj.getExtractorMethod();
             signalTagLine = obj.getSignalSelection();
             numSamples = 1000;            
-            obj.drawFeatureVecPatches(featureType,signalTagLine,numSamples);
+            obj.drawFeatureVecPatches(featureFcn,signalTagLine,numSamples);
         end
         
         % --------------------------------------------------------------------
@@ -439,18 +456,21 @@ classdef PAController < handle
         end
         
         % --------------------------------------------------------------------
-        %> @brief Retrieves current extractor method to be displayed from the GUI
+        %> @brief Retrieves current extractor method (i.e. function name) associated with the GUI displayed description.
         %> @param obj Instance of PAController
-        %> @retval extractorMethod String value of the current feature
-        %extraction method to be displayed in the VIEW's secondary axes.
+        %> @retval extractorMethod String value of the function call represented by
+        %> the current feature extraction method displayed in the VIEW's displayFeature drop down menu.
+        %> @note Results of applying the extractor method to the current
+        %> signal (selected from its dropdown menu) are displayed in the
+        %> secondary axes of PAView.
         % --------------------------------------------------------------------
         function extractorMethod = getExtractorMethod(obj)
-            extractorMethods = get(obj.VIEW.menuhandle.displayFeature,'string');
+            extractorFcns = get(obj.VIEW.menuhandle.displayFeature,'userdata');
             extractorIndex =  get(obj.VIEW.menuhandle.displayFeature,'value');
-            if(~iscell(extractorMethods))
-                extractorMethod = extractorMethods;
+            if(~iscell(extractorFcns))
+                extractorMethod = extractorFcns;
             else
-                extractorMethod = extractorMethods{extractorIndex};
+                extractorMethod = extractorFcns{extractorIndex};
             end
         end
 
@@ -470,6 +490,15 @@ classdef PAController < handle
             end
         end
         
+        % --------------------------------------------------------------------
+        %> @brief Initializes the signal selection drop down menu using PAData's 
+        %> default taglines and associated labels.
+        %> signalSelection dropdown menu.
+        %> @param obj Instance of PAController
+        %> @note Tag lines are stored as user data at indices corresponding
+        %> to the menu label descriptions.  For example, label{1} = 'X' and
+        %> userdata{1} = 'accelRaw.x'
+        % --------------------------------------------------------------------        
         function initSignalSelectionMenu(obj)
             [tagLines,labels] = PAData.getDefaultTagLineLabels();
             set(obj.VIEW.menuhandle.signalSelection,'string',labels,'userdata',tagLines,'value',1);

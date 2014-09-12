@@ -282,11 +282,11 @@ classdef PAView < handle
                 
                 obj.displayType = displayTypeStr;
                 
-                if(strcmpi(displayTypeStr,'Features'))
-                    set(obj.menuhandle.displayFeature,'enable','on');
-                else
-                    set(obj.menuhandle.displayFeature,'enable','off');
-                end
+%                 if(strcmpi(displayTypeStr,'Features'))
+%                     set(obj.menuhandle.displayFeature,'enable','on');
+%                 else
+%                     set(obj.menuhandle.displayFeature,'enable','off');
+%                 end
                 
                 structName = PAData.getStructNameFromDescription(obj.displayType);
                 allProps.visible = 'on';
@@ -611,7 +611,7 @@ classdef PAView < handle
             windowDurSec = obj.getWindowDurSec();
             curDateNum = obj.dataObj.window2datenum(curWindow);
             nextDateNum = obj.dataObj.window2datenum(curWindow+1); 
-            numTicks = 5;
+            numTicks = 10;
             xTick = linspace(axesRange(1),axesRange(2),numTicks);
             dateTicks = linspace(curDateNum,nextDateNum,numTicks);
             % if number of seconds or window length is less than 10 minute then include seconds;
@@ -852,7 +852,6 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         function enableFeatureRadioButton(obj)
             handles = guidata(obj.getFigHandle());
-            set(handles.radio_features,'enable','on');
             set(handles.radio_features,'enable','on');
         end
         

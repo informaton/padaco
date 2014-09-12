@@ -2262,7 +2262,7 @@ classdef PAData < handle
        
        % --------------------------------------------------------------------
        %> @brief Returns a cell listing of available feature extraction methods as strings.
-       %> @retval extractorMethods Cell listing of prefilter methods.
+       %> @retval extractorDescriptions Cell listing with description of feature extraction methods.
        %> - @c none No feature extraction
        %> - @c rms  Root mean square
        %> - @c hash
@@ -2272,14 +2272,14 @@ classdef PAData < handle
        %> @note These methods can be passed as the argument to PAData's
        %> prefilter() method.
        % --------------------------------------------------------------------
-       function extractorMethods = getExtractorMethods()
+       function extractorDescriptions = getExtractorDescriptions()
            featureStruct = PAData.getFeatureDescriptionStruct();
            
            fnames = fieldnames(featureStruct);
            
-           extractorMethods = cell(numel(fnames),1);
+           extractorDescriptions = cell(numel(fnames),1);
            for f=1:numel(fnames)
-               extractorMethods{f} = featureStruct.(fnames{f});
+               extractorDescriptions{f} = featureStruct.(fnames{f});
            end
            %extractorMethods = ['All';extractorMethods;'None'];   
        end
