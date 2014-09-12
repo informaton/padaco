@@ -1202,14 +1202,23 @@ classdef PAData < handle
 
        
        
-       function obj = extractFeature(obj,method)
+       function obj = extractFeature(obj,signalTagLine,method)
+           if(nargin<3 || isempty(method))
+               method = 'all';
+               if(nargin<2 || isempty(signalTagLine))
+                   signalTagLine = 'vecMag';
+               end
+           end
+           
            currentNumFrames = obj.getFrameCount();
            if(currentNumFrames~=obj.numFrames)
                [frameDurMinutes, frameDurHours ] = obj.getFrameDuration();
                frameDurSeconds = frameDurMinutes*60+frameDurHours*60*60;
                obj.numFrames = currentNumFrames;
                frameableSamples = obj.numFrames*frameDurSeconds*obj.getSampleRate();
-               obj.frames =  reshape(obj.vecMag(1:frameableSamples),[],obj.numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
+               data = obj.getStruct('all');
+               data = eval(['data.',signalTagLine]);
+               obj.frames =  reshape(data(1:frameableSamples),[],obj.numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
                obj.features = [];
            end
            
@@ -1240,8 +1249,6 @@ classdef PAData < handle
            end
        end
        
-       
-              
        % ======================================================================
        %> @brief overloaded subsindex method returns structure of time series data
        %> at indices provided. 
@@ -2282,8 +2289,8 @@ classdef PAData < handle
        %> @retval featureStruct A struct of  feature extraction methods and string descriptions as the corresponding values.
        % --------------------------------------------------------------------
        function featureStruct = getFeatureDescriptionStruct()           
-           featureStruct.median = 'Median';
            featureStruct.mean = 'Mean';
+           featureStruct.median = 'Median';
            featureStruct.std = 'Standard Deviation';           
            featureStruct.rms = 'Root mean square';
            featureStruct.sum = 'sum';           

@@ -78,7 +78,7 @@ classdef PAController < handle
                 
                 handles = guidata(Padaco_fig_h);
                 obj.initWidgets();
-                obj.configureCallbacks();
+                obj.initCallbacks();
                 
                 % Synthesize edit callback to trigger first display
                 obj.edit_curWindowCallback(handles.edit_curWindow,[]);
@@ -112,7 +112,7 @@ classdef PAController < handle
         %> Called internally during class construction.
         %> @param obj Instance of PAController
         % --------------------------------------------------------------------        
-        function configureCallbacks(obj)   
+        function initCallbacks(obj)   
             figH = obj.VIEW.getFigHandle();
             
             % figure callbacks
@@ -121,22 +121,18 @@ classdef PAController < handle
             set(figH,'KeyReleaseFcn',@obj.keyReleaseCallback);
             set(figH,'WindowButtonDownFcn',@obj.windowButtonDownCallback);
             set(figH,'WindowButtonUpFcn',@obj.windowButtonUpCallback);
-
-% 
-%         
+        
 %         function setLinehandle(obj, line_h)
 %             obj.clear_handles();
 %             obj.current_linehandle = line_h;
 %             set(obj.current_linehandle,'selected','on');
 %         end
             
-            
-            
             %configure the menu bar
-            obj.configureMenubar();
+            obj.initMenubar();
             
             %configure the user interface widgets
-            obj.configureWidgetCallbacks();
+            obj.initWidgetCallbacks();
         end
         
         % --------------------------------------------------------------------
@@ -258,7 +254,6 @@ classdef PAController < handle
                 obj.VIEW.showReady();
             end
         end
-
         
         %-- Menubar configuration --
         % --------------------------------------------------------------------
@@ -266,7 +261,7 @@ classdef PAController < handle
         %> Called internally during class construction.
         %> @param obj Instance of PAController
         % --------------------------------------------------------------------        
-        function configureMenubar(obj)
+        function initMenubar(obj)
             figH = obj.VIEW.getFigHandle();
             handles = guidata(figH);
             
@@ -310,9 +305,6 @@ classdef PAController < handle
             
             set(obj.VIEW.menuhandle.windowDurSec,'userdata',cell2mat(windowMinSelection(:,1)), 'string',windowMinSelection(:,2),'value',5);
 
-            obj.configureWidgetCallbacks();
-            
-            
         end
         
         % --------------------------------------------------------------------
@@ -320,13 +312,14 @@ classdef PAController < handle
         %> Called internally during class construction.
         %> @param obj Instance of PAController
         % --------------------------------------------------------------------
-        function configureWidgetCallbacks(obj)
+        function initWidgetCallbacks(obj)
             handles = guidata(obj.VIEW.getFigHandle());
             set(handles.edit_curWindow,'callback',@obj.edit_curWindowCallback);
             set(handles.edit_aggregate,'callback',@obj.edit_aggregateCallback);
             set(handles.edit_frameSizeMinutes,'callback',@obj.edit_frameSizeMinutesCallback);
             set(handles.edit_frameSizeHours,'callback',@obj.edit_frameSizeHoursCallback);
             
+            set(obj.VIEW.menuhandle.displayFeature,'callback',@obj.updateSecondaryFeaturesDisplay);
             set(handles.menu_windowDurSec,'callback',@obj.menu_windowDurSecCallback);
             set(handles.panel_displayButtonGroup,'selectionChangeFcn',@obj.displayChangeCallback);
             
@@ -395,8 +388,6 @@ classdef PAController < handle
             prefilterMethod = obj.getPrefilterMethod();
             
             
-            %extractorMethod = obj.getExtractorMethod();
-            extractorMethod = 'all';
             % get the prefilter duration in minutes. 
             % aggregateDurMin = obj.VIEW.getAggregateDuration();
             
@@ -409,14 +400,27 @@ classdef PAController < handle
                 obj.setRadioButton(displayType);  
             end
             
-            if(~strcmpi(extractorMethod,'none'))            
-                obj.accelObj.extractFeature(extractorMethod);
-                obj.VIEW.enableFeatureRadioButton();
-                % obj.VIEW.appendFeatureMenu(extractorMethod);                
-                displayType = 'features';
-                obj.setRadioButton(displayType); 
-            end
+            %extractorMethod = obj.getExtractorMethod();
+            extractorMethod = 'all';            
+            selectedSignalTagLine = obj.getSignalSelection();
+
+            obj.accelObj.extractFeature(selectedSignalTagLine,extractorMethod);
+            obj.VIEW.enableFeatureRadioButton();
+            
+           
+            obj.updateSecondaryFeaturesDisplay();
+            % obj.VIEW.appendFeatureMenu(extractorMethod);
+            displayType = 'features';
+            obj.setRadioButton(displayType);            
+            
             obj.VIEW.draw();
+        end
+        
+        function updateSecondaryFeaturesDisplay(obj,varargin)
+            featureType = obj.getExtractorMethod();
+            signalTagLine = obj.getSignalSelection();
+            numSamples = 1000;            
+            obj.drawFeatureVecPatches(featureType,signalTagLine,numSamples);
         end
         
         % --------------------------------------------------------------------
@@ -996,11 +1000,8 @@ classdef PAController < handle
             
             obj.VIEW.addLumensOverlayToSecondaryAxes(meanLumens,startStopDatenums);
             
-            featureType = 'mean';
-            signalName = 'vecMag';
-            numSamples = 1000;
             
-            obj.drawFeatureVecPatches(featureType,signalName,numSamples);
+            obj.updateSecondaryFeaturesDisplay();            
             
             % set the display to show time series data initially.
             displayType = 'Time Series';

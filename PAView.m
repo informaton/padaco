@@ -34,6 +34,10 @@ classdef PAView < handle
         %> - @b primary handle to the main axes an instance of this class is associated with
         %> - @b secondary Window view of events (over view)
         axeshandle;
+        
+        %> @brief struct whose fields are patch handles.  Fields include:
+        %> - @c feature Patches representing the current feature method.
+        patchhandle;
 
         %> @brief struct whose fields are structs with names of the axes and whose fields are property values for those axes.  Fields include:
         %> - @b primary handle to the main axes an instance of this class is associated with
@@ -146,7 +150,9 @@ classdef PAView < handle
             
             obj.axeshandle.primary = handles.axes_primary;
             obj.axeshandle.secondary = handles.axes_secondary;
-
+            
+            % create a spot for it in the struct;
+            obj.patchhandle.feature = [];
             
             % Clear the figure and such.  
             obj.clearAxesHandles();
@@ -628,6 +634,8 @@ classdef PAView < handle
 
 
         function addFeaturesOverlayToSecondaryAxes(obj, featureVector, startStopDatenum)
+            
+            
             yLim = get(obj.axeshandle.secondary,'ylim');
             yLim = yLim*1/3+1/3;
             minColor = [.0 0.25 0.25];
@@ -659,18 +667,29 @@ classdef PAView < handle
                 x(:,f) = startStopDatenum(f,[1 1 2 2])';
                 
             end
-            patch(x,y,vertexColor,'parent',obj.axeshandle.secondary,'edgecolor','interp','facecolor','interp');
+            
+            if(ishandle(obj.patchhandle.feature))
+                delete(obj.patchhandle.feature);
+            end
+            if(ishandle(obj.linehandle.feature))
+                delete(obj.linehandle.feature);
+            end
+            if(ishandle(obj.linehandle.featureCumsum))
+                delete(obj.linehandle.featureCumsum);
+            end
+            
+            obj.patchhandle.feature = patch(x,y,vertexColor,'parent',obj.axeshandle.secondary,'edgecolor','interp','facecolor','interp');
 
             % draw the line...
 %             line('parent',obj.axeshandle.secondary,'ydata',normalizedFeatureVector,'xdata',startStopDatenum(:,1),'color','b','linewidth',0.25);
             n = 10;
             b = repmat(1/n,1,n);
             smoothY = filtfilt(b,1,normalizedFeatureVector);
-            line('parent',obj.axeshandle.secondary,'ydata',smoothY,'xdata',startStopDatenum(:,1),'color','b');
+            obj.linehandle.feature = line('parent',obj.axeshandle.secondary,'ydata',smoothY,'xdata',startStopDatenum(:,1),'color','b');
             
             
             vectorSum = cumsum(featureVector)/sum(featureVector)/3;
-            h=line('parent',obj.axeshandle.secondary,'ydata',vectorSum,'xdata',startStopDatenum(:,1),'color','g');
+            obj.linehandle.featureCumsum =line('parent',obj.axeshandle.secondary,'ydata',vectorSum,'xdata',startStopDatenum(:,1),'color','g');
             %             h=stem(obj.axeshandle.secondary,startStopDatenum(:,1),vectorSum,'color','g','linestyle','none','marker','.','markersize',1);
             %              h=stairs(obj.axeshandle.secondary,startStopDatenum(:,1),vectorSum,'color','g','linestyle','none','marker','.','markersize',1);
 
@@ -808,6 +827,9 @@ classdef PAView < handle
             
             %secondary axes
             obj.positionBarHandle = line('parent',obj.axeshandle.secondary,'visible','off');%annotation(obj.figurehandle.sev,'line',[1, 1], [pos(2) pos(2)+pos(4)],'hittest','off');
+            obj.linehandle.feature = [];
+            obj.linehandle.featureCumsum = [];
+            
         end
 
         
