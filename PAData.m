@@ -139,8 +139,7 @@ classdef PAData < handle
            if(nargin<2 || isempty(pStruct))
                pStruct = obj.getDefaultParameters();
            end
-           
-           
+                      
            
            % Can summarize these with defaults from below...last f(X) call.
            %            obj.aggregateDurMin = 1;
@@ -204,9 +203,9 @@ classdef PAData < handle
        %> @param obj Instance of PAData.
        %> @param structType Optional string identifying the type of data to obtain the
        %> offset from.  Can be 
-       %> @li @c time series (default)
+       %> @li @c timeSeries (default)
        %> @li @c features
-       %> @li @c aggregate bins
+       %> @li @c bins
        %> @retval A 2x1 vector with start, stop range of the current window returned as
        %> samples beginning with 1 for the first sample.  The second value
        %> (i.e. the stop sample) is capped at the current value of
@@ -216,15 +215,15 @@ classdef PAData < handle
        % =================================================================      
        function correctedWindowRange = getCurWindowRange(obj,structType)
            if(nargin<2 || isempty(structType))
-               structType = 'time series';
+               structType = 'timeSeries';
            end
            
            correctedWindowRange = obj.getCurUncorrectedWindowRange(structType);
                    
-           switch lower(structType)
-               case 'time series'
+           switch structType
+               case 'timeSeries'
                    maxValue = obj.durationSamples();
-               case 'aggregate bins'
+               case 'bins'
                    maxValue = obj.getBinCount();
                case 'features'
                    maxValue = obj.getFrameCount();
@@ -240,9 +239,9 @@ classdef PAData < handle
        %> @param obj Instance of PAData.
        %> @param structType Optional string identifying the type of data to obtain the
        %> offset from.  Can be 
-       %> @li @c time series (default)
+       %> @li @c timeSeries (default)
        %> @li @c features
-       %> @li @c aggregate bins
+       %> @li @c bins
        %> @retval A 2x1 vector with start, stop range of the current window returned as
        %> samples beginning with 1 for the first sample.  
        %> @note This uses instance variables windowDurSec, curWindow, and sampleRate to
@@ -251,7 +250,7 @@ classdef PAData < handle
        % =================================================================      
        function windowRange = getCurUncorrectedWindowRange(obj,structType)
            if(nargin<2 || isempty(structType))
-               structType = 'time series';
+               structType = 'timeSeries';
            end
            
            windowResolution = obj.getSamplesPerWindow(structType);
@@ -265,16 +264,16 @@ classdef PAData < handle
        %> @param obj Instance of PAData.       
        %> @param structType Optional string identifying the type of data to obtain the
        %> offset from.  Can be 
-       %> @li @c time series (default) - units are sample points
+       %> @li @c timeSeries (default) - units are sample points
        %> @li @c features - units are frames
-       %> @li @c aggregate bins - units are bins
+       %> @li @c bins - units are bins       
        %> @retval Number of samples, frames, or bins per window display;
        %not necessarily an integer result; can be a fraction.
        %> @note Calcuation based on instance variables windowDurSec and
        %> sampleRate
        function windowDur = getSamplesPerWindow(obj,structType)
            if(nargin<2 || isempty(structType))
-               structType = 'time series';
+               structType = 'timeSeries';
            end
            windowDur = obj.windowDurSec*obj.getWindowSamplerate(structType);
        end  
@@ -284,20 +283,20 @@ classdef PAData < handle
        %> @param obj Instance of PAData   
        %> @param structType Optional string identifying the type of data to obtain the
        %> offset from.  Can be 
-       %> @li @c time series (default) - sample units are sample points
+       %> @li @c timeSeries (default) - sample units are sample points
        %> @li @c features - sample units are frames
-       %> @li @c aggregate bins - sample units are bins
+       %> @li @c bins - sample units are bins
        %> @retval Sample rate of the data being viewed in Hz.  
        % --------------------------------------------------------------------
        function windowRate = getWindowSamplerate(obj,structType)
            if(nargin<2 || isempty(structType))
-               structType = 'time series';
+               structType = 'timeSeries';
            end
            
-           switch lower(structType)
-               case 'time series'                   
+           switch structType
+               case 'timeSeries'                   
                    windowRate = obj.getSampleRate();
-               case 'aggregate bins'
+               case 'bins'
                    windowRate = obj.getBinRate();
                case 'features'
                    windowRate = obj.getFrameRate();
@@ -505,9 +504,9 @@ classdef PAData < handle
        %> @param obj Instance of PAData
        %> @param structType String specifying the structure type of label to retrieve.
        %> Possible values include (all are included if this is not)
-       %> @li @c time series
+       %> @li @c timeSeries (default)
        %> @li @c features
-       %> @li @c aggregate bins
+       %> @li @c bins
        %%> @retval visibileStruct A struct of obj's visible field values
        % --------------------------------------------------------------------
        function visibleStruct = getVisible(obj,structType)
@@ -523,9 +522,9 @@ classdef PAData < handle
        %> @param obj Instance of PAData
        %> @param structType String specifying the structure type of label to retrieve.
        %> Possible values include (all are included if this is not)
-       %> @li @c time series
+       %> @li @c timeSeries (default)
        %> @li @c features
-       %> @li @c aggregate bins
+       %> @li @c bins
        %%> @retval colorStruct A struct of color values correspodning to the time series
        %> fields of obj.
        % --------------------------------------------------------------------
@@ -543,9 +542,9 @@ classdef PAData < handle
        %> @param obj Instance of PAData
        %> @param structType String specifying the structure type of label to retrieve.
        %> Possible values include (all are included if this not):
-       %> @li @c time series 
+       %> @li @c timeSeries (default)
        %> @li @c features
-       %> @li @c aggregate bins
+       %> @li @c bins
        %%> @retval scaleStruct A struct of scalar values correspodning to the time series
        %> fields of obj.
        % --------------------------------------------------------------------
@@ -562,9 +561,9 @@ classdef PAData < handle
        %> @param obj Instance of PAData
        %> @param structType String specifying the structure type of label to retrieve.
        %> Possible values include:
-       %> @li @c time series (default)
+       %> @li @c timeSeries (default)
        %> @li @c features
-       %> @li @c aggregate bins
+       %> @li @c bins
        %> @retval labelStruct A struct of string values which serve to label the correspodning to the time series
        %> fields of obj.
        % --------------------------------------------------------------------
@@ -582,17 +581,17 @@ classdef PAData < handle
        %> @param propertyName Name of instance variable being requested.
        %> @param structType String specifying the structure type of label to retrieve.
        %> Possible values include (all are included if this is not)
-       %> @li @c time series
+       %> @li @c timeSeries (default)
        %> @li @c features
-       %> @li @c aggregate bins
+       %> @li @c bins
        %%> @retval visibileStruct A struct of obj's visible field values
        % --------------------------------------------------------------------
        function propertyStruct = getPropertyStruct(obj,propertyName,structType)
            if(nargin<3 || isempty(structType))
                propertyStruct = obj.(propertyName);
            else
-               fname = PAData.getStructNameFromDescription(structType);
-               propertyStruct = obj.(propertyName).(fname);
+%                fname = PAData.getStructNameFromDescription(structType);
+               propertyStruct = obj.(propertyName).(structType);
            end
        end
        
@@ -657,9 +656,9 @@ classdef PAData < handle
        % --------------------------------------------------------------------
        function varargout = setVisible(obj,fieldName,newVisibilityStr)
            if(strcmpi(newVisibilityStr,'on')||strcmpi(newVisibilityStr,'off'))               
-               eval(['obj.visible.',fieldName,'.visibility = ''',newVisibilityStr,''';']);
+               eval(['obj.visible.',fieldName,'.visible = ''',newVisibilityStr,''';']);
            else
-               fprintf('An invaled argument was passed for the visibility parameter.  (%s)\n',newVisibilityStr);
+               fprintf('An invaled argument was passed for the visibility (i.e. visible) parameter.  (%s)\n',newVisibilityStr);
            end
            if(nargout>0)
                varargout = cell(1,nargout);
@@ -1222,14 +1221,14 @@ classdef PAData < handle
        %> instance variable dateTimeNum
        %> @param structType String (optional) identifying the type of data to obtain the
        %> offset from.  Can be 
-       %> @li @c time series (default) - units are sample points
+       %> @li @c timeSeries (default) - units are sample points
        %> @li @c features - units are frames
-       %> @li @c aggregate bins - units are bins       
+       %> @li @c bins - units are bins       
        %> @retval window The window.
        % ======================================================================
        function window = datenum2window(obj,datenumSample,structType)           
            if(nargin<3 || isempty(structType))
-               structType = 'time series';
+               structType = 'timeSeries';
            end           
            
            startstopDatenum = obj.getStartStopDatenum();
@@ -1332,9 +1331,9 @@ classdef PAData < handle
        %> series data by.
        %> @param structType String (optional) identifying the type of data to obtain the
        %> offset from.  Can be 
-       %> @li @c time series (default) - units are sample points
+       %> @li @c timeSeries (default) - units are sample points
        %> @li @c features - units are frames
-       %> @li @c aggregate bins - units are bins       
+       %> @li @c bins - units are bins       
        %> @retval dat A struct of PAData's time series instance data for the indices provided.  The fields
        %> include:
        %> - accelRaw.x
@@ -1348,10 +1347,10 @@ classdef PAData < handle
        function dat = subsindex(obj,indices,structType)
            
            if(nargin<3 ||isempty(structType))
-               structType = 'time series';
+               structType = 'timeSeries';
            end
-           switch(lower(structType))
-               case 'time series'
+           switch structType
+               case 'timeSeries'
                    dat.accelRaw.x = double(obj.accelRaw.x(indices));
                    dat.accelRaw.y = double(obj.accelRaw.y(indices));
                    dat.accelRaw.z = double(obj.accelRaw.z(indices));
@@ -1364,7 +1363,7 @@ classdef PAData < handle
                    dat.inclinometer.off = double(double(obj.inclinometer.off(indices)));
                case 'features'
                    dat = PAData.subsStruct(obj.features,indices);
-               case 'aggregate bins'
+               case 'bins'
                    dat.median = double(obj.feature.median(indices));
                otherwise
                    fprintf('Warning!  This case is not handled (%s).\n',structType);
@@ -1400,9 +1399,9 @@ classdef PAData < handle
        %> - @b all All (default) original time series data.
        %> @param structType String (optional) identifying the type of data to obtain the
        %> offset from.  Can be 
-       %> @li @c time series (default) - units are sample points
+       %> @li @c timeSeries (default) - units are sample points
        %> @li @c features - units are frames
-       %> @li @c aggregate bins - units are bins       
+       %> @li @c bins - units are bins       
        %> @retval dat A struct of PAData's time series, aggregate bins, or features instance data.  The fields
        %> for time series data include:
        %> - accelRaw.x
@@ -1414,7 +1413,7 @@ classdef PAData < handle
        % =================================================================      
        function dat = getStruct(obj,choice,structType)
            if(nargin<3)
-               structType = 'time series';
+               structType = 'timeSeries';
                if(nargin<2)
                    choice = 'all';
                end
@@ -1481,9 +1480,9 @@ classdef PAData < handle
        %> @param obj Instance of PAData.
        %> @param structType String (optional) identifying the type of data to obtain the
        %> offset from.  Can be 
-       %> @li @c time series (default) - units are sample points
+       %> @li @c timeSeries (default) - units are sample points
        %> @li @c features - units are frames
-       %> @li @c aggregate bins - units are bins       
+       %> @li @c bins - units are bins       
        %> @retval dat A struct of PAData's time series instance data.  The fields
        %> include:
        %> - accelRaw.x
@@ -1497,17 +1496,17 @@ classdef PAData < handle
        % =================================================================      
        function dat = getAllStruct(obj,structType)
            if(nargin<2 || isempty(structType))
-               structType = 'time series';
+               structType = 'timeSeries';
            end
            
-           switch lower(structType)
-               case 'time series'
+           switch structType
+               case 'timeSeries'
                    dat.accelRaw = obj.accelRaw;
                    dat.vecMag = obj.vecMag;
                    dat.steps = obj.steps;
                    dat.lux = obj.lux;
                    dat.inclinometer = obj.inclinometer;
-               case 'aggregate bins'
+               case 'bins'
                    dat = obj.bins;
                case 'features'
                    dat = obj.features;
@@ -1524,9 +1523,9 @@ classdef PAData < handle
        %> @param obj Instance of PAData.
        %> @param structType String (optional) identifying the type of data to obtain the
        %> offset from.  Can be 
-       %> @li @c time series (default) - units are sample points
+       %> @li @c timeSeries (default) - units are sample points
        %> @li @c features - units are frames
-       %> @li @c aggregate bins - units are bins       
+       %> @li @c bins - units are bins       
        %> @retval curStruct A struct of PAData's time series or features instance data.  The fields
        %> for time series include:
        %> - accelRaw.x
@@ -1543,7 +1542,7 @@ classdef PAData < handle
        % =================================================================
        function curStruct = getCurrentStruct(obj,structType)
            if(nargin<2 || isempty(structType))
-               structType = 'time series';
+               structType = 'timeSeries';
            end
            
            windowRange = obj.getCurWindowRange(structType);
@@ -1556,9 +1555,9 @@ classdef PAData < handle
        %> @param obj Instance of PAData.
        %> @param structType (Optional) String identifying the type of data to obtain the
        %> offset from.  Can be 
-       %> @li @c time series (default) - units are sample points
+       %> @li @c timeSeries (default) - units are sample points
        %> @li @c features - units are frames
-       %> @li @c aggregate bins - units are bins
+       %> @li @c bins - units are bins
        %> @retval dat A struct of PAData's time series or features instance data.  The fields
        %> for time series data include:
        %> - accelRaw.x
@@ -1575,18 +1574,10 @@ classdef PAData < handle
        % =================================================================
        function dat = getCurrentDisplayStruct(obj,structType)
            if(nargin<2 || isempty(structType))
-               structType = 'time series';
+               structType = 'timeSeries';
            end
            
-           switch lower(structType)
-               case 'time series'
-                   structFieldName = 'timeSeries';
-               case 'features'
-                   structFieldName = 'features';
-               otherwise
-                   fprintf('This structure type is not handled (%s).\n',structType);
-           end
-           dat = PAData.structEval('times',obj.getStruct('current',structType),obj.scale.(structFieldName));
+           dat = PAData.structEval('times',obj.getStruct('current',structType),obj.scale.(structType));
            
            windowRange = obj.getCurWindowRange(structType);
            
@@ -1600,7 +1591,7 @@ classdef PAData < handle
            lineProp.xdata = windowRange(1):windowRange(end);
            % put the output into a 'ydata' field for graphical display
            % property of a line.
-           dat = PAData.structEval('plus',dat,obj.offset.(structFieldName),'ydata');
+           dat = PAData.structEval('plus',dat,obj.offset.(structType),'ydata');
            dat = PAData.appendStruct(dat,lineProp);
        end       
        
@@ -1610,9 +1601,9 @@ classdef PAData < handle
        %> @param obj Instance of PAData.
        %> @param structType (Optional) String identifying the type of data to obtain the
        %> offset from.  Can be 
-       %> @li @c time series (default)
+       %> @li @c timeSeries (default)
        %> @li @c features
-       %> @li @c aggregate bins
+       %> @li @c bins
        %> @retval dat A struct of [x,y,z] starting location of each
        %> data field.  The fields (for 'time series') include:
        %> - accelRaw.x
@@ -1625,17 +1616,11 @@ classdef PAData < handle
        % =================================================================
        function dat = getCurrentOffsetStruct(obj,structType)
            if(nargin<2 || isempty(structType))
-               structType = 'time series';
-           end
-           switch(lower(structType))
-               case 'time series'
-                   dat = obj.offset.timeSeries;
-               case 'features'
-                   dat = obj.offset.features;
-               otherwise
-                   fprintf('Unknown offset type (%s).\n',structType)
+               structType = 'timeSeries';
            end
            
+           dat = obj.offset.(structType);
+                      
            windowRange = obj.getCurWindowRange(structType);
            %            lineProp.xdata = windowRange(1);
            lineProp.xdata = windowRange;
@@ -1744,12 +1729,10 @@ classdef PAData < handle
            end
            
            
+           %Default is everything to be visible
            timeSeriesStruct = PAData.getDummyStruct();
-           fnames = fieldnames(timeSeriesStruct);
-           for f=1:numel(fnames)
-               curField = fnames{f};
-               pStruct.visible.timeSeries.(curField).visible = 'on';               
-           end
+           visibleProp.visible = 'on';
+           pStruct.visible.timeSeries = PAData.overwriteEmptyStruct(timeSeriesStruct,visibleProp);
            
            % yDelta = 1/20 of the vertical screen space (i.e. 20 can fit)
            pStruct.offset.timeSeries.accelRaw.x = pStruct.yDelta*1;
@@ -2165,6 +2148,7 @@ classdef PAData < handle
                ltStruct = rtStruct;
            end           
        end
+       
        %> @brief flattens a structure to a single dimensional array (i.e. a
        %> vector)
        %> @param structure A struct with any number of fields.
@@ -2235,9 +2219,9 @@ classdef PAData < handle
        %> time series instance variables that contain 
        %> @param structType (Optional) String identifying the type of data to obtain the
        %> offset from.  Can be 
-       %> @li @c time series (default) - units are sample points
+       %> @li @c timeSeries (default) - units are sample points
        %> @li @c features - units are frames
-       %> @li @c aggregate bins - units are bins       
+       %> @li @c bins - units are bins       
        %> @retval dat A struct of PAData's time series, feature, or aggregate bin instance variables.
        %> Time series include:
        %> - accelRaw.x
@@ -2250,10 +2234,10 @@ classdef PAData < handle
        % =================================================================      
        function dat = getDummyStruct(structType)
            if(nargin<1 || isempty(structType))
-               structType = 'time series';
+               structType = 'timeSeries';
            end
-           switch(lower(structType))
-               case 'time series'
+           switch structType
+               case 'timeSeries'
                    accelR.x =[];
                    accelR.y = [];
                    accelR.z = [];
@@ -2266,13 +2250,12 @@ classdef PAData < handle
                    dat.steps = [];
                    dat.lux = [];
                    dat.inclinometer = incl;
-               case 'aggregate bins'
+               case 'bins'
                    binNames =  PAData.getPrefilterMethods();
                    dat = struct;
                    for f=1:numel(binNames)
                        dat.(lower(binNames{f})) = [];
                    end
-                   dat = rmfield(dat,{'none','all'});
                    
                case 'features'
                    %                    featureNames =  PAData.getExtractorMethods();
@@ -2281,7 +2264,7 @@ classdef PAData < handle
                    for f=1:numel(featureNames)
                        dat.(lower(featureNames{f})) = [];
                    end
-                   % dat = rmfield(dat,{'none','all'});                   
+                   
                otherwise
                    dat = [];
                    fprintf('Unknown offset type (%s).\n',structType)
@@ -2293,9 +2276,9 @@ classdef PAData < handle
        %> for graphic display of the time series instance variables.
        %> @param structType (Optional) String identifying the type of data to obtain the
        %> offset from.  Can be 
-       %> @li @c time series (default) - units are sample points
-       %> @li @c features - units are frames
-       %> @li @c aggregate bins - units are bins       
+       %> @li @c timeSeries (default) units are sample points
+       %> @li @c features units are frames
+       %> @li @c bins units are bins       
        %> @retval dat A struct of PAData's time series instance variables, which 
        %> include:
        %> - accelRaw.x.(xdata, ydata, color)
@@ -2313,7 +2296,7 @@ classdef PAData < handle
            
            
            if(nargin<1 || isempty(structType))
-               structType = 'time series';
+               structType = 'timeSeries';
            end
            
            dat = PAData.getDummyStruct(structType);
@@ -2416,7 +2399,7 @@ classdef PAData < handle
        % --------------------------------------------------------------------
        function structType = getStructTypes()
            structType.timeSeries = 'time series';
-           %            structType.bins = 'aggregate bins';
+%            structType.bins = 'aggregate bins';
            structType.features = 'features';
        end
        

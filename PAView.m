@@ -289,34 +289,32 @@ classdef PAView < handle
         %> @brief Sets display type instance variable.    
         %> @param obj Instance of PAView.
         %> @param displayTypeStr A string representing the display type.  Can be 
-        %> @li @c Time Series
-        %> @li @c Aggregate Bins
-        %> @li @c Features
+        %> @li @c timeSeries
+        %> @li @c bins
+        %> @li @c features
+        %> @param visibleProps Struct with the visibility property for each
+        %> lineTag that can be displayed under the current displayType
+        %> specified.        
         % --------------------------------------------------------------------
-        function setDisplayType(obj,displayTypeStr)
-            if(any(strcmpi({'Time Series','Aggregate Bins','Features'},displayTypeStr)))
-                structName = PAData.getStructNameFromDescription(obj.displayType);
+        function setDisplayType(obj,displayTypeStr,visibleProps)
+            if(any(strcmpi(fieldnames(PAData.getStructTypes()),displayTypeStr)))
                 allProps.visible = 'off';
-                if(~isempty(structName))
-                    obj.recurseHandleInit(obj.labelhandle.(structName), allProps);
-                    obj.recurseHandleInit(obj.referencelinehandle.(structName), allProps);
-                    obj.recurseHandleInit(obj.linehandle.(structName), allProps);
+                allStructTypes = PAData.getStructTypes();
+                fnames = fieldnames(allStructTypes);
+                for f=1:numel(fnames)
+                    curStructName = fnames{f};
+                    obj.recurseHandleInit(obj.labelhandle.(curStructName), allProps);
+                    obj.recurseHandleInit(obj.referencelinehandle.(curStructName), allProps);
+                    obj.recurseHandleInit(obj.linehandle.(curStructName), allProps);
                 end
                 
                 obj.displayType = displayTypeStr;
                 
-%                 if(strcmpi(displayTypeStr,'Features'))
-%                     set(obj.menuhandle.displayFeature,'enable','on');
-%                 else
-%                     set(obj.menuhandle.displayFeature,'enable','off');
-%                 end
+                displayStruct = obj.displayType;
                 
-                structName = PAData.getStructNameFromDescription(obj.displayType);
-                allProps.visible = 'on';
-                obj.recurseHandleInit(obj.labelhandle.(structName), allProps)
-                obj.recurseHandleInit(obj.referencelinehandle.(structName), allProps)
-                obj.recurseHandleInit(obj.linehandle.(structName), allProps)
-                
+                obj.recurseHandleSetter(obj.labelhandle.(displayStruct), visibleProps);
+                obj.recurseHandleSetter(obj.referencelinehandle.(displayStruct), visibleProps);
+                obj.recurseHandleSetter(obj.linehandle.(displayStruct), visibleProps);
             else
                 fprintf('Warning, this string (%s) is not an acceptable option.\n',displayTypeStr);
             end
@@ -495,25 +493,26 @@ classdef PAView < handle
             structType = PAData.getStructTypes();
             fnames = fieldnames(structType);
             for f=1:numel(fnames)
-                curName = fnames{f};
-                curDescription = structType.(curName);
+                curStructType = fnames{f};
                 
-                labelProps = obj.dataObj.getLabel(curDescription);
-                labelPosStruct = obj.getLabelhandlePosition(curDescription);
+                labelProps = obj.dataObj.getLabel(curStructType);
+                labelPosStruct = obj.getLabelhandlePosition(curStructType);                
                 labelProps = PAData.mergeStruct(labelProps,labelPosStruct);
                 
-                %                 visibleProp.visible = 'off';
-                %                 labelProps = PAData.appendStruct(labelProps,visibleProp);
+                colorStruct = obj.dataObj.getColor(curStructType);
+                visibleStruct = obj.dataObj.getVisible(curStructType);
+                allStruct = PAData.mergeStruct(colorStruct,visibleStruct);
                 
-                lineProps = PADataObject.getStruct('dummydisplay',curDescription);
-                obj.recurseHandleSetter(obj.linehandle.(curName),lineProps);
-                obj.recurseHandleSetter(obj.referencelinehandle.(curName),lineProps);
+                labelProps = PAData.mergeStruct(labelProps,allStruct);
                 
-                obj.setStructWithStruct(obj.linehandle.(curName),PADataObject.getColor(curDescription));
-                obj.setStructWithStruct(obj.referencelinehandle.(curName),PADataObject.getColor(curDescription));
                 
-                %
-                obj.recurseHandleSetter(obj.labelhandle.(curName),labelProps);                
+                lineProps = PADataObject.getStruct('dummydisplay',curStructType);
+                lineProps = PAData.mergeStruct(lineProps,allStruct);
+                
+                obj.recurseHandleSetter(obj.linehandle.(curStructType),lineProps);
+                obj.recurseHandleSetter(obj.referencelinehandle.(curStructType),lineProps);
+                
+                obj.recurseHandleSetter(obj.labelhandle.(curStructType),labelProps);                
             end
             
             obj.setFilename(obj.dataObj.getFilename());  
@@ -831,13 +830,11 @@ classdef PAView < handle
             fnames = fieldnames(structType);
             for f=1:numel(fnames)
                 curName = fnames{f};
-                curDescription = structType.(curName);
-                dataStruct = PAData.getDummyStruct(curDescription);
+                dataStruct = PAData.getDummyStruct(curName);
             
                 handleType = 'line';
                 handleProps.tag = curName;
-%                 disp(curName);
-%                 disp(curDescription);
+
                 obj.linehandle.(curName) = obj.recurseHandleGenerator(dataStruct,handleType,handleProps);
             
                 obj.referencelinehandle.(curName) = obj.recurseHandleGenerator(dataStruct,handleType,handleProps);
@@ -930,11 +927,11 @@ classdef PAView < handle
             
             obj.updatePrimaryAxes(axesRange);
             
-            structFieldName = PAData.getStructNameFromDescription(obj.displayType);
-            lineProps   = obj.dataObj.getStruct('currentdisplay',obj.displayType);
+            structFieldName =obj.displayType;
+            lineProps   = obj.dataObj.getStruct('currentdisplay',structFieldName);
             obj.recurseHandleSetter(obj.linehandle.(structFieldName),lineProps);
                         
-            offsetProps = obj.dataObj.getStruct('displayoffset',obj.displayType);
+            offsetProps = obj.dataObj.getStruct('displayoffset',structFieldName);
             offsetStyle.LineStyle = '--';
             offsetStyle.color = [0.6 0.6 0.6];
             offsetProps = PAData.appendStruct(offsetProps,offsetStyle);
@@ -944,7 +941,7 @@ classdef PAView < handle
             % update label text positions based on the axes position.
             % So the axes range must be set above this!
             % link the x position with the axis x-position ...
-            labelProps = obj.dataObj.getLabel(obj.displayType);
+            labelProps = obj.dataObj.getLabel(structFieldName);
             labelPosStruct = obj.getLabelhandlePosition();            
             labelProps = PAData.mergeStruct(labelProps,labelPosStruct);             
             obj.recurseHandleSetter(obj.labelhandle.(structFieldName),labelProps);

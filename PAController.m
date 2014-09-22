@@ -364,27 +364,40 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function displayChangeCallback(obj,hObject,eventData)
             displayType = get(eventData.NewValue,'string');
-            obj.VIEW.setDisplayType(displayType);  
+            obj.setDisplayType(PAData.getStructNameFromDescription(displayType));  
             obj.VIEW.draw();
-        end
+        end        
+        
+        % --------------------------------------------------------------------
+        %> @brief Sets display type instance variable for the view.
+        %> @param obj Instance of PAView.
+        %> @param displayType A string representing the display type structure.  Can be 
+        %> @li @c timeSeries
+        %> @li @c bins
+        %> @li @c features
+        % --------------------------------------------------------------------
+        function setDisplayType(obj,displayType)
+            visibleProps = obj.accelObj.getVisible(displayType);
+            obj.VIEW.setDisplayType(displayType,visibleProps);
+        end  
         
         % --------------------------------------------------------------------
         %> @brief Executes a radio button group callback (i.e.
         %> displayChangeCallback).
         %> @param obj Instance of PAController
         %> @param displayType String value of the radio button to set.  Can be
-        %> @li @c time series
-        %> @li @c aggregate bins
+        %> @li @c timeSeries
+        %> @li @c bins
         %> @li @c features        
         function setRadioButton(obj,displayType)
             handles = guidata(obj.VIEW.getFigHandle());
             eventStruct.EventName = 'SelectionChanged';
             eventStruct.OldValue = get(handles.panel_displayButtonGroup,'selectedObject');
             
-            switch lower(displayType)
-                case 'time series'
+            switch displayType
+                case 'timeSeries'
                     eventStruct.NewValue = handles.radio_time;
-                case 'aggregate bins'
+                case 'bins'
                     eventStruct.NewValue = handles.radio_bins;
                 case 'features'
                     eventStruct.NewValue = handles.radio_features;
@@ -419,7 +432,7 @@ classdef PAController < handle
                 obj.accelObj.prefilter(prefilterMethod);
                 obj.VIEW.enableAggregateRadioButton();
                 
-                displayType = 'aggregate bins';
+                displayType = 'bins';
                 obj.setRadioButton(displayType);  
             end
             
@@ -818,7 +831,7 @@ classdef PAController < handle
             if(nargin<2 || isempty(numSections) || numSections <=1)
                 numSections = 100;
             end
-            timeSeriesStruct = obj.accelObj.getStruct('all','time series');
+            timeSeriesStruct = obj.accelObj.getStruct('all','timeSeries');
             fieldData = eval(['timeSeriesStruct.',fieldName]);
             indices = ceil(linspace(1,numel(fieldData),numSections+1));
             featureVec = zeros(numSections,1);
@@ -1071,7 +1084,8 @@ classdef PAController < handle
            c = uisetcolor(c);
            if(numel(c)~=1)
                obj.accelObj.setColor(lineTag,c);
-               set(gco,'color',c);
+               tagHandles = findobj(get(gco,'parent'),'tag',lineTag);
+               set(tagHandles,'color',c);
            end;
            set(gco,'selected','off');
        end
@@ -1132,9 +1146,12 @@ classdef PAController < handle
             
             % set the display to show time series data initially.
             displayType = 'Time Series';
+            displayStructName = PAData.getStructNameFromDescription(displayType);
+            obj.setRadioButton(displayStructName);
+
+            obj.setDisplayType(displayStructName);
             
-            obj.setRadioButton(displayType);
-            obj.VIEW.setDisplayType(displayType);
+            %but not everything is shown...
             
             obj.setCurWindow(obj.accelObj.getCurWindow());
             
