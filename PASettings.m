@@ -158,17 +158,56 @@ classdef  PASettings < handle
                 end;
                 
                 %     if(isempty(str2num(tok{end}{:})))
-                if(isnan(str2double(tok{end}{:})))
-                    evalmsg = ['pstruct' fields '=tok{end}{:};'];
+                valueStr = tok{end}{:};
+                if(~isnan(PASettings.str2vec(valueStr)))
+                    evalmsg = ['pstruct' fields '=PASettings.str2vec(valueStr);'];                    
+                elseif(isnan(str2double(valueStr)))
+                    evalmsg = ['pstruct' fields '=valueStr;'];
                 else
-                    evalmsg = ['pstruct' fields '=str2double(tok{end}{:});'];
+                    evalmsg = ['pstruct' fields '=str2double(valueStr);'];
                 end;
                 
                 eval(evalmsg);
             end;
         end
+        
+        % --------------------------------------------------------------------
+        %> @brief Converts a string of space delimited numerics to a vector
+        %> of numbers.  
+        %> @param str A string of numbers.  For example 
+        %> str = '0 0 0'
+        %> @param delim Optional delimiter to use.  Default is white space.
+        %> @retval vec A vector of numeric values corresponding the str
+        %> values.  For example if str = '0 0 0' then vec = [0 0 0]
+        %> @note NaN is returned if the entire string cannot be converted to a vector.  For example if 
+        %> str = '0 'lkj 0 0' then vec = NaN
+        % --------------------------------------------------------------------
+        function vec = str2vec(str,delim)
+            if(nargin<2)
+                numElements = numel(textscan(str,'%s','delimiter'));
+                vec = textscan(str,'%f');
+            else
+                numElements = numel(textscan(str,'%s','delimiter',delim));
+                vec = textscan(str,'%f','delimiter',delim);
+                
+            end
+            
+            if(numElements ==0 || numel(vec)~=numElements)
+                vec = Nan;
+            else
+                vec = cell2mat(vec);
+                %we have column vectors
+                vec = vec(:)';
+                if(any(isnan(vec)))
+                    vec = Nan;
+                end
+            end
+        end
 
     end
+    
+    
+    
     
     methods
         

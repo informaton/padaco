@@ -519,8 +519,7 @@ classdef PAData < handle
            else
                fname = PAData.getStructNameFromDescription(structType);
                color = obj.color.(fname);
-           end
-           
+           end           
        end
        
 
@@ -574,6 +573,22 @@ classdef PAData < handle
        % --------------------------------------------------------------------
        function varargout = setScale(obj,fieldName,newScale)
            eval(['obj.scale.',fieldName,' = ',num2str(newScale)]);
+           if(nargout>0)
+               varargout = cell(1,nargout);
+           end
+       end
+              
+       % --------------------------------------------------------------------
+       %> @brief Sets the color instance variable for a particular sub
+       %> field.
+       %> @param obj Instance of PAData
+       %> @param fieldName Dynamic field name to set in the 'color' struct.
+       %> @note For example if fieldName = 'timeSeries.vecMag' then
+       %> obj.color.timeSerie.vecMag = newColor; is evaluated.
+       %> @param newColor 1x3 vector to set obj.color.(fieldName) to.
+       % --------------------------------------------------------------------
+       function varargout = setColor(obj,fieldName,newColor)
+           eval(['obj.color.',fieldName,'.color = [',num2str(newColor),']']);
            if(nargout>0)
                varargout = cell(1,nargout);
            end

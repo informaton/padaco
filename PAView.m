@@ -492,8 +492,6 @@ classdef PAView < handle
                 obj.setStructWithStruct(obj.linehandle.(curName),PADataObject.getColor(curDescription));
                 obj.setStructWithStruct(obj.referencelinehandle.(curName),PADataObject.getColor(curDescription));
                 
-                %                 obj.setLinehandleColor(obj.linehandle.(curName),PADataObject.getColor());
-                %                 obj.setLinehandleColor(obj.referencelinehandle.(curName),PADataObject.getColor());
                 %
                 obj.recurseHandleSetter(obj.labelhandle.(curName),labelProps);                
             end
@@ -1146,7 +1144,11 @@ classdef PAView < handle
                     PAView.setStructWithStruct(curHandleField,curPropertyField);
                 else
                     if(ishandle(curHandleField))
-                        set(curHandleField,curPropertyField);
+                        try
+                            set(curHandleField,curPropertyField);
+                        catch me
+                            showME(me);
+                        end
                     end
                 end
             end

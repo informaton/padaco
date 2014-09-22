@@ -989,6 +989,26 @@ classdef PAController < handle
             set(gco,'selected','off');
         end
         
+        
+        % =================================================================
+        %> @brief Contextmenu callback to set a line's color.  MATLAB's
+        %> interactive dialog is used to obtain and set the color
+        %> (uisetcolor).
+        %> @param obj instance of PAController
+        %> @param hObject gui handle object
+        %> @param eventdata unused
+        % =================================================================
+        function contextmenu_line_color_callback(obj, hObject, eventdata)
+           lineTag = get(gco,'tag');
+           c = get(gco,'color'); 
+           c = uisetcolor(c);
+           if(numel(c)~=1)
+               obj.accelObj.setColor(lineTag,c);
+               set(gco,'color',c);
+           end;           
+           set(gco,'selected','off');
+        end
+        
         % =================================================================
         %> @brief Mouse wheel callback to resize the selected channel.
         %> @param obj instance of PAController.
