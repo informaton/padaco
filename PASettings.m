@@ -115,24 +115,24 @@ classdef  PASettings < handle
             
             while(file_open)
                 try
-                curline = fgetl(fid); %remove leading and trailing white space
-                if(~ischar(curline))
-                    file_open = false;
-                else
-                    tok = regexp(strtrim(curline),pat,'tokens');
-                    if(numel(tok)>1 && ~strcmpi(tok{1},'-last') && isempty(strfind(tok{1}{1},'#')))
-                        %hack/handle the empty case
-                        if(numel(tok)==2)
-                            tok{3} = {''};
+                    curline = fgetl(fid); %remove leading and trailing white space
+                    if(~ischar(curline))
+                        file_open = false;
+                    else
+                        tok = regexp(strtrim(curline),pat,'tokens');
+                        if(numel(tok)>1 && ~strcmpi(tok{1},'-last') && isempty(strfind(tok{1}{1},'#')))
+                            %hack/handle the empty case
+                            if(numel(tok)==2)
+                                tok{3} = {''};
+                            end
+                            pstruct = PASettings.tokens2struct(pstruct,tok);
                         end
-                        pstruct = PASettings.tokens2struct(pstruct,tok);
-                    end
-                end;
+                    end;
                 catch me
                     showME(me);
                     fclose(fid);
                     file_open = false;
-                end  
+                end
             end;
         end
         
@@ -183,23 +183,27 @@ classdef  PASettings < handle
         %> str = '0 'lkj 0 0' then vec = NaN
         % --------------------------------------------------------------------
         function vec = str2vec(str,delim)
-            if(nargin<2)
-                numElements = numel(textscan(str,'%s','delimiter'));
-                vec = textscan(str,'%f');
+            if(isempty(str))
+                vec = nan;
             else
-                numElements = numel(textscan(str,'%s','delimiter',delim));
-                vec = textscan(str,'%f','delimiter',delim);
+                if(nargin<2)
+                    numElements = numel(textscan(str,'%s','delimiter'));
+                    vec = textscan(str,'%f');
+                else
+                    numElements = numel(textscan(str,'%s','delimiter',delim));
+                    vec = textscan(str,'%f','delimiter',delim);
+                    
+                end
                 
-            end
-            
-            if(numElements ==0 || numel(vec)~=numElements)
-                vec = Nan;
-            else
-                vec = cell2mat(vec);
-                %we have column vectors
-                vec = vec(:)';
-                if(any(isnan(vec)))
+                if(numElements ==0 || numel(vec)~=numElements)
                     vec = Nan;
+                else
+                    vec = cell2mat(vec);
+                    %we have column vectors
+                    vec = vec(:)';
+                    if(any(isnan(vec)))
+                        vec = Nan;
+                    end
                 end
             end
         end

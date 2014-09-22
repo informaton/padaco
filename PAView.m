@@ -20,8 +20,6 @@ classdef PAView < handle
         %> for the patch handles when editing and dragging
         hg_group; 
 
-        %>linehandle in Padaco currently selected;
-        current_linehandle;
         
         %>cell of string choices for the marking state (off, 'marking','general')
         state_choices_cell; 
@@ -90,23 +88,35 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> PAView class constructor.
-        %> @param Padaco_fig_h Figure handle to assign PAView instance to.        
+        %> @param Padaco_fig_h Figure handle to assign PAView instance to.
+        %> @param lineContextMenuHandle Contextmenu handle to assign to
+        %> VIEW's line handles
+        %> @param primaryAxesContextMenuHandle Contextmenu to assign to
+        %> VIEW's primary axes.
         %> @retval obj Instance of PAView
         % --------------------------------------------------------------------
-        function obj = PAView(Padaco_fig_h,contextmenuHandle)
+        function obj = PAView(Padaco_fig_h,lineContextmenuHandle,primaryAxesContextmenuHandle)
             if(ishandle(Padaco_fig_h))
-                if(nargin<2)
-                    contextmenuHandle = [];
+                if(nargin<3)
+                    primaryAxesContextmenuHandle = [];
+                    
+                    if(nargin<2)
+                        lineContextmenuHandle = [];
+                    else
+                        if(ishandle(lineContextmenuHandle))
+                            set(lineContextmenuHandle,'parent',Padaco_fig_h);
+                        end
+                    end
                 else
-                    if(ishandle(contextmenuHandle))
-                        set(contextmenuHandle,'parent',Padaco_fig_h);
+                    if(ishandle(primaryAxesContextmenuHandle))
+                        set(primaryAxesContextmenuHandle,'parent',Padaco_fig_h);
                     end
                 end
                 
                 obj.figurehandle = Padaco_fig_h;
                 set(obj.figurehandle,'renderer','OpenGL');
                 set(obj.figurehandle,'renderer','zbuffer');
-                obj.createView(contextmenuHandle);                
+                obj.createView(lineContextmenuHandle,primaryAxesContextmenuHandle);                
             else
                 obj = [];
             end
@@ -116,11 +126,19 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         %> @brief Creates line handles and maps figure tags to PAView instance variables.
         %> @param obj Instance of PAView.
+        %> @param lineContextMenuHandle Contextmenu handle to assign to
+        %> VIEW's line handles
+        %> @param primaryAxesContextMenuHandle Contextmenu to assign to
+        %> VIEW's primary axes.
         % --------------------------------------------------------------------
-        function createView(obj,contextmenuHandle)
-            if(nargin<2)
-                contextmenuHandle = [];
+        function createView(obj,lineContextmenuHandle,primaryAxesContextMenuHandle)
+            if(nargin<3)
+                primaryAxesContextMenuHandle = [];
+                if(nargin<2)
+                    lineContextmenuHandle = [];
+                end
             end
+            
             handles = guidata(obj.getFigHandle());
             
             set(handles.panel_left,'backgroundcolor',[0.75,0.75,0.75]);
@@ -158,10 +176,12 @@ classdef PAView < handle
             obj.clearAxesHandles();
             obj.clearTextHandles(); 
             obj.clearWidgets();
+            
+            set(obj.axeshandle.primary,'uicontextmenu',primaryAxesContextMenuHandle);
 
             %creates and initializes line handles (obj.linehandle fields)
             % However, all lines are invisible.
-            obj.createLineAndLabelHandles(contextmenuHandle);
+            obj.createLineAndLabelHandles(lineContextmenuHandle);
         end
 
         % --------------------------------------------------------------------
@@ -979,11 +999,17 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         %> @brief Get the view's line handles as a struct.
         %> @param obj Instance of PAView
-        %> @retval linehandle View's line handles as a struct.
+        %> @param structType String of a subfieldname to access the line
+        %> handle of.  (e.g. 'timeSeries')
+        %> @retval linehandle View's line handles as a struct.        
         % --------------------------------------------------------------------
-        function lineHandle = getLinehandle(obj)
-            lineHandle = obj.linehandle;
-        end
+        function lineHandle = getLinehandle(obj,structType)
+            if(nargin<1 || isempty(structType))
+                lineHandle = obj.linehandle;
+            else
+                lineHandle = obj.linehandle.(structType);
+            end
+        end        
         
         
         % --------------------------------------------------------------------

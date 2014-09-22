@@ -55,6 +55,7 @@ classdef PAData < handle
        color;
        offset;
        scale;
+       visible;
        yDelta;
        
    end
@@ -434,10 +435,7 @@ classdef PAData < handle
            end
            %returns the current frame duration, whether it be 'frameDurationMin' or not.
            [~,frameDurationHours] = obj.getFrameDuration();
-       end
-       
-       
-       
+       end       
        
        % --------------------------------------------------------------------
        % @brief Returns the frame duration (in minutes)
@@ -503,6 +501,24 @@ classdef PAData < handle
        end
        
        % --------------------------------------------------------------------
+       %> @brief Returns the visible instance variable
+       %> @param obj Instance of PAData
+       %> @param structType String specifying the structure type of label to retrieve.
+       %> Possible values include (all are included if this is not)
+       %> @li @c time series
+       %> @li @c features
+       %> @li @c aggregate bins
+       %%> @retval visibileStruct A struct of obj's visible field values
+       % --------------------------------------------------------------------
+       function visibleStruct = getVisible(obj,structType)
+           if(nargin<2 || isempty(structType))               
+               structType = [];
+           end           
+           visibleStruct = obj.getPropertyStruct('visible',structType);
+       end       
+       
+
+       % --------------------------------------------------------------------
        %> @brief Returns the color instance variable
        %> @param obj Instance of PAData
        %> @param structType String specifying the structure type of label to retrieve.
@@ -510,19 +526,18 @@ classdef PAData < handle
        %> @li @c time series
        %> @li @c features
        %> @li @c aggregate bins
-       %%> @retval color A struct of color values correspodning to the time series
+       %%> @retval colorStruct A struct of color values correspodning to the time series
        %> fields of obj.
        % --------------------------------------------------------------------
-       function color = getColor(obj,structType)
+       function colorStruct = getColor(obj,structType)
+           
            if(nargin<2 || isempty(structType))               
-               color = obj.color;
-           else
-               fname = PAData.getStructNameFromDescription(structType);
-               color = obj.color.(fname);
-           end           
+               structType = [];
+           end
+           
+           colorStruct = obj.getPropertyStruct('color',structType);     
        end
        
-
        % --------------------------------------------------------------------
        %> @brief Returns the scale instance variable
        %> @param obj Instance of PAData
@@ -531,20 +546,56 @@ classdef PAData < handle
        %> @li @c time series 
        %> @li @c features
        %> @li @c aggregate bins
-       %%> @retval scale A struct of scalar values correspodning to the time series
+       %%> @retval scaleStruct A struct of scalar values correspodning to the time series
        %> fields of obj.
        % --------------------------------------------------------------------
-       function scale = getScale(obj,structType)
-           if(nargin<2 || isempty(structType))
-               scale = obj.scale;
+       function scaleStruct = getScale(obj,structType)
+           if(nargin<2 || isempty(structType))               
+               structType = [];
+           end
+           
+           scaleStruct = obj.getPropertyStruct('scale',structType);             
+       end
+       
+       % --------------------------------------------------------------------
+       %> @brief Returns the label instance variable
+       %> @param obj Instance of PAData
+       %> @param structType String specifying the structure type of label to retrieve.
+       %> Possible values include:
+       %> @li @c time series (default)
+       %> @li @c features
+       %> @li @c aggregate bins
+       %> @retval labelStruct A struct of string values which serve to label the correspodning to the time series
+       %> fields of obj.
+       % --------------------------------------------------------------------
+       function labelStruct = getLabel(obj,structType)
+           if(nargin<2 || isempty(structType))               
+               structType = [];
+           end
+           
+           labelStruct = obj.getPropertyStruct('label',structType);
+       end
+
+              % --------------------------------------------------------------------
+       %> @brief Returns the visible instance variable
+       %> @param obj Instance of PAData
+       %> @param propertyName Name of instance variable being requested.
+       %> @param structType String specifying the structure type of label to retrieve.
+       %> Possible values include (all are included if this is not)
+       %> @li @c time series
+       %> @li @c features
+       %> @li @c aggregate bins
+       %%> @retval visibileStruct A struct of obj's visible field values
+       % --------------------------------------------------------------------
+       function propertyStruct = getPropertyStruct(obj,propertyName,structType)
+           if(nargin<3 || isempty(structType))
+               propertyStruct = obj.(propertyName);
            else
                fname = PAData.getStructNameFromDescription(structType);
-           
-               scale = obj.scale.(fname);
+               propertyStruct = obj.(propertyName).(fname);
            end
        end
        
-
        
        % --------------------------------------------------------------------
        %> @brief Sets the offset instance variable for a particular sub
@@ -556,7 +607,7 @@ classdef PAData < handle
        %> @param newOffset y-axis offset to set obj.offset.(fieldName) to.
        % --------------------------------------------------------------------
        function varargout = setOffset(obj,fieldName,newOffset)
-           eval(['obj.offset.',fieldName,' = ',num2str(newOffset)]);
+           eval(['obj.offset.',fieldName,' = ',num2str(newOffset),';']);
            if(nargout>0)
                varargout = cell(1,nargout);
            end
@@ -572,7 +623,7 @@ classdef PAData < handle
        %> @param newScale Scalar value to set obj.scale.(fieldName) to.
        % --------------------------------------------------------------------
        function varargout = setScale(obj,fieldName,newScale)
-           eval(['obj.scale.',fieldName,' = ',num2str(newScale)]);
+           eval(['obj.scale.',fieldName,' = ',num2str(newScale),';']);
            if(nargout>0)
                varargout = cell(1,nargout);
            end
@@ -588,40 +639,49 @@ classdef PAData < handle
        %> @param newColor 1x3 vector to set obj.color.(fieldName) to.
        % --------------------------------------------------------------------
        function varargout = setColor(obj,fieldName,newColor)
-           eval(['obj.color.',fieldName,'.color = [',num2str(newColor),']']);
+           eval(['obj.color.',fieldName,'.color = [',num2str(newColor),']',';']);
            if(nargout>0)
                varargout = cell(1,nargout);
            end
        end
        
        % --------------------------------------------------------------------
-       %> @brief Returns the label instance variable
+       %> @brief Sets the visible instance variable for a particular sub
+       %> field.
        %> @param obj Instance of PAData
-       %> @param structType String specifying the structure type of label to retrieve.
-       %> Possible values include:
-       %> @li @c time series (default)
-       %> @li @c features
-       %> @li @c aggregate bins
-       %> @retval label A struct of string values which serve to label the correspodning to the time series
-       %> fields of obj.
+       %> @param fieldName Dynamic field name to set in the 'visible' struct.
+       %> @param newVisibilityStr Visibility property value.
+       %> @note Valid values include
+       %> - @c on
+       %> - @c off
        % --------------------------------------------------------------------
-       function label = getLabel(obj,structType)
-           if(nargin<2 || isempty(structType))
-               structType = 'time series';
-           end           
-           switch lower(structType)
-               case 'time series'
-                   label = obj.label.timeSeries;       
-               case 'features'
-                   label = obj.label.features;
-               otherwise
-                   fprintf('This structure type is not handled (%s).\n',structType);
-                   label = [];
+       function varargout = setVisible(obj,fieldName,newVisibilityStr)
+           if(strcmpi(newVisibilityStr,'on')||strcmpi(newVisibilityStr,'off'))               
+               eval(['obj.visible.',fieldName,'.visibility = ''',newVisibilityStr,''';']);
+           else
+               fprintf('An invaled argument was passed for the visibility parameter.  (%s)\n',newVisibilityStr);
            end
-           
+           if(nargout>0)
+               varargout = cell(1,nargout);
+           end
        end
        
-       
+       % --------------------------------------------------------------------
+       %> @brief Sets the specified instance variable for a particular sub
+       %> field.
+       %> @param obj Instance of PAData
+       %> @param propertyName instance variable to set the property of.
+       %> @param fieldName Dynamic field name to set in the propertyName struct.
+       %> @param propertyValueStr String value of property to set fieldName
+       %> to.
+       % --------------------------------------------------------------------
+       function varargout = setProperty(obj,propertyName,fieldName,propertyValueStr)
+           eval(['obj.',propertyName,'.',fieldName,'.propertyName = ',propertyValueStr,';']);
+           if(nargout>0)
+               varargout = cell(1,nargout);
+           end
+       end
+                     
        % --------------------------------------------------------------------
        %> @brief Returns the total number of windows the data can be divided
        %> into based on sampling rate, window resolution (i.e. duration), and the size of the time
@@ -1403,7 +1463,8 @@ classdef PAData < handle
                'label';
                'offset';
                'color';
-               'yDelta'
+               'yDelta';
+               'visible'
                };
            pStruct = struct();
            for f=1:numel(fields)
@@ -1676,8 +1737,18 @@ classdef PAData < handle
                
                pStruct.scale.features.(curFeature) = scaleVal;
                pStruct.label.features.(curFeature).string = curDescription;
-               pStruct.label.features.(curFeature).position = [0 0 0];
+%                pStruct.label.features.(curFeature).position = [0 0 0];
                pStruct.color.features.(curFeature).color = curColor;
+               pStruct.visible.features.(curFeature).visible = 'on';
+               
+           end
+           
+           
+           timeSeriesStruct = PAData.getDummyStruct();
+           fnames = fieldnames(timeSeriesStruct);
+           for f=1:numel(fnames)
+               curField = fnames{f};
+               pStruct.visible.timeSeries.(curField).visible = 'on';               
            end
            
            % yDelta = 1/20 of the vertical screen space (i.e. 20 can fit)
@@ -2094,7 +2165,24 @@ classdef PAData < handle
                ltStruct = rtStruct;
            end           
        end
-       
+       %> @brief flattens a structure to a single dimensional array (i.e. a
+       %> vector)
+       %> @param structure A struct with any number of fields.
+       %> @retval vector A vector with values that are taken from the
+       %structure.
+       function vector = struct2vec(structure,vector)
+           if(nargin<2)
+               vector = [];
+           end
+           if(~isstruct(structure))
+               vector = structure;
+           else
+               fnames = fieldnames(structure);
+               for f=1:numel(fnames)
+                  vector = [vector;PAData.struct2vec(structure.(fnames{f}))];
+               end
+           end           
+       end
        
        % ======================================================================
        %> @brief Evaluates the range (min, max) of components found in the
