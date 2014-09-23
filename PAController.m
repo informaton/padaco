@@ -689,7 +689,8 @@ classdef PAController < handle
             if(~isempty(obj.accelObj))                 
                 curWindow = obj.accelObj.setCurWindow(new_window);
                 windowStartDateNum = obj.accelObj.window2datenum(new_window);
-                obj.VIEW.setCurWindow(num2str(curWindow),windowStartDateNum);
+                windowEndDateNum = obj.accelObj.window2datenum(new_window+1);
+                obj.VIEW.setCurWindow(num2str(curWindow),windowStartDateNum,windowEndDateNum);
                 if(new_window==curWindow)
                     success=true;
                 end

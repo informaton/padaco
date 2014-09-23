@@ -68,7 +68,7 @@ classdef PAView < handle
         labelhandle;
         
         %> @brief Graphic handle of the vertical bar which provides a
-        %> visual reference of where the window is comparison to the entire
+        %> visual reference of where the window is in comparison to the entire
         %> study.
         positionBarHandle;
         
@@ -114,8 +114,9 @@ classdef PAView < handle
                 end
                 
                 obj.figurehandle = Padaco_fig_h;
-                set(obj.figurehandle,'renderer','OpenGL');
                 set(obj.figurehandle,'renderer','zbuffer');
+%                 set(obj.figurehandle,'renderer','OpenGL');
+
                 obj.createView(lineContextmenuHandle,primaryAxesContextmenuHandle);                
             else
                 obj = [];
@@ -230,7 +231,7 @@ classdef PAView < handle
         %> @retval curWindow Numeric value of the current window displayed in the edit box.
         % --------------------------------------------------------------------
         function curWindow = getCurWindow(obj)
-           curWindow = str2double(get(obj.texthandle.curWindow,'string')); 
+            curWindow = str2double(get(obj.texthandle.curWindow,'string'));
         end
         
         % --------------------------------------------------------------------
@@ -238,13 +239,16 @@ classdef PAView < handle
         %> @param obj Instance of PAView.
         %> @param windowStr A string to display in the current window edit
         %> box.
-        %> @param xpos The position on the x-axis of where the window is.
+        %> @param xposStart The position on the x-axis of where the window starts.
         %> This will be a datenum for padaco.
+        %> @param xposEnd The position on the x-axis of where the window in the 
+        %> ends. This will be a datenum for padaco.        
         % --------------------------------------------------------------------
-        function setCurWindow(obj,windowStr,xpos)
-           set(obj.texthandle.curWindow,'string',windowStr); 
-           set(obj.positionBarHandle,'xdata',repmat(xpos,1,2));
-           obj.draw();
+        function setCurWindow(obj,windowStr,xposStart,xposEnd)
+            set(obj.texthandle.curWindow,'string',windowStr);
+            set(obj.positionBarHandle,'xdata',[repmat(xposStart,1,2),repmat(xposEnd,1,2),xposStart]);
+            set(obj.patchhandle.positionBar,'xdata',[repmat(xposStart,1,2),repmat(xposEnd,1,2)]);
+            obj.draw();
         end
         
         % --------------------------------------------------------------------
@@ -532,7 +536,8 @@ classdef PAView < handle
             obj.initMenubar();
             
             
-            set(obj.positionBarHandle,'visible','on','ydata',[0 1]); 
+            set(obj.positionBarHandle,'visible','on','xdata',nan(1,5),'ydata',[0 1 1 0 0],'linestyle',':'); 
+            set(obj.patchhandle.positionBar,'visible','on','xdata',nan(1,4),'ydata',[0 1/3 1/3 0]); 
             
             obj.restore_state();
         end       
@@ -698,18 +703,18 @@ classdef PAView < handle
                 delete(obj.linehandle.featureCumsum);
             end
             
-            obj.patchhandle.feature = patch(x,y,vertexColor,'parent',obj.axeshandle.secondary,'edgecolor','interp','facecolor','interp');
+            obj.patchhandle.feature = patch(x,y,vertexColor,'parent',obj.axeshandle.secondary,'edgecolor','interp','facecolor','interp','hittest','off');
 
             % draw the line...
 %             line('parent',obj.axeshandle.secondary,'ydata',normalizedFeatureVector,'xdata',startStopDatenum(:,1),'color','b','linewidth',0.25);
             n = 10;
             b = repmat(1/n,1,n);
             smoothY = filtfilt(b,1,normalizedFeatureVector);
-            obj.linehandle.feature = line('parent',obj.axeshandle.secondary,'ydata',smoothY,'xdata',startStopDatenum(:,1),'color','b');
+            obj.linehandle.feature = line('parent',obj.axeshandle.secondary,'ydata',smoothY,'xdata',startStopDatenum(:,1),'color','b','hittest','off');
             
             
             vectorSum = cumsum(featureVector)/sum(featureVector)/3;
-            obj.linehandle.featureCumsum =line('parent',obj.axeshandle.secondary,'ydata',vectorSum,'xdata',startStopDatenum(:,1),'color','g');
+            obj.linehandle.featureCumsum =line('parent',obj.axeshandle.secondary,'ydata',vectorSum,'xdata',startStopDatenum(:,1),'color','g','hittest','off');
             %             h=stem(obj.axeshandle.secondary,startStopDatenum(:,1),vectorSum,'color','g','linestyle','none','marker','.','markersize',1);
             %              h=stairs(obj.axeshandle.secondary,startStopDatenum(:,1),vectorSum,'color','g','linestyle','none','marker','.','markersize',1);
 
@@ -845,6 +850,7 @@ classdef PAView < handle
             
             %secondary axes
             obj.positionBarHandle = line('parent',obj.axeshandle.secondary,'visible','off');%annotation(obj.figurehandle.sev,'line',[1, 1], [pos(2) pos(2)+pos(4)],'hittest','off');
+            obj.patchhandle.positionBar =  patch('xdata',nan(1,4),'ydata',[0 1/3 1/3 0],'zdata',repmat(-1,1,4),'parent',obj.axeshandle.secondary,'hittest','off','visible','off','facecolor',[0.9 1 0.9],'edgecolor','none','facealpha',0.5);
             obj.linehandle.feature = [];
             obj.linehandle.featureCumsum = [];
             
