@@ -72,7 +72,9 @@ classdef PAView < handle
         %> study.
         positionBarHandle;
         
-        %> struct of handles for the context menus
+        %> struct of handles for the context menu.  Fields include
+        %> - @c primaryAxes - for the primary Axes.
+        %> - @c signals - For the lines, reference lines, and labels
         contextmenuhandle; 
          
         %> PAData instance
@@ -80,9 +82,7 @@ classdef PAView < handle
         window_resolution;%struct of different time resolutions, field names correspond to the units of time represented in the field        
         %> The window currently in view.
         current_window;
-        
     end
-    
 
     methods
         
@@ -115,30 +115,22 @@ classdef PAView < handle
                 
                 obj.figurehandle = Padaco_fig_h;
                 set(obj.figurehandle,'renderer','zbuffer');
-%                 set(obj.figurehandle,'renderer','OpenGL');
+                %                 set(obj.figurehandle,'renderer','OpenGL');
 
-                obj.createView(lineContextmenuHandle,primaryAxesContextmenuHandle);                
+                obj.contextmenuhandle.primaryAxes = primaryAxesContextmenuHandle;
+                obj.contextmenuhandle.signals = lineContextmenuHandle;
+                
+                obj.createView();                
             else
                 obj = [];
             end
-        end 
-        
+        end        
                 
         % --------------------------------------------------------------------
         %> @brief Creates line handles and maps figure tags to PAView instance variables.
         %> @param obj Instance of PAView.
-        %> @param lineContextMenuHandle Contextmenu handle to assign to
-        %> VIEW's line handles
-        %> @param primaryAxesContextMenuHandle Contextmenu to assign to
-        %> VIEW's primary axes.
         % --------------------------------------------------------------------
-        function createView(obj,lineContextmenuHandle,primaryAxesContextMenuHandle)
-            if(nargin<3)
-                primaryAxesContextMenuHandle = [];
-                if(nargin<2)
-                    lineContextmenuHandle = [];
-                end
-            end
+        function createView(obj)
             
             handles = guidata(obj.getFigHandle());
             
@@ -178,11 +170,7 @@ classdef PAView < handle
             obj.clearTextHandles(); 
             obj.clearWidgets();
             
-            set(obj.axeshandle.primary,'uicontextmenu',primaryAxesContextMenuHandle);
-
-            %creates and initializes line handles (obj.linehandle fields)
-            % However, all lines are invisible.
-            obj.createLineAndLabelHandles(lineContextmenuHandle);
+            set(obj.axeshandle.primary,'uicontextmenu',obj.contextmenuhandle.primaryAxes);
         end
 
         % --------------------------------------------------------------------
@@ -488,30 +476,39 @@ classdef PAView < handle
             
             obj.initAxesHandles(axesProps);
             
+            
+            
+                %creates and initializes line handles (obj.linehandle fields)
+            %> @param lineContextMenuHandle Contextmenu handle to assign to
+            %> VIEW's line handles
+
+            % However, all lines are invisible.
+            obj.createLineAndLabelHandles(PADataObject);
+            
             %resize the secondary axes according to the new window
             %resolution
             obj.updateSecondaryAxes(PADataObject.getStartStopDatenum());
                         
             %initialize the various line handles and label content and
             %color.
-            structType = PAData.getStructTypes();
+            structType = PADataObject.getStructTypes();
             fnames = fieldnames(structType);
             for f=1:numel(fnames)
                 curStructType = fnames{f};
                 
-                labelProps = obj.dataObj.getLabel(curStructType);
+                labelProps = PADataObject.getLabel(curStructType);
                 labelPosStruct = obj.getLabelhandlePosition(curStructType);                
                 labelProps = PAData.mergeStruct(labelProps,labelPosStruct);
                 
-                colorStruct = obj.dataObj.getColor(curStructType);
-                visibleStruct = obj.dataObj.getVisible(curStructType);
-                allStruct = PAData.mergeStruct(colorStruct,visibleStruct);
+                colorStruct = PADataObject.getColor(curStructType);
+                visibleStruct = PADataObject.getVisible(curStructType);
+                allStruct = PADataObject.mergeStruct(colorStruct,visibleStruct);
                 
-                labelProps = PAData.mergeStruct(labelProps,allStruct);
+                labelProps = PADataObject.mergeStruct(labelProps,allStruct);
                 
                 
                 lineProps = PADataObject.getStruct('dummydisplay',curStructType);
-                lineProps = PAData.mergeStruct(lineProps,allStruct);
+                lineProps = PADataObject.mergeStruct(lineProps,allStruct);
                 
                 obj.recurseHandleSetter(obj.linehandle.(curStructType),lineProps);
                 obj.recurseHandleSetter(obj.referencelinehandle.(curStructType),lineProps);
@@ -817,28 +814,36 @@ classdef PAView < handle
         %> that will be displayed by the view.
         %> This is based on the structure template generated by member
         %> function getStruct('dummydisplay').
-        %> @param lineContextMenuHandle Contextmenu handle assigned to each
-        %> line and label generated uicontextmenu callback.
+        %> @param PADataObject Instance of PAData.
         %> @param obj Instance of PAView
         % --------------------------------------------------------------------
-        function createLineAndLabelHandles(obj,lineContextMenuHandle)
-            if(nargin<2)
-                lineContextMenuHandle = [];
-                
-            end
-            handleProps.UIContextMenu = lineContextMenuHandle;
+        function createLineAndLabelHandles(obj,PADataObject)
+            % Kill off anything else still in the primary and secondary
+            % axes...
+            zombieLines = findobj([obj.axeshandle.primary;obj.axeshandle.secondary],'type','line');
+            zombiePatches = findobj([obj.axeshandle.primary;obj.axeshandle.secondary],'type','patch');
+            zombieHandles = [zombieLines(:);zombiePatches(:)];
+            delete(zombieHandles);
+            
+            obj.linehandle = [];
+            obj.labelhandle = [];
+            obj.referencelinehandle = [];
+            
+            handleProps.UIContextMenu = obj.contextmenuhandle.signals;
             handleProps.Parent = obj.axeshandle.primary;
 
             handleProps.visible = 'off';
             
-            structType = PAData.getStructTypes();
+            structType = PADataObject.getStructTypes();            
             fnames = fieldnames(structType);
             for f=1:numel(fnames)
                 curName = fnames{f};
-                dataStruct = PAData.getDummyStruct(curName);
+                dataStruct = PADataObject.getStruct('dummy',curName);
             
                 handleType = 'line';
                 handleProps.tag = curName;
+                
+                
 
                 obj.linehandle.(curName) = obj.recurseHandleGenerator(dataStruct,handleType,handleProps);
             
@@ -850,7 +855,7 @@ classdef PAView < handle
             
             %secondary axes
             obj.positionBarHandle = line('parent',obj.axeshandle.secondary,'visible','off');%annotation(obj.figurehandle.sev,'line',[1, 1], [pos(2) pos(2)+pos(4)],'hittest','off');
-            obj.patchhandle.positionBar =  patch('xdata',nan(1,4),'ydata',[0 1/3 1/3 0],'zdata',repmat(-1,1,4),'parent',obj.axeshandle.secondary,'hittest','off','visible','off','facecolor',[0.9 1 0.9],'edgecolor','none','facealpha',0.5);
+            obj.patchhandle.positionBar =  patch('xdata',nan(1,4),'ydata',[0 1/3 1/3 0],'zdata',repmat(-1,1,4),'parent',obj.axeshandle.secondary,'hittest','off','visible','off','facecolor',[0.5 0.85 0.5],'edgecolor','none','facealpha',0.5);
             obj.linehandle.feature = [];
             obj.linehandle.featureCumsum = [];
             

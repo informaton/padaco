@@ -76,8 +76,6 @@ classdef PAController < handle
                 % 2. make context menu handles for the primary axes
                 uiLinecontextmenu_handle = obj.getLineContextmenuHandle();
                 uiPrimaryAxescontextmenu_handle = obj.getPrimaryAxesContextmenuHandle();
-        
-                
                 
                 obj.VIEW = PAView(Padaco_fig_h,uiLinecontextmenu_handle,uiPrimaryAxescontextmenu_handle);
                 
@@ -87,9 +85,6 @@ classdef PAController < handle
                 
                 % Synthesize edit callback to trigger first display
                 obj.edit_curWindowCallback(handles.edit_curWindow,[]);
-                
-                
-                
                 
             end                
         end
@@ -234,7 +229,6 @@ classdef PAController < handle
         %> @param eventData Structure of mouse press information; unused
         % --------------------------------------------------------------------
         function windowButtonUpCallback(obj,hObject,eventData)
-            
             selected_obj = get(hObject,'CurrentObject');            
             if(~isempty(selected_obj))
                 if(selected_obj==obj.VIEW.axeshandle.secondary)
@@ -282,8 +276,6 @@ classdef PAController < handle
         
         function initWidgets(obj)
             
-            obj.initSignalSelectionMenu();
-
             prefilterSelection = PAData.getPrefilterMethods();
             set(obj.VIEW.menuhandle.prefilterMethod,'string',prefilterSelection,'value',1);
             
@@ -297,8 +289,13 @@ classdef PAController < handle
             
             % Window display resolution
             windowMinSelection = {
+                1,'1 s';
+                2,'2 s';
+                4,'4 s';
+                5,'5 s';
+                10,'10 s';
                 %30,'30 s';
-                %60,'1 min';
+                % 60,'1 min';
                 %120,'2 min';
                 300,'5 min';
                 600,'10 min';
@@ -556,6 +553,16 @@ classdef PAController < handle
         % --------------------------------------------------------------------        
         function initSignalSelectionMenu(obj)
             [tagLines,labels] = PAData.getDefaultTagLineLabels();
+            offAccelType = obj.accelObj.getOffAccelType();
+            if(~isempty(offAccelType))
+                cellIndices = strfind(tagLines,offAccelType);
+                pruneIndices = false(size(cellIndices));
+                for k=1:numel(cellIndices)
+                   pruneIndices(k) = ~isempty(cellIndices{k}); 
+                end
+                labels(pruneIndices) = [];
+                tagLines(pruneIndices) = [];
+            end
             set(obj.VIEW.menuhandle.signalSelection,'string',labels,'userdata',tagLines,'value',1);
         end
         
@@ -690,8 +697,8 @@ classdef PAController < handle
                 curWindow = obj.accelObj.setCurWindow(new_window);
                 windowStartDateNum = obj.accelObj.window2datenum(new_window);
                 windowEndDateNum = obj.accelObj.window2datenum(new_window+1);
-                obj.VIEW.setCurWindow(num2str(curWindow),windowStartDateNum,windowEndDateNum);
                 if(new_window==curWindow)
+                    obj.VIEW.setCurWindow(num2str(curWindow),windowStartDateNum,windowEndDateNum);                
                     success=true;
                 end
             end
@@ -927,8 +934,9 @@ classdef PAController < handle
            uimenu(uicontextmenu_handle,'Label','Change Color','separator','off','callback',@obj.contextmenu_line_color_callback);
            uimenu(uicontextmenu_handle,'Label','Align Channel','separator','off','callback',@obj.align_channels_on_axes);
            uimenu(uicontextmenu_handle,'Label','Hide','separator','on','callback',@obj.contextmenu_line_hide_callback);
-           uimenu(uicontextmenu_handle,'Label','Copy window to clipboard','separator','off','callback',@obj.window2clipboard,'tag','copy_window2clipboard');
+           uimenu(uicontextmenu_handle,'Label','Copy window to clipboard','separator','off','callback',@obj.contextmenu_window2clipboard_callback,'tag','copy_window2clipboard');
        end
+       
        
        
        % =================================================================
@@ -1122,6 +1130,22 @@ classdef PAController < handle
        end
        
        
+        % =================================================================
+        %> @brief Copy the selected linehandle's ydata to the system
+        %> clipboard.
+        %> @param obj Instance of PAController
+        %> @param hObject Handle of callback object (unused).
+        %> @param eventdata Unused.
+        % =================================================================
+        function contextmenu_window2clipboard_callback(obj,hObject,eventdata)
+            data =get(obj.current_linehandle,'ydata');
+            clipboard('copy',data);
+            disp([num2str(numel(data)),' items copied to the clipboard.  Press Control-V to access data items, or type "str=clipboard(''paste'')"']);
+            set(gco,'selected','off');
+            obj.current_linehandle = [];
+        end
+
+       
         
     end
     
@@ -1138,7 +1162,12 @@ classdef PAController < handle
             % passed along to the VIEW class here and used to initialize 
             % many of the selected widgets.
             
+            
+            obj.initSignalSelectionMenu();
+
             obj.VIEW.initWithAccelData(obj.accelObj);
+            
+            
             
             %set signal choice 
             obj.setSignalSelection(obj.SETTINGS.CONTROLLER.signalTagLine);
@@ -1189,15 +1218,9 @@ classdef PAController < handle
         %> - @c bins
         %> - @c features        
         %> @note See PAData.getStructTypes()
-        %> @retval displayTypeStr A string representing the display type.
-        %> Will be one of:
-        %> @li @c Time Series
-        %> @li @c Aggregate Bins
-        %> @li @c Features
         % --------------------------------------------------------------------
-        function [structName,displayTypeStr] = getDisplayType(obj)
-            displayTypeStr = obj.VIEW.getDisplayType();
-            structName = PAData.getStructNameFromDescription(displayTypeStr);
+        function structName = getDisplayType(obj)
+            structName = obj.VIEW.getDisplayType();
         end       
         
         % ======================================================================
@@ -1245,21 +1268,6 @@ classdef PAController < handle
     end
 
     methods (Static)
-        
-
-        
-        % =================================================================
-        %> @brief Copy the selected linehandle's ydata to the system
-        %> clipboard.
-        %> @param hObject Handle of callback object (unused).
-        %> @param eventdata Unused.
-        % =================================================================
-        function window2clipboard(hObject,eventdata)
-            data =get(hObject,'ydata');
-            clipboard('copy',data);
-            disp([num2str(numel(range)),' items copied to the clipboard.  Press Control-V to access data items, or type "str=clipboard(''paste'')"']);
-            set(gco,'selected','off');
-        end
         
         % ======================================================================
         %> @brief Returns a structure of PAControllers default, saveable parameters as a struct.
