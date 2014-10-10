@@ -42,7 +42,16 @@ classdef PAController < handle
         study_duration_in_seconds;
         study_duration_in_samples;
         
-
+        
+        %> Struct of batch settings with the following fields
+        %> - @c sourceDirectory Directory of Actigraph files that will be batch processed
+        %> - @c outputDirectory Output directory for batch processing
+        %> - @c classifyUsageState
+        %> - @c describeActivity
+        %> - @c describeInactivity
+        %> - @c describeSleep
+        batch;
+        
         STATE; %struct to keep track of various Padaco states
         Padaco_loading_file_flag; %boolean set to true when initially loading a src file
         Padaco_mainaxes_ylim;
@@ -69,7 +78,9 @@ classdef PAController < handle
                        
             %create/intilize the settings object            
             obj.SETTINGS = PASettings(rootpathname,parameters_filename);
-
+            obj.batch = obj.SETTINGS.CONTROLLER.batch;
+            
+            
             if(ishandle(Padaco_fig_h))
                 % Create a VIEW class
                 % 1. make context menu handles for the lines
@@ -105,9 +116,9 @@ classdef PAController < handle
             obj.SETTINGS.saveParametersToFile();
         end
         
-        function paramStruct = getSaveParametersStruct(obj)
-            paramStruct = obj.SETTINGS.VIEW;
-        end            
+%         function paramStruct = getSaveParametersStruct(obj)
+%             paramStruct = obj.SETTINGS.VIEW;
+%         end            
         
 
         %% Startup configuration functions and callbacks
@@ -271,6 +282,11 @@ classdef PAController < handle
             set(handles.menu_file_open,'callback',@obj.menuFileOpenCallback);
              %  quit - handled in main window.
             set(handles.menu_file_quit,'callback',{@obj.menuFileQuitCallback,guidata(figH)});
+            
+            %% Tools
+            % batch
+            set(handles.menu_tools_batch,'callback',@obj.menuToolsBatchCallback);
+            
             
         end
         
@@ -741,16 +757,131 @@ classdef PAController < handle
         end
         
         % --------------------------------------------------------------------
-        %> @brief Menubar callback for quitting the program.
-        %> Executes when user attempts to close padaco fig.
+        %> @brief Menubar callback for running the batch tool.
         %> @param obj Instance of PAController
-        %> @param hObject    handle to menu_file_quit (see GCBO)
+        %> @param hObject    handle to menu_tools_batch (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
         function menuFileQuitCallback(obj,hObject,eventdata,handles)
             obj.figureCloseCallback(gcbf,eventdata,handles);
         end
+        
+        
+        %% Batch mode callbacks        
+        
+        % --------------------------------------------------------------------
+        %> @brief Menubar callback for quitting the program.
+        %> Executes when user attempts to close padaco fig.
+        %> @param obj Instance of PAController
+        %> @param hObject    handle to menu_file_quit (see GCBO)
+        %> @param eventdata  reserved - to be defined in a future version of MATLAB
+        % --------------------------------------------------------------------        
+        function menuToolsBatchCallback(obj,hObject,eventdata)           
+            batchFig = batchTool();
+            batchHandles = guidata(batchFig);
+            
+            set(batchHandles.button_getSourcePath,'callback',{@obj.getSourceDirectoryCallback,batchHandles.text_sourcePath,batchHandles.text_filesFound});  
+            set(batchHandles.button_getOutputPath,'callback',{@obj.getOutputDirectoryCallback,batchHandles.text_outputPath});
+            
+            set(batchHandles.text_outputPath,'string',obj.batch.outputDirectory);
+            set(batchHandles.check_usageState,'value',obj.batch.classifyUsageState);
+            set(batchHandles.check_activityPatterns,'value',obj.batch.describeActivity);
+            set(batchHandles.check_inactivityPatterns,'value',obj.batch.describeInactivity);
+            set(batchHandles.check_sleepPatterns,'value',obj.batch.describeSleep);
+          
+            set(batchHandles.button_go,'callback',@obj.startBatchProcessCallback);
+            
+            obj.calculateFilesFound(batchHandles.text_sourcePath,batchHandles.text_filesFound);
+        end        
+        
+        function getSourceDirectoryCallback(obj,hObject,eventdata,text_sourcePathH,text_filesFoundH)
+            displayMessage = 'Select the directory containing .raw or count actigraphy files';
+            initPath = get(text_sourcePathH,'string');
+            tmpSrcDirectory = uigetfulldir(initPath,displayMessage);
+            if(~isempty(tmpSrcDirectory))
+                %assign the settings directory variable
+                obj.batch.sourceDirectory = tmpSrcDirectory;
+                obj.calculateFilesFound(text_sourcePathH,text_filesFoundH);
+            end
+        end
+        
+        function getOutputDirectoryCallback(obj,hObject,eventdata,textH)
+            displayMessage = 'Select the output directory to place processed results.';
+            initPath = get(textH,'string');
+            tmpOutputDirectory = uigetfulldir(initPath,displayMessage);
+            if(~isempty(tmpOutputDirectory))
+                %assign the settings directory variable
+                obj.batch.outputDirectory = tmpOutputDirectory;                
+            end
+        end
+        
+        function startBatchProcessCallback(obj,hObject,eventdata)
+            [filenames, fullFilenames] = getFilenamesi(obj.batch.sourceDirectory,'.csv');
+            failedFiles = {};
+            pctDone = 0;
+            pctDelta = 1/numel(fullFilenames);
+            waitH = waitbar(pctDone);
+            for f=1:numel(fullFilenames)
+                waitbar(pctDone,waitH,filenames{f});
+                pctDone = pctDone+pctDelta;
+                try
+                    fprintf('Processing %s\n',filenames{f});
+                    curData = PAData(fullFilenames{f});%,obj.SETTINGS.DATA
+                    
+                    if(obj.batch.classifyUsageState)
+                        curData.classifyUsageState();
+                        curData.saveToFile('usageState',obj.batch.outputDirectory);
+                    end
+                    if(obj.batch.describeActivity)
+                        curData.describe('activity');
+                        curData.saveToFile('activity',obj.batch.outputDirectory);
+                    end
+                    if(obj.batch.describeInactivity)
+                        curData.describe('inactivity');
+                        curData.saveToFile('inactivity',obj.batch.outputDirectory);
+                    end
+                    if(obj.batch.describeSleep)
+                        curData.describe('sleep');
+                        curData.saveToFile('sleep',obj.batch.outputDirectory);
+                    end
+                    
+                catch me
+                    showME(me);
+                    failedFiles{end+1} = filenames{f};
+                    fprintf('\t%s\tFAILED.\n',fullFilenames{f});
+                end                
+            end
+            waitbar(pctDone,waitH,'Finished!');
+            
+            if(~isempty(failedFiles))
+                fprintf('\n\n%u Files Failed:\n',numel(failedFiles));
+                for f=1:numel(failedFiles)
+                    fprintf('\t%s\tFAILED.\n',failedFiles{f});
+                end
+            end
+        end
+        
+        function calculateFilesFound(obj,text_sourcePath_h,text_filesFound_h)
+           %update the source path edit field with the source directory
+           set(text_sourcePath_h,'string',obj.batch.sourceDirectory);
+           %get the file count and update the file count text field. 
+           rawFileCount = numel(getFilenamesi(obj.batch.sourceDirectory,'.raw'));
+           csvFileCount = numel(getFilenamesi(obj.batch.sourceDirectory,'.csv'));
+           msg = '';
+           if(rawFileCount==0 && csvFileCount==0)
+               msg = 'No files found for processing.';
+           else
+              if(rawFileCount>0)
+                  msg = sprintf('%u .raw file(s) found.\n',rawFileCount);
+              end
+              if(csvFileCount>0)
+                  msg = sprintf('%s%u .csv file(s) found.',msg,csvFileCount);
+              end
+           end
+           set(text_filesFound_h,'string',msg);
+        end
+        
         
         % --------------------------------------------------------------------
         %> @brief Calculates the median lux value for a given number of sections.
@@ -810,8 +941,7 @@ classdef PAController < handle
                 meanLumens(i) = mean(luxData(indices(i):indices(i+1)));
                 startStopDatenums(i,:) = [obj.accelObj.dateTimeNum(indices(i)),obj.accelObj.dateTimeNum(indices(i+1))];
             end
-        end
-        
+        end        
         
         % --------------------------------------------------------------------
         %> @brief Calculates a desired feature for a particular acceleration object's field value.
@@ -909,7 +1039,7 @@ classdef PAController < handle
        function showLineHandle_callback(obj,hObject,eventdata,lineHandle)
            lineTag = get(lineHandle,'tag');
            tagHandles = findobj(get(lineHandle,'parent'),'tag',lineTag);
-           set(tagHandles,'visible','on')
+           set(tagHandles,'visible','on','hittest','on')
            obj.accelObj.setVisible(lineTag,'on');
            set(gco,'selected','off');           
        end
@@ -1233,6 +1363,7 @@ classdef PAController < handle
         function pStruct = getSaveParameters(obj)
             pStruct.featureFcn = obj.getExtractorMethod();
             pStruct.signalTagLine = obj.getSignalSelection();
+            pStruct.batch = obj.batch;
         end
         
         % ======================================================================
@@ -1261,7 +1392,7 @@ classdef PAController < handle
             % get the siblings handles with same tagLine (e.g. label and
             % rereference line handles.
             h = findobj(parentH,'tag',tagLine);
-            set(h,'visible','off');
+            set(h,'visible','off','hittest','off'); % turn the hittest off so I can access contextmenus when clicking over the unseen line.
             set(gco,'selected','off');
         end
         
@@ -1282,6 +1413,17 @@ classdef PAController < handle
             featureFcns = fieldnames(featureStruct);
             pStruct.featureFcn = featureFcns{1};
             pStruct.signalTagLine = tagLines{1};
+            mPath = fileparts(mfilename('fullpath'));
+            pStruct.batch.sourceDirectory = mPath;
+            pStruct.batch.outputDirectory = mPath;
+            checkFields = {'classifyUsageState';
+                'describeActivity';
+                'describeInactivity';
+                'describeSleep';};
+            for f=1:numel(checkFields)
+                pStruct.batch.(checkFields{f}) = 1;
+            end
+            
         end
         
     end

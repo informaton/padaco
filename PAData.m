@@ -1288,6 +1288,14 @@ toc
            dateNum  = startStopDatenum(1)+datenum([0,0,0,0,0,elapsed_time_sec]);
        end
        
+       
+       
+       % ======================================================================
+       %> @brief Prefilters accelerometer data. 
+       %> @note Not currently implemented.
+       %> @param obj Instance of PAData.
+       %> @param method String name of the prefilter method.
+       % ======================================================================
        function obj = prefilter(obj,method)
            currentNumBins = floor((obj.durationSec/60)/obj.aggregateDurMin);
            if(currentNumBins~=obj.numBins)
@@ -1308,6 +1316,23 @@ toc
 
        
        
+       % ======================================================================
+       %> @brief Extracts features from the identified signal
+       %> @param obj Instance of PAData.
+       %> @param signalTagLine Tag identifying the signal to extract
+       %> features from.  Default is 'accel.count.vecMag'
+       %> @param method String name of the extraction method.  Possible
+       %> values include:
+       %> - c none
+       %> - c all
+       %> - c rms
+       %> - c median
+       %> - c mean
+       %> - c sum
+       %> - c var
+       %> - c std
+       %> - c mode       
+       % ======================================================================
        function obj = extractFeature(obj,signalTagLine,method)
            if(nargin<3 || isempty(method))
                method = 'all';
@@ -1341,17 +1366,64 @@ toc
                    obj.features.var = var(data)';
                    obj.features.std = std(data)';
                    obj.features.mode = mode(data)';
-%                    obj.features.count = obj.getCount(data)';
+                   %                    obj.features.count = obj.getCount(data)';
                case 'rms'
                    obj.features.rms = sqrt(mean(data.^2))';
+               case 'median'
+                   obj.features.median = median(data)';
                case 'mean'
                    obj.features.mean = mean(data)';
                case 'sum'
                    obj.features.sum = sum(data)';
+               case 'var'
+                   obj.features.var = var(data)';
+               case 'std'
+                   obj.features.std = std(data)';
                case 'mode'
                    obj.features.mode = mode(data)';
                otherwise
                    fprintf(1,'Unknown method (%s)\n',method);
+           end
+       end
+       
+       % ======================================================================
+       %> @brief Categorizes the study's usage state.
+       %> @note This is not yet implemented.
+       %> @param obj Instance of PAData.
+       %> @retval usageState A three column matrix identifying usage state
+       %> and duration.  Column 1 is the usage state, column 2 and column 3 are
+       %> the states start and stop times (datenums).
+       %> @note Usage states are categorized as follows:
+       %> - c 0 Sleep
+       %> - c 1 Wake
+       %> - c 2 Nonwear       
+       % ======================================================================
+       function usageState = classifyUsageState(obj)
+           usageState = randi([0, 2],obj.durationSec/60/8,1);           
+       end
+       
+       
+       % ======================================================================
+       %> @brief Describes an activity.
+       %> @note This is not yet implemented.
+       %> @param obj Instance of PAData.
+       %> @param activityType The type of activity to describe.  This is a string.  Values include:
+       %> - c sleep
+       %> - c wake
+       %> - c inactivity
+       %> @retval activityStruct A struct describing the activity.  Fields
+       %> include:
+       %> - c empty       
+       % ======================================================================
+       function activityStruct = describeActivity(obj,activityType)
+           activityStruct = struct();
+           switch(activityType)
+               case 'sleep'
+                   activityStruct.sleep = [];
+               case 'wake'
+                   activityStruct.wake = [];
+               case 'inactivity'
+                   activityStruct.inactivity = [];
            end
        end
        
@@ -1413,6 +1485,8 @@ toc
                    fprintf('Warning!  This case is not handled (%s).\n',structType);
            end
        end
+       
+       
        
        function [sref,varargout] = subsref(obj,s)
            

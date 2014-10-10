@@ -450,41 +450,13 @@ classdef  PASettings < handle
                         obj.VIEW.database_inf_file = 'database.inf';
                    case 'BATCH_PROCESS'
                         obj.BATCH_PROCESS.src_folder = '.'; %the folder to do a batch job on.
-            
-                        %power spectrum analysis
-                        obj.BATCH_PROCESS.output_files.psd_filename = 'psd.txt';
-                        obj.BATCH_PROCESS.output_files.music_filename = 'MUSIC';
                         
                         %artifacts and events
                         obj.BATCH_PROCESS.output_files.events_filename = 'evt.';
                         obj.BATCH_PROCESS.output_files.artifacts_filename = 'art.';
                         obj.BATCH_PROCESS.output_files.save2txt = 1;
                         obj.BATCH_PROCESS.output_files.save2mat = 0;
-                        
-                        %database supplement
-                        obj.BATCH_PROCESS.database.save2DB = 0;
-                        obj.BATCH_PROCESS.database.filename = 'database.inf';
-                        obj.BATCH_PROCESS.database.choice = 1;
-                        obj.BATCH_PROCESS.database.auto_config = 1;
-                        obj.BATCH_PROCESS.database.config_start = 1;
-                        
-                        %summary information
-                        obj.BATCH_PROCESS.output_files.cumulative_stats_flag = 0;
-                        obj.BATCH_PROCESS.output_files.cumulative_stats_filename = 'Padaco.cumulative_stats.txt';
-                        
-                        obj.BATCH_PROCESS.output_files.individual_stats_flag = 0;
-                        obj.BATCH_PROCESS.output_files.individual_stats_filename_suffix = '.stats.txt';
-                        
-                        obj.BATCH_PROCESS.output_files.log_checkbox = 1;
-                        obj.BATCH_PROCESS.output_files.log_filename = '_log.txt';
-                        
-                        %images
-                        obj.BATCH_PROCESS.images.save2img = 1;
-                        obj.BATCH_PROCESS.images.format = 'PNG';
-                        obj.BATCH_PROCESS.images.limit_count = 100;
-                        obj.BATCH_PROCESS.images.limit_flag = 1;
-                        obj.BATCH_PROCESS.images.buffer_sec = 0.5;
-                        obj.BATCH_PROCESS.images.buffer_flag = 1;
+
                 end
             end
         end
