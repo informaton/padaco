@@ -87,9 +87,9 @@ classdef PAController < handle
                 % 2. make context menu handles for the primary axes
                 uiLinecontextmenu_handle = obj.getLineContextmenuHandle();
                 uiPrimaryAxescontextmenu_handle = obj.getPrimaryAxesContextmenuHandle();
-                
-                obj.VIEW = PAView(Padaco_fig_h,uiLinecontextmenu_handle,uiPrimaryAxescontextmenu_handle);
-                
+                featureLineContextMenuHandle = obj.getFeatureLineContextmenuHandle();
+                obj.VIEW = PAView(Padaco_fig_h,uiLinecontextmenu_handle,uiPrimaryAxescontextmenu_handle,featureLineContextMenuHandle);
+
                 handles = guidata(Padaco_fig_h);
                 obj.initWidgets();
                 obj.initCallbacks();
@@ -504,6 +504,10 @@ classdef PAController < handle
             else
                 extractorMethod = extractorFcns{extractorIndex};
             end
+            if(strcmpi(extractorMethod,'rms'))
+                extractorMethod = @(data)sqrt(mean(data.^2))';
+            end
+
         end
         
         
@@ -1054,8 +1058,7 @@ classdef PAController < handle
        %> be assigned to the line handles drawn by the PAController and
        %> PAView classes.
        % =================================================================
-       function uicontextmenu_handle = getLineContextmenuHandle(obj)
-           
+       function uicontextmenu_handle = getLineContextmenuHandle(obj)           
            uicontextmenu_handle = uicontextmenu('callback',@obj.contextmenu_line_callback);%,get(parentAxes,'parent'));
            uimenu(uicontextmenu_handle,'Label','Resize','separator','off','callback',@obj.contextmenu_line_resize_callback);
            uimenu(uicontextmenu_handle,'Label','Use Default Scale','separator','off','callback',@obj.contextmenu_line_defaultScale_callback,'tag','defaultScale');
@@ -1067,6 +1070,17 @@ classdef PAController < handle
            uimenu(uicontextmenu_handle,'Label','Copy window to clipboard','separator','off','callback',@obj.contextmenu_window2clipboard_callback,'tag','copy_window2clipboard');
        end
        
+       % =================================================================
+       %> @brief Configure contextmenu for feature line which is drawn in the secondary axes.
+       %> @param obj instance of PAController.
+       %> @retval uicontextmenu_handle A contextmenu handle.  This should
+       %> be assigned to the line handles drawn by the PAController and
+       %> PAView classes.
+       % =================================================================
+       function uicontextmenu_handle = getFeatureLineContextmenuHandle(obj)           
+           uicontextmenu_handle = uicontextmenu();%,get(parentAxes,'parent'));
+           uimenu(uicontextmenu_handle,'Label','Copy to clipboard','separator','off','callback',@obj.contextmenu_line2clipboard_callback,'tag','copy_window2clipboard');
+       end
        
        
        % =================================================================
@@ -1274,6 +1288,20 @@ classdef PAController < handle
             set(gco,'selected','off');
             obj.current_linehandle = [];
         end
+        
+        % =================================================================
+        %> @brief Copy the selected (feature) linehandle's ydata to the system
+        %> clipboard.
+        %> @param obj Instance of PAController
+        %> @param hObject Handle of callback object (unused).
+        %> @param eventdata Unused.
+        % =================================================================
+        function contextmenu_line2clipboard_callback(obj,hObject,eventdata)
+            data = get(get(hObject,'parent'),'userdata');            
+            clipboard('copy',data);
+            disp([num2str(numel(data)),' items copied to the clipboard.  Press Control-V to access data items, or type "str=clipboard(''paste'')"']);
+        end
+        
 
        
         

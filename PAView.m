@@ -14,8 +14,8 @@ classdef PAView < handle
         %> @li @c Features
         displayType; 
         
-        
     end
+    
     properties
         %> for the patch handles when editing and dragging
         hg_group; 
@@ -95,7 +95,7 @@ classdef PAView < handle
         %> VIEW's primary axes.
         %> @retval obj Instance of PAView
         % --------------------------------------------------------------------
-        function obj = PAView(Padaco_fig_h,lineContextmenuHandle,primaryAxesContextmenuHandle)
+        function obj = PAView(Padaco_fig_h,lineContextmenuHandle,primaryAxesContextmenuHandle,featureLineContextMenuHandle)
             if(ishandle(Padaco_fig_h))
                 if(nargin<3)
                     primaryAxesContextmenuHandle = [];
@@ -119,6 +119,7 @@ classdef PAView < handle
 
                 obj.contextmenuhandle.primaryAxes = primaryAxesContextmenuHandle;
                 obj.contextmenuhandle.signals = lineContextmenuHandle;
+                obj.contextmenuhandle.featureLine = featureLineContextMenuHandle;
                 
                 obj.createView();                
             else
@@ -657,7 +658,6 @@ classdef PAView < handle
 
         function addFeaturesOverlayToSecondaryAxes(obj, featureVector, startStopDatenum)
             
-            
             yLim = get(obj.axeshandle.secondary,'ylim');
             yLim = yLim*1/3+1/3;
             minColor = [.0 0.25 0.25];
@@ -670,7 +670,7 @@ classdef PAView < handle
             x = nan(4,nFaces);
             y = repmat(yLim([1 2 2 1])',1,nFaces);
             vertexColor = nan(4,nFaces,3);
-            normalizedFeatureVector = featureVector/max(featureVector)*1/3;
+            % normalizedFeatureVector = featureVector/max(featureVector)*1/3;
             normalizedFeatureVector = featureVector/quantile(featureVector,0.99)*1/3;
             
             % each column represent a face color triplet            
@@ -707,8 +707,8 @@ classdef PAView < handle
             n = 10;
             b = repmat(1/n,1,n);
             smoothY = filtfilt(b,1,normalizedFeatureVector);
-            obj.linehandle.feature = line('parent',obj.axeshandle.secondary,'ydata',smoothY,'xdata',startStopDatenum(:,1),'color','b','hittest','off');
-            
+            obj.linehandle.feature = line('parent',obj.axeshandle.secondary,'ydata',smoothY,'xdata',startStopDatenum(:,1),'color','b','hittest','on','uicontextmenu',obj.contextmenuhandle.featureLine);
+            set(obj.contextmenuhandle.featureLine,'userdata',featureVector);
             
             vectorSum = cumsum(featureVector)/sum(featureVector)/3;
             obj.linehandle.featureCumsum =line('parent',obj.axeshandle.secondary,'ydata',vectorSum,'xdata',startStopDatenum(:,1),'color','g','hittest','off');
