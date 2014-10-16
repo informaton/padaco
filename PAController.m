@@ -39,10 +39,7 @@ classdef PAController < handle
         display_samples; %vector of the samples to be displayed
         shift_display_samples_delta; %number of samples to adjust display by for moving forward or back
         startDateTime;
-        study_duration_in_seconds;
-        study_duration_in_samples;
-        
-        
+                
         %> Struct of batch settings with the following fields
         %> - @c sourceDirectory Directory of Actigraph files that will be batch processed
         %> - @c outputDirectory Output directory for batch processing
@@ -456,7 +453,6 @@ classdef PAController < handle
             obj.accelObj.extractFeature(selectedSignalTagLine,extractorMethod);
             obj.VIEW.enableFeatureRadioButton();
             
-           
             obj.updateSecondaryFeaturesDisplay();
             % obj.VIEW.appendFeatureMenu(extractorMethod);
             displayType = 'features';
@@ -465,11 +461,20 @@ classdef PAController < handle
             obj.VIEW.draw();
         end
         
-        function updateSecondaryFeaturesDisplay(obj,varargin)
+        % --------------------------------------------------------------------
+        %> @brief Updates the secondary axes with the current features selected in the GUI
+        %> @param obj Instance of PAController
+        %> @param numSamples Optional number of features to extract (i.e. the number of chunks that the
+        %> the study data will be broken into and the current feature
+        %> category applied to.  Default is the current frame count.
+        % --------------------------------------------------------------------
+        function updateSecondaryFeaturesDisplay(obj,numSamples)
+            if(nargin<2 || isempty(numSamples))
+                numFrames = obj.getFrameCount(); 
+            end
             featureFcn = obj.getExtractorMethod();
             signalTagLine = obj.getSignalSelection();
-            numSamples = 1000;            
-            obj.drawFeatureVecPatches(featureFcn,signalTagLine,numSamples);
+            obj.drawFeatureVecPatches(featureFcn,signalTagLine,numFrames);
         end
         
         % --------------------------------------------------------------------
@@ -744,6 +749,8 @@ classdef PAController < handle
         %> @param eventdata Required by MATLAB, but not used.
         % --------------------------------------------------------------------
         function menuFileOpenCallback(obj,hObject,eventdata)
+            %DATA.pathname	/Volumes/SeaG 1TB/sampleData/csv
+            %DATA.filename	700023t00c1.csv.csv
             f=uigetfullfile({'*.csv;*.raw','All (Count or raw)';'*.csv','Comma Separated Values';'*.raw','Raw Format (comma separated values)'},'Select a file','off',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
             try
                 if(~isempty(f))
@@ -816,7 +823,8 @@ classdef PAController < handle
             tmpOutputDirectory = uigetfulldir(initPath,displayMessage);
             if(~isempty(tmpOutputDirectory))
                 %assign the settings directory variable
-                obj.batch.outputDirectory = tmpOutputDirectory;                
+                obj.batch.outputDirectory = tmpOutputDirectory;
+                set(textH,'string',tmpOutputDirectory);
             end
         end
         
@@ -832,22 +840,26 @@ classdef PAController < handle
                 try
                     fprintf('Processing %s\n',filenames{f});
                     curData = PAData(fullFilenames{f});%,obj.SETTINGS.DATA
-                    
+                    [~,filename,~] = fileparts(curData.getFilename());
                     if(obj.batch.classifyUsageState)
                         curData.classifyUsageState();
-                        curData.saveToFile('usageState',obj.batch.outputDirectory);
+                        saveFilename = fullfile(obj.batch.outputDirectory,strcat(filename,'.usage.txt'));
+                        curData.saveToFile('usageState',saveFilename);
                     end
                     if(obj.batch.describeActivity)
-                        curData.describe('activity');
-                        curData.saveToFile('activity',obj.batch.outputDirectory);
+                        curData.describeActivity('activity');
+                        saveFilename = fullfile(obj.batch.outputDirectory,strcat(filename,'.activity.txt'));
+                        curData.saveToFile('activity',saveFilename);
                     end
                     if(obj.batch.describeInactivity)
-                        curData.describe('inactivity');
-                        curData.saveToFile('inactivity',obj.batch.outputDirectory);
+                        curData.describeActivity('inactivity');
+                        saveFilename = fullfile(obj.batch.outputDirectory,strcat(filename,'.inactivity.txt'));
+                        curData.saveToFile('inactivity',saveFilename);
                     end
                     if(obj.batch.describeSleep)
-                        curData.describe('sleep');
-                        curData.saveToFile('sleep',obj.batch.outputDirectory);
+                        curData.describeActivity('sleep');
+                        saveFilename = fullfile(obj.batch.outputDirectory,strcat(filename,'.sleep.txt'));
+                        curData.saveToFile('sleep',saveFilename);
                     end
                     
                 catch me
@@ -868,13 +880,16 @@ classdef PAController < handle
         
         function calculateFilesFound(obj,text_sourcePath_h,text_filesFound_h)
            %update the source path edit field with the source directory
+           handles = guidata(text_sourcePath_h);
            set(text_sourcePath_h,'string',obj.batch.sourceDirectory);
            %get the file count and update the file count text field. 
            rawFileCount = numel(getFilenamesi(obj.batch.sourceDirectory,'.raw'));
            csvFileCount = numel(getFilenamesi(obj.batch.sourceDirectory,'.csv'));
            msg = '';
            if(rawFileCount==0 && csvFileCount==0)
-               msg = 'No files found for processing.';
+               msg = '0 files found.';
+               set(handles.button_go,'enable','off');
+            
            else
               if(rawFileCount>0)
                   msg = sprintf('%u .raw file(s) found.\n',rawFileCount);
@@ -882,10 +897,41 @@ classdef PAController < handle
               if(csvFileCount>0)
                   msg = sprintf('%s%u .csv file(s) found.',msg,csvFileCount);
               end
+              set(handles.button_go,'enable','on');
            end
            set(text_filesFound_h,'string',msg);
         end
         
+        % --------------------------------------------------------------------
+        %> @brief Returns the total frame duration (i.e. hours and minutes) in aggregated minutes.
+        %> @param obj Instance of PAData
+        %> @retval curFrameDurationMin The current frame duration as total
+        %> minutes.        
+        % --------------------------------------------------------------------
+        function curFrameDurationTotalMin = getFrameDurationAsMinutes(obj)
+            [curFrameDurationMin, curFrameDurationHour] = obj.accelObj.getFrameDuration();
+            curFrameDurationTotalMin = [curFrameDurationMin, curFrameDurationHour]*[1;60];
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Returns the current study's duration as seconds.
+        %> @param obj Instance of PAData
+        %> @retval curStudyDurationSec The duration of the current study in seconds.        
+        % --------------------------------------------------------------------
+        function curStudyDurationSec = getStudyDurationSec(obj)
+            curStudyDurationSec = obj.accelObj.durationSec;
+        end
+
+        % --------------------------------------------------------------------
+        %> @brief Returns the number of frames the study can be broken into based
+        %> on the frame duration set in the GUI.
+        %> @param obj Instance of PAController.
+        %> @note The accelObj property must be set (i.e. a file must be
+        %> loaded for this function to work).        
+        % --------------------------------------------------------------------
+        function frameCount = getFrameCount(obj)
+            frameCount = obj.accelObj.getFrameCount();
+        end        
         
         % --------------------------------------------------------------------
         %> @brief Calculates the median lux value for a given number of sections.
@@ -946,6 +992,45 @@ classdef PAController < handle
                 startStopDatenums(i,:) = [obj.accelObj.dateTimeNum(indices(i)),obj.accelObj.dateTimeNum(indices(i+1))];
             end
         end        
+        
+        % --------------------------------------------------------------------
+        %> @brief Estimates daylight intensity across the study.
+        %> @param obj Instance of PAController
+        %> @param numPatches (optional) Number of chunks to estimate
+        %> daylight at across the study.  Default is 100.
+        %> @retval daylightVector Vector of estimated daylight from the time of day at startStopDatenums.
+        %> @retval startStopDatenums Nx2 matrix of datenum values whose
+        %> rows correspond to the start/stop range that the meanLumens
+        %> value (at the same row position) was derived from.
+        function [daylightVector,startStopDatenums] = getDaylight(obj,numSections)
+            if(nargin<2 || isempty(numSections) || numSections <=1)
+                numSections = 100;
+            end
+            indices = ceil(linspace(1,numel(obj.accelObj.dateTimeNum),numSections+1));
+            startStopDatenums = [obj.accelObj.dateTimeNum(indices(1:end-1)),obj.accelObj.dateTimeNum(indices(2:end))];
+            [y,mo,d,H,MI,S] = datevec(mean(startStopDatenums,2));
+            dayTime = [H,MI,S]*[1; 1/60; 1/3600];
+%             dayTime = [[H(:,1),MI(:,1),S(:,1)]*[1;1/60;1/3600], [H(:,2),MI(:,2),S(:,2)]*[1;1/60;1/3600]];
+     
+            % obtain the middle spot of the daytime chunk. --> this does
+            % not work because the hours flip over at 24:00.
+%             dayTime = [H,MI,S]*[1;1;1/60;1/60;1/3600;1/3600]/2;
+            
+            
+            % linear model for daylight
+            %             daylightVector = (-abs(dayTime-12)+12)/12;
+            
+            % sinusoidal models for daylight
+            T = 24;
+            %             daylightVector = cos(2*pi/T*(dayTime-12));
+            %             daylightVector = sin(pi/T*dayTime);  %just take half of a cycle here ...
+            
+            daylightVector= (cos(2*pi*(dayTime-12)/T)+1)/2;  %this is spread between 0 and 1; with 1 being brightest at noon.
+            
+        end        
+        
+        
+                
         
         % --------------------------------------------------------------------
         %> @brief Calculates a desired feature for a particular acceleration object's field value.
@@ -1345,12 +1430,22 @@ classdef PAController < handle
             
             
             
-            %             [medianLumens,startStopDatenums] = obj.getMedianLumenPatches(1000);
-            [meanLumens,startStopDatenums] = obj.getMeanLumenPatches(1000);
+            maxDaylight = 1;
+            numFrames = obj.getFrameCount(); 
             
-            obj.VIEW.addLumensOverlayToSecondaryAxes(meanLumens,startStopDatenums);
+            
+            
+            maxLumens = 250;
+            [meanLumens,startStopDatenums] = obj.getMeanLumenPatches(numFrames);
+            obj.VIEW.addOverlayToSecondaryAxes(meanLumens,startStopDatenums,1/4,2/4,maxLumens);
+            %             [medianLumens,startStopDatenums] = obj.getMedianLumenPatches(1000);
+            %             obj.VIEW.addLumensOverlayToSecondaryAxes(meanLumens,startStopDatenums);
             
             obj.updateSecondaryFeaturesDisplay();   
+            
+            [daylight,startStopDatenums] = obj.getDaylight(numFrames);
+             obj.VIEW.addOverlayToSecondaryAxes(daylight,startStopDatenums,1/4-0.005,3/4,maxDaylight);
+            
             
             obj.VIEW.showReady();
             
@@ -1365,7 +1460,7 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function drawFeatureVecPatches(obj,featureType,signalName,numSamples)
             [featureVec, startStopDatenums] = obj.getFeatureVecPatches(featureType,signalName,numSamples);
-            obj.VIEW.addFeaturesOverlayToSecondaryAxes(featureVec,startStopDatenums);
+            obj.VIEW.addFeaturesOverlayToSecondaryAxes(featureVec,startStopDatenums,1/2,0);
         end   
         
         % --------------------------------------------------------------------

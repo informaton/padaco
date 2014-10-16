@@ -48,6 +48,12 @@ classdef PAView < handle
         %> - @c edit_window  handle to the editable window handle        
         texthandle; 
         
+        %> @brief struct of panel handles.  Fields are: 
+        %> - @c controls Handle to the left most panel that contains a panel of features
+        %> - @c features Handle to the panel that contains widgets for extracting features.
+        %> - @c metaData Handle to the panel that describes information about the current study.
+        panelhandle;
+        
         %> @brief struct of menu handles.  Fields are: 
         %> - @c windowDurSec The window display duration in seconds
         %> - @c prefilter The selection of prefilter methods
@@ -136,7 +142,9 @@ classdef PAView < handle
             handles = guidata(obj.getFigHandle());
             
             set(handles.panel_left,'backgroundcolor',[0.75,0.75,0.75]);
-            set(handles.panel_study,'backgroundcolor',[0.95,0.95,0.95]);
+            
+            metaDataHandles = [handles.panel_study;get(handles.panel_study,'children')];
+            set(metaDataHandles,'backgroundcolor',[0.95,0.95,0.95],'visible','off');
             
             whiteHandles = [handles.text_aggregate
                 handles.text_frameSizeMinutes
@@ -154,6 +162,10 @@ classdef PAView < handle
             obj.texthandle.aggregateDuration = handles.edit_aggregate;
             obj.texthandle.frameDurationMinutes = handles.edit_frameSizeMinutes;
             obj.texthandle.frameDurationHours = handles.edit_frameSizeHours;
+            
+            obj.patchhandle.controls = handles.panel_left;
+            obj.patchhandle.features = handles.panel_features;
+            obj.patchhandle.metaData = handles.panel_study;
             
             obj.menuhandle.windowDurSec = handles.menu_windowDurSec;
             obj.menuhandle.signalSelection = handles.menu_signalSelection;
@@ -413,13 +425,16 @@ classdef PAView < handle
             axesProps.nextplot='replacechildren';
             axesProps.box= 'on';
             axesProps.plotboxaspectratiomode='auto';
+            axesProps.fontSize = 12;
+            axesProps.xAxisLocation = 'top';
             
             %initialize axes
             set(obj.axeshandle.primary,axesProps);
             
             axesProps.xgrid = 'off';
-            axesProps.xminortick = 'off';
-            
+            axesProps.xminortick = 'off';  
+            axesProps.xAxisLocation = 'bottom';
+
             set(obj.axeshandle.secondary,axesProps);             
         end
         
@@ -441,6 +456,8 @@ classdef PAView < handle
             end
             
             widgetList = [menuHandles
+                handles.text_window;
+                handles.text_windowResolution;
                 handles.edit_curWindow
                 handles.edit_aggregate
                 handles.edit_frameSizeMinutes
@@ -475,8 +492,22 @@ classdef PAView < handle
             axesProps.primary.xlim = PADataObject.getCurWindowRange();
             axesProps.primary.ylim = PADataObject.getDisplayMinMax();
             
+            numViews = 4;
+            axesProps.secondary.ytick = 1/numViews/2:1/numViews:1;
+            axesProps.secondary.yticklabel = {'Feature','Feature','Lumens','Daylight'};
+            axesProps.secondary.TickDir = 'in';
+            axesProps.secondary.TickDirMode = 'manual';
+            
+            axesProps.secondary.TickLength = [0.001 0];
+            
             obj.initAxesHandles(axesProps);
             
+%             axesChildren = allchild(obj.axeshandle.secondary);
+%             for h=1:numel(axesChildren)
+%                 if(strcmpi(get(axesChildren(h),'type'),'text') && isfield(get(axesChildren(h)),'Rotation'))
+%                     set(axesChildren(h),'rotation',90,'string','blahs');
+%                 end
+%             end
             
             
                 %creates and initializes line handles (obj.linehandle fields)
@@ -535,7 +566,12 @@ classdef PAView < handle
             
             
             set(obj.positionBarHandle,'visible','on','xdata',nan(1,5),'ydata',[0 1 1 0 0],'linestyle',':'); 
-            set(obj.patchhandle.positionBar,'visible','on','xdata',nan(1,4),'ydata',[0 1/3 1/3 0]); 
+            set(obj.patchhandle.positionBar,'visible','on','xdata',nan(1,4),'ydata',[0 1 1 0]); 
+            
+            % Turn on the meta data handles - panel that shows information
+            % about the current file/study.
+            metaDataHandles = [obj.patchhandle.metaData;get(obj.patchhandle.metaData,'children')];
+            set(metaDataHandles,'visible','on');
             
             obj.restore_state();
         end       
@@ -596,6 +632,8 @@ classdef PAView < handle
             end
             
             widgetList = [menuHandles
+                handles.text_window
+                handles.text_windowResolution
                 handles.edit_curWindow
                 handles.edit_aggregate
                 handles.edit_frameSizeMinutes
@@ -656,10 +694,20 @@ classdef PAView < handle
         end
 
 
-        function addFeaturesOverlayToSecondaryAxes(obj, featureVector, startStopDatenum)
-            
+        %> @param obj Instance of PAView.
+        %> @featureVector A vector of features to be displayed on the
+        %> secondary axes.
+        %> @startStopDatenum A vector of start and stop date nums that
+        %> correspond to the start and stop times of the study that the
+        %> feature in featureVector at the same index corresponds to.
+        %> @param overlayHeight - The proportion (fraction) of vertical space that the
+        %> overlay will take up in the secondary axes.
+        %> @param overlayOffset The normalized y offset that is applied to
+        %> the featureVector when displayed on the secondary axes.
+        function addFeaturesOverlayToSecondaryAxes(obj, featureVector, startStopDatenum, overlayHeight, overlayOffset)
             yLim = get(obj.axeshandle.secondary,'ylim');
-            yLim = yLim*1/3+1/3;
+            yLimPatches = (yLim+1)*overlayHeight/2+overlayOffset;
+            
             minColor = [.0 0.25 0.25];
             minColor = [0.1 0.1 0.1];
             
@@ -668,10 +716,8 @@ classdef PAView < handle
             nFaces = numel(featureVector);
             
             x = nan(4,nFaces);
-            y = repmat(yLim([1 2 2 1])',1,nFaces);
+            y = repmat(yLimPatches([1 2 2 1])',1,nFaces);
             vertexColor = nan(4,nFaces,3);
-            % normalizedFeatureVector = featureVector/max(featureVector)*1/3;
-            normalizedFeatureVector = featureVector/quantile(featureVector,0.99)*1/3;
             
             % each column represent a face color triplet            
             featureColorMap = (featureVector/maxValue)*[1,1,1]+ repmat(minColor,nFaces,1);
@@ -702,21 +748,58 @@ classdef PAView < handle
             
             obj.patchhandle.feature = patch(x,y,vertexColor,'parent',obj.axeshandle.secondary,'edgecolor','interp','facecolor','interp','hittest','off');
 
-            % draw the line...
-%             line('parent',obj.axeshandle.secondary,'ydata',normalizedFeatureVector,'xdata',startStopDatenum(:,1),'color','b','linewidth',0.25);
+            % draw the lines
+            
+            normalizedFeatureVector = featureVector/quantile(featureVector,0.99)*(overlayHeight/2)+overlayOffset;
+            
             n = 10;
             b = repmat(1/n,1,n);
             smoothY = filtfilt(b,1,normalizedFeatureVector);
-            obj.linehandle.feature = line('parent',obj.axeshandle.secondary,'ydata',smoothY,'xdata',startStopDatenum(:,1),'color','b','hittest','on','uicontextmenu',obj.contextmenuhandle.featureLine);
+            obj.linehandle.feature = line('parent',obj.axeshandle.secondary,'ydata',smoothY+overlayOffset,'xdata',startStopDatenum(:,1),'color','b','hittest','on','uicontextmenu',obj.contextmenuhandle.featureLine);
             set(obj.contextmenuhandle.featureLine,'userdata',featureVector);
             
-            vectorSum = cumsum(featureVector)/sum(featureVector)/3;
-            obj.linehandle.featureCumsum =line('parent',obj.axeshandle.secondary,'ydata',vectorSum,'xdata',startStopDatenum(:,1),'color','g','hittest','off');
+            vectorSum = cumsum(featureVector)/sum(featureVector)*overlayHeight/2;
+            obj.linehandle.featureCumsum =line('parent',obj.axeshandle.secondary,'ydata',vectorSum+overlayOffset,'xdata',startStopDatenum(:,1),'color','g','hittest','off');
             %             h=stem(obj.axeshandle.secondary,startStopDatenum(:,1),vectorSum,'color','g','linestyle','none','marker','.','markersize',1);
             %              h=stairs(obj.axeshandle.secondary,startStopDatenum(:,1),vectorSum,'color','g','linestyle','none','marker','.','markersize',1);
 
             
         end        
+        
+        
+        
+        
+        function addOverlayToSecondaryAxes(obj, overlayVector, startStopDatenum, overlayHeight, overlayOffset,maxValue)
+            yLim = get(obj.axeshandle.secondary,'ylim');
+            yLim = yLim*overlayHeight+overlayOffset;
+            minColor = [0.0 0.0 0.0];
+            
+            
+            nFaces = numel(overlayVector);
+            x = nan(4,nFaces);
+            y = repmat(yLim([1 2 2 1])',1,nFaces);
+            vertexColor = nan(4,nFaces,3);
+            
+            % each column represent a face color triplet            
+            luxColorMap = (overlayVector/maxValue)*[0.8,0.9,1]+ repmat(minColor,nFaces,1);
+            luxColorMap = (overlayVector/maxValue)*[1,1,0.65]+ repmat(minColor,nFaces,1);
+       
+            % patches are drawn clock wise in matlab
+            
+            for f=1:nFaces
+                if(f==nFaces)
+                    vertexColor(:,f,:) = luxColorMap([f,f,f,f],:);
+                    
+                else
+                    vertexColor(:,f,:) = luxColorMap([f,f,f+1,f+1],:);
+                    
+                end
+                x(:,f) = startStopDatenum(f,[1 1 2 2])';
+                
+            end
+            patch(x,y,vertexColor,'parent',obj.axeshandle.secondary,'edgecolor','interp','facecolor','interp');
+            
+        end
         
         
         function addLumensOverlayToSecondaryAxes(obj, lumenVector, startStopDatenum)
@@ -791,20 +874,40 @@ classdef PAView < handle
             elseif(durationDays<=2)
                 dateScale = 1/3; %show every 8 hours
             elseif(durationDays<=10)
-                dateScale = 1/2; %show every 12 hurs
+                dateScale = 1/2; %show every 12 hours
             else
                 dateScale = 1; %show every 24 hours.
                 
             end    
-            
-            timeDelta = datenum(0,0,1)*dateScale; 
-            xTick = [startStopDatenum(1):timeDelta:startStopDatenum(2), startStopDatenum(2)];
+            if(dateScale >= 1/3)
+                timeDeltaSec = datenum(0,0,1)/24/3600;
+                studyDatenums = startStopDatenum(1):timeDeltaSec:startStopDatenum(2);
+                [~,~,~,hours,minutes,sec] = datevec(studyDatenums);
+                newDayIndices = mod([hours(:),minutes(:),sec(:)]*[1;1/60;1/3600],24)==0;
+%                 quarterDayIndices =  mod([hours(:),min(:),sec(:)]*[1;1/60;1/3600],24/4)==0;
+
+                xTick = studyDatenums(newDayIndices);
+                axesProps.secondary.XGrid = 'on';
+                axesProps.secondary.XMinorGrid = 'off';
+                axesProps.secondary.XMinorTick = 'on';
+                
+            else
+                timeDelta = datenum(0,0,1)*dateScale;
+                xTick = [startStopDatenum(1):timeDelta:startStopDatenum(2), startStopDatenum(2)];
+                axesProps.secondary.XMinorTick = 'off';
+                axesProps.secondary.XGrid = 'off';
+
+            end
             
             axesProps.secondary.ylim = [0 1];
             axesProps.secondary.xlim = startStopDatenum;
+            
             axesProps.secondary.XTick = xTick;
             axesProps.secondary.XTickLabel = datestr(xTick,'ddd HH:MM');
+            
            
+            fontReduction = min([4, floor(durationDays/4)]);
+            axesProps.secondary.fontSize = 14-fontReduction;
             obj.initAxesHandles(axesProps);
 %             datetick(obj.axeshandle.secondary,'x','ddd HH:MM')
         end
@@ -855,7 +958,7 @@ classdef PAView < handle
             
             %secondary axes
             obj.positionBarHandle = line('parent',obj.axeshandle.secondary,'visible','off');%annotation(obj.figurehandle.sev,'line',[1, 1], [pos(2) pos(2)+pos(4)],'hittest','off');
-            obj.patchhandle.positionBar =  patch('xdata',nan(1,4),'ydata',[0 1/3 1/3 0],'zdata',repmat(-1,1,4),'parent',obj.axeshandle.secondary,'hittest','off','visible','off','facecolor',[0.5 0.85 0.5],'edgecolor','none','facealpha',0.5);
+            obj.patchhandle.positionBar =  patch('xdata',nan(1,4),'ydata',[0 1 1 0],'zdata',repmat(-1,1,4),'parent',obj.axeshandle.secondary,'hittest','off','visible','off','facecolor',[0.5 0.85 0.5],'edgecolor','none','facealpha',0.5);
             obj.linehandle.feature = [];
             obj.linehandle.featureCumsum = [];
             

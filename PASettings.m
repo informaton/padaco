@@ -187,7 +187,7 @@ classdef  PASettings < handle
                 vec = nan;
             else
                 if(nargin<2)
-                    numElements = numel(textscan(str,'%s','delimiter'));
+                    numElements = numel(textscan(str,'%s'));
                     vec = textscan(str,'%f');
                 else
                     numElements = numel(textscan(str,'%s','delimiter',delim));
@@ -195,14 +195,17 @@ classdef  PASettings < handle
                     
                 end
                 
-                if(numElements ==0 || numel(vec)~=numElements)
-                    vec = Nan;
+                % Set this to 1 or less to avoid catching things like this:
+                % 700023t00c1.csv.csv  
+                % which gets parsed to 700023
+                if(numElements <=1 || numel(vec)~=numElements)
+                    vec = nan;
                 else
                     vec = cell2mat(vec);
                     %we have column vectors
                     vec = vec(:)';
                     if(any(isnan(vec)))
-                        vec = Nan;
+                        vec = nan;
                     end
                 end
             end

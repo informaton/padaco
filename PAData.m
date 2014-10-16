@@ -224,7 +224,7 @@ classdef PAData < handle
        %> samples beginning with 1 for the first sample.  
        %> @note This uses instance variables windowDurSec, curWindow, and sampleRate to
        %> determine the sample range for the current window.  The first
-       %value is floored and the second is ceil'ed.
+       %> value is floored and the second is ceil'ed.
        % =================================================================      
        function windowRange = getCurUncorrectedWindowRange(obj,structType)
            if(nargin<2 || isempty(structType))
@@ -358,9 +358,9 @@ classdef PAData < handle
        end
        
        % --------------------------------------------------------------------
-       % @brief Returns the current aggregate duration in minutes.
-       % @param obj Instance of PAData
-       % @retval aggregateDuration The current window;
+       %> @brief Returns the current aggregate duration in minutes.
+       %> @param obj Instance of PAData
+       %> @retval aggregateDuration The current window;
        % --------------------------------------------------------------------
        function aggregateDuration = getAggregateDuration(obj)
            aggregateDuration = obj.aggregateDurMin;
@@ -415,15 +415,14 @@ classdef PAData < handle
        end       
        
        % --------------------------------------------------------------------
-       % @brief Returns the frame duration (in minutes)
-       % @param obj Instance of PAData
-       % @retval curFrameDurationMin The current frame duration minutes field;
-       % @retval curFramDurationHour The current frame duration hours field;
+       %> @brief Returns the frame duration (in hours and minutes)
+       %> @param obj Instance of PAData
+       %> @retval curFrameDurationMin The current frame duration minutes field;
+       %> @retval curFramDurationHour The current frame duration hours field;
        % --------------------------------------------------------------------
        function [curFrameDurationMin, curFrameDurationHour] = getFrameDuration(obj)
            curFrameDurationMin = obj.frameDurMin;
-           curFrameDurationHour = obj.frameDurHour;
-           
+           curFrameDurationHour = obj.frameDurHour;           
        end
        
        % --------------------------------------------------------------------
@@ -442,9 +441,9 @@ classdef PAData < handle
        end
        
        % --------------------------------------------------------------------
-       % @brief Returns the number of samples contained in the time series data.
-       % @param obj Instance of PAData
-       % @retval durationSamp Number of elements contained in durSamples instance var
+       %> @brief Returns the number of samples contained in the time series data.
+       %> @param obj Instance of PAData
+       %> @retval durationSamp Number of elements contained in durSamples instance var
        %> (initialized by number of elements in accelRaw.x
        % --------------------------------------------------------------------
        function durationSamp = durationSamples(obj)
@@ -1407,7 +1406,7 @@ toc
        %> @brief Describes an activity.
        %> @note This is not yet implemented.
        %> @param obj Instance of PAData.
-       %> @param activityType The type of activity to describe.  This is a string.  Values include:
+       %> @param categoryStr The type of activity to describe.  This is a string.  Values include:
        %> - c sleep
        %> - c wake
        %> - c inactivity
@@ -1415,15 +1414,38 @@ toc
        %> include:
        %> - c empty       
        % ======================================================================
-       function activityStruct = describeActivity(obj,activityType)
+       function activityStruct = describeActivity(obj,categoryStr)
            activityStruct = struct();
-           switch(activityType)
+           switch(categoryStr)
                case 'sleep'
                    activityStruct.sleep = [];
                case 'wake'
                    activityStruct.wake = [];
                case 'inactivity'
                    activityStruct.inactivity = [];
+           end
+       end
+       
+       % ======================================================================
+       %> @brief Saves data to an ascii file.
+       %> @note This is not yet implemented.
+       %> @param obj Instance of PAData.
+       %> @param activityType The type of activity to describe.  This is a string.  Values include:
+       %> - c usageState
+       %> - c activitiy
+       %> - c inactivity
+       %> - c sleep
+       % ======================================================================
+       function obj = saveToFile(obj,saveType, saveFilename)
+           switch(saveType)
+               case 'usageState'
+                   fprintf('Saving %s to %s.\n',saveType,saveFilename);
+               case 'activity'
+                   fprintf('Saving %s to %s.\n',saveType,saveFilename);
+               case 'inactivity'
+                   fprintf('Saving %s to %s.\n',saveType,saveFilename);                   
+               case 'sleep'                   
+                   fprintf('Saving %s to %s.\n',saveType,saveFilename);
            end
        end
        
