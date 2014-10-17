@@ -8,7 +8,12 @@
 %> controller. 
 
 classdef PAController < handle
-    
+    properties(Access=private)
+        %> @brief Vector for keeping track of the feature handles that are
+        %> displayed on the secondary axes field.
+        featureHandles;         
+        
+    end
     properties
         %> acceleration activity object - instance of PAData
         accelObj;
@@ -16,7 +21,7 @@ classdef PAController < handle
         SETTINGS; 
         %> Instance of PAView - Padaco's view component.
         VIEW;
-        %> Instance of PAModel - Padaco's model component.  To be implemented. 
+        %> Instance of PAModel - Padaco's model component.  See accelObj.  
         MODEL;        
 
         %> Linehandle in Padaco that is currently selected by the user.
@@ -28,11 +33,7 @@ classdef PAController < handle
         %> handle to the figure an instance of this class is associated with
         %> struct of handles for the context menus
         contextmenuhandle; 
-        
-        %> @brief struct with field
-        %> - .x_minorgrid which is used for the x grid on the main axes
-        linehandle;         
-        
+
         %> struct of different time resolutions, field names correspond to the units of time represented in the field        
         window_resolution;
         num_windows;
@@ -49,7 +50,11 @@ classdef PAController < handle
         %> - @c describeSleep
         batch;
         
-        STATE; %struct to keep track of various Padaco states
+        %> Foldername of most recent screenshot.
+        screenshotPathname;
+        
+        %> struct to keep track of various Padaco states
+        STATE; 
         Padaco_loading_file_flag; %boolean set to true when initially loading a src file
         Padaco_mainaxes_ylim;
         Padaco_mainaxes_xlim;        
@@ -76,9 +81,12 @@ classdef PAController < handle
             %create/intilize the settings object            
             obj.SETTINGS = PASettings(rootpathname,parameters_filename);
             obj.batch = obj.SETTINGS.CONTROLLER.batch;
+            obj.screenshotPathname = obj.SETTINGS.CONTROLLER.screenshotPathname;
             
             
             if(ishandle(Padaco_fig_h))
+                obj.featureHandles = [];
+                
                 % Create a VIEW class
                 % 1. make context menu handles for the lines
                 % 2. make context menu handles for the primary axes
@@ -172,7 +180,7 @@ classdef PAController < handle
             % key=double(get(hObject,'CurrentCharacter')); % compare the values to the list
             key=eventdata.Key;
             handles = guidata(hObject);
-            window = obj.curWindow;
+            window = obj.getCurWindow();
             
             if(strcmp(key,'add'))
                 
@@ -200,15 +208,17 @@ classdef PAController < handle
                 if(strcmp(eventdata.Key,'x'))
                     delete(hObject);
                     %take screen capture of figure
-                elseif(strcmp(eventdata.Key,'p'))
+                elseif(strcmp(eventdata.Key,'f'))
                     screencap(hObject);
                     %take screen capture of main axes
-                elseif(strcmp(eventdata.Key,'a'))
-                    screencap(handles.axes1);
-                elseif(strcmp(eventdata.Key,'h'))
-                    screencap(handles.axes2);
-                elseif(strcmp(eventdata.Key,'u'))
-                    screencap(handles.axes3);
+                elseif(strcmp(eventdata.Key,'s'))
+                    if(isa(obj.VIEW,'PAView') &&ishandle(obj.VIEW.axeshandle.secondary))
+                        screencap(obj.VIEW.axeshandle.secondary);
+                    end
+                elseif(strcmp(eventdata.Key,'p'))
+                    if(isa(obj.VIEW,'PAView') &&ishandle(obj.VIEW.axeshandle.primary))
+                        screencap(obj.VIEW.axeshandle.primary);
+                    end
                 end
             end;
         end
@@ -277,6 +287,12 @@ classdef PAController < handle
             %% file
              %  open
             set(handles.menu_file_open,'callback',@obj.menuFileOpenCallback);
+            
+             % screeshots
+            set(handles.menu_file_screenshot_figure,'callback',{@obj.menuFileScreenshotCallback,'figure'});
+            set(handles.menu_file_screenshot_primaryAxes,'callback',{@obj.menuFileScreenshotCallback,'primaryAxes'});
+            set(handles.menu_file_screenshot_secondaryAxes,'callback',{@obj.menuFileScreenshotCallback,'secondaryAxes'});
+            
              %  quit - handled in main window.
             set(handles.menu_file_quit,'callback',{@obj.menuFileQuitCallback,guidata(figH)});
             
@@ -345,10 +361,10 @@ classdef PAController < handle
             
             
             %initialize dropdown menu callbacks
-            set(obj.VIEW.menuhandle.displayFeature,'callback',@obj.updateSecondaryFeaturesDisplay);
+            set(obj.VIEW.menuhandle.displayFeature,'callback',@obj.updateSecondaryFeaturesDisplayCallback);
             set(handles.menu_windowDurSec,'callback',@obj.menu_windowDurSecCallback);
             
-            set(obj.VIEW.menuhandle.signalSelection,'callback',@obj.updateSecondaryFeaturesDisplay);
+            set(obj.VIEW.menuhandle.signalSelection,'callback',@obj.updateSecondaryFeaturesDisplayCallback);
             
             set(handles.panel_displayButtonGroup,'selectionChangeFcn',@obj.displayChangeCallback);
             
@@ -468,13 +484,49 @@ classdef PAController < handle
         %> the study data will be broken into and the current feature
         %> category applied to.  Default is the current frame count.
         % --------------------------------------------------------------------
-        function updateSecondaryFeaturesDisplay(obj,numSamples)
-            if(nargin<2 || isempty(numSamples))
+        function updateSecondaryFeaturesDisplay(obj,numFrames)
+            if(nargin<2 || isempty(numFrames))
                 numFrames = obj.getFrameCount(); 
             end
             featureFcn = obj.getExtractorMethod();
-            signalTagLine = obj.getSignalSelection();
-            obj.drawFeatureVecPatches(featureFcn,signalTagLine,numFrames);
+            
+            %  signalTagLine = obj.getSignalSelection();
+            %  obj.drawFeatureVecPatches(featureFcn,signalTagLine,numFrames);
+            
+            signalTagLines = strcat('accel.',obj.accelObj.accelType,'.',{'x','y','z','vecMag'})';
+            numViews = (numel(signalTagLines)+1)+2;
+            height = 1/numViews;
+            heightOffset = 0;
+            delete(obj.featureHandles);
+            obj.featureHandles = [];
+            for s=1:numel(signalTagLines)
+                signalName = signalTagLines{s};
+                [featureVec, startStopDatenums] = obj.getFeatureVec(featureFcn,signalName,numFrames);
+                if(s<numel(signalTagLines))
+                    vecHandles = obj.VIEW.addFeaturesVecToSecondaryAxes(featureVec,startStopDatenums,height,heightOffset);                   
+                    obj.featureHandles = [obj.featureHandles(:);vecHandles(:)];
+                else
+                    % This requires twice the height because it will have a
+                    % feature line and heat map
+                    obj.VIEW.addFeaturesOverlayToSecondaryAxes(featureVec,startStopDatenums,height*2,heightOffset);
+
+                end
+               heightOffset = heightOffset+height;
+            end
+            
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Callback from signal selection widget that triggers
+        %> the update to the secondary axes with the GUI selected feature
+        %> and signal.
+        %> @param obj Instance of PAController
+        %> @param hObject handle to the callback object.
+        %> @param eventdata Not used.  Required by MATLAB.
+        % --------------------------------------------------------------------
+        function updateSecondaryFeaturesDisplayCallback(obj,hObject,eventdata)
+            numFrames = obj.getFrameCount(); 
+            obj.updateSecondaryFeaturesDisplay(numFrames);        
         end
         
         % --------------------------------------------------------------------
@@ -512,9 +564,7 @@ classdef PAController < handle
             if(strcmpi(extractorMethod,'rms'))
                 extractorMethod = @(data)sqrt(mean(data.^2))';
             end
-
         end
-        
         
         % --------------------------------------------------------------------
         %> @brief Sets the extractor method (i.e. function name) associated with the GUI displayed description.
@@ -530,9 +580,7 @@ classdef PAController < handle
             if(~isempty(extractorInd))
                 set(obj.VIEW.menuhandle.displayFeature,'value',extractorInd);
             end
-        end
-        
-        
+        end        
 
         % --------------------------------------------------------------------
         %> @brief Retrieves current signal selection from the GUI's
@@ -606,7 +654,7 @@ classdef PAController < handle
             
             %change it - this internally recalculates the cur window
             obj.accelObj.setWindowDurSec(windowDurSec);            
-            obj.setCurWindow(obj.curWindow());
+            obj.setCurWindow(obj.getCurWindow());
         end
         
         % --------------------------------------------------------------------
@@ -734,7 +782,7 @@ classdef PAController < handle
         %> (PAData)
         %> @param obj Instance of PAController
         %> @retval window The  current window, or null if it has not been initialized.
-        function window = curWindow(obj)
+        function window = getCurWindow(obj)
             if(isempty(obj.accelObj))
                 window = [];
             else
@@ -765,6 +813,41 @@ classdef PAController < handle
                 showME(me);
                 obj.VIEW.showReady();
             end
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Menubar file->screenshot callback.
+        %> @param obj Instance of PAController
+        %> @param hObject  handle to menu_file_open (see GCBO)
+        %> @param eventdata Required by MATLAB, but not used.
+        %> @param screenshotDescription String label for which part of the
+        %> GUI is to be captured.  Valid labels include:
+        %> - @c figure
+        %> - @c primaryAxes
+        %> - @c secondaryAxes
+        % --------------------------------------------------------------------
+        function menuFileScreenshotCallback(obj,hObject,eventdata,screenshotDescription)
+            handle = [];
+            
+            switch(lower(screenshotDescription))
+                case 'figure'
+                    handle = obj.VIEW.figurehandle;
+                case 'primaryaxes'
+                    handle = obj.VIEW.axeshandle.primary;
+                case 'secondaryaxes'                    
+                    handle = obj.VIEW.axeshandle.secondary;
+                otherwise
+                    handle = [];
+                    fprintf('%s is not a recognized description.  No screenshot will be taken',screenshotDescription);
+            end
+            if(ishandle(handle))
+                if(strcmpi(screenshotDescription,'secondaryaxes'))
+                    obj.figureScreenshot();
+                else
+                    screencap(handle,[],obj.screenshotPathname);
+                end
+            end
+            
         end
         
         % --------------------------------------------------------------------
@@ -828,8 +911,27 @@ classdef PAController < handle
             end
         end
         
+        
+        %> @brief Callback that starts a batch process based on gui
+        %> paramters.
+        %> @obj Instance of PAController
+        %> @param hObject MATLAB graphic handle of the callback object
+        %> @param eventdata reserved by MATLAB, not used.
         function startBatchProcessCallback(obj,hObject,eventdata)
             [filenames, fullFilenames] = getFilenamesi(obj.batch.sourceDirectory,'.csv');
+            
+            % Get batch processing settings from the GUI
+            image_settings =[];
+            if(obj.batch.images.save2img)
+                image_settings.format = obj.batch.images.format;
+                %put images in subdirectory based on detection method
+                images_pathname = fullfile(obj.batch.destinationDirectory,'images');
+                if(~isdir(images_pathname))
+                    mkdir(images_pathname);
+                end
+            end
+            
+            
             failedFiles = {};
             pctDone = 0;
             pctDelta = 1/numel(fullFilenames);
@@ -860,6 +962,15 @@ classdef PAController < handle
                         curData.describeActivity('sleep');
                         saveFilename = fullfile(obj.batch.outputDirectory,strcat(filename,'.sleep.txt'));
                         curData.saveToFile('sleep',saveFilename);
+                    end
+                    
+                    
+                    % Should I save results as a picture?
+                    if(obj.batch.images.save2img)
+                        img_filename = fullfile(obj.batch.outputDirectory,strcat(filename,',',obj.batch.images.format));
+                        
+                        % draw the secondary axes image.
+                        obj.save2image(curData,img_filename);
                     end
                     
                 catch me
@@ -1054,7 +1165,7 @@ classdef PAController < handle
         %> sections when numSections does not evenly divide the total number
         %> of samples.  In this case, the last section may be shorter or
         %> longer than the others.
-        function [featureVec,startStopDatenums] = getFeatureVecPatches(obj,featureFcn,fieldName,numSections)
+        function [featureVec,startStopDatenums] = getFeatureVec(obj,featureFcn,fieldName,numSections)
             if(nargin<2 || isempty(numSections) || numSections <=1)
                 numSections = 100;
             end
@@ -1427,41 +1538,26 @@ classdef PAController < handle
             %but not everything is shown...
             
             obj.setCurWindow(obj.accelObj.getCurWindow());
-            
-            
-            
-            maxDaylight = 1;
+
             numFrames = obj.getFrameCount(); 
-            
-            
             
             maxLumens = 250;
             [meanLumens,startStopDatenums] = obj.getMeanLumenPatches(numFrames);
-            obj.VIEW.addOverlayToSecondaryAxes(meanLumens,startStopDatenums,1/4,2/4,maxLumens);
+            obj.VIEW.addOverlayToSecondaryAxes(meanLumens,startStopDatenums,1/7,5/7,maxLumens);
             %             [medianLumens,startStopDatenums] = obj.getMedianLumenPatches(1000);
             %             obj.VIEW.addLumensOverlayToSecondaryAxes(meanLumens,startStopDatenums);
             
             obj.updateSecondaryFeaturesDisplay();   
-            
+
+            maxDaylight = 1;
             [daylight,startStopDatenums] = obj.getDaylight(numFrames);
-             obj.VIEW.addOverlayToSecondaryAxes(daylight,startStopDatenums,1/4-0.005,3/4,maxDaylight);
+             obj.VIEW.addOverlayToSecondaryAxes(daylight,startStopDatenums,1/7-0.005,6/7,maxDaylight);
             
             
             obj.VIEW.showReady();
             
         end
         
-        % --------------------------------------------------------------------
-        %> @brief Calculates feature vectors and places visualizations on secondary axes.
-        %> @param obj Instance of PAController
-        %> @param featureType
-        %> @param signalName
-        %> @param numSamples        
-        % --------------------------------------------------------------------
-        function drawFeatureVecPatches(obj,featureType,signalName,numSamples)
-            [featureVec, startStopDatenums] = obj.getFeatureVecPatches(featureType,signalName,numSamples);
-            obj.VIEW.addFeaturesOverlayToSecondaryAxes(featureVec,startStopDatenums,1/2,0);
-        end   
         
         % --------------------------------------------------------------------
         %> @brief Returns the display type instance variable.    
@@ -1487,6 +1583,7 @@ classdef PAController < handle
             pStruct.featureFcn = obj.getExtractorMethod();
             pStruct.signalTagLine = obj.getSignalSelection();
             pStruct.batch = obj.batch;
+            pStruct.screenshotPathname = obj.screenshotPathname;
         end
         
         % ======================================================================
@@ -1519,6 +1616,76 @@ classdef PAController < handle
             set(gco,'selected','off');
         end
         
+        
+        %> @brief Creates a temporary overlay from paDataObject's values
+        %> and takes a screenshot of it which is saved as img_filename.
+        %> @param obj Instance of PAController
+        %> @param paDataObject Instance of PAData
+        %> @param img_filename Filename to save the screenshot too.
+        %> @note The image format is determined from img_filename's
+        %> extension.
+        function overlayScreenshot(obj, paDataObject, img_filename)
+            
+            disp 'To be completed';
+        end
+        
+        
+        % --------------------------------------------------------------------
+        %> @brief Takes a screenshot of the padaco figure.
+        %> @param obj Instance of PAController
+        % --------------------------------------------------------------------
+        function figureScreenshot(obj)
+            
+            
+            filterspec = {'png','PNG';'jpeg','JPEG'};
+            save_format = {'-dpng','-djpeg'};
+            if(isa(obj.accelObj,'PAData'))
+                img_filename = [obj.accelObj.filename,'_window ',num2str(obj.getCurWindow),'.png'];
+            else
+                img_filename = ['padaco_window ',num2str(obj.getCurWindow),'.png'];
+            end
+            [img_filename, img_pathname, filterindex] = uiputfile(filterspec,'Screenshot name',fullfile(obj.screenshotPathname,img_filename));
+            if isequal(img_filename,0) || isequal(img_pathname,0)
+                disp('User pressed cancel')
+            else
+                try
+                    if(filterindex>2)
+                        filterindex = 1; %default to .png
+                    end
+                    fig_h = obj.VIEW.figurehandle;
+                    axes_copy = copyobj(obj.VIEW.axeshandle.secondary,fig_h);
+
+                    f = figure('visible','off','paperpositionmode','auto','inverthardcopy','on',...
+                        'units',get(fig_h,'units'),'position',get(fig_h,'position'),...
+                        'toolbar','none','menubar','none');
+                    set(f,'units','normalized');
+                    set(axes_copy,'parent',f);
+                    
+
+                    cropFigure2Axes(f,axes_copy);
+
+                    set(f,'visible','on');
+                    set(f,'clipping','off');
+                    
+                    
+
+                    print(f,save_format{filterindex},'-r0',fullfile(img_pathname,img_filename));
+                    
+                    %save the screenshot
+                    %         print(f,['-d',filterspec{filterindex,1}],'-r75',fullfile(img_pathname,img_filename));
+                    %         print(f,fullfile(img_pathname,img_filename),['-d',filterspec{filterindex,1}]);
+                    %         print(f,['-d',filterspec{filterindex,1}],fullfile(img_pathname,img_filename));
+                    %         set(handles.axes1,'position',apos,'dataaspectratiomode','manual' ,'dataaspectratio',dataaspectratio,'parent',handles.sev_main_fig)
+                    delete(f);                    
+                    obj.screenshotPathname = img_pathname;
+                catch ME
+                    showME(ME);
+                    %         set(handles.axes1,'parent',handles.sev_main_fig);
+                end
+            end
+        end
+        
+        
     end
 
     methods (Static)
@@ -1546,7 +1713,7 @@ classdef PAController < handle
             for f=1:numel(checkFields)
                 pStruct.batch.(checkFields{f}) = 1;
             end
-            
+            pStruct.screenshotPathname = mPath;            
         end
         
     end

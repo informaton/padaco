@@ -86,8 +86,7 @@ classdef PAView < handle
         %> PAData instance
         dataObj;
         window_resolution;%struct of different time resolutions, field names correspond to the units of time represented in the field        
-        %> The window currently in view.
-        current_window;
+        
     end
 
     methods
@@ -455,7 +454,10 @@ classdef PAView < handle
                 menuHandles(f) = obj.menuhandle.(fields{f});
             end
             
-            widgetList = [menuHandles
+            menubarHandles = [handles.menu_file_screenshot_primaryAxes;
+                handles.menu_file_screenshot_secondaryAxes;];
+            widgetList = [menuHandles;                
+                menubarHandles;
                 handles.text_window;
                 handles.text_windowResolution;
                 handles.edit_curWindow
@@ -492,9 +494,9 @@ classdef PAView < handle
             axesProps.primary.xlim = PADataObject.getCurWindowRange();
             axesProps.primary.ylim = PADataObject.getDisplayMinMax();
             
-            numViews = 4;
+            numViews = 7;
             axesProps.secondary.ytick = 1/numViews/2:1/numViews:1;
-            axesProps.secondary.yticklabel = {'Feature','Feature','Lumens','Daylight'};
+            axesProps.secondary.yticklabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Lumens','Daylight'};
             axesProps.secondary.TickDir = 'in';
             axesProps.secondary.TickDirMode = 'manual';
             
@@ -631,7 +633,11 @@ classdef PAView < handle
                 menuHandles(f) = obj.menuhandle.(fields{f});
             end
             
-            widgetList = [menuHandles
+            menubarHandles = [handles.menu_file_screenshot_primaryAxes;
+                handles.menu_file_screenshot_secondaryAxes;];
+            
+            widgetList = [menuHandles;
+                menubarHandles;
                 handles.text_window
                 handles.text_windowResolution
                 handles.edit_curWindow
@@ -694,6 +700,8 @@ classdef PAView < handle
         end
 
 
+        % --------------------------------------------------------------------
+        %> @brief Adds a feature vector as a heatmap and as a line plot to the secondary axes.
         %> @param obj Instance of PAView.
         %> @featureVector A vector of features to be displayed on the
         %> secondary axes.
@@ -702,8 +710,9 @@ classdef PAView < handle
         %> feature in featureVector at the same index corresponds to.
         %> @param overlayHeight - The proportion (fraction) of vertical space that the
         %> overlay will take up in the secondary axes.
-        %> @param overlayOffset The normalized y offset that is applied to
-        %> the featureVector when displayed on the secondary axes.
+        %> @param overlayOffset The normalized y offset ([0, 1]) that is applied to
+        %> the featureVector when displayed on the secondary axes.        
+        % --------------------------------------------------------------------
         function addFeaturesOverlayToSecondaryAxes(obj, featureVector, startStopDatenum, overlayHeight, overlayOffset)
             yLim = get(obj.axeshandle.secondary,'ylim');
             yLimPatches = (yLim+1)*overlayHeight/2+overlayOffset;
@@ -750,7 +759,7 @@ classdef PAView < handle
 
             % draw the lines
             
-            normalizedFeatureVector = featureVector/quantile(featureVector,0.99)*(overlayHeight/2)+overlayOffset;
+            normalizedFeatureVector = featureVector/quantile(featureVector,0.99)*(overlayHeight/2);
             
             n = 10;
             b = repmat(1/n,1,n);
@@ -761,19 +770,64 @@ classdef PAView < handle
             vectorSum = cumsum(featureVector)/sum(featureVector)*overlayHeight/2;
             obj.linehandle.featureCumsum =line('parent',obj.axeshandle.secondary,'ydata',vectorSum+overlayOffset,'xdata',startStopDatenum(:,1),'color','g','hittest','off');
             %             h=stem(obj.axeshandle.secondary,startStopDatenum(:,1),vectorSum,'color','g','linestyle','none','marker','.','markersize',1);
-            %              h=stairs(obj.axeshandle.secondary,startStopDatenum(:,1),vectorSum,'color','g','linestyle','none','marker','.','markersize',1);
+            %             h=stairs(obj.axeshandle.secondary,startStopDatenum(:,1),vectorSum,'color','g','linestyle','none','marker','.','markersize',1);
 
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Plots a feature vector on the secondary axes.
+        %> @param obj Instance of PAView.
+        %> @featureVector A vector of features to be displayed on the
+        %> secondary axes.
+        %> @startStopDatenum A vector of start and stop date nums that
+        %> correspond to the start and stop times of the study that the
+        %> feature in featureVector at the same index corresponds to.
+        %> @param overlayHeight - The proportion (fraction) of vertical space that the
+        %> overlay will take up in the secondary axes.
+        %> @param overlayOffset The normalized y offset ([0, 1]) that is applied to
+        %> the featureVector when displayed on the secondary axes.
+        %> @retval featureHandles Line handles created from the method.
+        % --------------------------------------------------------------------
+        function featureHandles = addFeaturesVecToSecondaryAxes(obj, featureVector, startStopDatenum, overlayHeight, overlayOffset)
+            if(overlayOffset>0)
+                featureHandles = nan(3,1);
+            else
+                featureHandles = nan(2,1);
+            end
             
-        end        
+            n = 10;
+            b = repmat(1/n,1,n);
+            smoothY = filtfilt(b,1,featureVector);
+            normalizedY = smoothY/max(smoothY)*overlayHeight+overlayOffset;
+            featureHandles(1) = line('parent',obj.axeshandle.secondary,'ydata',normalizedY,'xdata',startStopDatenum(:,1),'color','b','hittest','off','userdata',featureVector);
+            %draw some boundaries around our features - put in rails
+            railsBottom = [overlayOffset,overlayOffset]+0.001;
+            railsTop = railsBottom+overlayHeight - 0.001;
+            x = [startStopDatenum(1), startStopDatenum(end)];
+            featureHandles(2) = line('parent',obj.axeshandle.secondary,'ydata',railsBottom,'xdata',x,'color',[0.2 0.2 0.2],'linewidth',0.2,'hittest','off');
+            if(overlayOffset>0)
+                featureHandles(3) = line('parent',obj.axeshandle.secondary,'ydata',railsTop,'xdata',x,'color',[0.2 0.2 0.2],'linewidth',0.2,'hittest','off');
+            end
+        end
         
-        
-        
-        
+        % --------------------------------------------------------------------
+        %> @brief Adds a magnitude vector as a heatmap to the secondary axes.
+        %> @param obj Instance of PAView.
+        %> @param overlayVector A magnitude vector to be displayed in the
+        %> secondary axes as a heat map.
+        %> @startStopDatenum An Nx2 matrix start and stop datenums which
+        %> correspond to the start and stop times of the same row in overlayVector.
+        %> @param overlayHeight - The proportion (fraction) of vertical space that the
+        %> overlay will take up in the secondary axes.
+        %> @param overlayOffset The normalized y offset that is applied to
+        %> the overlayVector when displayed on the secondary axes.
+        %> @param maxValue The maximum value to normalize the overlayVector
+        %> with so that the normalized overlayVector's maximum value is 1.
+        % --------------------------------------------------------------------
         function addOverlayToSecondaryAxes(obj, overlayVector, startStopDatenum, overlayHeight, overlayOffset,maxValue)
             yLim = get(obj.axeshandle.secondary,'ylim');
             yLim = yLim*overlayHeight+overlayOffset;
             minColor = [0.0 0.0 0.0];
-            
             
             nFaces = numel(overlayVector);
             x = nan(4,nFaces);
@@ -781,17 +835,17 @@ classdef PAView < handle
             vertexColor = nan(4,nFaces,3);
             
             % each column represent a face color triplet            
-            luxColorMap = (overlayVector/maxValue)*[0.8,0.9,1]+ repmat(minColor,nFaces,1);
-            luxColorMap = (overlayVector/maxValue)*[1,1,0.65]+ repmat(minColor,nFaces,1);
+            overlayColorMap = (overlayVector/maxValue)*[0.8,0.9,1]+ repmat(minColor,nFaces,1);
+            overlayColorMap = (overlayVector/maxValue)*[1,1,0.65]+ repmat(minColor,nFaces,1);
        
             % patches are drawn clock wise in matlab
             
             for f=1:nFaces
                 if(f==nFaces)
-                    vertexColor(:,f,:) = luxColorMap([f,f,f,f],:);
+                    vertexColor(:,f,:) = overlayColorMap([f,f,f,f],:);
                     
                 else
-                    vertexColor(:,f,:) = luxColorMap([f,f,f+1,f+1],:);
+                    vertexColor(:,f,:) = overlayColorMap([f,f,f+1,f+1],:);
                     
                 end
                 x(:,f) = startStopDatenum(f,[1 1 2 2])';
@@ -799,6 +853,9 @@ classdef PAView < handle
             end
             patch(x,y,vertexColor,'parent',obj.axeshandle.secondary,'edgecolor','interp','facecolor','interp');
             
+            normalizedOverlayVector = overlayVector/maxValue*(overlayHeight)+overlayOffset;
+            obj.linehandle.overlay = line('parent',obj.axeshandle.secondary,'linestyle',':','xdata',linspace(startStopDatenum(1),startStopDatenum(end),numel(overlayVector)),'ydata',normalizedOverlayVector,'color',[1 1 0],'hittest','on','uicontextmenu',obj.contextmenuhandle.featureLine);
+                        
         end
         
         
@@ -891,6 +948,7 @@ classdef PAView < handle
                 axesProps.secondary.XMinorGrid = 'off';
                 axesProps.secondary.XMinorTick = 'on';
                 
+                
             else
                 timeDelta = datenum(0,0,1)*dateScale;
                 xTick = [startStopDatenum(1):timeDelta:startStopDatenum(2), startStopDatenum(2)];
@@ -898,6 +956,11 @@ classdef PAView < handle
                 axesProps.secondary.XGrid = 'off';
 
             end
+            
+            axesProps.secondary.gridlinestyle = '--';
+            
+            axesProps.secondary.YGrid = 'off';
+            axesProps.secondary.YMinorGrid = 'off';
             
             axesProps.secondary.ylim = [0 1];
             axesProps.secondary.xlim = startStopDatenum;
