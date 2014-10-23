@@ -713,38 +713,7 @@ classdef PAView < handle
         %> @param overlayOffset The normalized y offset ([0, 1]) that is applied to
         %> the featureVector when displayed on the secondary axes.        
         % --------------------------------------------------------------------
-        function addFeaturesOverlayToSecondaryAxes(obj, featureVector, startStopDatenum, overlayHeight, overlayOffset)
-            yLim = get(obj.axeshandle.secondary,'ylim');
-            yLimPatches = (yLim+1)*overlayHeight/2+overlayOffset;
-            
-            minColor = [.0 0.25 0.25];
-            minColor = [0.1 0.1 0.1];
-            
-            maxValue = max(featureVector);  
-            maxValue = quantile(featureVector,0.90);
-            nFaces = numel(featureVector);
-            
-            x = nan(4,nFaces);
-            y = repmat(yLimPatches([1 2 2 1])',1,nFaces);
-            vertexColor = nan(4,nFaces,3);
-            
-            % each column represent a face color triplet            
-            featureColorMap = (featureVector/maxValue)*[1,1,1]+ repmat(minColor,nFaces,1);
-       
-            % patches are drawn clock wise in matlab
-            
-            for f=1:nFaces
-                if(f==nFaces)
-                    vertexColor(:,f,:) = featureColorMap([f,f,f,f],:);
-                    
-                else
-                    vertexColor(:,f,:) = featureColorMap([f,f,f+1,f+1],:);
-                    
-                end
-                x(:,f) = startStopDatenum(f,[1 1 2 2])';
-                
-            end
-            
+        function addFeaturesVecAndOverlayToSecondaryAxes(obj, featureVector, startStopDatenum, overlayHeight, overlayOffset)
             if(ishandle(obj.patchhandle.feature))
                 delete(obj.patchhandle.feature);
             end
@@ -754,24 +723,7 @@ classdef PAView < handle
             if(ishandle(obj.linehandle.featureCumsum))
                 delete(obj.linehandle.featureCumsum);
             end
-            
-            obj.patchhandle.feature = patch(x,y,vertexColor,'parent',obj.axeshandle.secondary,'edgecolor','interp','facecolor','interp','hittest','off');
-
-            % draw the lines
-            
-            normalizedFeatureVector = featureVector/quantile(featureVector,0.99)*(overlayHeight/2);
-            
-            n = 10;
-            b = repmat(1/n,1,n);
-            smoothY = filtfilt(b,1,normalizedFeatureVector);
-            obj.linehandle.feature = line('parent',obj.axeshandle.secondary,'ydata',smoothY+overlayOffset,'xdata',startStopDatenum(:,1),'color','b','hittest','on','uicontextmenu',obj.contextmenuhandle.featureLine);
-            set(obj.contextmenuhandle.featureLine,'userdata',featureVector);
-            
-            vectorSum = cumsum(featureVector)/sum(featureVector)*overlayHeight/2;
-            obj.linehandle.featureCumsum =line('parent',obj.axeshandle.secondary,'ydata',vectorSum+overlayOffset,'xdata',startStopDatenum(:,1),'color','g','hittest','off');
-            %             h=stem(obj.axeshandle.secondary,startStopDatenum(:,1),vectorSum,'color','g','linestyle','none','marker','.','markersize',1);
-            %             h=stairs(obj.axeshandle.secondary,startStopDatenum(:,1),vectorSum,'color','g','linestyle','none','marker','.','markersize',1);
-
+            [obj.patchhandle.feature, obj.linehandle.feature, obj.linehandle.featureCumsum] = obj.addFeaturesVecAndOverlayToAxes( featureVector, startStopDatenum, overlayHeight, overlayOffset, obj.axeshandle.secondary, obj.contextmenuhandle.featureLine);
         end
         
         % --------------------------------------------------------------------
@@ -789,25 +741,8 @@ classdef PAView < handle
         %> @retval featureHandles Line handles created from the method.
         % --------------------------------------------------------------------
         function featureHandles = addFeaturesVecToSecondaryAxes(obj, featureVector, startStopDatenum, overlayHeight, overlayOffset)
-            if(overlayOffset>0)
-                featureHandles = nan(3,1);
-            else
-                featureHandles = nan(2,1);
-            end
-            
-            n = 10;
-            b = repmat(1/n,1,n);
-            smoothY = filtfilt(b,1,featureVector);
-            normalizedY = smoothY/max(smoothY)*overlayHeight+overlayOffset;
-            featureHandles(1) = line('parent',obj.axeshandle.secondary,'ydata',normalizedY,'xdata',startStopDatenum(:,1),'color','b','hittest','off','userdata',featureVector);
-            %draw some boundaries around our features - put in rails
-            railsBottom = [overlayOffset,overlayOffset]+0.001;
-            railsTop = railsBottom+overlayHeight - 0.001;
-            x = [startStopDatenum(1), startStopDatenum(end)];
-            featureHandles(2) = line('parent',obj.axeshandle.secondary,'ydata',railsBottom,'xdata',x,'color',[0.2 0.2 0.2],'linewidth',0.2,'hittest','off');
-            if(overlayOffset>0)
-                featureHandles(3) = line('parent',obj.axeshandle.secondary,'ydata',railsTop,'xdata',x,'color',[0.2 0.2 0.2],'linewidth',0.2,'hittest','off');
-            end
+            featureHandles = obj.addFeaturesVecToAxes(featureVector, startStopDatenum, overlayHeight, overlayOffset,obj.axeshandle.secondary);
+
         end
         
         % --------------------------------------------------------------------
@@ -825,39 +760,9 @@ classdef PAView < handle
         %> with so that the normalized overlayVector's maximum value is 1.
         % --------------------------------------------------------------------
         function addOverlayToSecondaryAxes(obj, overlayVector, startStopDatenum, overlayHeight, overlayOffset,maxValue)
-            yLim = get(obj.axeshandle.secondary,'ylim');
-            yLim = yLim*overlayHeight+overlayOffset;
-            minColor = [0.0 0.0 0.0];
-            
-            nFaces = numel(overlayVector);
-            x = nan(4,nFaces);
-            y = repmat(yLim([1 2 2 1])',1,nFaces);
-            vertexColor = nan(4,nFaces,3);
-            
-            % each column represent a face color triplet            
-            overlayColorMap = (overlayVector/maxValue)*[0.8,0.9,1]+ repmat(minColor,nFaces,1);
-            overlayColorMap = (overlayVector/maxValue)*[1,1,0.65]+ repmat(minColor,nFaces,1);
-       
-            % patches are drawn clock wise in matlab
-            
-            for f=1:nFaces
-                if(f==nFaces)
-                    vertexColor(:,f,:) = overlayColorMap([f,f,f,f],:);
-                    
-                else
-                    vertexColor(:,f,:) = overlayColorMap([f,f,f+1,f+1],:);
-                    
-                end
-                x(:,f) = startStopDatenum(f,[1 1 2 2])';
-                
-            end
-            patch(x,y,vertexColor,'parent',obj.axeshandle.secondary,'edgecolor','interp','facecolor','interp');
-            
-            normalizedOverlayVector = overlayVector/maxValue*(overlayHeight)+overlayOffset;
-            obj.linehandle.overlay = line('parent',obj.axeshandle.secondary,'linestyle',':','xdata',linspace(startStopDatenum(1),startStopDatenum(end),numel(overlayVector)),'ydata',normalizedOverlayVector,'color',[1 1 0],'hittest','on','uicontextmenu',obj.contextmenuhandle.featureLine);
-                        
+            obj.linehandle.overlay = obj.addOverlayToAxes(overlayVector, startStopDatenum, overlayHeight, overlayOffset,maxValue,obj.axeshandle.secondary,obj.contextmenuhandle.featureLine);
         end
-        
+
         
         function addLumensOverlayToSecondaryAxes(obj, lumenVector, startStopDatenum)
             yLim = get(obj.axeshandle.secondary,'ylim');
@@ -1235,6 +1140,165 @@ classdef PAView < handle
     
     
     methods(Static)
+        % --------------------------------------------------------------------
+        %> @brief Adds a feature vector as a heatmap and as a line plot to the
+        %> specified axes
+        %> @featureVector The vector of features to be displayed.
+        %> @param startStopDatenum A vector of start and stop date nums that
+        %> correspond to the start and stop times of the study that the
+        %> feature in featureVector at the same index corresponds to.
+        %> @param overlayHeight - The proportion (fraction) of vertical space that the
+        %> overlay will take up in the axes.
+        %> @param overlayOffset The normalized y offset ([0, 1]) that is applied to
+        %> the featureVector when displayed on the axes.   
+        %> @param contextmenuH Optional contextmenu handle.  Is assigned to the overlayLineH lines
+        %> contextmenu callback when included.    
+        % --------------------------------------------------------------------
+        function [feature_patchH, feature_lineH, feature_cumsumLineH] = addFeaturesVecAndOverlayToAxes(featureVector, startStopDatenum, overlayHeight, overlayOffset, axesH, contextmenuH)
+            if(nargin<6)
+                contextmenuH = [];
+            end
+            
+            yLim = get(axesH,'ylim');
+            yLimPatches = (yLim+1)*overlayHeight/2+overlayOffset;
+            
+            minColor = [.0 0.25 0.25];
+            minColor = [0.1 0.1 0.1];
+            
+            maxValue = max(featureVector);  
+            maxValue = quantile(featureVector,0.90);
+            nFaces = numel(featureVector);
+            
+            x = nan(4,nFaces);
+            y = repmat(yLimPatches([1 2 2 1])',1,nFaces);
+            vertexColor = nan(4,nFaces,3);
+            
+            % each column represent a face color triplet            
+            featureColorMap = (featureVector/maxValue)*[1,1,1]+ repmat(minColor,nFaces,1);
+       
+            % patches are drawn clock wise in matlab
+            
+            for f=1:nFaces
+                if(f==nFaces)
+                    vertexColor(:,f,:) = featureColorMap([f,f,f,f],:);
+                else
+                    vertexColor(:,f,:) = featureColorMap([f,f,f+1,f+1],:);
+                end
+                x(:,f) = startStopDatenum(f,[1 1 2 2])';
+            end            
+            
+            feature_patchH = patch(x,y,vertexColor,'parent',axesH,'edgecolor','interp','facecolor','interp','hittest','off');
+
+            % draw the lines
+            
+            normalizedFeatureVector = featureVector/quantile(featureVector,0.99)*(overlayHeight/2);
+            
+            n = 10;
+            b = repmat(1/n,1,n);
+            smoothY = filtfilt(b,1,normalizedFeatureVector);
+            feature_lineH = line('parent',axesH,'ydata',smoothY+overlayOffset,'xdata',startStopDatenum(:,1),'color','b','hittest','on');
+            
+            if(~isempty(contextmenuH))
+                set(feature_lineH,'uicontextmenu',contextmenuH);
+                set(contextmenuH,'userdata',featureVector);
+            end
+            
+            vectorSum = cumsum(featureVector)/sum(featureVector)*overlayHeight/2;
+            feature_cumsumLineH =line('parent',axesH,'ydata',vectorSum+overlayOffset,'xdata',startStopDatenum(:,1),'color','g','hittest','off');
+
+        end
+        
+        
+        % --------------------------------------------------------------------
+        %> @brief Plots a feature vector on the specified axes.
+        %> @featureVector A vector of features to be displayed.
+        %> @param startStopDatenum A vector of start and stop date nums that
+        %> correspond to the start and stop times of the study that the
+        %> feature in featureVector at the same index corresponds to.
+        %> @param overlayHeight - The proportion (fraction) of vertical space that the
+        %> overlay will take up in the secondary axes.
+        %> @param overlayOffset The normalized y offset ([0, 1]) that is applied to
+        %> the featureVector when displayed on the secondary axes.
+        %> @param axesH The graphic handle to the axes.
+        %> @retval featureHandles Line handles created from the method.
+        % --------------------------------------------------------------------
+        function featureHandles = addFeaturesVecToAxes(featureVector, startStopDatenum, overlayHeight, overlayOffset, axesH)
+            if(overlayOffset>0)
+                featureHandles = nan(3,1);
+            else
+                featureHandles = nan(2,1);
+            end            
+            n = 10;
+            b = repmat(1/n,1,n);
+            smoothY = filtfilt(b,1,featureVector);
+            normalizedY = smoothY/max(smoothY)*overlayHeight+overlayOffset;
+            featureHandles(1) = line('parent',axesH,'ydata',normalizedY,'xdata',startStopDatenum(:,1),'color','b','hittest','off','userdata',featureVector);
+            %draw some boundaries around our features - put in rails
+            railsBottom = [overlayOffset,overlayOffset]+0.001;
+            railsTop = railsBottom+overlayHeight - 0.001;
+            x = [startStopDatenum(1), startStopDatenum(end)];
+            featureHandles(2) = line('parent',axesH,'ydata',railsBottom,'xdata',x,'color',[0.2 0.2 0.2],'linewidth',0.2,'hittest','off');
+            if(overlayOffset>0)
+                featureHandles(3) = line('parent',axesH,'ydata',railsTop,'xdata',x,'color',[0.2 0.2 0.2],'linewidth',0.2,'hittest','off');
+            end
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Adds a magnitude vector as a heatmap to the specified axes.
+        %> @param overlayVector A magnitude vector to be displayed in the
+        %> axes as a heat map.
+        %> @param startStopDatenum An Nx2 matrix start and stop datenums which
+        %> correspond to the start and stop times of the same row in overlayVector.
+        %> @param overlayHeight - The proportion (fraction) of vertical space that the
+        %> overlay will take up in the secondary axes.
+        %> @param overlayOffset The normalized y offset that is applied to
+        %> the overlayVector when displayed on the secondary axes.
+        %> @param maxValue The maximum value to normalize the overlayVector
+        %> with so that the normalized overlayVector's maximum value is 1.
+        %> @param axesH The graphic handle to the axes.
+        %> @param contextmenuH Optional contextmenu handle.  Is assigned to the overlayLineH lines
+        %> contextmenu callback when included.    
+        % --------------------------------------------------------------------
+        function overlayLineH = addOverlayToAxes(overlayVector, startStopDatenum, overlayHeight, overlayOffset,maxValue,axesH,contextmenuH)
+            if(nargin<7)
+                contextmenuH = [];
+            end
+            
+            yLim = get(axesH,'ylim');
+            yLim = yLim*overlayHeight+overlayOffset;
+            minColor = [0.0 0.0 0.0];
+            
+            nFaces = numel(overlayVector);
+            x = nan(4,nFaces);
+            y = repmat(yLim([1 2 2 1])',1,nFaces);
+            vertexColor = nan(4,nFaces,3);
+            
+            % each column represent a face color triplet            
+            overlayColorMap = (overlayVector/maxValue)*[1,1,0.65]+ repmat(minColor,nFaces,1);
+       
+            % patches are drawn clock wise in matlab
+            
+            for f=1:nFaces
+                if(f==nFaces)
+                    vertexColor(:,f,:) = overlayColorMap([f,f,f,f],:);
+                    
+                else
+                    vertexColor(:,f,:) = overlayColorMap([f,f,f+1,f+1],:);
+                    
+                end
+                x(:,f) = startStopDatenum(f,[1 1 2 2])';
+                
+            end
+            patch(x,y,vertexColor,'parent',axesH,'edgecolor','interp','facecolor','interp');
+            
+            normalizedOverlayVector = overlayVector/maxValue*(overlayHeight)+overlayOffset;
+            overlayLineH = line('parent',axesH,'linestyle',':','xdata',linspace(startStopDatenum(1),startStopDatenum(end),numel(overlayVector)),'ydata',normalizedOverlayVector,'color',[1 1 0]);
+            if(~isempty(contextmenuH))
+                set(overlayLineH,'uicontextmenu',contextmenuH);
+                % set(contextmenuH,'userdata',overlayVector);
+            end
+
+        end        
         
         %==================================================================
         %> @brief Recursively fills in the template structure dummyStruct

@@ -508,7 +508,7 @@ classdef PAController < handle
                 else
                     % This requires twice the height because it will have a
                     % feature line and heat map
-                    obj.VIEW.addFeaturesOverlayToSecondaryAxes(featureVec,startStopDatenums,height*2,heightOffset);
+                    obj.VIEW.addFeaturesVecAndOverlayToSecondaryAxes(featureVec,startStopDatenums,height*2,heightOffset);
 
                 end
                heightOffset = heightOffset+height;
@@ -884,12 +884,48 @@ classdef PAController < handle
             set(batchHandles.check_inactivityPatterns,'value',obj.batch.describeInactivity);
             set(batchHandles.check_sleepPatterns,'value',obj.batch.describeSleep);
           
+            
             set(batchHandles.button_go,'callback',@obj.startBatchProcessCallback);
             
             obj.calculateFilesFound(batchHandles.text_sourcePath,batchHandles.text_filesFound);
+            
+            % images
+            set(batchHandles.check_save2img,'value',obj.batch.images.save2img);
+            
+            imgFmt = obj.batch.images.format;
+            imageFormats = {'JPEG','PNG'};
+            imgSelection = find(strcmpi(imageFormats,imgFmt));
+            if(isempty(imgSelection))
+                imgSelection = 1;
+            end
+            set(batchHandles.menu_imageFormat,'string',imageFormats,'value',imgSelection);
+            
+            featureFcns = fieldnames(PAData.getFeatureDescriptionStruct());
+            featureDesc = PAData.getExtractorDescriptions();
+       
+            featureFcn = obj.batch.featureFcn;
+            featureSelection = find(strcmpi(featureFcns,featureFcn));
+            if(isempty(featureSelection))
+                featureSelection =1;
+            end
+            set(batchHandles.menu_featureFcn,'string',featureDesc,'value',featureSelection,'userdata',featureFcns);
+
         end        
         
+        % --------------------------------------------------------------------
+        %> @brief Batch figure button callback for getting a directory of
+        %> actigraph files to process.
+        %> Executes when user attempts to close padaco fig.
+        %> @param obj Instance of PAController
+        %> @param hObject    handle to buttont (see GCBO)
+        %> @param eventdata  reserved - to be defined in a future version of MATLAB
+        %> @param text_sourcePathH Text graphic handle for placing the path
+        %> selected on the GUI display
+        %> @param text_filesFoundH Text graphic handle to place the number
+        %> of actigraph files found in the source directory.        
+        % --------------------------------------------------------------------        
         function getSourceDirectoryCallback(obj,hObject,eventdata,text_sourcePathH,text_filesFoundH)
+        % --------------------------------------------------------------------
             displayMessage = 'Select the directory containing .raw or count actigraphy files';
             initPath = get(text_sourcePathH,'string');
             tmpSrcDirectory = uigetfulldir(initPath,displayMessage);
@@ -900,96 +936,17 @@ classdef PAController < handle
             end
         end
         
-        function getOutputDirectoryCallback(obj,hObject,eventdata,textH)
-            displayMessage = 'Select the output directory to place processed results.';
-            initPath = get(textH,'string');
-            tmpOutputDirectory = uigetfulldir(initPath,displayMessage);
-            if(~isempty(tmpOutputDirectory))
-                %assign the settings directory variable
-                obj.batch.outputDirectory = tmpOutputDirectory;
-                set(textH,'string',tmpOutputDirectory);
-            end
-        end
-        
-        
-        %> @brief Callback that starts a batch process based on gui
-        %> paramters.
-        %> @obj Instance of PAController
-        %> @param hObject MATLAB graphic handle of the callback object
-        %> @param eventdata reserved by MATLAB, not used.
-        function startBatchProcessCallback(obj,hObject,eventdata)
-            [filenames, fullFilenames] = getFilenamesi(obj.batch.sourceDirectory,'.csv');
-            
-            % Get batch processing settings from the GUI
-            image_settings =[];
-            if(obj.batch.images.save2img)
-                image_settings.format = obj.batch.images.format;
-                %put images in subdirectory based on detection method
-                images_pathname = fullfile(obj.batch.destinationDirectory,'images');
-                if(~isdir(images_pathname))
-                    mkdir(images_pathname);
-                end
-            end
-            
-            
-            failedFiles = {};
-            pctDone = 0;
-            pctDelta = 1/numel(fullFilenames);
-            waitH = waitbar(pctDone);
-            for f=1:numel(fullFilenames)
-                waitbar(pctDone,waitH,filenames{f});
-                pctDone = pctDone+pctDelta;
-                try
-                    fprintf('Processing %s\n',filenames{f});
-                    curData = PAData(fullFilenames{f});%,obj.SETTINGS.DATA
-                    [~,filename,~] = fileparts(curData.getFilename());
-                    if(obj.batch.classifyUsageState)
-                        curData.classifyUsageState();
-                        saveFilename = fullfile(obj.batch.outputDirectory,strcat(filename,'.usage.txt'));
-                        curData.saveToFile('usageState',saveFilename);
-                    end
-                    if(obj.batch.describeActivity)
-                        curData.describeActivity('activity');
-                        saveFilename = fullfile(obj.batch.outputDirectory,strcat(filename,'.activity.txt'));
-                        curData.saveToFile('activity',saveFilename);
-                    end
-                    if(obj.batch.describeInactivity)
-                        curData.describeActivity('inactivity');
-                        saveFilename = fullfile(obj.batch.outputDirectory,strcat(filename,'.inactivity.txt'));
-                        curData.saveToFile('inactivity',saveFilename);
-                    end
-                    if(obj.batch.describeSleep)
-                        curData.describeActivity('sleep');
-                        saveFilename = fullfile(obj.batch.outputDirectory,strcat(filename,'.sleep.txt'));
-                        curData.saveToFile('sleep',saveFilename);
-                    end
-                    
-                    
-                    % Should I save results as a picture?
-                    if(obj.batch.images.save2img)
-                        img_filename = fullfile(obj.batch.outputDirectory,strcat(filename,',',obj.batch.images.format));
-                        
-                        % draw the secondary axes image.
-                        obj.save2image(curData,img_filename);
-                    end
-                    
-                catch me
-                    showME(me);
-                    failedFiles{end+1} = filenames{f};
-                    fprintf('\t%s\tFAILED.\n',fullFilenames{f});
-                end                
-            end
-            waitbar(pctDone,waitH,'Finished!');
-            
-            if(~isempty(failedFiles))
-                fprintf('\n\n%u Files Failed:\n',numel(failedFiles));
-                for f=1:numel(failedFiles)
-                    fprintf('\t%s\tFAILED.\n',failedFiles{f});
-                end
-            end
-        end
-        
+        % --------------------------------------------------------------------
+        %> @brief Determines the number of actigraph files located in the
+        %> specified source path and updates the GUI's count display.
+        %> @param obj Instance of PAController
+        %> @param text_sourcePathH Text graphic handle for placing the path
+        %> selected on the GUI display
+        %> @param text_filesFoundH Text graphic handle to place the number
+        %> of actigraph files found in the source directory.        
+        % --------------------------------------------------------------------        
         function calculateFilesFound(obj,text_sourcePath_h,text_filesFound_h)
+        % --------------------------------------------------------------------
            %update the source path edit field with the source directory
            handles = guidata(text_sourcePath_h);
            set(text_sourcePath_h,'string',obj.batch.sourceDirectory);
@@ -1013,6 +970,166 @@ classdef PAController < handle
            set(text_filesFound_h,'string',msg);
         end
         
+        
+        % --------------------------------------------------------------------
+        %> @brief Batch figure button callback for getting a directory to
+        %> save processed output files to.
+        %> Executes when user attempts to close padaco fig.
+        %> @param obj Instance of PAController
+        %> @param hObject    handle to buttont (see GCBO)
+        %> @param eventdata  reserved - to be defined in a future version of MATLAB
+        %> @param textH Text graphic handle for placing the output path
+        %> selected on the GUI display
+        % --------------------------------------------------------------------        
+        function getOutputDirectoryCallback(obj,hObject,eventdata,textH)
+            displayMessage = 'Select the output directory to place processed results.';
+            initPath = get(textH,'string');
+            tmpOutputDirectory = uigetfulldir(initPath,displayMessage);
+            if(~isempty(tmpOutputDirectory))
+                %assign the settings directory variable
+                obj.batch.outputDirectory = tmpOutputDirectory;
+                set(textH,'string',tmpOutputDirectory);
+            end
+        end
+        
+        % --------------------------------------------------------------------        
+        %> @brief Callback that starts a batch process based on gui
+        %> paramters.
+        %> @obj Instance of PAController
+        %> @param hObject MATLAB graphic handle of the callback object
+        %> @param eventdata reserved by MATLAB, not used.
+        % --------------------------------------------------------------------        
+        function startBatchProcessCallback(obj,hObject,eventdata)
+            [filenames, fullFilenames] = getFilenamesi(obj.batch.sourceDirectory,'.csv');
+            handles = guidata(hObject);
+            obj.batch.images.save2image = get(handles.check_save2img,'value');
+            
+            
+            % Get batch processing settings from the GUI
+            image_settings =[];
+            if(obj.batch.images.save2img)
+                image_selection = get(handles.menu_imageFormat,'string');
+            
+                % Tuck this away for future use and updated settings.
+                image_settings.format = image_selection{get(handles.menu_imageFormat,'value')};                
+                obj.batch.images.format = image_settings.format;
+                
+                %put images in subdirectory based on detection method
+                images_pathname = fullfile(obj.batch.outputDirectory,'images');
+                if(~isdir(images_pathname))
+                    mkdir(images_pathname);
+                end
+            end  
+            
+            featureFcnDescriptions = get(handles.menu_featureFcn,'string');
+            featureFcns = get(handles.menu_featureFcn,'userdata');
+            
+            featureDescription = featureFcnDescriptions{get(handles.menu_featureFcn,'value')};
+            obj.batch.featureFcn = featureDescription;
+            featureFcn = featureFcns{get(handles.menu_featureFcn,'value')};
+            
+            failedFiles = {};
+            pctDone = 0;
+            pctDelta = 1/numel(fullFilenames);
+            waitH = waitbar(pctDone,filenames{1});
+            startTime = now;
+            startClock = clock;
+            fileCount = numel(fullFilenames);
+            fileCountStr = num2str(fileCount);
+            for f=1:numel(fullFilenames)
+                %                 waitbar(pctDone,waitH,filenames{f});
+                ticStart = tic;
+                try
+                    fprintf('Processing %s\n',filenames{f});
+                    curData = PAData(fullFilenames{f});%,obj.SETTINGS.DATA
+                    
+                    [~,filename,~] = fileparts(curData.getFilename());
+                    if(obj.batch.classifyUsageState)
+                        curData.classifyUsageState();
+                        saveFilename = fullfile(obj.batch.outputDirectory,strcat(filename,'.usage.txt'));
+                        curData.saveToFile('usageState',saveFilename);
+                    end
+                    if(obj.batch.describeActivity)
+                        curData.describeActivity('activity');
+                        saveFilename = fullfile(obj.batch.outputDirectory,strcat(filename,'.activity.txt'));
+                        curData.saveToFile('activity',saveFilename);
+                    end
+                    if(obj.batch.describeInactivity)
+                        curData.describeActivity('inactivity');
+                        saveFilename = fullfile(obj.batch.outputDirectory,strcat(filename,'.inactivity.txt'));
+                        curData.saveToFile('inactivity',saveFilename);
+                    end
+                    if(obj.batch.describeSleep)
+                        curData.describeActivity('sleep');
+                        saveFilename = fullfile(obj.batch.outputDirectory,strcat(filename,'.sleep.txt'));
+                        curData.saveToFile('sleep',saveFilename);
+                    end
+                    
+                    % Should I save results as a picture?
+                    if(obj.batch.images.save2img)
+                        img_filename = fullfile(images_pathname,strcat(filename,'.',lower(obj.batch.images.format)));
+                        % draw the secondary axes image.
+                        obj.save2image(curData,featureFcn,img_filename);
+                    end
+                    
+                catch me
+                    showME(me);
+                    failedFiles{end+1} = filenames{f};
+                    fprintf('\t%s\tFAILED.\n',fullFilenames{f});
+                end  
+                
+                num_files_completed = f;
+                pctDone = pctDone+pctDelta;
+                
+                elapsed_dur_sec = toc(ticStart);
+                fprintf('File %d of %d (%0.2f%%) Completed in %0.2f seconds\n',num_files_completed,fileCount,pctDone,elapsed_dur_sec);
+                elapsed_dur_total_sec = etime(clock,startClock);
+                avg_dur_sec = elapsed_dur_total_sec/num_files_completed;
+                remaining_dur_sec = avg_dur_sec*(fileCount-num_files_completed);
+                est_str = sprintf('%01ihrs %01imin %01isec',floor(mod(remaining_dur_sec/3600,24)),floor(mod(remaining_dur_sec/60,60)),floor(mod(remaining_dur_sec,60)));
+                
+                msg = {['Processing ',filenames{f}, ' (file ',num2str(f) ,' of ',fileCountStr,')'],...
+                    ['Elapsed Time: ',datestr(now-startTime,'HH:MM:SS')],...
+                    ['Time Remaining: ',est_str]};
+                fprintf('%s\n',msg{2});
+                if(ishandle(waitH))
+                    waitbar(pctDone,waitH,char(msg));
+                else
+                    %                     waitHandle = findall(0,'tag','waitbarHTag');
+                end
+                
+
+
+                
+                
+            end
+            waitbar(pctDone,waitH,'Finished!');
+            
+            if(~isempty(failedFiles))
+                fprintf('\n\n%u Files Failed:\n',numel(failedFiles));
+                for f=1:numel(failedFiles)
+                    fprintf('\t%s\tFAILED.\n',failedFiles{f});
+                end
+            end
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Creates a temporary figure and axes, draws an overlay
+        %> image on it using curData, saves the image to disk, and then
+        %> removes the figure from view.
+        %> @param obj Instance of PAController
+        %> @param curData Instance of PAData
+        %> @param featureFcn Extractor method for obtaining features from
+        %> curData.
+        %> @img_filename Filename to save image to.  
+        %> @note The image format is determined from the extension of
+        %> img_filename (e.g. if img_filename = 'picture.jpg', then a jpeg
+        %> is used.  
+        % --------------------------------------------------------------------
+        function save2image(obj, curData,featureFcn, img_filename)
+            obj.overlayScreenshot(curData,featureFcn,img_filename);
+        end
+
         % --------------------------------------------------------------------
         %> @brief Returns the total frame duration (i.e. hours and minutes) in aggregated minutes.
         %> @param obj Instance of PAData
@@ -1044,35 +1161,6 @@ classdef PAController < handle
             frameCount = obj.accelObj.getFrameCount();
         end        
         
-        % --------------------------------------------------------------------
-        %> @brief Calculates the median lux value for a given number of sections.
-        %> @param obj Instance of PAController
-        %> @param numPatches (optional) Number of patches to break the
-        %> accelObj lux time series data into and calculate the median
-        %> lumens over.
-        %> @retval medianLumens Vector of median lumen values calculated
-        %> from the lux field of the accelObj PAData object instance
-        %> variable.  Vector values are in consecutive order of the section they are calculated from.
-        %> @retval startStopDatenums Nx2 matrix of datenum values whose
-        %> rows correspond to the start/stop range that the medianLumens
-        %> value (at the same row position) was derived from.
-        %> @note  Sections will not be calculated on equally lenghted        
-        %> sections when numSections does not evenly divide the total number
-        %> of samples.  In this case, the last section may be shorter or
-        %> longer than the others.
-        function [medianLumens,startStopDatenums] = getMedianLumenPatches(obj,numSections)
-            if(nargin<2 || isempty(numSections) || numSections <=1)
-                numSections = 100;
-            end
-            luxData = obj.accelObj.lux;
-            indices = ceil(linspace(1,numel(luxData),numSections+1));
-            medianLumens = zeros(numSections,1);
-            startStopDatenums = zeros(numSections,2);
-            for i=1:numSections
-                medianLumens(i) = median(luxData(indices(i):indices(i+1)));
-                startStopDatenums(i,:) = [obj.accelObj.dateTimeNum(indices(i)),obj.accelObj.dateTimeNum(indices(i+1))];
-            end
-        end
         
         % --------------------------------------------------------------------
         %> @brief Calculates the mean lux value for a given number of sections.
@@ -1080,6 +1168,9 @@ classdef PAController < handle
         %> @param numPatches (optional) Number of patches to break the
         %> accelObj lux time series data into and calculate the mean
         %> lumens over.
+        %> @param paDataObj Optional instance of PAData.  Mean lumens will
+        %> be calculated from this when included, otherwise the instance
+        %> variable accelObj is used.
         %> @retval meanLumens Vector of mean lumen values calculated
         %> from the lux field of the accelObj PAData object instance
         %> variable.  Vector values are in consecutive order of the section they are calculated from.
@@ -1090,17 +1181,21 @@ classdef PAController < handle
         %> sections when numSections does not evenly divide the total number
         %> of samples.  In this case, the last section may be shorter or
         %> longer than the others.
-        function [meanLumens,startStopDatenums] = getMeanLumenPatches(obj,numSections)
-            if(nargin<2 || isempty(numSections) || numSections <=1)
+        % --------------------------------------------------------------------
+        function [meanLumens,startStopDatenums] = getMeanLumenPatches(obj,numSections,paDataObj)
+            if(nargin<2 || isempty(numSections))
                 numSections = 100;
             end
-            luxData = obj.accelObj.lux;
+            if(nargin<3) ||isempty(paDataObj)
+               paDataObj = obj.accelObj; 
+            end
+            luxData = paDataObj.lux;
             indices = ceil(linspace(1,numel(luxData),numSections+1));
             meanLumens = zeros(numSections,1);
             startStopDatenums = zeros(numSections,2);
             for i=1:numSections
                 meanLumens(i) = mean(luxData(indices(i):indices(i+1)));
-                startStopDatenums(i,:) = [obj.accelObj.dateTimeNum(indices(i)),obj.accelObj.dateTimeNum(indices(i+1))];
+                startStopDatenums(i,:) = [paDataObj.dateTimeNum(indices(i)),paDataObj.dateTimeNum(indices(i+1))];
             end
         end        
         
@@ -1109,16 +1204,24 @@ classdef PAController < handle
         %> @param obj Instance of PAController
         %> @param numPatches (optional) Number of chunks to estimate
         %> daylight at across the study.  Default is 100.
+        %> @param paDataObj Optional instance of PAData.  Date time will
+        %> be calculated from this when included, otherwise date time from the
+        %> instance variable accelObj is used.
         %> @retval daylightVector Vector of estimated daylight from the time of day at startStopDatenums.
         %> @retval startStopDatenums Nx2 matrix of datenum values whose
         %> rows correspond to the start/stop range that the meanLumens
         %> value (at the same row position) was derived from.
-        function [daylightVector,startStopDatenums] = getDaylight(obj,numSections)
+        % --------------------------------------------------------------------
+        function [daylightVector,startStopDatenums] = getDaylight(obj,numSections,paDataObj)
             if(nargin<2 || isempty(numSections) || numSections <=1)
                 numSections = 100;
             end
-            indices = ceil(linspace(1,numel(obj.accelObj.dateTimeNum),numSections+1));
-            startStopDatenums = [obj.accelObj.dateTimeNum(indices(1:end-1)),obj.accelObj.dateTimeNum(indices(2:end))];
+            if(nargin<3) ||isempty(paDataObj)
+               paDataObj = obj.accelObj; 
+            end
+            
+            indices = ceil(linspace(1,numel(paDataObj.dateTimeNum),numSections+1));
+            startStopDatenums = [paDataObj.dateTimeNum(indices(1:end-1)),paDataObj.dateTimeNum(indices(2:end))];
             [y,mo,d,H,MI,S] = datevec(mean(startStopDatenums,2));
             dayTime = [H,MI,S]*[1; 1/60; 1/3600];
 %             dayTime = [[H(:,1),MI(:,1),S(:,1)]*[1;1/60;1/3600], [H(:,2),MI(:,2),S(:,2)]*[1;1/60;1/3600]];
@@ -1138,10 +1241,7 @@ classdef PAController < handle
             
             daylightVector= (cos(2*pi*(dayTime-12)/T)+1)/2;  %this is spread between 0 and 1; with 1 being brightest at noon.
             
-        end        
-        
-        
-                
+        end     
         
         % --------------------------------------------------------------------
         %> @brief Calculates a desired feature for a particular acceleration object's field value.
@@ -1153,8 +1253,10 @@ classdef PAController < handle
         %> @note Data is obtained using dynamic indexing of
         %> accelObj instance variable (ie.. data = obj.accelObj.(fildName))
         %> @param numPatches (optional) Number of patches to break the
-        %> accelObj lux time series data into and calculate the mean
-        %> lumens over.
+        %> accelObj time series data into and calculate the features from.
+        %> @param paDataObj Optional instance of PAData.  Date time will
+        %> be calculated from this when included, otherwise date time from the
+        %> instance variable accelObj is used.
         %> @retval featureVec Vector of specified feature values calculated
         %> from the specified (fieldName) field of the accelObj PAData object instance
         %> variable.  Vector values are in consecutive order of the section they are calculated from.
@@ -1165,26 +1267,29 @@ classdef PAController < handle
         %> sections when numSections does not evenly divide the total number
         %> of samples.  In this case, the last section may be shorter or
         %> longer than the others.
-        function [featureVec,startStopDatenums] = getFeatureVec(obj,featureFcn,fieldName,numSections)
+        % --------------------------------------------------------------------
+        function [featureVec,startStopDatenums] = getFeatureVec(obj,featureFcn,fieldName,numSections,paDataObj)
             if(nargin<2 || isempty(numSections) || numSections <=1)
                 numSections = 100;
             end
-            timeSeriesStruct = obj.accelObj.getStruct('all','timeSeries');
+            
+             if(nargin<5) ||isempty(paDataObj)
+               paDataObj = obj.accelObj; 
+            end
+            timeSeriesStruct = paDataObj.getStruct('all','timeSeries');
             fieldData = eval(['timeSeriesStruct.',fieldName]);
             indices = ceil(linspace(1,numel(fieldData),numSections+1));
             featureVec = zeros(numSections,1);
             startStopDatenums = zeros(numSections,2);
             for i=1:numSections
                 featureVec(i) = feval(featureFcn,fieldData(indices(i):indices(i+1)));
-                startStopDatenums(i,:) = [obj.accelObj.dateTimeNum(indices(i)),obj.accelObj.dateTimeNum(indices(i+1))];
+                startStopDatenums(i,:) = [paDataObj.dateTimeNum(indices(i)),paDataObj.dateTimeNum(indices(i+1))];
             end
         end
         
         
         %% context menu's for the view
-        %
         
-                
         % =================================================================
         %> @brief Configure contextmenu for view's primary axes.
         %> @param obj instance of PAController.
@@ -1213,7 +1318,7 @@ classdef PAController < handle
        %> @param eventdata Unused.
        % =================================================================
        function configure_contextmenu_unhideSignals(obj,contextmenu_h,eventdata)           
-           
+       % --------------------------------------------------------------------          
            % start with a clean slate
            delete(get(contextmenu_h,'children'));
            set(contextmenu_h,'enable','off');
@@ -1230,13 +1335,16 @@ classdef PAController < handle
            
        end
        
+       % --------------------------------------------------------------------
        %> @brief Set's the visible property for the specified line handle
        %> and its associated reference and label handles to 'on'.
        %> @param obj Instance of PAController
        %> @param hObject Handle of the callback object.
        %> @param eventdata Unused.
-       %> @param lineHandle Line handle to be shown.       
+       %> @param lineHandle Line handle to be shown.
+       % --------------------------------------------------------------------
        function showLineHandle_callback(obj,hObject,eventdata,lineHandle)
+       % --------------------------------------------------------------------
            lineTag = get(lineHandle,'tag');
            tagHandles = findobj(get(lineHandle,'parent'),'tag',lineTag);
            set(tagHandles,'visible','on','hittest','on')
@@ -1255,6 +1363,7 @@ classdef PAController < handle
        %> PAView classes.
        % =================================================================
        function uicontextmenu_handle = getLineContextmenuHandle(obj)           
+       % --------------------------------------------------------------------
            uicontextmenu_handle = uicontextmenu('callback',@obj.contextmenu_line_callback);%,get(parentAxes,'parent'));
            uimenu(uicontextmenu_handle,'Label','Resize','separator','off','callback',@obj.contextmenu_line_resize_callback);
            uimenu(uicontextmenu_handle,'Label','Use Default Scale','separator','off','callback',@obj.contextmenu_line_defaultScale_callback,'tag','defaultScale');
@@ -1504,6 +1613,7 @@ classdef PAController < handle
     end
     
     methods(Access=private)
+        
         % --------------------------------------------------------------------
         %> @brief Initializes the display using instantiated instance
         %> variables VIEW (PAView) and accelObj (PAData)
@@ -1518,10 +1628,7 @@ classdef PAController < handle
             
             
             obj.initSignalSelectionMenu();
-
             obj.VIEW.initWithAccelData(obj.accelObj);
-            
-            
             
             %set signal choice 
             obj.setSignalSelection(obj.SETTINGS.CONTROLLER.signalTagLine);
@@ -1552,12 +1659,8 @@ classdef PAController < handle
             maxDaylight = 1;
             [daylight,startStopDatenums] = obj.getDaylight(numFrames);
              obj.VIEW.addOverlayToSecondaryAxes(daylight,startStopDatenums,1/7-0.005,6/7,maxDaylight);
-            
-            
             obj.VIEW.showReady();
-            
         end
-        
         
         % --------------------------------------------------------------------
         %> @brief Returns the display type instance variable.    
@@ -1595,7 +1698,6 @@ classdef PAController < handle
         function lineHandles = getDisplayableLineHandles(obj)
            lineHandleStruct = obj.VIEW.getLinehandle(obj.getDisplayType());             
            lineHandles = PAData.struct2vec(lineHandleStruct);
-           
         end
         
         % =================================================================
@@ -1617,18 +1719,151 @@ classdef PAController < handle
         end
         
         
+        % --------------------------------------------------------------------
         %> @brief Creates a temporary overlay from paDataObject's values
         %> and takes a screenshot of it which is saved as img_filename.
         %> @param obj Instance of PAController
         %> @param paDataObject Instance of PAData
-        %> @param img_filename Filename to save the screenshot too.
+        %> @param featureFcn Extractor method for obtaining features from
+        %> curData.        
+        %> @param img_filename Filename (full) to save the screenshot too.
         %> @note The image format is determined from img_filename's
         %> extension.
-        function overlayScreenshot(obj, paDataObject, img_filename)
+        % --------------------------------------------------------------------
+        function overlayScreenshot(obj, paDataObject, featureFcn, img_filename)
+            [~,~, ext] = fileparts(img_filename);
+            ext = strrep(ext,'.','');  %remove leading '.' when it exists (i.e. not an empty string).
+            if(strcmpi(ext,'jpg'))
+                imgFmt = '-djpeg';
+            else
+                imgFmt = strcat('-d',lower(ext));
+            end
             
-            disp 'To be completed';
+            fig_h = obj.VIEW.figurehandle;
+            axes_copy = copyobj(obj.VIEW.axeshandle.secondary,fig_h);
+            
+            f = figure('visible','off','paperpositionmode','auto','inverthardcopy','on',...
+                'units',get(fig_h,'units'),'position',get(fig_h,'position'),...
+                'toolbar','none','menubar','none');
+            set(f,'units','normalized','renderer','zbuffer');
+            set(axes_copy,'parent',f);
+
+            obj.drawOverlay(paDataObject,featureFcn,axes_copy);
+            obj.cropFigure2Axes(f,axes_copy);
+
+            set(f,'visible','on');
+            set(f,'clipping','off');
+            print(f,imgFmt,'-r0',img_filename);
+            delete(f);
         end
         
+        %> Draw all parts of the overlay to axesH using paDataObject
+        %> This is used for batch processing.
+        function [featureHandles] = drawOverlay(obj,paDataObject,featureFcn,axesH)
+            
+            numFrames = paDataObject.getFrameCount();
+            maxLumens = 250;
+            
+            % Modified - by adding paDataObject as secondary value.  
+            [meanLumens,startStopDatenums] = obj.getMeanLumenPatches(numFrames,paDataObject);
+            
+            % Modified - by adding axesH as second argument
+            obj.VIEW.addOverlayToAxes(meanLumens,startStopDatenums,1/7,5/7,maxLumens,axesH);
+            
+            maxDaylight = 1;
+            % Modified get daylight somehow - perhaps to include accelObj as second argument.
+            [daylight,startStopDatenums] = obj.getDaylight(numFrames,paDataObject);
+            
+            % Modified - by adding axesH as last argument
+            obj.VIEW.addOverlayToAxes(daylight,startStopDatenums,1/7-0.005,6/7,maxDaylight,axesH);
+
+            % updateSecondaryFeaturesDisplay 
+            signalTagLines = strcat('accel.',paDataObject.accelType,'.',{'x','y','z','vecMag'})';
+            numViews = (numel(signalTagLines)+1)+2;
+            height = 1/numViews;
+            heightOffset = 0;
+            featureHandles = [];
+            for s=1:numel(signalTagLines)
+                signalName = signalTagLines{s};
+                % Modified to pass in the paDataObj as last parameter
+                [featureVec, startStopDatenums] = obj.getFeatureVec(featureFcn,signalName,numFrames,paDataObject);
+                if(s<numel(signalTagLines))
+                    vecHandles = obj.VIEW.addFeaturesVecToAxes(featureVec,startStopDatenums,height,heightOffset,axesH);
+                    featureHandles = [featureHandles(:);vecHandles(:)];
+                else
+                    % This requires twice the height because it will have a
+                    % feature line and heat map
+                    obj.VIEW.addFeaturesVecAndOverlayToAxes(featureVec,startStopDatenums,height*2,heightOffset,axesH);
+                    
+                end
+                heightOffset = heightOffset+height;
+            end
+            
+            
+            
+            numViews = 7;
+            startStopDatenum = [startStopDatenums(1),startStopDatenums(end)];
+            axesProps.ytick = 1/numViews/2:1/numViews:1;
+            axesProps.yticklabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Lumens','Daylight'};
+            axesProps.TickDir = 'in';
+            axesProps.TickDirMode = 'manual';
+            axesProps.TickLength = [0.001 0];
+            
+            
+            axesProps.xlim = startStopDatenum;
+            [~,~,d,h,mi,s] = datevec(diff(startStopDatenum));
+            durationDays = d+h/24+mi/60/24+s/3600/24;
+            if(durationDays<0.25)
+                dateScale = 1/48; %show every 30 minutes
+            elseif(durationDays<0.5)
+                dateScale = 1/24; %show every hour
+            elseif(durationDays<0.75)
+                dateScale = 1/12; %show every couple hours
+            elseif(durationDays<=1)
+                dateScale = 1/6; %show every four hours
+            elseif(durationDays<=2)
+                dateScale = 1/3; %show every 8 hours
+            elseif(durationDays<=10)
+                dateScale = 1/2; %show every 12 hours
+            else
+                dateScale = 1; %show every 24 hours.
+                
+            end    
+            if(dateScale >= 1/3)
+                timeDeltaSec = datenum(0,0,1)/24/3600;
+                studyDatenums = startStopDatenum(1):timeDeltaSec:startStopDatenum(2);
+                [~,~,~,hours,minutes,sec] = datevec(studyDatenums);
+                newDayIndices = mod([hours(:),minutes(:),sec(:)]*[1;1/60;1/3600],24)==0;
+%                 quarterDayIndices =  mod([hours(:),min(:),sec(:)]*[1;1/60;1/3600],24/4)==0;
+
+                xTick = studyDatenums(newDayIndices);
+                axesProps.XGrid = 'on';
+                axesProps.XMinorGrid = 'off';
+                axesProps.XMinorTick = 'on';
+                                
+            else
+                timeDelta = datenum(0,0,1)*dateScale;
+                xTick = [startStopDatenum(1):timeDelta:startStopDatenum(2), startStopDatenum(2)];
+                axesProps.XMinorTick = 'off';
+                axesProps.XGrid = 'off';
+            end
+            
+            axesProps.gridlinestyle = '--';
+            axesProps.YGrid = 'off';
+            axesProps.YMinorGrid = 'off';
+            axesProps.ylim = [0 1];
+            axesProps.xlim = startStopDatenum;
+            
+            axesProps.XTick = xTick;
+            axesProps.XTickLabel = datestr(xTick,'ddd HH:MM');
+            
+           
+            fontReduction = min([4, floor(durationDays/4)]);
+            axesProps.fontSize = 14-fontReduction;
+            
+            set(axesH,axesProps);
+            
+        end
         
         % --------------------------------------------------------------------
         %> @brief Takes a screenshot of the padaco figure.
@@ -1690,6 +1925,36 @@ classdef PAController < handle
 
     methods (Static)
         
+        function cropFigure2Axes(fig_h,axes_h)
+            %places axes_h in middle of figure with handle fig_h
+            %useful for prepping screen captures
+            
+            % Hyatt Moore IV
+            % 1/16/2013
+            
+            fig_units_in = get(fig_h,'units');
+            axes_units_in = get(axes_h,'units');
+            
+            set(fig_h,'units','pixels');
+            set(axes_h,'units','pixels');
+            
+            
+            a_pos = get(axes_h,'position'); %x, y, width, height
+            f_pos = get(fig_h,'position');
+            
+            a_width = a_pos(3);
+            a_height = a_pos(4);
+            
+            set(axes_h,'position',[a_width*0.06,a_height*0.1,a_width,a_height]);
+            set(fig_h,'position',[f_pos(1),f_pos(2),a_width*1.1,a_height*1.2]);
+            
+            
+            %reset units to original
+            set(fig_h,'units',fig_units_in);
+            set(axes_h,'units',axes_units_in);
+            
+        end
+        
         % ======================================================================
         %> @brief Returns a structure of PAControllers default, saveable parameters as a struct.
         %> @param obj Instance of PAController.
@@ -1706,6 +1971,9 @@ classdef PAController < handle
             mPath = fileparts(mfilename('fullpath'));
             pStruct.batch.sourceDirectory = mPath;
             pStruct.batch.outputDirectory = mPath;
+            pStruct.batch.images.save2img = 1;
+            pStruct.batch.images.format = 'jpeg';
+            pStruct.batch.featureFcn = 'mean';
             checkFields = {'classifyUsageState';
                 'describeActivity';
                 'describeInactivity';
