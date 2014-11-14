@@ -47,6 +47,13 @@ classdef PAData < handle
        %> @brief The numeric value for each date time sample provided by
        %the file name.
        dateTimeNum;
+       
+       %> @brief Numeric values for date time sample for the start of
+       %> extracted features.
+       startDatenums;
+       %> @brief Numeric values for date time sample for when the extracted features stop/end.
+       stopDatenums;
+       
 
        %> @brief Struct of line handle properties corresponding to the
        %> fields of linehandle.  These are derived from the input files
@@ -143,6 +150,7 @@ classdef PAData < handle
            end
                       
            obj.accelType = [];
+           obj.startDatenums = [];
            
            % Can summarize these with defaults from below...last f(X) call.
            %            obj.aggregateDurMin = 1;
@@ -177,7 +185,7 @@ classdef PAData < handle
        end
 
        % ======================================================================
-       %> @brief Returns a structure of an instnace PAData's time series data.
+       %> @brief Returns a structure of PAData's time series data.
        %> @param obj Instance of PAData.
        %> @param structType Optional string identifying the type of data to obtain the
        %> offset from.  Can be 
@@ -1349,9 +1357,26 @@ toc
                data = obj.getStruct('all');
                data = eval(['data.',signalTagLine]);
                obj.frames =  reshape(data(1:frameableSamples),[],obj.numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
+               
                obj.features = [];
+               dateNumIndices = 1:size(obj.frames,1):frameableSamples;
+               
+               %take the first part
+               obj.startDatenums = obj.dateTimeNum(dateNumIndices(1:end));               
+
+               %% This was another approach for calculating start and stop datenums,
+               % but unfortunately it had complications when calculating
+               % the total sample size and such...
+               
+               % dateNumIndices = 1:size(obj.frames,1):frameableSamples+size(obj.frames,1);
+               % obj.startDatenums = obj.dateTimeNum(dateNumIndices(1:end-1));               
+
+               %obj.stopDatenums = obj.dateTimeNum(dateNumIndices(2:end)-1); %do it this way to have starts and stops different.
+               
+               % or equivalently :
+               % obj.startDatenums = obj.dateTimeNum(1:size(obj.frames,1):frameableSamples);
+               % obj.stopDatenums = obj.dateTimeNum(size(obj.frames,1):size(obj.frames,1):frameableSamples+size(obj.frames,1));
            end
-           
            
            %frames are stored in consecutive columns.
            data = obj.frames;
@@ -1384,6 +1409,77 @@ toc
                    fprintf(1,'Unknown method (%s)\n',method);
            end
        end
+       
+       
+       % --------------------------------------------------------------------
+       %> @brief Calculates a desired feature for a particular acceleration object's field value.
+       %> @note This is the general form of getMeanLuxPatches
+       %> @param obj Instance of PAController
+       %> @param featureFcn Function name or handle to use to obtain
+       %> features.
+       %> @param fieldName String name of the accelObj field to obtain data from.
+       %> @note Data is obtained using dynamic indexing of
+       %> accelObj instance variable (ie.. data = obj.accelObj.(fildName))
+       %> @param numPatches (optional) Number of patches to break the
+       %> accelObj time series data into and calculate the features from.
+       %> @param paDataObj Optional instance of PAData.  Date time will
+       %> be calculated from this when included, otherwise date time from the
+       %> instance variable accelObj is used.
+       %> @retval featureVec Vector of specified feature values calculated
+       %> from the specified (fieldName) field of the accelObj PAData object instance
+       %> variable.  Vector values are in consecutive order of the section they are calculated from.
+       %> @retval startStopDatenums Nx2 matrix of datenum values whose
+       %> rows correspond to the start/stop range that the feature vector
+       %> value (at the same row position) was derived from.
+       %> @note  Sections will not be calculated on equally lenghted
+       %> sections when numSections does not evenly divide the total number
+       %> of samples.  In this case, the last section may be shorter or
+       %> longer than the others.
+       % --------------------------------------------------------------------
+       function alignedFeatureVecs = getAlignedFeatureVecs(obj,featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours)
+           %featureVec = getStruct('featureFcn',signalTagLine);
+           featureStruct = obj.getStruct('all','features');
+           alignedFeatureVecs = [];
+           if(isempty(featureStruct) || ~isfield(featureStruct,featureFcn) || isempty(featureStruct.(featureFcn)))
+               obj.extractFeature(signalTagLine,featureFcn);
+               featureStruct = obj.getStruct('all','features');
+           end
+           if(isempty(featureStruct) || ~isfield(featureStruct,featureFcn) || isempty(featureStruct.(featureFcn)))
+               fprintf('There was an error.  Could not extract features!\n');
+           else
+               featureVec = featureStruct.(featureFcn);
+               
+               % get frame duration
+                             
+               frameDurationVec = [0 0 0 obj.frameDurHour obj.frameDurMin 0];
+
+               % find the first Start Time
+               startDateVecs = datevec(obj.startDatenums);
+               elapsedStartHours = startDateVecs*[0; 0; 0; 1; 1/60; 1/3600];
+               startIndex = find(elapsedStartHours==elapsedStartHour,1,'first');               
+               
+               startDateVec = startDateVecs(startIndex,:);
+               stopDateVecs = startDateVecs+repmat(frameDurationVec,size(startDateVecs,1),1);
+               lastStopDateVec = stopDateVecs(end,:);
+               
+               % A convoluted processes
+               remainingDurationHours = datevec(datenum(lastStopDateVec-startDateVec))*[0; 0; 24; 1; 1/60; 1/3600];
+               
+               
+               numIntervals = floor(remainingDurationHours/intervalDurationHours);
+               
+               durationDateVec = [0 0 0 numIntervals*intervalDurationHours 0 0]; 
+               stopIndex = find(datenum(stopDateVecs)==datenum(startDateVec+durationDateVec),1,'first');
+               
+               
+               % reshape the result and return as alignedFeatureVec
+ 
+               clippedFeatureVecs = featureVec(startIndex:stopIndex);
+               alignedFeatureVecs = reshape(clippedFeatureVecs,[],numIntervals)';
+           end
+           
+       end
+       
        
        % ======================================================================
        %> @brief Categorizes the study's usage state.

@@ -22,7 +22,7 @@ function varargout = batchTool(varargin)
 
 % Edit the above text to modify the response to help batchTool
 
-% Last Modified by GUIDE v2.5 20-Oct-2014 11:47:08
+% Last Modified by GUIDE v2.5 11-Nov-2014 10:59:07
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
