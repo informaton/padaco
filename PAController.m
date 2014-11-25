@@ -1019,13 +1019,20 @@ classdef PAController < handle
         %> @param eventdata reserved by MATLAB, not used.
         % --------------------------------------------------------------------        
         function startBatchProcessCallback(obj,hObject,eventdata)
+                        
+            dateMap.Sun = 0;
+            dateMap.Mon = 1;
+            dateMap.Tue = 2;
+            dateMap.Wed = 3;
+            dateMap.Thu = 4;
+            dateMap.Fri = 5;
+            dateMap.Sat = 6;
             
             % initialize batch processing file management
             [filenames, fullFilenames] = getFilenamesi(obj.batch.sourceDirectory,'.csv');
             failedFiles = {};
             fileCount = numel(fullFilenames);
             fileCountStr = num2str(fileCount);
-            
             
             % Get batch processing settings from the GUI     
             handles = guidata(hObject);
@@ -1092,8 +1099,7 @@ classdef PAController < handle
                 intervalDurationHours = obj.batch.alignment.intervalLengthHours;
                 
                 %obj.batch.alignment.singalName = 'X';
-                
-
+            
                 signalNames = strcat('accel.',accelType,'.',{'x','y','z','vecMag'})';
                 %signalNames = {strcat('accel.',obj.accelObj.accelType,'.','x')};
                 
@@ -1107,6 +1113,7 @@ classdef PAController < handle
             % Setup output folders
             for fn=1:numel(featureFcns)
                 
+                
                 if(obj.batch.images.save2img)
                     %put images in subdirectory based on detection method
                     images_pathname = images_pathnames{fn};
@@ -1115,6 +1122,7 @@ classdef PAController < handle
                     end
                 end
                 
+                % Prep save alignment files.
                 if(obj.batch.alignment.save)
                     featureFcn = featureFcns{fn};
                     features_pathname = features_pathnames{fn};
@@ -1129,7 +1137,10 @@ classdef PAController < handle
                         fid = fopen(featureFilename,'w');
                         fprintf(fid,'# Feature:\t%s\n',featureDescriptions{fn});
                         
-                        fprintf(fid,'#');
+                        
+                        fprintf(fid,'# Length:\t%u\n',size(timeAxisStr,1));
+                        
+                        fprintf(fid,'# Start Datenum\tStart Day');
                         for t=1:size(timeAxisStr,1)
                             fprintf(fid,'\t%s',timeAxisStr(t,:));
                         end
@@ -1200,8 +1211,16 @@ classdef PAController < handle
                                     signalName = signalNames{s};
                                     featureFilename = fullfile(features_pathname,strcat('features.',featureFcn,'.',signalName,'.txt'));
                                     curData.extractFeature(signalName,featureFcn);
-                                    alignedVec = curData.getAlignedFeatureVecs(featureFcn,signalName,elapsedStartHour, intervalDurationHours);
-                                    save(featureFilename,'alignedVec','-ascii','-tabs','-append');
+                                    [alignedVec, alignedStartDateVecs] = curData.getAlignedFeatureVecs(featureFcn,signalName,elapsedStartHour, intervalDurationHours);
+                                    alignedStartDaysOfWeek = datestr(alignedStartDateVecs,'ddd');
+                                    numIntervals = size(alignedVec,1);
+                                    alignedStartNumericDaysOfWeek = nan(numIntervals,1);
+                                    for a=1:numIntervals
+                                        alignedStartNumericDaysOfWeek(a)=dateMap.(alignedStartDaysOfWeek(a,:));
+                                    end
+                                    startDatenums = datenum(alignedStartDateVecs);
+                                    result = [startDatenums,alignedStartNumericDaysOfWeek,alignedVec];
+                                    save(featureFilename,'result','-ascii','-tabs','-append');
                                 end
                                 
                             end

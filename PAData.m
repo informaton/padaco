@@ -1413,31 +1413,26 @@ toc
        
        % --------------------------------------------------------------------
        %> @brief Calculates a desired feature for a particular acceleration object's field value.
-       %> @note This is the general form of getMeanLuxPatches
-       %> @param obj Instance of PAController
+       %> and returns it as a matrix of elapsed time aligned vectors.
+       %> @param obj Instance of PAData
        %> @param featureFcn Function name or handle to use to obtain
        %> features.
-       %> @param fieldName String name of the accelObj field to obtain data from.
-       %> @note Data is obtained using dynamic indexing of
-       %> accelObj instance variable (ie.. data = obj.accelObj.(fildName))
-       %> @param numPatches (optional) Number of patches to break the
-       %> accelObj time series data into and calculate the features from.
-       %> @param paDataObj Optional instance of PAData.  Date time will
-       %> be calculated from this when included, otherwise date time from the
-       %> instance variable accelObj is used.
-       %> @retval featureVec Vector of specified feature values calculated
-       %> from the specified (fieldName) field of the accelObj PAData object instance
-       %> variable.  Vector values are in consecutive order of the section they are calculated from.
-       %> @retval startStopDatenums Nx2 matrix of datenum values whose
-       %> rows correspond to the start/stop range that the feature vector
-       %> value (at the same row position) was derived from.
-       %> @note  Sections will not be calculated on equally lenghted
-       %> sections when numSections does not evenly divide the total number
-       %> of samples.  In this case, the last section may be shorter or
-       %> longer than the others.
+       %> @param signalTagLing String name of the field to obtain data from.
+       %> @param elapsedStartHour Elapsed hour (starting from 00:00 for new
+       %> day) to begin aligning feature vectors.
+       %> @param intervalDurationHours number of hours between
+       %> consecutively aligned feature vectors.
+       %> @note For example if elapsedStartHour is 1 and intervalDurationHours is 24, then alignedFeatureVecs will
+       %> start at 01:00 of each day (and last for 24 hours a piece).
+       %> @retval alignedFeatureVecs Matrix of row vectors, each of which is a
+       %> feature calculated according to featureFcn and aligned according to elapsed start time and
+       %> interval duration in hours.  Consecutive rows are vector values in order of the section they are calculated from.
+       %> @retval alignedStartDateVecs Nx6 matrix of datevec values whose
+       %> rows correspond to the start datevec of the corresponding row of alignedFeatureVecs.
        % --------------------------------------------------------------------
-       function alignedFeatureVecs = getAlignedFeatureVecs(obj,featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours)
+       function [alignedFeatureVecs, alignedStartDateVecs] = getAlignedFeatureVecs(obj,featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours)
            %featureVec = getStruct('featureFcn',signalTagLine);
+
            featureStruct = obj.getStruct('all','features');
            alignedFeatureVecs = [];
            if(isempty(featureStruct) || ~isfield(featureStruct,featureFcn) || isempty(featureStruct.(featureFcn)))
@@ -1462,16 +1457,19 @@ toc
                stopDateVecs = startDateVecs+repmat(frameDurationVec,size(startDateVecs,1),1);
                lastStopDateVec = stopDateVecs(end,:);
                
-               % A convoluted processes
-               remainingDurationHours = datevec(datenum(lastStopDateVec-startDateVec))*[0; 0; 24; 1; 1/60; 1/3600];
-               
+               % A convoluted processes - need to convert datevecs back to
+               % datenum to handle switching across months.
+               remainingDurationHours = datevec(datenum(lastStopDateVec)-datenum(startDateVec))*[0; 0; 24; 1; 1/60; 1/3600];
                
                numIntervals = floor(remainingDurationHours/intervalDurationHours);
                
+               intervalStartDateVecs = repmat(startDateVec,numIntervals,1)+(0:numIntervals-1)'*[0, 0, 0, intervalDurationHours, 0, 0];
+               alignedStartDateVecs = intervalStartDateVecs;
                durationDateVec = [0 0 0 numIntervals*intervalDurationHours 0 0]; 
                stopIndex = find(datenum(stopDateVecs)==datenum(startDateVec+durationDateVec),1,'first');
                
                
+              
                % reshape the result and return as alignedFeatureVec
  
                clippedFeatureVecs = featureVec(startIndex:stopIndex);
@@ -1612,7 +1610,7 @@ toc
                % Note that obj.Data is passed to subsref
                sref = obj.subsindex(cell2mat(s.subs));               
            else
-               if(strcmpi(s(1).subs,'getFrameDuration'))
+               if(~isempty(intersect(lower(s(1).subs),lower({'getFrameDuration','getAlignedFeatureVecs'}))))
                    [sref, varargout{1}] = builtin('subsref',obj,s);
                else
                    sref = builtin('subsref',obj,s);
