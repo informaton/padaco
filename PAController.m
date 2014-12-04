@@ -11,8 +11,7 @@ classdef PAController < handle
     properties(Access=private)
         %> @brief Vector for keeping track of the feature handles that are
         %> displayed on the secondary axes field.
-        featureHandles;         
-        
+        featureHandles;
     end
     properties
         %> acceleration activity object - instance of PAData
@@ -1097,7 +1096,7 @@ classdef PAController < handle
                 % setup developer friendly variable names
                 elapsedStartHour  = obj.batch.alignment.elapsedStartHours;
                 intervalDurationHours = obj.batch.alignment.intervalLengthHours;
-                
+                maxNumIntervals = 24/intervalDurationHours*7;  %set maximum to a week 
                 %obj.batch.alignment.singalName = 'X';
             
                 signalNames = strcat('accel.',accelType,'.',{'x','y','z','vecMag'})';
@@ -1212,8 +1211,13 @@ classdef PAController < handle
                                     featureFilename = fullfile(features_pathname,strcat('features.',featureFcn,'.',signalName,'.txt'));
                                     curData.extractFeature(signalName,featureFcn);
                                     [alignedVec, alignedStartDateVecs] = curData.getAlignedFeatureVecs(featureFcn,signalName,elapsedStartHour, intervalDurationHours);
-                                    alignedStartDaysOfWeek = datestr(alignedStartDateVecs,'ddd');
                                     numIntervals = size(alignedVec,1);
+                                    if(numIntervals>maxNumIntervals)                                        
+                                        alignedVec = alignedVec(1:maxNumIntervals,:);
+                                        alignedStartDateVecs = alignedStartDateVecs(1:maxNumIntervals, :);
+                                        numIntervals = maxNumIntervals;
+                                    end
+                                    alignedStartDaysOfWeek = datestr(alignedStartDateVecs,'ddd');
                                     alignedStartNumericDaysOfWeek = nan(numIntervals,1);
                                     for a=1:numIntervals
                                         alignedStartNumericDaysOfWeek(a)=dateMap.(alignedStartDaysOfWeek(a,:));

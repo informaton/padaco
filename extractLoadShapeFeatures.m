@@ -8,7 +8,7 @@
 %> - Wavelets
 %> - Others
 %> @retval loadShapeFeatures
-function loadShapeFeatures = extractLoadShapeFeatures(loadShapes,featureName)
+function loadShapeFeatures = extractLoadShapeFeatures(loadShapes,featureName,parameter)
 
 switch(lower(featureName))
     case 'sumsqr'
@@ -19,7 +19,8 @@ switch(lower(featureName))
         loadShapeFeatures = extractPeakCount(loadShapes);
     case 'peakduration'
         loadShapeFeatures = extractPeakCount(loadShapes)*15/60;
-        
+    case 'greaterthancount'
+        loadShapeFeatures = extractGreaterThanCount(loadShapes,parameter);
     case 'wavelet'
         loadShapeFeatures = extractWavelet(loadShapes);
     case 'sum'
@@ -29,6 +30,10 @@ switch(lower(featureName))
     otherwise
         fprintf('The feature provided (%s) was not recognized.\n',featureName);
 end
+end
+
+function feature = extractGreaterThanCount(loadShapes,threshold)
+    feature = sum(loadShapes>=threshold,2);
 end
 
 function feature = extractSum(loadShapes)
@@ -43,8 +48,8 @@ function feature = extractPeakCount(loadShapes)
     p = 50;
     y = prctile(loadShapes,p,2);
     feature = sum(loadShapes>=repmat(y,1,size(loadShapes,2)),2);
-    y = 10;
-    feature = sum(loadShapes>=y,2);
+   % y = 10;
+   % feature = sum(loadShapes>=y,2);
 end
     
     

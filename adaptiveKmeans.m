@@ -1,11 +1,13 @@
-function adaptiveKmeans(loadShapes,minClusters, maxClusters)
+function [idx, centroids] = adaptiveKmeans(loadShapes,minClusters, maxClusters, thresholdChoice)
 if(nargin==0)
     featureStruct = loadAlignedFeatures();
-    loadShapes = featureStruct.values;
-    minClusters = 200;
-    maxClusters = 5000;
-    thresholdChoice = 0.2;
+    loadShapes = featureStruct.normalizedValues;
+    minClusters = 100;
+    maxClusters = size(loadShapes,1)/2;
+    thresholdChoice = 1.5; %higher threshold equates to fewer clusters.  
 end
+idx = [];
+
 
 K = minClusters;
 
@@ -14,52 +16,70 @@ K = minClusters;
 %centroids - KxC matrix of cluster centroids.
 
 
+N = size(loadShapes,1);
 % prime the kmeans algorithms starting centroids
-centroids = loadShapes(randperm(size(loadShapes,1),K),:);
+centroids = loadShapes(randperm(N,K),:);
 % prime loop condition since we don't have a do while ...
-numNotCloseEnough = 1;  
+numNotCloseEnough = minClusters;  
 
-while(numNotCloseEnough~=0 && K<=maxClusters)
+while(numNotCloseEnough>0 && K<=maxClusters)
     fprintf('%u were not close enough.  Setting cluster size to %u.\n',numNotCloseEnough,K);
     
     tic
-    [idx, centroids, sumOfPointToCentroidDistances] = kmeans(loadShapes,K,'Start',centroids,'EmptyAction','drop');
+    [idx, centroids, sumD, pointToClusterDistances] = kmeans(loadShapes,K,'Start',centroids,'EmptyAction','drop');
+    
 %    [~, centroids, sumOfPointToCentroidDistances] = kmeans(loadShapes,K,'EmptyAction','drop');
-    toc
+
     removed = sum(isnan(centroids),2)>0;
     numRemoved = sum(removed);
     if(numRemoved>0)
         fprintf('%u clusters were dropped during this iteration.\n',numRemoved);
-        centroids(removed)=[];
-        K = K-sum(removed);
+        centroids(removed,:)=[];
+        K = K-numRemoved;   
+        [idx, centroids, sumD, pointToClusterDistances] = kmeans(loadShapes,K,'Start',centroids,'EmptyAction','drop','onlinephase','off');
     end
 
-    sumOfSquaredCentroids = sum(centroids.^2,2);
-    notCloseEnough = sumOfPointToCentroidDistances>thresholdChoice*sumOfSquaredCentroids;
-    badClusterIndices = 1:K;
-    badClusterIndices = badClusterIndices(notCloseEnough);
-    numNotCloseEnough = sum(notCloseEnough);
-    %splitCentroids = centroids(notCloseEnough,:);
-    centroids(notCloseEnough,:)=[];
+    toc
+
+    point2centroidDistanceIndices = sub2ind(size(pointToClusterDistances),(1:N)',idx);
+    distanceToCentroids = pointToClusterDistances(point2centroidDistanceIndices);
+    sqEuclideanCentroids = (sum(centroids.^2,2));
     
-    % Could preallocate for speed here...
-    % For speed -  
-    % centroids = [centroids; nan(numNotCloseEnough*2, size(centroids,2))];
-    % curRow = size(centroids,1)+1;    
-    for k=1:numel(badClusterIndices)
-        curClusterIndex = badClusterIndices(k);
-        try
-        clusteredLoadShapes = loadShapes(idx==curClusterIndex,:);
-        [~,splitCentroids] = kmeans(clusteredLoadShapes,2);
-        centroids = [centroids;splitCentroids];
-        catch me
-            showME(me);
+    clusterThresholds = thresholdChoice*sqEuclideanCentroids;
+    notCloseEnoughPoints = distanceToCentroids>clusterThresholds(idx);
+    notCloseEnoughClusters = unique(idx(notCloseEnoughPoints));
+        
+    numNotCloseEnough = numel(notCloseEnoughClusters);
+    if(numNotCloseEnough>0)
+        centroids(notCloseEnoughClusters,:)=[];
+        for k=1:numNotCloseEnough
+            curClusterIndex = notCloseEnoughClusters(k);
+            clusteredLoadShapes = loadShapes(idx==curClusterIndex,:);
+            numClusteredLoadShapes = size(clusteredLoadShapes,1);
+            if(numClusteredLoadShapes>1)                
+                try
+                    [~,splitCentroids] = kmeans(clusteredLoadShapes,2,'EmptyAction','drop');
+                    
+                catch me
+                    showME(me);
+                end
+                centroids = [centroids;splitCentroids];
+            else
+                if(numClusteredLoadShapes~=1)
+                   echo(numClusteredLoadShapes); %houston, we have a problem.
+                end
+                numNotCloseEnough = numNotCloseEnough-1;
+                centroids = [centroids;clusteredLoadShapes];
+            end
+            % for speed
+            %[~,centroids(curRow:curRow+1,:)] = kmeans(clusteredLoadShapes,2);
+            %curRow = curRow+2;
         end
-        % for speed
-        %[~,centroids(curRow:curRow+1,:)] = kmeans(clusteredLoadShapes,2);
-        %curRow = curRow+2;
+        
+        % reset cluster centers now / batch update
+        K = K+numNotCloseEnough;
+        [~, centroids] = kmeans(loadShapes,K,'Start',centroids,'EmptyAction','drop','onlinephase','off');
     end
-    K = K+numNotCloseEnough;
     
 end
 
