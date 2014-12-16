@@ -296,6 +296,8 @@ classdef PAController < handle
             set(handles.menu_file_quit,'callback',{@obj.menuFileQuitCallback,guidata(figH)});
             
             %% Tools
+            % export
+            set(handles.menu_tools_export,'callback',@obj.menu_tools_export2workspace_callback);
             % batch
             set(handles.menu_tools_batch,'callback',@obj.menuToolsBatchCallback);
             
@@ -479,13 +481,16 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         %> @brief Updates the secondary axes with the current features selected in the GUI
         %> @param obj Instance of PAController
-        %> @param numSamples Optional number of features to extract (i.e. the number of chunks that the
+        %> @param numFeatures Optional number of features to extract (i.e. the number of chunks that the
         %> the study data will be broken into and the current feature
         %> category applied to.  Default is the current frame count.
+        %> @retval heightOffset y-axis value of the top of the features
+        %> displayed.  This is helpful in determining where to stack
+        %> additional items on top of in the secondary axes.
         % --------------------------------------------------------------------
-        function updateSecondaryFeaturesDisplay(obj,numFrames)
-            if(nargin<2 || isempty(numFrames))
-                numFrames = obj.getFrameCount(); 
+        function heightOffset = updateSecondaryFeaturesDisplay(obj,numFeatures)
+            if(nargin<2 || isempty(numFeatures))
+                numFeatures = obj.getFrameCount(); 
             end
             featureFcn = obj.getExtractorMethod();
             
@@ -496,21 +501,23 @@ classdef PAController < handle
             numViews = (numel(signalTagLines)+1)+2;
             height = 1/numViews;
             heightOffset = 0;
-            delete(obj.featureHandles);
+            if(any(ishandle(obj.featureHandles)))
+                delete(obj.featureHandles);
+            end
             obj.featureHandles = [];
             for s=1:numel(signalTagLines)
                 signalName = signalTagLines{s};
-                [featureVec, startStopDatenums] = obj.getFeatureVec(featureFcn,signalName,numFrames);
+                [featureVec, startStopDatenums] = obj.getFeatureVec(featureFcn,signalName,numFeatures);
                 if(s<numel(signalTagLines))
                     vecHandles = obj.VIEW.addFeaturesVecToSecondaryAxes(featureVec,startStopDatenums,height,heightOffset);                   
                     obj.featureHandles = [obj.featureHandles(:);vecHandles(:)];
+                    heightOffset = heightOffset+height;
                 else
                     % This requires twice the height because it will have a
                     % feature line and heat map
                     obj.VIEW.addFeaturesVecAndOverlayToSecondaryAxes(featureVec,startStopDatenums,height*2,heightOffset);
-
+                    heightOffset = heightOffset+height*2;
                 end
-               heightOffset = heightOffset+height;
             end
             
         end
@@ -869,7 +876,28 @@ classdef PAController < handle
         function menuFileQuitCallback(obj,hObject,eventdata,handles)
             obj.figureCloseCallback(gcbf,eventdata,handles);
         end
-        
+                
+        % --------------------------------------------------------------------
+        %> @brief Menubar callback for exporting PAController's data object to the
+        %> workspace.  This is useful for debugging and developing methods
+        %> ad hoc.
+        %> @param obj Instance of PAController
+        %> @param hObject    handle to menu_tools_batch (see GCBO)
+        %> @param eventdata  reserved - to be defined in a future version of MATLAB
+        %> @param handles    structure with handles and user data (see GUIDATA)
+        % --------------------------------------------------------------------        
+        function menu_tools_export2workspace_callback(obj,hObject,~)
+            dataObj = obj.accelObj;
+            varName = 'dataObject';
+            try
+                assignin('base',varName,dataObj);
+                uiwait(msgbox(sprintf('Data object was assigned to workspace variable %s',varName)));
+
+            catch me
+                showME(me);
+                uiwait(msgbox('An error occurred while trying to export data object to a workspace variable.  See console for details.'));
+            end
+        end
         
         %% Batch mode callbacks        
         
@@ -958,9 +986,9 @@ classdef PAController < handle
         %> @brief Determines the number of actigraph files located in the
         %> specified source path and updates the GUI's count display.
         %> @param obj Instance of PAController
-        %> @param text_sourcePathH Text graphic handle for placing the path
+        %> @param text_sourcePath_h Text graphic handle for placing the path
         %> selected on the GUI display
-        %> @param text_filesFoundH Text graphic handle to place the number
+        %> @param text_filesFound_h Text graphic handle to place the number
         %> of actigraph files found in the source directory.        
         % --------------------------------------------------------------------        
         function calculateFilesFound(obj,text_sourcePath_h,text_filesFound_h)
@@ -1013,7 +1041,7 @@ classdef PAController < handle
         % --------------------------------------------------------------------        
         %> @brief Callback that starts a batch process based on batch gui
         %> paramters.
-        %> @obj Instance of PAController
+        %> @param obj Instance of PAController
         %> @param hObject MATLAB graphic handle of the callback object
         %> @param eventdata reserved by MATLAB, not used.
         % --------------------------------------------------------------------        
@@ -1282,7 +1310,7 @@ classdef PAController < handle
         %> @param curData Instance of PAData
         %> @param featureFcn Extractor method for obtaining features from
         %> curData.
-        %> @img_filename Filename to save image to.  
+        %> @param img_filename Filename to save image to.  
         %> @note The image format is determined from the extension of
         %> img_filename (e.g. if img_filename = 'picture.jpg', then a jpeg
         %> is used.  
@@ -1322,11 +1350,10 @@ classdef PAController < handle
             frameCount = obj.accelObj.getFrameCount();
         end        
         
-        
         % --------------------------------------------------------------------
         %> @brief Calculates the mean lux value for a given number of sections.
         %> @param obj Instance of PAController
-        %> @param numPatches (optional) Number of patches to break the
+        %> @param numSections (optional) Number of patches to break the
         %> accelObj lux time series data into and calculate the mean
         %> lumens over.
         %> @param paDataObj Optional instance of PAData.  Mean lumens will
@@ -1363,7 +1390,7 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         %> @brief Estimates daylight intensity across the study.
         %> @param obj Instance of PAController
-        %> @param numPatches (optional) Number of chunks to estimate
+        %> @param numSections (optional) Number of chunks to estimate
         %> daylight at across the study.  Default is 100.
         %> @param paDataObj Optional instance of PAData.  Date time will
         %> be calculated from this when included, otherwise date time from the
@@ -1413,7 +1440,7 @@ classdef PAController < handle
         %> @param fieldName String name of the accelObj field to obtain data from.  
         %> @note Data is obtained using dynamic indexing of
         %> accelObj instance variable (ie.. data = obj.accelObj.(fildName))
-        %> @param numPatches (optional) Number of patches to break the
+        %> @param numSections (optional) Number of patches to break the
         %> accelObj time series data into and calculate the features from.
         %> @param paDataObj Optional instance of PAData.  Date time will
         %> be calculated from this when included, otherwise date time from the
@@ -1448,7 +1475,36 @@ classdef PAController < handle
             end
         end
         
-        
+        % --------------------------------------------------------------------
+        %> @brief Calculates a desired feature for a particular acceleration object's field value.
+        %> @note This is the general form of getMeanLuxPatches
+        %> @param obj Instance of PAController
+        %> @param featureFcn Function name or handle to use to obtain
+        %> features.
+        %> @param fieldName String name of the accelObj field to obtain data from.  
+        %> @note Data is obtained using dynamic indexing of
+        %> accelObj instance variable (ie.. data = obj.accelObj.(fildName))
+        %> @param numSections (optional) Number of patches to break the
+        %> accelObj time series data into and calculate the features from.
+        %> @param paDataObj Optional instance of PAData.  Date time will
+        %> be calculated from this when included, otherwise date time from the
+        %> instance variable accelObj is used.
+        %> @retval featureVec Vector of specified feature values calculated
+        %> from the specified (fieldName) field of the accelObj PAData object instance
+        %> variable.  Vector values are in consecutive order of the section they are calculated from.
+        %> @retval startStopDatenums Nx2 matrix of datenum values whose
+        %> rows correspond to the start/stop range that the feature vector
+        %> value (at the same row position) was derived from.
+        %> @note  Sections will not be calculated on equally lenghted        
+        %> sections when numSections does not evenly divide the total number
+        %> of samples.  In this case, the last section may be shorter or
+        %> longer than the others.
+        % --------------------------------------------------------------------
+        function [usageVec, usageStates,startStopDatenums] = getUsageState(obj)
+            paDataObj = obj.accelObj;
+            [usageVec, usageStates, startStopDatenums] = paDataObj.classifyUsageState;             
+        end
+                
         %% context menu's for the view
         
         % =================================================================
@@ -1516,9 +1572,6 @@ classdef PAController < handle
        % =================================================================
        %> @brief Configure contextmenu for signals that will be drawn in the view.
        %> @param obj instance of PAController.
-       %> @param parent_fig The figure handle that the context menu handle
-       %> is assigned to (i.e. the 'parent' handle).  (Optional, [] is
-       %> default)
        %> @retval uicontextmenu_handle A contextmenu handle.  This should
        %> be assigned to the line handles drawn by the PAController and
        %> PAView classes.
@@ -1629,7 +1682,7 @@ classdef PAController < handle
        %> @param lineTag The tag for the current selected linehandle.
        %> @note lineTag = 'timeSeries.accelCount.x'
        %> This is used for dynamic indexing into the accelObj's datastructs.
-       %> @param ylim Y-axes limits; cannot move the channel above or below
+       %> @param y_lim Y-axes limits; cannot move the channel above or below
        %> these bounds.
        %> @retval obj instance of CLASS_channels_container.
        % =================================================================
@@ -1800,26 +1853,41 @@ classdef PAController < handle
             displayType = 'Time Series';
             displayStructName = PAData.getStructNameFromDescription(displayType);
             obj.setRadioButton(displayStructName);
-
             obj.setDisplayType(displayStructName);
             
             %but not everything is shown...
             
             obj.setCurWindow(obj.accelObj.getCurWindow());
-
-            numFrames = obj.getFrameCount(); 
             
+            %% Update the secondary axes 
+            % Items to display = 8;
+            % Items 1-5
+            % Starting from the bottom of the axes - display the features
+            % for x, y, z, vec magnitude, and 1-d values            
+            heightOffset = obj.updateSecondaryFeaturesDisplay();   
+
+            itemsToDisplay = 3; % usage state, mean lumens, daylight approx
+            remainingHeight = 1-heightOffset;
+            height = remainingHeight/itemsToDisplay;
+            
+            [usageVec,usageState, startStopDatenums] = obj.getUsageState();
+            vecHandles = obj.VIEW.addFeaturesVecToSecondaryAxes(usageVec,obj.accelObj.dateTimeNum,height,heightOffset);   
+            %obj.VIEW.addOverlayToSecondaryAxes(usageState,startStopDatenums,1/numRegions,curRegion/numRegions);
+            
+            % Next, add lumens intensity to secondary axes 
+            heightOffset = heightOffset+height;
             maxLumens = 250;
+            numFrames = obj.getFrameCount(); 
             [meanLumens,startStopDatenums] = obj.getMeanLumenPatches(numFrames);
-            obj.VIEW.addOverlayToSecondaryAxes(meanLumens,startStopDatenums,1/7,5/7,maxLumens);
+            obj.VIEW.addOverlayToSecondaryAxes(meanLumens,startStopDatenums,height,heightOffset,maxLumens);
             %             [medianLumens,startStopDatenums] = obj.getMedianLumenPatches(1000);
             %             obj.VIEW.addLumensOverlayToSecondaryAxes(meanLumens,startStopDatenums);
             
-            obj.updateSecondaryFeaturesDisplay();   
-
+            % Finally Add daylight to the top.
+            heightOffset = heightOffset+height;            
             maxDaylight = 1;
             [daylight,startStopDatenums] = obj.getDaylight(numFrames);
-             obj.VIEW.addOverlayToSecondaryAxes(daylight,startStopDatenums,1/7-0.005,6/7,maxDaylight);
+            obj.VIEW.addOverlayToSecondaryAxes(daylight,startStopDatenums,height-0.005,heightOffset,maxDaylight);
             obj.VIEW.showReady();
         end
         
@@ -1960,12 +2028,11 @@ classdef PAController < handle
                 heightOffset = heightOffset+height;
             end
             
-            
-            
-            numViews = 7;
+            ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Lumens','Daylight'};
+            numViews = numel(ytickLabel);
             startStopDatenum = [startStopDatenums(1),startStopDatenums(end)];
+            axesProps.yticklabel = ytickLabel;
             axesProps.ytick = 1/numViews/2:1/numViews:1;
-            axesProps.yticklabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Lumens','Daylight'};
             axesProps.TickDir = 'in';
             axesProps.TickDirMode = 'manual';
             axesProps.TickLength = [0.001 0];
@@ -2118,7 +2185,6 @@ classdef PAController < handle
         
         % ======================================================================
         %> @brief Returns a structure of PAControllers default, saveable parameters as a struct.
-        %> @param obj Instance of PAController.
         %> @retval pStruct A structure of parameters which include the following
         %> fields
         %> - @c featureFcn

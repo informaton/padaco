@@ -94,13 +94,15 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         %> PAView class constructor.
         %> @param Padaco_fig_h Figure handle to assign PAView instance to.
-        %> @param lineContextMenuHandle Contextmenu handle to assign to
+        %> @param lineContextmenuHandle Contextmenu handle to assign to
         %> VIEW's line handles
-        %> @param primaryAxesContextMenuHandle Contextmenu to assign to
+        %> @param primaryAxesContextmenuHandle Contextmenu to assign to
         %> VIEW's primary axes.
+        %> @param featureLineContextmenuHandle Contextmenu to assign to
+        %> VIEW's feature line handles.
         %> @retval obj Instance of PAView
         % --------------------------------------------------------------------
-        function obj = PAView(Padaco_fig_h,lineContextmenuHandle,primaryAxesContextmenuHandle,featureLineContextMenuHandle)
+        function obj = PAView(Padaco_fig_h,lineContextmenuHandle,primaryAxesContextmenuHandle,featureLineContextmenuHandle)
             if(ishandle(Padaco_fig_h))
                 if(nargin<3)
                     primaryAxesContextmenuHandle = [];
@@ -124,7 +126,7 @@ classdef PAView < handle
 
                 obj.contextmenuhandle.primaryAxes = primaryAxesContextmenuHandle;
                 obj.contextmenuhandle.signals = lineContextmenuHandle;
-                obj.contextmenuhandle.featureLine = featureLineContextMenuHandle;
+                obj.contextmenuhandle.featureLine = featureLineContextmenuHandle;
                 
                 obj.createView();                
             else
@@ -327,7 +329,7 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         %> @brief Returns the display type instance variable.    
         %> @param obj Instance of PAView.
-        %> @retva; displayTypeStr A string representing the display type.
+        %> @retval displayTypeStr A string representing the display type.
         %> Will be one of:
         %> @li @c Time Series
         %> @li @c Aggregate Bins
@@ -512,9 +514,9 @@ classdef PAView < handle
 %             end
             
             
-                %creates and initializes line handles (obj.linehandle fields)
-            %> @param lineContextMenuHandle Contextmenu handle to assign to
-            %> VIEW's line handles
+            %creates and initializes line handles (obj.linehandle fields)
+            % lineContextMenuHandle Contextmenu handle to assign to
+            %VIEW's line handles
 
             % However, all lines are invisible.
             obj.createLineAndLabelHandles(PADataObject);
@@ -669,8 +671,8 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         %> @brief Updates the secondary axes x and y axes limits.
         %> @param obj Instance of PAView
-        %> @param startStopDatenum A 1x2 vector of the starting and stoping
-        %> date numbers.
+        %> @param axesRange A 1x2 vector of the starting and stoping
+        %> date numbers for the primary axes' x-axis.
         % --------------------------------------------------------------------
         function updatePrimaryAxes(obj,axesRange)
             axesProps.primary.xlim = axesRange;
@@ -703,9 +705,9 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         %> @brief Adds a feature vector as a heatmap and as a line plot to the secondary axes.
         %> @param obj Instance of PAView.
-        %> @featureVector A vector of features to be displayed on the
+        %> @param featureVector A vector of features to be displayed on the
         %> secondary axes.
-        %> @startStopDatenum A vector of start and stop date nums that
+        %> @param startStopDatenum A vector of start and stop date nums that
         %> correspond to the start and stop times of the study that the
         %> feature in featureVector at the same index corresponds to.
         %> @param overlayHeight - The proportion (fraction) of vertical space that the
@@ -729,9 +731,9 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         %> @brief Plots a feature vector on the secondary axes.
         %> @param obj Instance of PAView.
-        %> @featureVector A vector of features to be displayed on the
+        %> @param featureVector A vector of features to be displayed on the
         %> secondary axes.
-        %> @startStopDatenum A vector of start and stop date nums that
+        %> @param startStopDatenum A vector of start and stop date nums that
         %> correspond to the start and stop times of the study that the
         %> feature in featureVector at the same index corresponds to.
         %> @param overlayHeight - The proportion (fraction) of vertical space that the
@@ -750,7 +752,7 @@ classdef PAView < handle
         %> @param obj Instance of PAView.
         %> @param overlayVector A magnitude vector to be displayed in the
         %> secondary axes as a heat map.
-        %> @startStopDatenum An Nx2 matrix start and stop datenums which
+        %> @param startStopDatenum An Nx2 matrix start and stop datenums which
         %> correspond to the start and stop times of the same row in overlayVector.
         %> @param overlayHeight - The proportion (fraction) of vertical space that the
         %> overlay will take up in the secondary axes.
@@ -1143,16 +1145,20 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         %> @brief Adds a feature vector as a heatmap and as a line plot to the
         %> specified axes
-        %> @featureVector The vector of features to be displayed.
+        %> @param featureVector The vector of features to be displayed.
         %> @param startStopDatenum A vector of start and stop date nums that
         %> correspond to the start and stop times of the study that the
         %> feature in featureVector at the same index corresponds to.
         %> @param overlayHeight - The proportion (fraction) of vertical space that the
         %> overlay will take up in the axes.
         %> @param overlayOffset The normalized y offset ([0, 1]) that is applied to
-        %> the featureVector when displayed on the axes.   
+        %> the featureVector when displayed on the axes. 
+        %> @param axesH Handle of the axes to assign features to.
         %> @param contextmenuH Optional contextmenu handle.  Is assigned to the overlayLineH lines
-        %> contextmenu callback when included.    
+        %> contextmenu callback when included.  
+        %> @retval feature_patchH Patch handle of feature
+        %> @retval feature_lineH Line handle of feature
+        %> @retval feature_cumsumLineH Line handle of cumulative sum of feature        
         % --------------------------------------------------------------------
         function [feature_patchH, feature_lineH, feature_cumsumLineH] = addFeaturesVecAndOverlayToAxes(featureVector, startStopDatenum, overlayHeight, overlayOffset, axesH, contextmenuH)
             if(nargin<6)
@@ -1211,7 +1217,7 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> @brief Plots a feature vector on the specified axes.
-        %> @featureVector A vector of features to be displayed.
+        %> @param featureVector A vector of features to be displayed.
         %> @param startStopDatenum A vector of start and stop date nums that
         %> correspond to the start and stop times of the study that the
         %> feature in featureVector at the same index corresponds to.

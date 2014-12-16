@@ -7,6 +7,8 @@
 %> - width of Peaks
 %> - Wavelets
 %> - Others
+%> @param parameter Optional parameter that can can be supplied for some
+%> featureName inputs (e.g. 'greaterthancount').
 %> @retval loadShapeFeatures
 function loadShapeFeatures = extractLoadShapeFeatures(loadShapes,featureName,parameter)
 

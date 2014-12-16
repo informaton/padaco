@@ -15,25 +15,25 @@ classdef PAData < handle
        accelType;
        %> @brief Structure of count and raw accelerations structs (x,y,z).  Fields are:
        %> - @c raw Structure of raw x,y,z accelerations.  Fields are:
-       %> @li - x x-axis
-       %> @li - y y-axis
-       %> @li - z z-axis       
+       %> @li x x-axis
+       %> @li y y-axis
+       %> @li z z-axis       
        %> - @c count Structure of actigraph derived counts for x,y,z acceleration readings.  Fields are:
-       %> @li - x x-axis
-       %> @li - y y-axis
-       %> @li - z z-axis       
-       %> @li - vecMag vectorMagnitude       
+       %> @li x x-axis
+       %> @li y y-axis
+       %> @li z z-axis       
+       %> @li vecMag vectorMagnitude       
        accel;
        %> @brief Structure of inclinometer values.  Fields include:
-       %> @li - off
-       %> @li - standing
-       %> @li - sitting
-       %> @li - lying   
+       %> @li off
+       %> @li standing
+       %> @li sitting
+       %> @li lying   
        inclinometer;
        %> @brief Steps - unknown?  Maybe pedometer type reading?  
        steps;
-       %> @brief Magnitude of tri-axis acceleration vectors.
-       vecMag;
+       % - Removed on 12/15/2014 - @brief Magnitude of tri-axis acceleration vectors.
+       % vecMag;
        %> @brief Time of day (HH:MM:SS) of sample reading
        timeStamp;
        %> @brief Luminance levels.
@@ -1417,7 +1417,7 @@ toc
        %> @param obj Instance of PAData
        %> @param featureFcn Function name or handle to use to obtain
        %> features.
-       %> @param signalTagLing String name of the field to obtain data from.
+       %> @param signalTagLine String name of the field to obtain data from.
        %> @param elapsedStartHour Elapsed hour (starting from 00:00 for new
        %> day) to begin aligning feature vectors.
        %> @param intervalDurationHours number of hours between
@@ -1483,16 +1483,92 @@ toc
        %> @brief Categorizes the study's usage state.
        %> @note This is not yet implemented.
        %> @param obj Instance of PAData.
+       %> @retval usageVec A vector of length obj.dateTimeNum whose values
+       %> represent the usage category at each sample instance specified by
+       %> dateTimeNum.
        %> @retval usageState A three column matrix identifying usage state
        %> and duration.  Column 1 is the usage state, column 2 and column 3 are
-       %> the states start and stop times (datenums).
+       %> the states start and stop times (datenums).       
        %> @note Usage states are categorized as follows:
-       %> - c 0 Sleep
-       %> - c 1 Wake
-       %> - c 2 Nonwear       
+       %> - c -1 Nonwear       
+       %> - c 0 Sleep - 0.25 rem, 0.75 nonrem
+       %> - c 1 Wake - inactive
+       %> - c 1 Wake - wake       
+       %> @retval startStopDatenums Start and stop datenums for each usage
+       %> state row entry of usageState.
        % ======================================================================
-       function usageState = classifyUsageState(obj)
-           usageState = randi([0, 2],obj.durationSec/60/8,1);           
+       function [usageVec, usageState, startStopDateNums] = classifyUsageState(obj)
+           % activity determined from vector magnitude signal
+           countActivity = obj.accel.count.vecMag;
+            
+           classificationMinimumDurationOfMinutes = 15;%a 1/4 hour filter?
+           samplesPerMinute = obj.getSampleRate()*60;   
+           
+           
+           filterLength = classificationMinimumDurationOfMinutes*samplesPerMinute;
+           B = ones(1,filterLength);
+           
+           tic;runningActivitySum = filtfilt(B,1,countActivity);
+           toc
+           
+           usageVec = zeros(size(obj.dateTimeNum));
+           %give threshold to be unde 15% of the filter legnth,
+           %essentially 15 counts allowed per hundred samples.
+           sleepThreshold = filterLength*0.15;  
+           offBodyThreshold = filterLength*0.01;   %This is good for determining where the study has ended... using a 15 minute duration minimum
+           offBodyThreshold = 10;
+           
+           nonwearVec = runningActivitySum<offBodyThreshold;
+           candidate_nonwear_events= thresholdcrossings(nonwearVec,0);
+           
+           params.merge_within_sec = 3600*4;
+           params.min_dur_sec = 3600*4;
+           
+           if(~isempty(candidate_nonwear_events))
+               
+               if(params.merge_within_sec>0)
+                   merge_distance = round(params.merge_within_sec*obj.getSampleRate());
+                   nonwear_events = CLASS_events.merge_nearby_events(candidate_nonwear_events,merge_distance);
+               end
+               
+               if(params.min_dur_sec>0)
+                   diff_sec = (candidate_nonwear_events(:,2)-candidate_nonwear_events(:,1))/obj.getSampleRate();
+                   nonwear_events = candidate_nonwear_events(diff_sec>=params.min_dur_sec,:);
+               end
+               
+               studyOverParams.merge_within_sec = 3600*6;
+               studyOverParams.min_dur_sec = 3600*12;% -> this is for classifying state as over.
+               merge_distance = round(studyOverParams.merge_within_sec*obj.getSampleRate());
+               candidate_studyover_events = CLASS_events.merge_nearby_events(nonwear_events,merge_distance);
+               diff_sec = (candidate_studyover_events(:,2)-candidate_studyover_events(:,1))/obj.getSampleRate();                   
+               studyover_events = candidate_studyover_events(diff_sec>=studyOverParams.min_dur_sec,:);
+               
+           end
+           
+           nonwearVec = obj.unrollEvents(nonwear_events,numel(usageVec));
+           studyOverVec = obj.unrollEvents(studyover_events,numel(usageVec));
+           
+           nonwear_events = thresholdcrossings(nonwearVec,0);
+
+           nonwearStartStopDateNums = [obj.dateTimeNum(nonwear_events(:,1)),obj.dateTimeNum(nonwear_events(:,2))];
+           %durationOff = nonwear(:,2)-nonwear(:,1);
+           %durationOffInHours = (nonwear(:,2)-nonwear(:,1))/3600;
+           nonwearState = repmat(5,size(nonwear_events,1),1);
+
+           %            wearVec = runningActivitySum>=offBodyThreshold;
+           wearVec = ~nonwearVec;
+           wear = thresholdcrossings(wearVec,0);
+           wearStartStopDateNums = [obj.dateTimeNum(wear(:,1)),obj.dateTimeNum(wear(:,2))];
+           wearState = repmat(10,size(wear,1),1);
+
+           usageState = [nonwearState;wearState];
+           [startStopDateNums, sortIndex] = sortrows([nonwearStartStopDateNums;wearStartStopDateNums]);  
+           usageState = usageState(sortIndex);
+           
+           usageVec(wearVec) = 10;
+           usageVec(nonwearVec) = 5;
+           usageVec(studyOverVec) = 1;
+           
        end
        
        
@@ -1524,22 +1600,25 @@ toc
        %> @brief Saves data to an ascii file.
        %> @note This is not yet implemented.
        %> @param obj Instance of PAData.
-       %> @param activityType The type of activity to describe.  This is a string.  Values include:
+       %> @param activityType The type of activity to save.  This is a string.  Values include:
        %> - c usageState
        %> - c activitiy
        %> - c inactivity
        %> - c sleep
+       %> @param saveFilename Name of the file to save data to.
+       %> @note This method is under construction and does not actually
+       %> save any data at the moment.
        % ======================================================================
-       function obj = saveToFile(obj,saveType, saveFilename)
-           switch(saveType)
+       function obj = saveToFile(obj,activityType, saveFilename)
+           switch(activityType)
                case 'usageState'
-                   fprintf('Saving %s to %s.\n',saveType,saveFilename);
+                   fprintf('Saving %s to %s.\n',activityType,saveFilename);
                case 'activity'
-                   fprintf('Saving %s to %s.\n',saveType,saveFilename);
+                   fprintf('Saving %s to %s.\n',activityType,saveFilename);
                case 'inactivity'
-                   fprintf('Saving %s to %s.\n',saveType,saveFilename);                   
+                   fprintf('Saving %s to %s.\n',activityType,saveFilename);                   
                case 'sleep'                   
-                   fprintf('Saving %s to %s.\n',saveType,saveFilename);
+                   fprintf('Saving %s to %s.\n',activityType,saveFilename);
            end
        end
        
@@ -1612,6 +1691,8 @@ toc
            else
                if(~isempty(intersect(lower(s(1).subs),lower({'getFrameDuration','getAlignedFeatureVecs'}))))
                    [sref, varargout{1}] = builtin('subsref',obj,s);
+               elseif(~isempty(intersect(lower(s(1).subs),lower({'classifyUsageState'}))))
+                   [sref, varargout{1}, varargout{2}] = builtin('subsref',obj,s);
                else
                    sref = builtin('subsref',obj,s);
                end
@@ -1763,8 +1844,6 @@ toc
            end
        end
        
-       
-       
        % ======================================================================
        %> @brief Returns a structure of an insance PAData's time series
        %> data at the current window.
@@ -1884,6 +1963,23 @@ toc
    end
    
    methods(Static)
+       
+       %> @brief Helper function to convert an Nx2 matrix of start stop
+       %> events into a single logical vector with 1's located at the 
+       %> locations corresponding to the samples inclusively between
+       %> eventStartStops row entries.
+       %> @param eventStartStop
+       %> @param vectorSize The length or size of the sample data to unroll
+       %> the start stop events back to.  
+       %> @note eventStartStop = thresholdCrossings(vector,0);
+       %> @retval vector
+       function vector = unrollEvents(eventsStartStop,vectorSize)
+           vector = false(vectorSize,1);
+           for e=1:size(eventsStartStop,1)
+              vector(eventsStartStop(e,1):eventsStartStop(e,2))=true;
+           end
+       end
+           
 
        %> @brief returns a cell of tag lines and the associated label
        %> describing the tag line.
@@ -1927,7 +2023,6 @@ toc
        
        % ======================================================================
        %> @brief Returns a structure of PAData's default parameters as a struct.
-       %> @param obj Instance of PAData.
        %> @retval pStruct A structure of default parameters which include the following
        %> fields
        %> - @c curWindow
