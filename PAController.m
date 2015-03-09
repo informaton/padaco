@@ -6,12 +6,14 @@
 %
 %> In the model, view, controller paradigm, this is the
 %> controller. 
-
 classdef PAController < handle
     properties(Access=private)
         %> @brief Vector for keeping track of the feature handles that are
         %> displayed on the secondary axes field.
         featureHandles;
+        %> @brief The number of items to be displayed in the secondary
+        %> axes.
+        numViewsInSecondaryDisplay;
     end
     properties
         %> acceleration activity object - instance of PAData
@@ -492,13 +494,16 @@ classdef PAController < handle
             if(nargin<2 || isempty(numFeatures))
                 numFeatures = obj.getFrameCount(); 
             end
+            if(nargin<3 || isempty(heightPercentAllowed))
+                heightPercentAllowed=1;
+            end
             featureFcn = obj.getExtractorMethod();
             
             %  signalTagLine = obj.getSignalSelection();
             %  obj.drawFeatureVecPatches(featureFcn,signalTagLine,numFrames);
             
             signalTagLines = strcat('accel.',obj.accelObj.accelType,'.',{'x','y','z','vecMag'})';
-            numViews = (numel(signalTagLines)+1)+2;
+            numViews = obj.numViewsInSecondaryDisplay; %(numel(signalTagLines)+1);
             height = 1/numViews;
             heightOffset = 0;
             if(any(ishandle(obj.featureHandles)))
@@ -518,8 +523,7 @@ classdef PAController < handle
                     obj.VIEW.addFeaturesVecAndOverlayToSecondaryAxes(featureVec,startStopDatenums,height*2,heightOffset);
                     heightOffset = heightOffset+height*2;
                 end
-            end
-            
+            end            
         end
         
         % --------------------------------------------------------------------
@@ -1861,9 +1865,11 @@ classdef PAController < handle
             
             %% Update the secondary axes 
             % Items to display = 8;
+            obj.numViewsInSecondaryDisplay = 8;
+            
             % Items 1-5
             % Starting from the bottom of the axes - display the features
-            % for x, y, z, vec magnitude, and 1-d values            
+            % for x, y, z, vec magnitude, and 1-d values               
             heightOffset = obj.updateSecondaryFeaturesDisplay();   
 
             itemsToDisplay = 3; % usage state, mean lumens, daylight approx

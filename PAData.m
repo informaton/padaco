@@ -1501,28 +1501,53 @@ toc
            % activity determined from vector magnitude signal
            countActivity = obj.accel.count.vecMag;
             
-           classificationMinimumDurationOfMinutes = 15;%a 1/4 hour filter?
-           samplesPerMinute = obj.getSampleRate()*60;   
-           
-           
-           filterLength = classificationMinimumDurationOfMinutes*samplesPerMinute;
-           B = ones(1,filterLength);
-           
-           tic;runningActivitySum = filtfilt(B,1,countActivity);
-           toc
+           longClassificationMinimumDurationOfMinutes = 15;%a 1/4 hour filter?
+           samplesPerMinute = obj.getSampleRate()*60;              
+
+           shortClassificationMinimumDurationOfMinutes = 5;%a 1/4 hour filter?
+
+           longFilterLength = longClassificationMinimumDurationOfMinutes*samplesPerMinute;           
+           shortFilterLength = shortClassificationMinimumDurationOfMinutes*samplesPerMinute;           
+           tic;
+           longRunningActivitySum = obj.movingSummer(countActivity,longFilterLength);
+           shortRunningActivitySum = obj.movingSummer(countActivity,shortFilterLength);
+           toc;
            
            usageVec = zeros(size(obj.dateTimeNum));
-           %give threshold to be unde 15% of the filter legnth,
-           %essentially 15 counts allowed per hundred samples.
-           sleepThreshold = filterLength*0.15;  
-           offBodyThreshold = filterLength*0.01;   %This is good for determining where the study has ended... using a 15 minute duration minimum
-           offBodyThreshold = 10;
            
-           nonwearVec = runningActivitySum<offBodyThreshold;
-           candidate_nonwear_events= thresholdcrossings(nonwearVec,0);
+           awakeVsAsleepCountsPerSecondCutoff = 1;
+           activeVsInactiveCountsPerSecondCutoff = 10;
+           onbodyVsOffBodyCountsPerMinuteCutoff = 1;
+           % This is good for determining where the study has ended... using a 15 minute duration minimum
+           % (essentially 15 counts allowed per hundred samples.)
+           offBodyThreshold = longClassificationMinimumDurationOfMinutes*onbodyVsOffBodyCountsPerMinuteCutoff;
+           longActiveThreshold = longClassificationMinimumDurationOfMinutes*(activeVsInactiveCountsPerSecondCutoff*60);
+           
+           
+           awakeVsAsleepVec = longRunningActivitySum>awakeVsAsleepCountsPerSecondCutoff;
+           activeVec = longRunningActivitySum>longActiveThreshold;
+           inactiveVec = awakeVsAsleepVec&~activeVec;
+           sleepVec = ~awakeVsAsleepVec;
+           longNoActivityVec = longRunningActivitySum<offBodyThreshold;
+           
+           sleepPeriodParams.merge_within_samples = 3600*2*obj.getSampleRate();
+           sleepPeriodParams.min_dur_samples = 3600*4*obj.getSampleRate();
+           sleepVec = obj.reprocessEventVector(sleepVec,sleepPeriodParams.min_dur_samples,sleepPeriodParams.merge_within_samples);
+           
+           % Examine rem sleep on a shorter time scale 
+           shortOffBodyThreshold = shortClassificationMinimumDurationOfMinutes*onbodyVsOffBodyCountsPerMinuteCutoff;
+           % shortActiveThreshold = shortClassificationMinimumDurationOfMinutes*(activeVsInactiveCountsPerSecondCutoff*60);
+           shortNoActivityVec = shortRunningActivitySum<shortOffBodyThreshold;           
+           remSleepPeriodParams.merge_within_samples = 60*5*obj.getSampleRate();  %merge within 5 minutes
+           remSleepPeriodParams.min_dur_samples = 60*20*obj.getSampleRate();   %require minimum of 20 minutes
+           remSleepVec = obj.reprocessEventVector(sleepVec&shortNoActivityVec,remSleepPeriodParams.min_dur_samples,remSleepPeriodParams.merge_within_samples);
+           candidate_nonwear_events= thresholdcrossings(longNoActivityVec,0);
            
            params.merge_within_sec = 3600*4;
            params.min_dur_sec = 3600*4;
+           
+%            params.merge_within_sec = 3600*1;
+%            params.min_dur_sec = 3600*1;
            
            if(~isempty(candidate_nonwear_events))
                
@@ -1546,6 +1571,26 @@ toc
            end
            
            nonwearVec = obj.unrollEvents(nonwear_events,numel(usageVec));
+           
+           % Round the study over events to the end of the study if it is
+           % within 4 hours of the end of the study.
+           % --- Otherwise, should I remove all study over events, because
+           % the study is clearly not over then (i.e. there is more
+           % activity being presented).
+           if(~isempty(studyover_events))
+               diff_hours = (obj.durationSamples()-studyover_events(end))/obj.getSampleRate()/3600;
+               if(diff_hours<=4)
+                   studyover_events(end) = obj.durationSamples();
+               end
+           end
+           
+           % We really just want one section of study over -> though this
+           % may be worthwhile to note in cases where studies have large
+           % gaps.
+           if(size(studyover_events,1)>1)
+               studyover_events = studyover_events(end,:);
+           end
+           
            studyOverVec = obj.unrollEvents(studyover_events,numel(usageVec));
            
            nonwear_events = thresholdcrossings(nonwearVec,0);
@@ -1565,9 +1610,16 @@ toc
            [startStopDateNums, sortIndex] = sortrows([nonwearStartStopDateNums;wearStartStopDateNums]);  
            usageState = usageState(sortIndex);
            
-           usageVec(wearVec) = 10;
+           %usageVec(awakeVsAsleepVec) = 20;
+           %usageVec(wearVec) = 10;   %        This is covered
+           usageVec(activeVec) = 30;  %None!
+           usageVec(inactiveVec) = 25;
+           usageVec(~awakeVsAsleepVec) = 20; 
+           usageVec(sleepVec) = 15;   %Sleep period
+           usageVec(remSleepVec) = 10;  %REM sleep
            usageVec(nonwearVec) = 5;
-           usageVec(studyOverVec) = 1;
+           usageVec(studyOverVec) = 0;
+           
            
        end
        
@@ -1963,6 +2015,59 @@ toc
    end
    
    methods(Static)
+       
+       
+       %> @brief Removes periods of activity that are too short and goups
+       %> nearby activity groups together.
+       %> @param logicalVec Initial vector which has 1's where an event or
+       %> activity is occurring at that sample.  
+       %> @param min_duration_samples The minimum number of consecutive
+       %> samples required for a run of on (1) samples to be kept.
+       %> @param merge_distance_samples The maximum number of samples
+       %> considered when looking for adjacent runs to merge together.
+       %> Adjacent runs that are within this distance are merged into a
+       %> single run beginning at the start of the first and stopping at the end of the last run.
+       %> @retval processVec A vector of size (logicalVec) that has removed
+       %> runs (of 1) that are too short and merged runs that are close enough
+       %> together.
+       function processVec = reprocessEventVector(logicalVec,min_duration_samples,merge_distance_samples)
+           
+           candidate_events= thresholdcrossings(logicalVec,0);
+           
+           if(~isempty(candidate_events))
+               
+               if(merge_distance_samples>0)
+                   candidate_events = CLASS_events.merge_nearby_events(candidate_events,merge_distance_samples);
+               end
+               
+               if(min_duration_samples>0)
+                   diff_samples = (candidate_events(:,2)-candidate_events(:,1));
+                   candidate_events = candidate_events(diff_samples>=min_duration_samples,:);
+               end
+           end
+           
+           processVec = PAData.unrollEvents(candidate_events,numel(logicalVec));
+
+       end
+
+       
+       %======================================================================
+       %> @brief Moving summer finite impulse response filter.
+       %> @param signal Vector of sample data to filter.
+       %> @param filterOrder filter order; number of taps in the filter
+       %> @retval summedSignal The filtered signal.
+       %> @note The filter delay is taken into account such that the
+       %> return signal is offset by half the delay.
+       function summedSignal = movingSummer(signal, filterOrder)
+           delay = floor(filterOrder/2);
+           B = ones(filterOrder,1);
+           A = 1;
+           summedSignal = filter(B,A,signal);
+           
+           %account for the delay...
+           summedSignal = [summedSignal((delay+1):end); zeros(delay,1)];
+       end
+       
        
        %> @brief Helper function to convert an Nx2 matrix of start stop
        %> events into a single logical vector with 1's located at the 

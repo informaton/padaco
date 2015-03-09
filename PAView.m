@@ -496,9 +496,10 @@ classdef PAView < handle
             axesProps.primary.xlim = PADataObject.getCurWindowRange();
             axesProps.primary.ylim = PADataObject.getDisplayMinMax();
             
-            numViews = 7;
+            ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Lumens','Daylight'};
+            numViews = numel(ytickLabel);
             axesProps.secondary.ytick = 1/numViews/2:1/numViews:1;
-            axesProps.secondary.yticklabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Lumens','Daylight'};
+            axesProps.secondary.yticklabel = ytickLabel;
             axesProps.secondary.TickDir = 'in';
             axesProps.secondary.TickDirMode = 'manual';
             
