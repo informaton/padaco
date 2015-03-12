@@ -2,9 +2,9 @@
 %> @file PAData.cpp
 %> @brief Accelerometer data loading class.
 % ======================================================================
-%> @brief The class loads and stores accelerometer data used in the 
-%> Physical Activity monitoring project aimed to reduce obesity 
-%> and improve child health.
+%> @brief The PAData class helps loads and stores accelerometer data used in the 
+%> physical activity monitoring project.  The project is aimed at reducing
+%> obesity and improving health in children.
 % ======================================================================
 classdef PAData < handle
    properties
@@ -129,22 +129,20 @@ classdef PAData < handle
        
        % ======================================================================
        %> @brief Constructor for PAData class.
-       %> @param fullFilename The full filename (i.e. with pathname) of accelerometer data to load.
+       %> @param fullFilenameOrPath Either (1) the full filename (i.e. with pathname) of accelerometer data to load.
+       %>        or (2) the path that contains raw accelerometer data
+       %>        stored in binary file(s) - Firmware versions 2.5 or 3.1
+       %>        only.  
        %> @param pStruct Optional struct of parameters to use.  If it is not
        %> included then parameters from getDefaultParameters method are used.
        %> @retval Instance of PAData.
        %fullFile = '~/Google Drive/work/Stanford - Pediatrics/sampledata/female child 1 second epoch.csv'
        % =================================================================
-       function obj = PAData(fullFilename,pStruct)
-           if(exist(fullFilename,'file'))
-               [p,name,ext] = fileparts(fullFilename);
-               if(isempty(p))
-                   obj.pathname = pwd;
-               else
-                   obj.pathname = p;
-               end
-               obj.filename = strcat(name,ext);
-           end
+       function obj = PAData(fullFilenameOrPath,pStruct)
+           obj.pathname =[];
+           obj.filename = [];
+                      
+
            if(nargin<2 || isempty(pStruct))
                pStruct = obj.getDefaultParameters();
            end
@@ -180,8 +178,20 @@ classdef PAData < handle
            %            obj.sampleRate.vecMag = 40;
            
            
-
-           obj.loadFile();
+           if(isdir(fullFilenameOrPath))
+               obj.pathname = fullFilenameOrPath;
+               obj.loadPathOfRawBinary(obj.pathname);
+               
+           elseif(exist(fullFilenameOrPath,'file'))
+               [p,name,ext] = fileparts(fullFilenameOrPath);
+               if(isempty(p))
+                   obj.pathname = pwd;
+               else
+                   obj.pathname = p;
+               end
+               obj.filename = strcat(name,ext);
+               obj.loadFile();
+           end
        end
 
        % ======================================================================
@@ -815,6 +825,29 @@ classdef PAData < handle
            fullFilename = fullfile(obj.pathname,obj.filename);
        end
        
+       
+       % ======================================================================
+       %> @brief Sets the pathname and filename instance variables using
+       %> the input full filename.
+       %> @param obj Instance of PAData
+       %> @param fullfilename The full filenmae of the accelerometer data
+       %> that will be set
+       %> @retval success (T/F) 
+       %> -true: if fullfilename exists and is instance variables are set
+       %> - false: otherwise
+       %> @note See also getFilename()
+       % =================================================================
+       function success = setFullFilename(obj,fullfilename)
+          if(exist(fullfilename,'file'))
+              [obj.pathname, basename,ext] = fileparts(fullfilename);
+              obj.filename = strcat(basename,ext);
+              success = true;
+          else
+              success = false;
+          end
+           
+       end
+       
        % ======================================================================
        %> @brief Returns the full filename (pathname + filename) of
        %> the accelerometer data.
@@ -926,8 +959,7 @@ classdef PAData < handle
        % that we have sequential data (fill in all with Nan or -1 eg)
            
            if(nargin<2 || ~exist(fullfilename,'file'))
-               fullfilename = obj.getFullFilename();
-               
+               fullfilename = obj.getFullFilename();               
                %filtercell = {'*.csv','semicolon separated data';'*.*','All files (*.*)'};
                %msg = 'Select the .csv file';
                %fullfilename = uigetfullfile(filtercell,pwd,msg);
@@ -936,30 +968,40 @@ classdef PAData < handle
            % Have one file version for counts...           
            if(exist(fullfilename,'file'))
                [path, name, ext] = fileparts(fullfilename);
+                   
+               
+               %Always load the count data first, just because it holds the
+               %lux and such
+               fullCountFilename = fullfile(path,strcat(name,'.csv'));
+               tic
+               obj.loadCountFile(fullCountFilename);
+               toc
+               
                
                % For .raw files, load the count data first so that it can
                % then be reshaped by the sampling rate found in .raw
                if(strcmpi(ext,'.raw'))
-                   
-                   fullCountFilename = fullfile(path,strcat(name,'.csv'));
                    tic
-%                    obj.accelType = 'all';
-                   
-                   obj.loadCountFile(fullCountFilename);
-                   
-                   toc
-                   tic
-                   obj.loadRawFile(fullfilename);
+                   obj.loadRawCSVFile(fullfilename);
                    toc
                    obj.accelType = 'all';
+               elseif(strcmpi(ext,'.bin'))                   
+                   tic
+                   % Version 2.5.0 firmware
+                   if(strcmpi(name,'activity'))                       
+                       obj.loadRawActivityBinFile(fullfilename);                   
                    
+                   % Version 3.1.0 firmware                   
+                   elseif(strcmpi(name,'log'))
+                       
+                   end
+                   toc
+                   obj.accelType = 'all';
                else
-                   obj.loadCountFile(fullfilename);
                    obj.accelType = 'count';
-                   
                end
            end           
-       end       
+       end
        
        % ======================================================================
        %> @brief Loads an accelerometer "count" data file.
@@ -1091,17 +1133,17 @@ classdef PAData < handle
        % ======================================================================
        %> @brief Loads an accelerometer raw data file.  This function is
        %> intended to be called from loadFile() to ensure that
-       %loadCountFile is called in advance to guarantee that the auxialiary
+       %> loadCountFile is called in advance to guarantee that the auxialiary
        %> sensor measurements are loaded into the object (obj).  The
        %> auxialiary measures (e.g. lux, steps) are upsampled to the
        %> sampling rate of the raw data (typically 40 Hz).
        %> @param obj Instance of PAData.
-       %> @param fullRawFilename The full (i.e. with path) filename for raw data to load.
+       %> @param fullRawCSVFilename The full (i.e. with path) filename for raw data to load.
        % =================================================================
-       function loadRawFile(obj,fullRawFilename)
-           if(exist(fullRawFilename,'file'))
+       function loadRawCSVFile(obj,fullRawCSVFilename)
+           if(exist(fullRawCSVFilename,'file'))
                
-               fid = fopen(fullRawFilename,'r');
+               fid = fopen(fullRawCSVFilename,'r');
                if(fid>0)
                    try
                        delimiter = ',';
@@ -1190,7 +1232,7 @@ toc
                        numMissing = obj.durationSamples() - samplesFound;
                                               
                        if(obj.durationSamples()==samplesFound)
-                           fprintf('%d rows loaded from %s\n',samplesFound,fullRawFilename); 
+                           fprintf('%d rows loaded from %s\n',samplesFound,fullRawCSVFilename); 
                        else                           
                            
                            if(numMissing>0)
@@ -1205,36 +1247,150 @@ toc
                        obj.accel.raw.y = dataCell{2};
                        obj.accel.raw.z = dataCell{3};
                        
-                       N = obj.countPeriodSec*obj.sampleRate;
-                       
-                       obj.accel.count.x = reshape(repmat(obj.accel.count.x(:),1,N)',[],1);
-                       obj.accel.count.y = reshape(repmat(obj.accel.count.y(:),1,N)',[],1);
-                       obj.accel.count.z = reshape(repmat(obj.accel.count.z(:),1,N)',[],1);
-                       obj.accel.count.vecMag = reshape(repmat(obj.accel.count.vecMag(:),1,N)',[],1);
-                       
-                       obj.steps = reshape(repmat(obj.steps(:),1,N)',[],1);
-                       obj.lux = reshape(repmat(obj.lux(:),1,N)',[],1);
-                       
-                       obj.inclinometer.standing = reshape(repmat(obj.inclinometer.standing(:)',N,1),[],1);
-                       obj.inclinometer.sitting = reshape(repmat(obj.inclinometer.sitting(:)',N,1),[],1);
-                       obj.inclinometer.lying = reshape(repmat(obj.inclinometer.lying(:)',N,1),[],1);
-                       obj.inclinometer.off = reshape(repmat(obj.inclinometer.off(:)',N,1),[],1);
-                       
-                       % obj.vecMag = reshape(repmat(obj.vecMag(:)',N,1),[],1);
-                       % derive vecMag from x, y, z axes directly...
-                       obj.accel.raw.vecMag = sqrt(obj.accel.raw.x.^2+obj.accel.raw.y.^2+obj.accel.raw.z.^2);
-
                        fclose(fid);
+                       
+                       obj.resampleCountData();
+                       
                    catch me
                        showME(me);
                        fclose(fid);
                    end
                else
-                   fprintf('Warning - could not open %s for reading!\n',fullRawFilename);
+                   fprintf('Warning - could not open %s for reading!\n',fullRawCSVFilename);
                end
            else
-               fprintf('Warning - %s does not exist!\n',fullRawFilename);
+               fprintf('Warning - %s does not exist!\n',fullRawCSVFilename);
            end
+       end
+          
+
+       % ======================================================================
+       %> @brief Loads raw accelerometer data from binary file produced via
+       %> actigraph Firmware 2.5.0.  This function is
+       %> intended to be called from loadFile() to ensure that
+       %> loadCountFile is called in advance to guarantee that the auxialiary
+       %> sensor measurements are loaded into the object (obj).  The
+       %> auxialiary measures (e.g. lux, steps) are upsampled to the
+       %> sampling rate of the raw data (typically 40 Hz).
+       %> @param obj Instance of PAData.
+       %> @param fullRawActivityBinFilename The full (i.e. with path) filename for raw data,
+       %> stored in binary format, to load.
+       % Testing:  logFile = /Volumes/SeaG 1TB/sampledata_reveng/T1_GT3X_Files/700851/log.bin
+       % =================================================================
+       function loadRawActivityBinFile(obj,fullRawActivityBinFilename)
+           if(exist(fullRawActivityBinFilename,'file'))
+               
+               % Use little endian format (default)
+               fid = fopen(fullRawActivityBinFilename,'r','l');
+               if(fid>0)
+                   try
+                       bitsPerByte = 8;
+                       fseek(fid,0,'eof');
+                       fileSizeInBits = ftell(fid)*bitsPerByte;
+                       frewind(fid);
+                       
+                       bitsPerRecord = 36;  %size in number of bits
+                       axesPerRecord = 3;
+                       encodingEPS = 1/341; %from trial and error - or math
+                       numberOfRecords = floor(fileSizeInBits/bitsPerRecord);
+                       
+                       % The following are equivalent in this case.
+                       precision = 'ubit12';
+                       %precision = strcat('bit',num2str(bitsPerRecord/axesPerRecord,'%u'),'=>uint16');
+                       
+                       
+                       % reads are stored column wise (one column, then the
+                       % next) so we have to transpose twice to get the
+                       % desired result here.
+                       axesUBitData = fread(fid,[axesPerRecord,numberOfRecords],precision)';
+                       axesFloatData = (-bitand(axesUBitData,2048)+bitand(axesUBitData,2047))*encodingEPS;
+                      
+                       obj.accel.raw.x = axesFloatData(:,1);
+                       obj.accel.raw.y = axesFloatData(:,2);
+                       obj.accel.raw.z = axesFloatData(:,3);
+                       
+                       fclose(fid);
+                       
+                       obj.resampleCountData();
+                       
+                   catch me
+                       showME(me);
+                       fclose(fid);
+                   end
+               else
+                   fprintf('Warning - could not open %s for reading!\n',fullRawActivityBinFilename);
+               end
+           else
+               fprintf('Warning - %s does not exist!\n',fullRawActivityBinFilename);
+           end
+       end
+       
+       
+       % ======================================================================
+       %> @brief Loads an accelerometer's raw data from binary files stored
+       %> in the path name given.
+       %> @param obj Instance of PAData.
+       %> @param pathWithRawBinaryFiles Name of the path (a string) that
+       %> contains raw acceleromater data stored in one or more binary files.
+       %> @note Currently, only two firmware versions are supported:
+       %> - 2.5.0
+       %> - 3.1.0
+       % =================================================================
+       function loadPathOfRawBinary(obj, pathWithRawBinaryFiles)
+           infoFile = fullfilename(pathWithRawBinaryFiles,'info.txt');
+ 
+           %load meta data from info.txt
+           [infoStruct, firmwareVersion] = obj.parseInfoTxt(infoFile);
+           
+           % Determine the specification
+           
+           % It is either 2.5.0 or 3.1.0
+           if(strcmp(firmwareVersion,'2.5.0') || strcmp(firmwareVersion,'3.1.0'))
+               if(strcmp(firmwareVersion,'2.5.0'))
+                   fullBinFilename = fullfilename(pathWithRawBinaryFiles,'activity.bin');
+               elseif(strcmp(firmwareVersion,'3.1.0'))
+                   fullBinFilename = fullfilename(pathWithRawBinaryFiles,'log.bin');
+               else
+                   % for future firmware version loaders
+                   
+               end
+               obj.setFullFilename(fullBinFilename);
+               obj.loadFile(fullBinFilename);
+           else
+               % Not 2.5.0 or 3.1.0 - skip - cannot handle right now.
+                fprintf(1,'Firmware version (%s) either not found or unrecognized in %s.\n',firmwareVersion,infoTxtFullFilename);
+
+           end
+       end
+
+       
+       % ======================================================================
+       %> @brief Resamples previously loaded 'count' data to match sample rate of
+       %> raw accelerometer data that has been loaded in a following step (see loadFile()).
+       %> @param obj Instance of PAData.       %
+       %> @note countPeriodSec, sampleRate, steps, lux, and accel values
+       %> must be set in advance of this call.
+       % ======================================================================
+       function resampleCountData(obj)
+           
+           N = obj.countPeriodSec*obj.sampleRate;
+           
+           obj.accel.count.x = reshape(repmat(obj.accel.count.x(:),1,N)',[],1);
+           obj.accel.count.y = reshape(repmat(obj.accel.count.y(:),1,N)',[],1);
+           obj.accel.count.z = reshape(repmat(obj.accel.count.z(:),1,N)',[],1);
+           obj.accel.count.vecMag = reshape(repmat(obj.accel.count.vecMag(:),1,N)',[],1);
+           
+           obj.steps = reshape(repmat(obj.steps(:),1,N)',[],1);
+           obj.lux = reshape(repmat(obj.lux(:),1,N)',[],1);
+           
+           obj.inclinometer.standing = reshape(repmat(obj.inclinometer.standing(:)',N,1),[],1);
+           obj.inclinometer.sitting = reshape(repmat(obj.inclinometer.sitting(:)',N,1),[],1);
+           obj.inclinometer.lying = reshape(repmat(obj.inclinometer.lying(:)',N,1),[],1);
+           obj.inclinometer.off = reshape(repmat(obj.inclinometer.off(:)',N,1),[],1);
+           
+           % obj.vecMag = reshape(repmat(obj.vecMag(:)',N,1),[],1);
+           % derive vecMag from x, y, z axes directly...
+           obj.accel.raw.vecMag = sqrt(obj.accel.raw.x.^2+obj.accel.raw.y.^2+obj.accel.raw.z.^2);
        end
        
        % ======================================================================
@@ -2016,7 +2172,49 @@ toc
    
    methods(Static)
        
+       % File I/O
        
+       % ======================================================================
+       %> @brief Parses the information found in input file name and returns
+       %> the result as a struct of field-value pairs.
+       %> @param obj Instance of PAData.
+       %> @param infoTxtFullFilename Name of the info.txt that contains 
+       %> sensor meta data.
+       %> @retval infoStruct A struct of the field value pairings parsed
+       %> from info.txt
+       %> @retval firmware String value of Firmware field as found in the
+       %> info.txt file.  It is set to the empty string when not found.
+       %> @note Currently, only two firmware versions are supported:
+       %> - 2.5.0
+       %> - 3.1.0
+       % =================================================================
+       function [infoStruct, firmware] = parseInfoTxt(infoTxtFullFilename)
+           if(exists(infoTxtFullFilename,'file'))
+               fid = fopen(infoTxtFullFilename,'r');
+               pat = '(?<field>[^:]+):\s+(?<values>[^\r\n]+)\s*';
+               fileText = fscanf(fid,'%c');
+               result = regexp(fileText,pat,'names');
+               infoStruct = [];
+               for(f=1:numel(result))
+                   fieldName = strrep(result(f).field,' ','_');
+                   infoStruct.(fieldName)=result(f).values;
+               end
+               if(isfield(infoStruct,'Firmware'))
+                   firmware = infoStruct.Firmware;
+               else
+                   firmware = '';
+               end
+               fclose(fid);
+               
+           else
+               infoStruct=[];
+               firmware ='';
+           end
+       end
+       
+       % Analysis 
+       
+       % =================================================================
        %> @brief Removes periods of activity that are too short and goups
        %> nearby activity groups together.
        %> @param logicalVec Initial vector which has 1's where an event or
@@ -2058,6 +2256,7 @@ toc
        %> @retval summedSignal The filtered signal.
        %> @note The filter delay is taken into account such that the
        %> return signal is offset by half the delay.
+       %======================================================================
        function summedSignal = movingSummer(signal, filterOrder)
            delay = floor(filterOrder/2);
            B = ones(filterOrder,1);
@@ -2069,6 +2268,7 @@ toc
        end
        
        
+       %======================================================================
        %> @brief Helper function to convert an Nx2 matrix of start stop
        %> events into a single logical vector with 1's located at the 
        %> locations corresponding to the samples inclusively between
@@ -2078,6 +2278,7 @@ toc
        %> the start stop events back to.  
        %> @note eventStartStop = thresholdCrossings(vector,0);
        %> @retval vector
+       %======================================================================
        function vector = unrollEvents(eventsStartStop,vectorSize)
            vector = false(vectorSize,1);
            for e=1:size(eventsStartStop,1)
@@ -2086,6 +2287,7 @@ toc
        end
            
 
+       %======================================================================
        %> @brief returns a cell of tag lines and the associated label
        %> describing the tag line.
        %> @retval tagLines Cell of tag lines
@@ -2093,6 +2295,7 @@ toc
        %> lines in the tagLines cell.
        %> @note Tag lines are useful for dynamic struct indexing into
        %> structs returned by getStruct.
+       %======================================================================
        function [tagLines,labels] = getDefaultTagLineLabels()
            tagLines = {'accel.raw.x';
                    'accel.raw.y';
@@ -2144,6 +2347,7 @@ toc
        %> - @c color
        %> - @c visible
        %> @note This is useful with the PASettings companion class.
+       %======================================================================
        function pStruct = getDefaultParameters()           
            pStruct.pathname = '.'; %directory of accelerometer data.
            pStruct.filename = ''; %last accelerometer data opened.
@@ -2319,6 +2523,7 @@ toc
        %> matrix return argument.
        %> @note This is a helper function for loading raw and count file
        %> formats to ensure proper ordering and I/O error handling.
+       %======================================================================
        function [orderedDataCell, synthDateVec, synthDateNum] = mergedCell(startDateNum, stopDateNum, dateNumDelta, sampledDateVec,tmpDataCell,missingValue)
            if(nargin<6 || isempty(missingValue))
                missingValue = nan;
