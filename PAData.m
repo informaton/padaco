@@ -53,7 +53,6 @@ classdef PAData < handle
        startDatenums;
        %> @brief Numeric values for date time sample for when the extracted features stop/end.
        stopDatenums;
-       
 
        %> @brief Struct of line handle properties corresponding to the
        %> fields of linehandle.  These are derived from the input files
@@ -164,7 +163,9 @@ classdef PAData < handle
                if(~strcmpi(fields{f},'pathname') && ~strcmpi(fields{f},'filename'))
                    obj.(fields{f}) = pStruct.(fields{f});
                end
-           end                
+           end
+           
+           obj.curWindow = 1;  %don't use current window until after a file has been loaded.
            
            obj.numBins = 0;
            obj.bins = [];
@@ -192,6 +193,8 @@ classdef PAData < handle
                obj.filename = strcat(name,ext);
                obj.loadFile();
            end
+           
+           obj.setCurWindow(pStruct.curWindow);
        end
 
        % ======================================================================
@@ -298,8 +301,7 @@ classdef PAData < handle
                    windowRate = obj.getFrameRate();
                otherwise
                    fprintf('This structure type is not handled (%s).\n',structType);
-           end
-                      
+           end        
        end
        
        % --------------------------------------------------------------------
@@ -508,7 +510,6 @@ classdef PAData < handle
            if(nargin<2)
                structType = [];
            end
-           
            visibleStruct = obj.getPropertyStruct('visible',structType);
        end       
        
@@ -967,16 +968,19 @@ classdef PAData < handle
 
            % Have one file version for counts...           
            if(exist(fullfilename,'file'))
-               [path, name, ext] = fileparts(fullfilename);
-                   
+               [pathName, baseName, ext] = fileparts(fullfilename);
                
                %Always load the count data first, just because it holds the
                %lux and such
-               fullCountFilename = fullfile(path,strcat(name,'.csv'));
+               fullCountFilename = fullfile(pathName,strcat(baseName,'.csv'));
                tic
                obj.loadCountFile(fullCountFilename);
                toc
-               
+               obj.accelType = 'count'; % this is modified, below, to 'all' if a 
+                                        % a raw acceleration file (.csv or
+                                        % .bin) is being loaded, in which
+                                        % case the count data is replaced
+                                        % with the raw data.
                
                % For .raw files, load the count data first so that it can
                % then be reshaped by the sampling rate found in .raw
@@ -986,17 +990,59 @@ classdef PAData < handle
                    toc
                    obj.accelType = 'all';
                elseif(strcmpi(ext,'.bin'))                   
-                   tic
-                   % Version 2.5.0 firmware
-                   if(strcmpi(name,'activity'))                       
-                       obj.loadRawActivityBinFile(fullfilename);                   
+                   %determine firmware version
+                   infoFile = fullfile(pathName,strcat(baseName,'.info.txt'));
                    
+                   %load meta data from info.txt
+                   [infoStruct, firmwareVersion] = obj.parseInfoTxt(infoFile);
+                   
+                   % Determine the specification
+                   
+                   % It is either 2.5.0 or 3.1.0
+                   % Version 2.5.0 firmware
+                   if(strcmp(firmwareVersion,'2.5.0'))
+                       obj.sampleRate = str2double(infoStruct.Sample_Rate);
+                       unitsTimePerDay = 24*3600*10^7;
+                       matlabDateTimeOffset = 365+1+1;  %367, 365 days for the first year + 1 day for the first month + 1 day for the first day of the month
+                       %start, stop and delta date nums
+                       binStartDatenum = str2double(infoStruct.Start_Date)/unitsTimePerDay+matlabDateTimeOffset;
+                       countStartDatenum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
+                       
+                       if(binStartDatenum~=countStartDatenum)
+                           fprintf('There is a discrepancy between the start date-time in the count file and the binary file.  I''m not sure what is going to happen because of this.\n');
+                       end
+                       
+                       obj.accelType = 'all';
+
+                       tic
+                       obj.setFullFilename(fullfilename);
+                       obj.loadRawActivityBinFile(fullfilename);                     
+                       
+                       obj.durationSec = floor(obj.durationSamples()/obj.sampleRate);
+                       
+                                             
+                       binDatenumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
+                       binStopDatenum = datenum(binDatenumDelta*obj.durSamples)+binStartDatenum;
+                       synthDateVec = datevec(binStartDatenum:binDatenumDelta:binStopDatenum);
+                       synthDateVec(:,6) = round(synthDateVec(:,6)*1000)/1000;
+                      
+                       %This takes 2.0 seconds!
+                       obj.dateTimeNum = datenum(synthDateVec);
+
+                       
+                       
+                       
+                       toc
                    % Version 3.1.0 firmware                   
-                   elseif(strcmpi(name,'log'))
+                   elseif(strcmp(firmwareVersion,'3.1.0'))
+                       fprintf(1,'Firmware version %s is not yet implemented.\n',firmwareVersion);
+                   else
+                           % for future firmware version loaders
+                       % Not 2.5.0 or 3.1.0 - skip - cannot handle right now.
+                       fprintf(1,'Firmware version (%s) either not found or unrecognized in %s.\n',firmwareVersion,infoTxtFullFilename);
                        
                    end
-                   toc
-                   obj.accelType = 'all';
+                   
                else
                    obj.accelType = 'count';
                end
@@ -1276,39 +1322,65 @@ toc
        %> @param fullRawActivityBinFilename The full (i.e. with path) filename for raw data,
        %> stored in binary format, to load.
        % Testing:  logFile = /Volumes/SeaG 1TB/sampledata_reveng/T1_GT3X_Files/700851/log.bin
+       %> @retval recordCount - The number of records (or samples) found
+       %> and loaded in the file.
        % =================================================================
-       function loadRawActivityBinFile(obj,fullRawActivityBinFilename)
+       function recordCount = loadRawActivityBinFile(obj,fullRawActivityBinFilename)
            if(exist(fullRawActivityBinFilename,'file'))
                
-               % Use little endian format (default)
-               fid = fopen(fullRawActivityBinFilename,'r','l');
+               % Testing for ver 2.5.0
+               % fullRawActivityBinFilename = '/Volumes/SeaG 1TB/sampledata_reveng/700851.activity.bin'
+%                sleepmoore:T1_GT3X_Files hyatt4$ head -n 15 ../../sampleData/raw/700851t00c1.raw.csv 
+%                 ------------ Data File Created By ActiGraph GT3X+ ActiLife v6.11.1 Firmware v2.5.0 date format M/d/yyyy at 40 Hz  Filter Normal -----------
+%                 Serial Number: NEO1C15110103
+%                 Start Time 00:00:00
+%                 Start Date 10/25/2012
+%                 Epoch Period (hh:mm:ss) 00:00:00
+%                 Download Time 16:48:59
+%                 Download Date 11/2/2012
+%                 Current Memory Address: 0
+%                 Current Battery Voltage: 3.74     Mode = 12
+%                 --------------------------------------------------
+%                 Timestamp,Axis1,Axis2,Axis3
+%                 10/25/2012 00:00:00.000,-0.044,0.361,-0.915
+%                 10/25/2012 00:00:00.025,-0.044,0.358,-0.915
+%                 10/25/2012 00:00:00.050,-0.047,0.361,-0.915
+%                 10/25/2012 00:00:00.075,-0.044,0.361,-0.915
+               % Use big endian format
+               recordCount = 0;
+               fid = fopen(fullRawActivityBinFilename,'r','b');
                if(fid>0)
                    try
-                       bitsPerByte = 8;
+                       
                        fseek(fid,0,'eof');
-                       fileSizeInBits = ftell(fid)*bitsPerByte;
                        frewind(fid);
                        
-                       bitsPerRecord = 36;  %size in number of bits
-                       axesPerRecord = 3;
                        encodingEPS = 1/341; %from trial and error - or math
-                       numberOfRecords = floor(fileSizeInBits/bitsPerRecord);
+                       precision = 'ubit12=>double';
                        
-                       % The following are equivalent in this case.
-                       precision = 'ubit12';
-                       %precision = strcat('bit',num2str(bitsPerRecord/axesPerRecord,'%u'),'=>uint16');
                        
+                       % The following, commented code is for determining
+                       % expected record count.  However, the [] notation
+                       % is used as a shortcut below.
+                       % bitsPerByte = 8;
+                       % fileSizeInBits = ftell(fid)*bitsPerByte;
+                       % bitsPerRecord = 36;  %size in number of bits
+                       axesPerRecord = 3;
+                       % numberOfRecords = floor(fileSizeInBits/bitsPerRecord);
+                       % axesUBitData = fread(fid,[axesPerRecord,numberOfRecords],precision)';
+                       % recordCount = numberOfRecords;
                        
                        % reads are stored column wise (one column, then the
                        % next) so we have to transpose twice to get the
                        % desired result here.
-                       axesUBitData = fread(fid,[axesPerRecord,numberOfRecords],precision)';
+                       axesUBitData = fread(fid,[axesPerRecord,inf],precision)';
                        axesFloatData = (-bitand(axesUBitData,2048)+bitand(axesUBitData,2047))*encodingEPS;
                       
                        obj.accel.raw.x = axesFloatData(:,1);
                        obj.accel.raw.y = axesFloatData(:,2);
                        obj.accel.raw.z = axesFloatData(:,3);
-                       
+                       recordCount = size(axesFloatData,1);
+                       obj.durSamples = recordCount;
                        fclose(fid);
                        
                        obj.resampleCountData();
@@ -2189,13 +2261,13 @@ toc
        %> - 3.1.0
        % =================================================================
        function [infoStruct, firmware] = parseInfoTxt(infoTxtFullFilename)
-           if(exists(infoTxtFullFilename,'file'))
+           if(exist(infoTxtFullFilename,'file'))
                fid = fopen(infoTxtFullFilename,'r');
                pat = '(?<field>[^:]+):\s+(?<values>[^\r\n]+)\s*';
                fileText = fscanf(fid,'%c');
                result = regexp(fileText,pat,'names');
                infoStruct = [];
-               for(f=1:numel(result))
+               for f=1:numel(result)
                    fieldName = strrep(result(f).field,' ','_');
                    infoStruct.(fieldName)=result(f).values;
                end

@@ -14,6 +14,11 @@ classdef PAController < handle
         %> @brief The number of items to be displayed in the secondary
         %> axes.
         numViewsInSecondaryDisplay;
+        %> @brief Identifies the acceleration type ('raw' or 'count' [default])
+        %> displayed in the primary and secondary axes.  This is controlled
+        %> by the users signal selection via GUI dropdown menu.  See
+        %> updateSecondaryFeaturesDisplayCallback
+        accelTypeShown;
     end
     properties
         %> acceleration activity object - instance of PAData
@@ -83,7 +88,7 @@ classdef PAController < handle
             obj.SETTINGS = PASettings(rootpathname,parameters_filename);
             obj.batch = obj.SETTINGS.CONTROLLER.batch;
             obj.screenshotPathname = obj.SETTINGS.CONTROLLER.screenshotPathname;
-            
+            obj.accelTypeShown = [];
             
             if(ishandle(Padaco_fig_h))
                 obj.featureHandles = [];
@@ -502,7 +507,7 @@ classdef PAController < handle
             %  signalTagLine = obj.getSignalSelection();
             %  obj.drawFeatureVecPatches(featureFcn,signalTagLine,numFrames);
             
-            signalTagLines = strcat('accel.',obj.accelObj.accelType,'.',{'x','y','z','vecMag'})';
+            signalTagLines = strcat('accel.',obj.accelTypeShown,'.',{'x','y','z','vecMag'})';
             numViews = obj.numViewsInSecondaryDisplay; %(numel(signalTagLines)+1);
             height = 1/numViews;
             heightOffset = 0;
@@ -536,6 +541,9 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function updateSecondaryFeaturesDisplayCallback(obj,hObject,eventdata)
             numFrames = obj.getFrameCount(); 
+            signalTags = get(hObject,'userdata');
+            selectedSignal = signalTags{get(hObject,'value')};
+            
             obj.updateSecondaryFeaturesDisplay(numFrames);        
         end
         
@@ -620,8 +628,20 @@ classdef PAController < handle
         function signalTagLine = setSignalSelection(obj, signalTagLine)
             signalTagLines = get(obj.VIEW.menuhandle.signalSelection,'userdata');
             selectionIndex = find(strcmpi(signalTagLines,signalTagLine)) ;
-            if(~isempty(selectionIndex))
-                set(obj.VIEW.menuhandle.signalSelection,'value',selectionIndex);
+            if(isempty(selectionIndex))
+                selectionIndex = 1;
+            end
+            
+            set(obj.VIEW.menuhandle.signalSelection,'value',selectionIndex);
+            if(isempty(obj.accelTypeShown))
+                obj.accelTypeShown = 'count';
+            end
+            
+            if(~isempty(signalTagLines))
+                v=regexp(signalTagLines{selectionIndex},'.+\.([^\.]+)\..*','tokens');
+                if(~isempty(v))
+                    obj.accelTypeShown = v{1}{1};
+                end                
             end
         end
         
@@ -809,7 +829,7 @@ classdef PAController < handle
         function menuFileOpenCallback(obj,hObject,eventdata)
             %DATA.pathname	/Volumes/SeaG 1TB/sampleData/csv
             %DATA.filename	700023t00c1.csv.csv
-            f=uigetfullfile({'*.csv;*.raw','All (Count or raw)';'*.csv','Comma Separated Values';'*.raw','Raw Format (comma separated values)'},'Select a file','off',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
+            f=uigetfullfile({'*.csv;*.raw;*.bin','All (counts, raw accelerations (.raw, .bin)))';'*.csv','Comma Separated Values';'*.bin','Raw Acceleration (binary format: firmware 2.5.0 and 3.6.1 only)';'*.raw','Raw Acceleration (comma separated values)'},'Select a file','off',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
             try
                 if(~isempty(f))
                     
@@ -822,7 +842,7 @@ classdef PAController < handle
                     featureFcn = 'mean';
                     elapsedStartHour = 0;
                     intervalDurationHours = 24;
-                    signalTagLine = 'accel.count.x';
+                    signalTagLine = obj.getSignalSelection(); %'accel.count.x';
                     obj.accelObj.getAlignedFeatureVecs(featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours)
                     
                 end
@@ -1846,10 +1866,18 @@ classdef PAController < handle
             
             
             obj.initSignalSelectionMenu();
+            
+            if(strcmpi(obj.accelObj.accelType,'all'))
+                obj.accelTypeShown = 'raw';
+            else
+                obj.accelTypeShown = 'count';
+            end
+               
+                
             obj.VIEW.initWithAccelData(obj.accelObj);
             
             %set signal choice 
-            obj.setSignalSelection(obj.SETTINGS.CONTROLLER.signalTagLine);
+            obj.setSignalSelection(obj.SETTINGS.CONTROLLER.signalTagLine); %internally sets to 1st in list if not found..
             obj.setExtractorMethod(obj.SETTINGS.CONTROLLER.featureFcn);
          
             
@@ -1875,11 +1903,13 @@ classdef PAController < handle
             itemsToDisplay = 3; % usage state, mean lumens, daylight approx
             remainingHeight = 1-heightOffset;
             height = remainingHeight/itemsToDisplay;
-            
-            [usageVec,usageState, startStopDatenums] = obj.getUsageState();
-            vecHandles = obj.VIEW.addFeaturesVecToSecondaryAxes(usageVec,obj.accelObj.dateTimeNum,height,heightOffset);   
-            %obj.VIEW.addOverlayToSecondaryAxes(usageState,startStopDatenums,1/numRegions,curRegion/numRegions);
-            
+            if(obj.accelObj.getSampleRate()<=1)
+                [usageVec,usageState, startStopDatenums] = obj.getUsageState();
+                vecHandles = obj.VIEW.addFeaturesVecToSecondaryAxes(usageVec,obj.accelObj.dateTimeNum,height,heightOffset);
+                %obj.VIEW.addOverlayToSecondaryAxes(usageState,startStopDatenums,1/numRegions,curRegion/numRegions);
+            else
+                vecHandles = [];
+            end            
             % Next, add lumens intensity to secondary axes 
             heightOffset = heightOffset+height;
             maxLumens = 250;
