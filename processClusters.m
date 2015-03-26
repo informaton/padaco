@@ -8,7 +8,7 @@ if(nargin<1)
     baseFeature = 'rms';
     baseFeature = 'sum';
     baseFeature = 'mean';
-%     baseFeature = 'var';
+    baseFeature = 'var';
 %     baseFeature = 'std';
     
     curSignal = signalTypes{4};

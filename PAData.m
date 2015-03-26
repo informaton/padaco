@@ -996,50 +996,52 @@ classdef PAData < handle
                    %load meta data from info.txt
                    [infoStruct, firmwareVersion] = obj.parseInfoTxt(infoFile);
                    
-                   % Determine the specification
                    
-                   % It is either 2.5.0 or 3.1.0
-                   % Version 2.5.0 firmware
-                   if(strcmp(firmwareVersion,'2.5.0'))
+                   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                   % Ensure firmware version is either 2.5.0 or 3.1.0
+                   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                   if(strcmp(firmwareVersion,'2.5.0')||strcmp(firmwareVersion,'3.1.0'))
+                       obj.setFullFilename(fullfilename);
                        obj.sampleRate = str2double(infoStruct.Sample_Rate);
-                       unitsTimePerDay = 24*3600*10^7;
-                       matlabDateTimeOffset = 365+1+1;  %367, 365 days for the first year + 1 day for the first month + 1 day for the first day of the month
-                       %start, stop and delta date nums
-                       binStartDatenum = str2double(infoStruct.Start_Date)/unitsTimePerDay+matlabDateTimeOffset;
-                       countStartDatenum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
-                       
-                       if(binStartDatenum~=countStartDatenum)
-                           fprintf('There is a discrepancy between the start date-time in the count file and the binary file.  I''m not sure what is going to happen because of this.\n');
-                       end
                        
                        obj.accelType = 'all';
-
-                       tic
-                       obj.setFullFilename(fullfilename);
-                       obj.loadRawActivityBinFile(fullfilename);                     
+                           
+                       % Version 2.5.0 firmware
+                       if(strcmp(firmwareVersion,'2.5.0'))
+                           
+                           unitsTimePerDay = 24*3600*10^7;
+                           matlabDateTimeOffset = 365+1+1;  %367, 365 days for the first year + 1 day for the first month + 1 day for the first day of the month
+                           %start, stop and delta date nums
+                           binStartDatenum = str2double(infoStruct.Start_Date)/unitsTimePerDay+matlabDateTimeOffset;
+                           countStartDatenum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
+                           
+                           if(binStartDatenum~=countStartDatenum)
+                               fprintf('There is a discrepancy between the start date-time in the count file and the binary file.  I''m not sure what is going to happen because of this.\n');
+                           end
+                           
+                           
+                           obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
+                           
+                           obj.durationSec = floor(obj.durationSamples()/obj.sampleRate);
+                           
+                           binDatenumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
+                           binStopDatenum = datenum(binDatenumDelta*obj.durSamples)+binStartDatenum;
+                           synthDateVec = datevec(binStartDatenum:binDatenumDelta:binStopDatenum);
+                           synthDateVec(:,6) = round(synthDateVec(:,6)*1000)/1000;
+                           
+                           %This takes 2.0 seconds!
+                           obj.dateTimeNum = datenum(synthDateVec);
+                          
+                           % Version 3.1.0 firmware
+                       elseif(strcmp(firmwareVersion,'3.1.0'))                           
+                           obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
+                       end
                        
-                       obj.durationSec = floor(obj.durationSamples()/obj.sampleRate);
-                       
-                                             
-                       binDatenumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
-                       binStopDatenum = datenum(binDatenumDelta*obj.durSamples)+binStartDatenum;
-                       synthDateVec = datevec(binStartDatenum:binDatenumDelta:binStopDatenum);
-                       synthDateVec(:,6) = round(synthDateVec(:,6)*1000)/1000;
-                      
-                       %This takes 2.0 seconds!
-                       obj.dateTimeNum = datenum(synthDateVec);
-
-                       
-                       
-                       
-                       toc
-                   % Version 3.1.0 firmware                   
-                   elseif(strcmp(firmwareVersion,'3.1.0'))
-                       fprintf(1,'Firmware version %s is not yet implemented.\n',firmwareVersion);
+                  
                    else
                            % for future firmware version loaders
                        % Not 2.5.0 or 3.1.0 - skip - cannot handle right now.
-                       fprintf(1,'Firmware version (%s) either not found or unrecognized in %s.\n',firmwareVersion,infoTxtFullFilename);
+                       fprintf(1,'Firmware version (%s) either not found or unrecognized in %s.\n',firmwareVersion,infoFile);
                        
                    end
                    
@@ -1306,94 +1308,6 @@ toc
                end
            else
                fprintf('Warning - %s does not exist!\n',fullRawCSVFilename);
-           end
-       end
-          
-
-       % ======================================================================
-       %> @brief Loads raw accelerometer data from binary file produced via
-       %> actigraph Firmware 2.5.0.  This function is
-       %> intended to be called from loadFile() to ensure that
-       %> loadCountFile is called in advance to guarantee that the auxialiary
-       %> sensor measurements are loaded into the object (obj).  The
-       %> auxialiary measures (e.g. lux, steps) are upsampled to the
-       %> sampling rate of the raw data (typically 40 Hz).
-       %> @param obj Instance of PAData.
-       %> @param fullRawActivityBinFilename The full (i.e. with path) filename for raw data,
-       %> stored in binary format, to load.
-       % Testing:  logFile = /Volumes/SeaG 1TB/sampledata_reveng/T1_GT3X_Files/700851/log.bin
-       %> @retval recordCount - The number of records (or samples) found
-       %> and loaded in the file.
-       % =================================================================
-       function recordCount = loadRawActivityBinFile(obj,fullRawActivityBinFilename)
-           if(exist(fullRawActivityBinFilename,'file'))
-               
-               % Testing for ver 2.5.0
-               % fullRawActivityBinFilename = '/Volumes/SeaG 1TB/sampledata_reveng/700851.activity.bin'
-%                sleepmoore:T1_GT3X_Files hyatt4$ head -n 15 ../../sampleData/raw/700851t00c1.raw.csv 
-%                 ------------ Data File Created By ActiGraph GT3X+ ActiLife v6.11.1 Firmware v2.5.0 date format M/d/yyyy at 40 Hz  Filter Normal -----------
-%                 Serial Number: NEO1C15110103
-%                 Start Time 00:00:00
-%                 Start Date 10/25/2012
-%                 Epoch Period (hh:mm:ss) 00:00:00
-%                 Download Time 16:48:59
-%                 Download Date 11/2/2012
-%                 Current Memory Address: 0
-%                 Current Battery Voltage: 3.74     Mode = 12
-%                 --------------------------------------------------
-%                 Timestamp,Axis1,Axis2,Axis3
-%                 10/25/2012 00:00:00.000,-0.044,0.361,-0.915
-%                 10/25/2012 00:00:00.025,-0.044,0.358,-0.915
-%                 10/25/2012 00:00:00.050,-0.047,0.361,-0.915
-%                 10/25/2012 00:00:00.075,-0.044,0.361,-0.915
-               % Use big endian format
-               recordCount = 0;
-               fid = fopen(fullRawActivityBinFilename,'r','b');
-               if(fid>0)
-                   try
-                       
-                       fseek(fid,0,'eof');
-                       frewind(fid);
-                       
-                       encodingEPS = 1/341; %from trial and error - or math
-                       precision = 'ubit12=>double';
-                       
-                       
-                       % The following, commented code is for determining
-                       % expected record count.  However, the [] notation
-                       % is used as a shortcut below.
-                       % bitsPerByte = 8;
-                       % fileSizeInBits = ftell(fid)*bitsPerByte;
-                       % bitsPerRecord = 36;  %size in number of bits
-                       axesPerRecord = 3;
-                       % numberOfRecords = floor(fileSizeInBits/bitsPerRecord);
-                       % axesUBitData = fread(fid,[axesPerRecord,numberOfRecords],precision)';
-                       % recordCount = numberOfRecords;
-                       
-                       % reads are stored column wise (one column, then the
-                       % next) so we have to transpose twice to get the
-                       % desired result here.
-                       axesUBitData = fread(fid,[axesPerRecord,inf],precision)';
-                       axesFloatData = (-bitand(axesUBitData,2048)+bitand(axesUBitData,2047))*encodingEPS;
-                      
-                       obj.accel.raw.x = axesFloatData(:,1);
-                       obj.accel.raw.y = axesFloatData(:,2);
-                       obj.accel.raw.z = axesFloatData(:,3);
-                       recordCount = size(axesFloatData,1);
-                       obj.durSamples = recordCount;
-                       fclose(fid);
-                       
-                       obj.resampleCountData();
-                       
-                   catch me
-                       showME(me);
-                       fclose(fid);
-                   end
-               else
-                   fprintf('Warning - could not open %s for reading!\n',fullRawActivityBinFilename);
-               end
-           else
-               fprintf('Warning - %s does not exist!\n',fullRawActivityBinFilename);
            end
        end
        
@@ -1789,7 +1703,7 @@ toc
                    nonwear_events = candidate_nonwear_events(diff_sec>=params.min_dur_sec,:);
                end
                
-               studyOverParams.merge_within_sec = 3600*6;
+               studyOverParams.merge_within_sec = 3600*6; %-> group within 6 hours ..
                studyOverParams.min_dur_sec = 3600*12;% -> this is for classifying state as over.
                merge_distance = round(studyOverParams.merge_within_sec*obj.getSampleRate());
                candidate_studyover_events = CLASS_events.merge_nearby_events(nonwear_events,merge_distance);
@@ -2079,6 +1993,184 @@ toc
    
    methods (Access = private)
    
+       % ======================================================================
+       %> @brief Loads raw accelerometer data from binary file produced via
+       %> actigraph Firmware 2.5.0.  This function is
+       %> intended to be called from loadFile() to ensure that
+       %> loadCountFile is called in advance to guarantee that the auxialiary
+       %> sensor measurements are loaded into the object (obj).  The
+       %> auxialiary measures (e.g. lux, steps) are upsampled to the
+       %> sampling rate of the raw data (typically 40 Hz).
+       %> @param obj Instance of PAData.
+       %> @param fullRawActivityBinFilename The full (i.e. with path) filename for raw data,
+       %> stored in binary format, to load.
+       %> @param firmwareVersion String identifying the firmware version.
+       %> Currently only '2.5.0' and '3.1.0' are supported.
+       % Testing:  logFile = /Volumes/SeaG 1TB/sampledata_reveng/T1_GT3X_Files/700851/log.bin
+       %> @retval recordCount - The number of records (or samples) found
+       %> and loaded in the file.
+       % =================================================================
+       function recordCount = loadRawActivityBinFile(obj,fullRawActivityBinFilename,firmwareVersion)
+           if(exist(fullRawActivityBinFilename,'file'))
+               
+               recordCount = 0;
+               
+               fid = fopen(fullRawActivityBinFilename,'r','b');
+               
+               if(fid>0)
+                   
+                   encodingEPS = 1/341; %from trial and error - or math
+                   precision = 'ubit12=>double';
+
+                   
+                   % Testing for ver 2.5.0
+                   % fullRawActivityBinFilename = '/Volumes/SeaG 1TB/sampledata_reveng/700851.activity.bin'
+                   %                sleepmoore:T1_GT3X_Files hyatt4$ head -n 15 ../../sampleData/raw/700851t00c1.raw.csv
+                   %                 ------------ Data File Created By ActiGraph GT3X+ ActiLife v6.11.1 Firmware v2.5.0 date format M/d/yyyy at 40 Hz  Filter Normal -----------
+                   %                 Serial Number: NEO1C15110103
+                   %                 Start Time 00:00:00
+                   %                 Start Date 10/25/2012
+                   %                 Epoch Period (hh:mm:ss) 00:00:00
+                   %                 Download Time 16:48:59
+                   %                 Download Date 11/2/2012
+                   %                 Current Memory Address: 0
+                   %                 Current Battery Voltage: 3.74     Mode = 12
+                   %                 --------------------------------------------------
+                   %                 Timestamp,Axis1,Axis2,Axis3
+                   %                 10/25/2012 00:00:00.000,-0.044,0.361,-0.915
+                   %                 10/25/2012 00:00:00.025,-0.044,0.358,-0.915
+                   %                 10/25/2012 00:00:00.050,-0.047,0.361,-0.915
+                   %                 10/25/2012 00:00:00.075,-0.044,0.361,-0.915
+                   % Use big endian format
+                   try          
+                       % both fw 2.5 and 3.1.0 use same packet format for
+                       % acceleration data.  
+                       if(strcmp(firmwareVersion,'2.5.0')||strcmp(firmwareVersion,'3.1.0'))
+                           tic
+                           axesPerRecord = 3;
+                           checksumSizeBytes = 1;
+                           if(strcmp(firmwareVersion,'2.5.0'))
+                               
+                               
+                               % The following, commented code is for determining
+                               % expected record count.  However, the [] notation
+                               % is used as a shortcut below.
+                               % bitsPerByte = 8;
+                               % fileSizeInBits = ftell(fid)*bitsPerByte;
+                               % bitsPerRecord = 36;  %size in number of bits
+                               % numberOfRecords = floor(fileSizeInBits/bitsPerRecord);
+                               % axesUBitData = fread(fid,[axesPerRecord,numberOfRecords],precision)';
+                               % recordCount = numberOfRecords;
+                               
+                               % reads are stored column wise (one column, then the
+                               % next) so we have to transpose twice to get the
+                               % desired result here.
+                               axesUBitData = fread(fid,[axesPerRecord,inf],precision)';
+                               
+                           elseif(strcmp(firmwareVersion,'3.1.0'))
+                               % endian format: big
+                               % global header: none
+                               % packet encoding:
+                               %   header:  8 bytes  [packet code: 2][time stamp: 4][packet size (in bytes): 2]
+                               %   accel packets:  36 bits each (format: see ver 2.5.0) + 1 byte for checksum
+                               
+                               triaxialAccelCodeBigEndian = 7680;
+                               triaxialAccelCodeLittleEndian = 30;
+                               triaxialAccelCode = triaxialAccelCodeBigEndian;
+                               
+                               bitsPerByte = 8;                               
+                               bitsPerAccelRecord = 36;  %size in number of bits (12 bits per acceleration axis)
+                               recordsPerByte = bitsPerByte/bitsPerAccelRecord;
+                               timeStampSizeBytes = 4;
+                               % packetHeader.size = 8;
+                               % go through once to determine how many
+                               % records I have in order to preallocate memory
+                               % - should look at meta data record to see if I can
+                               % shortcut this.
+                               while(~feof(fid))
+                                               
+                                   packetCode = fread(fid,1,'uint16=>double');
+                                   fseek(fid,timeStampSizeBytes,0);
+                                   packetSizeBytes = fread(fid,2,'uint8');
+                                   if(~feof(fid))                                       
+                                       packetSizeBytes = [1 256]*packetSizeBytes;                                       
+                                       if(packetCode == triaxialAccelCode)  % This is for the triaxial accelerometers
+                                           packetRecordCount = packetSizeBytes*recordsPerByte;
+                                           if(packetRecordCount>1)
+                                               recordCount = recordCount+packetRecordCount;
+                                           else
+                                               fprintf('Record count <=1 at file position %u\n',ftell(fid));
+                                           end
+                                       end
+                                       if(packetSizeBytes~=0)
+                                           fseek(fid,packetSizeBytes+checksumSizeBytes,0);
+                                       else
+                                           fprintf('Packet size is 0 bytes at file position %u\n',ftell(fid));
+                                       end
+                                   end
+                               end
+                               
+                               frewind(fid);
+                               curRecord = 1;
+                               axesUBitData = zeros(recordCount,axesPerRecord);
+                               timeStamp = zeros(recordCount,1);
+                               while(~feof(fid) && curRecord<=recordCount)
+                                   packetCode = fread(fid,1,'uint16=>double');
+                                   if(packetCode==triaxialAccelCode)  % This is for the triaxial accelerometers
+                                       timeStamp(curRecord) = fread(fid,1,'uint32=>double');
+                                       packetSizeBytes = [1 256]*fread(fid,2,'uint8');
+                                       
+                                       packetRecordCount = packetSizeBytes*recordsPerByte;
+                                       
+                                       axesUBitData(curRecord:curRecord+packetRecordCount-1,:) = fread(fid,[axesPerRecord,packetRecordCount],precision)';
+                                       curRecord = curRecord+packetRecordCount;
+                                       checkSum = fread(fid,checksumSizeBytes,'uint8');
+                                   elseif(packetCode==0)
+                                       
+                                   else
+                                       fseek(fid,timeStampSizeBytes,0);
+                                       packetSizeBytes = fread(fid,2,'uint8');
+                                       if(~feof(fid))
+                                           packetSizeBytes = [1 256]*packetSizeBytes;
+                                           fseek(fid,packetSizeBytes+checksumSizeBytes,0);
+                                       end
+                                   end
+                               end
+                               
+                               curRecord = curRecord -1;  %adjust for the 1 base offset matlab uses.
+                               if(recordCount~=curRecord)
+                                   fprintf(1,'There is a mismatch between the number of records expected and the number of records found.\n\tPlease check your data for corruption.\n');
+                               end
+                           end
+                           
+                           
+                           axesFloatData = (-bitand(axesUBitData,2048)+bitand(axesUBitData,2047))*encodingEPS;
+                           
+                           obj.accel.raw.x = axesFloatData(:,1);
+                           obj.accel.raw.y = axesFloatData(:,2);
+                           obj.accel.raw.z = axesFloatData(:,3);
+                           recordCount = size(axesFloatData,1);                           
+                           obj.durSamples = recordCount;
+                           
+                           toc;
+                       end
+                       fclose(fid);
+
+                       fprintf('Skipping resample count data step\n');
+                       %                        obj.resampleCountData();
+                       
+                   catch me
+                       showME(me);
+                       fclose(fid);
+                   end
+               else
+                   fprintf('Warning - could not open %s for reading!\n',fullRawActivityBinFilename);
+               end
+           else
+               fprintf('Warning - %s does not exist!\n',fullRawActivityBinFilename);
+           end
+       end       
+       
        % ======================================================================
        %> @brief Returns a structure of an insance PAData's time series data.
        %> @param obj Instance of PAData.
