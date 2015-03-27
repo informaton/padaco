@@ -142,7 +142,7 @@ classdef PAView < handle
             
             handles = guidata(obj.getFigHandle());
             
-            set(handles.panel_left,'backgroundcolor',[0.75,0.75,0.75]);
+            set([handles.panel_topleft,handles.panel_bottomleft],'backgroundcolor',[0.75,0.75,0.75]);
             
             metaDataHandles = [handles.panel_study;get(handles.panel_study,'children')];
             set(metaDataHandles,'backgroundcolor',[0.95,0.95,0.95],'visible','off');
@@ -164,7 +164,7 @@ classdef PAView < handle
             obj.texthandle.frameDurationMinutes = handles.edit_frameSizeMinutes;
             obj.texthandle.frameDurationHours = handles.edit_frameSizeHours;
             
-            obj.patchhandle.controls = handles.panel_left;
+            obj.patchhandle.controls = handles.panel_topleft;
             obj.patchhandle.features = handles.panel_features;
             obj.patchhandle.metaData = handles.panel_study;
             
@@ -197,8 +197,6 @@ classdef PAView < handle
             userData = get(obj.menuhandle.windowDurSec,'userdata');
             windowDurSec = userData(userChoice);
         end
-
-
         
         
         % --------------------------------------------------------------------

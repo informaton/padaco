@@ -101,12 +101,17 @@ classdef PAController < handle
                 featureLineContextMenuHandle = obj.getFeatureLineContextmenuHandle();
                 obj.VIEW = PAView(Padaco_fig_h,uiLinecontextmenu_handle,uiPrimaryAxescontextmenu_handle,featureLineContextMenuHandle);
 
-                handles = guidata(Padaco_fig_h);
                 obj.initWidgets();
-                obj.initCallbacks();
                 
+                set(Padaco_fig_h,'CloseRequestFcn',{@obj.figureCloseCallback,guidata(Padaco_fig_h)});
+
+                %configure the menu bar callbacks.
+                obj.initMenubarCallbacks();
+
+
                 % Synthesize edit callback to trigger first display
-                obj.edit_curWindowCallback(handles.edit_curWindow,[]);
+                % handles = guidata(Padaco_fig_h);
+                % obj.edit_curWindowCallback(handles.edit_curWindow,[]);
                 
             end                
         end
@@ -141,8 +146,7 @@ classdef PAController < handle
         function initCallbacks(obj)   
             figH = obj.VIEW.getFigHandle();
             
-            % figure callbacks
-            set(figH,'CloseRequestFcn',{@obj.figureCloseCallback,guidata(figH)});            
+            % mouse and keyboard callbacks
             set(figH,'KeyPressFcn',@obj.keyPressCallback);
             set(figH,'KeyReleaseFcn',@obj.keyReleaseCallback);
             set(figH,'WindowButtonDownFcn',@obj.windowButtonDownCallback);
@@ -307,6 +311,9 @@ classdef PAController < handle
             set(handles.menu_tools_export,'callback',@obj.menu_tools_export2workspace_callback);
             % batch
             set(handles.menu_tools_batch,'callback',@obj.menuToolsBatchCallback);
+            % results
+            set(handles.menu_tools_results,'callback',@obj.menuToolsResultsCallback);
+            
             
             
         end
@@ -378,8 +385,10 @@ classdef PAController < handle
             
             set(handles.button_go,'callback',@obj.button_goCallback);
             
-            %configure the menu bar callbacks.
-            obj.initMenubarCallbacks();
+            
+            
+            % Configure stats panel callbacks ...
+            set([handles.check_normalizevalues,handles.menu_feature,handles.menu_signalsource,handles.menu_plottype],'callback',@refreshResultsPlot);
 
         end
         
@@ -922,6 +931,35 @@ classdef PAController < handle
                 uiwait(msgbox('An error occurred while trying to export data object to a workspace variable.  See console for details.'));
             end
         end
+        
+        % Results viewing callback
+                % --------------------------------------------------------------------
+        %> @brief Menubar callback for quitting the program.
+        %> Executes when user attempts to close padaco fig.
+        %> @param obj Instance of PAController
+        %> @param hObject    handle to menu_file_quit (see GCBO)
+        %> @param eventdata  reserved - to be defined in a future version of MATLAB
+        %> @note See startBatchProcessCallback for actual batch processing
+        %> steps.
+        % --------------------------------------------------------------------        
+        function menuToolsResultsCallback(obj,hObject,eventdata)           
+            % switch to results viewing 
+            
+            handles = guidata(hObject);
+            % hide the things I am not interested in
+            resultPanels = handles.panel_bottomleft;
+            normalPanels = [handles.panel_topleft;
+                        handles.panel_study;
+                        handles.panel_displayButtonGroup;
+                        handles.panel_epochControls];
+                    
+            set(normalPanels,'visible','off');
+            set(resultPanels,'visible','on');
+            
+            % unhide the things I am interested.
+            %
+
+        end        
         
         %% Batch mode callbacks        
         
@@ -1863,7 +1901,7 @@ classdef PAController < handle
             % settings (i.e. obj.SETTINGS.DATA) and these are in turn
             % passed along to the VIEW class here and used to initialize 
             % many of the selected widgets.
-            
+
             
             obj.initSignalSelectionMenu();
             
@@ -1924,6 +1962,9 @@ classdef PAController < handle
             maxDaylight = 1;
             [daylight,startStopDatenums] = obj.getDaylight(numFrames);
             obj.VIEW.addOverlayToSecondaryAxes(daylight,startStopDatenums,height-0.005,heightOffset,maxDaylight);
+            
+            obj.initCallbacks(); %initialize callbacks now that we have some data we can interact with.
+            
             obj.VIEW.showReady();
         end
         

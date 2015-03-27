@@ -72,45 +72,103 @@ function varargout = statTool_OutputFcn(hObject, eventdata, handles)
 % Get default command line output from handles structure
 varargout{1} = handles.output;
 
-signalTypes = {'x','y','z','vecMag'};
-normalizationTypes = {'values','normalizedValues'};
-processedTypes = {'raw','count'};    
 
-signalDescriptions = {'X','Y','Z','Vector Magnitude'};
+
+handles.user.trimResults = false;
+handles.user.signalTypes = {'x','y','z','vecMag'};
+handles.user.processedTypes = {'count','raw'};    
+
+handles.user.normalizationTypes = {'values','normalizedValues'};
+normalizationSelection = 1;
+set(handles.check_normalizevalues,'min',1,'max',2,'value',normalizationSelection);
+
+handles.user.signalDescriptions = {'X','Y','Z','Vector Magnitude'};
 signalSelection = 4;
-set(handles.menu_signalsource,'string',signalDescriptions,'userdata',signalTypes,'value',signalSelection);
+set(handles.menu_signalsource,'string',handles.user.signalDescriptions,'userdata',handles.user.signalTypes,'value',signalSelection);
+handles.user.plotTypes = {'dailyaverage','dailytally','morningheatmap','heatmap','rolling','morningrolling'};
+handles.user.plotTypeDescriptions = {'Average Daily Tallies','Total Daily Tallies','Heat map (early morning)','Heat map','Time series','Time series (morning)'};
+plotTypeSelection = 1;
+set(handles.menu_plottype,'userdata',handles.user.plotTypes,'string',handles.user.plotTypeDescriptions,'value',plotTypeSelection);
 
-featureDescriptions = {'Mean','Mode','RMS','Std Dev','Sum','Variance'};
-baseFeatureTypes = {'mean','mode','rms','std','sum','var'};
+handles.user.featureDescriptions = {'Mean','Mode','RMS','Std Dev','Sum','Variance'};
+handles.user.baseFeatureTypes = {'mean','mode','rms','std','sum','var'};
 baseFeatureSelection = 5;
-set(handles.menu_feature,'string',featureDescriptions,'userdata',baseFeatureTypes,'value',baseFeatureSelection);
+set(handles.menu_feature,'string',handles.user.featureDescriptions,'userdata',handles.user.baseFeatureTypes,'value',baseFeatureSelection);
 
 processedTypeSelection = 1;
-handles.user.processType = processedTypes{processedTypeSelection};
-handles.user.inputPathname = '/Volumes/SeaG 1TB/sampleData/output/features/';
-handles.user.inputFilePattern = '%s/%s/features.%s.accel.%s.%s.txt';
-handles.user.inputFileFielnames = {'inputPathname','displaySeletion','processType','curSignal'};
-handles.user.baseFeature = baseFeatureTypes{baseFeatureSelection};
-handles.user.processType = processedTypes{2};
-handles.user.curSignal = signalTypes{signalSelection};
+handles.user.inputPathname = '/Volumes/SeaG 1TB/sampleData/output/features';
+handles.user.inputFilePattern = ['%s',filesep,'%s',filesep,'features.%s.accel.%s.%s.txt']; 
+handles.user.inputFileFielndames = {'inputPathname','displaySeletion','processType','curSignal'};
 
-normalizationSelection = 2;
-handles.user.normalizationType = normalizationTypes{normalizationSelection};
+% handles.user.plotType = handles.user.plotTypes{plotTypeSelection};
+% handles.user.processType = handles.user.processedTypes{processedTypeSelection};
+% handles.user.baseFeature = handles.user.baseFeatureTypes{baseFeatureSelection};
+% handles.user.processType = handles.user.processedTypes{2};
+% handles.user.curSignal = handles.user.signalTypes{signalSelection};
+% handles.user.normalizationType = handles.user.normalizationTypes{normalizationSelection};
+
 
 handles.user.daysofweekStr = {'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
 handles.user.daysofweekOrder = 1:7;
 
+set([handles.check_normalizevalues,handles.menu_feature,handles.menu_signalsource,handles.menu_plottype],'callback',@refreshPlot);
+
+
 guidata(hObject,handles);
 
-menu_plottype_Callback(handles.menu_plottype,[],handles)
 
+refreshPlot(hObject);
+end
+
+function refreshPlot(hObject,~)
+    handles = guidata(hObject);
+    pSettings = getPlotSettings(handles);
+
+    inputFilename = sprintf(handles.user.inputFilePattern,pSettings.inputPathname,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
+    if(exist(inputFilename,'file'))
+        featureStruct = loadAlignedFeatures(inputFilename);
+        loadFeatures = featureStruct.(pSettings.normalizationType);
+        
+        if(pSettings.trimResults)
+            trimInd = loadFeatures < prctile(loadFeatures,99);
+            features = loadFeatures(trimInd);
+            daysofweek = pSettings.daysofweek(trimInd);
+        else
+            features =  loadFeatures;
+        end
+        featureStruct.features = features;
+        pSettings.ylabelstr = sprintf('%s of %s %s activity',pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
+        pSettings.xlabelstr = 'Days of Week';
+        
+        plotSelection(handles.axes1,featureStruct,pSettings);
+    else
+       warndlg(sprintf('Could not find %s',inputFilename)); 
+    end
 end
 
 % Refresh the user settings from current GUI configuration.
-function userSettings = refreshUserSettings(hObject)
-    handles = guidata(hObject);
-    userSettings = handles.user;
+function userSettings = getPlotSettings(handles)
+
+processedTypeSelection = 1;
+baseFeatureSelection = get(handles.menu_feature,'value');
+signalSelection = get(handles.menu_signalsource,'value');
+normalizationSelection = get(handles.check_normalizevalues,'value');
+
+plotTypeSelection = get(handles.menu_plottype,'value');
+
+userSettings.inputPathname = handles.user.inputPathname;
+userSettings.trimResults = false;
+userSettings.processType = handles.user.processedTypes{processedTypeSelection};
+userSettings.baseFeature = handles.user.baseFeatureTypes{baseFeatureSelection};
+userSettings.curSignal = handles.user.signalTypes{signalSelection};
+userSettings.normalizationType = handles.user.normalizationTypes{normalizationSelection};    
+userSettings.plotType = handles.user.plotTypes{plotTypeSelection};
+
+userSettings.numShades = 1000;
+
 end
+
+
 function menu_plottype_CreateFcn(hObject, eventdata, handles)
 
 % Hint: popupmenu controls usually have a white background on Windows.
@@ -121,11 +179,6 @@ end
 
 end
 
-function check_normalizevalues_Callback(hObject, eventdata, handles)
-end
-
-function menu_feature_Callback(hObject, eventdata, handles)
-end
 
 function menu_feature_CreateFcn(hObject, eventdata, handles)
 
@@ -136,9 +189,7 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 end
 
-function menu_signalsource_Callback(hObject, eventdata, handles)
 
-end
 function menu_signalsource_CreateFcn(hObject, eventdata, handles)
 
 % Hint: popupmenu controls usually have a white background on Windows.
@@ -149,31 +200,9 @@ end
 end
 
 
-function menu_plottype_Callback(hObject, eventdata, handles)
-    
-    userData = get(hObject,'userdata');
-    displaySelection = userData{get(hObject,'value')};
-    
-    u = handles.user;
-    inputFilename = sprintf(u.inputFilePattern,u.inputPathname,u.baseFeature,u.baseFeature,u.processType,u.curSignal);
-    featureStruct = loadAlignedFeatures(inputFilename);
-    loadFeatures = featureStruct.(u.normalizationType);
 
-    if(u.trimResults)
-        trimInd = loadFeatures < prctile(loadFeatures,99);
-        features = loadFeatures(trimInd);
-        daysofweek = u.daysofweek(trimInd);
-    else
-        features =  loadFeatures;
-    end
-    featureStruct.features = features;
-    featureStruct.ylabelstr = sprintf('%s of %s %s activity',u.baseFeature,u.processType,u.curSignal);
-    featureStruct.xlabelstr = 'Days of Week';
-    plotSelection(handles.axes1,featureStruct,displaySelection,featureStruct.startDaysOfWeek);
-    
-end
 
-function plotSelection(axesHandle,featureStruct,displaySelection)
+function plotSelection(axesHandle,featureStruct,plotOptions)
 
 daysofweek = featureStruct.startDaysOfWeek;
 daysofweekStr = {'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
@@ -181,7 +210,8 @@ daysofweekOrder = 1:7;
 features = featureStruct.features;
 divisionsPerDay = size(features,2);
 
-    switch(displaySelection)
+
+    switch(plotOptions.plotType)
         case 'dailyaverage'
             imageMap = nan(7,1);
             for dayofweek=0:6
@@ -219,7 +249,7 @@ divisionsPerDay = size(features,2);
             end
             
             imageMap=imageMap/max(imageMap(:));
-            imageMap = round(imageMap*numShades);
+            imageMap = round(imageMap*plotOptions.numShades);
             imagesc(imageMap');
             weekdayticks = 1:1:7; %linspace(0,6,7);
             dailyDivisionTicks = 1:2:24;
@@ -236,7 +266,7 @@ divisionsPerDay = size(features,2);
             end
             
             imageMap=imageMap/max(imageMap(:));
-            imageMap = round(imageMap*numShades);
+            imageMap = round(imageMap*plotOptions.numShades);
             imagesc(imageMap');
             weekdayticks = 1:1:7; %linspace(0,6,7);
             dailyDivisionTicks = 1:8:featureStruct.totalCount;
