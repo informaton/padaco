@@ -30,6 +30,10 @@ classdef PAController < handle
         %> Instance of PAModel - Padaco's model component.  See accelObj.  
         MODEL;        
 
+        %> Instance of PAStatTool - results controller when in results view
+        %> mode.
+        StatTool;
+        
         %> Linehandle in Padaco that is currently selected by the user.
         current_linehandle;
         
@@ -56,8 +60,15 @@ classdef PAController < handle
         %> - @c describeSleep
         batch;
         
+        %> String identifying Padaco's current view mode.  Values include
+        %> - @c timeseries
+        %> - @c results
+        viewMode;
+        
         %> Foldername of most recent screenshot.
         screenshotPathname;
+        %> Foldername of most recent results output pathname used.
+        resultsPathname;
         
         %> struct to keep track of various Padaco states
         STATE; 
@@ -88,6 +99,8 @@ classdef PAController < handle
             obj.SETTINGS = PASettings(rootpathname,parameters_filename);
             obj.batch = obj.SETTINGS.CONTROLLER.batch;
             obj.screenshotPathname = obj.SETTINGS.CONTROLLER.screenshotPathname;
+            obj.resultsPathname = obj.SETTINGS.CONTROLLER.resultsPathname;
+            
             obj.accelTypeShown = [];
             
             if(ishandle(Padaco_fig_h))
@@ -99,6 +112,9 @@ classdef PAController < handle
                 uiLinecontextmenu_handle = obj.getLineContextmenuHandle();
                 uiPrimaryAxescontextmenu_handle = obj.getPrimaryAxesContextmenuHandle();
                 featureLineContextMenuHandle = obj.getFeatureLineContextmenuHandle();
+                
+                
+                % initialize the view here ...?
                 obj.VIEW = PAView(Padaco_fig_h,uiLinecontextmenu_handle,uiPrimaryAxescontextmenu_handle,featureLineContextMenuHandle);
 
                 obj.initWidgets();
@@ -107,12 +123,8 @@ classdef PAController < handle
 
                 %configure the menu bar callbacks.
                 obj.initMenubarCallbacks();
-
-
-                % Synthesize edit callback to trigger first display
-                % handles = guidata(Padaco_fig_h);
-                % obj.edit_curWindowCallback(handles.edit_curWindow,[]);
                 
+                obj.setViewMode(obj.SETTINGS.CONTROLLER.viewMode);
             end                
         end
         
@@ -295,8 +307,9 @@ classdef PAController < handle
             handles = guidata(figH);
             
             %% file
-             %  open
+            %  open
             set(handles.menu_file_open,'callback',@obj.menuFileOpenCallback);
+            set(handles.menu_file_open_resultspath,'callback',@obj.menuFileOpenResultsPathCallback);
             
              % screeshots
             set(handles.menu_file_screenshot_figure,'callback',{@obj.menuFileScreenshotCallback,'figure'});
@@ -311,12 +324,25 @@ classdef PAController < handle
             set(handles.menu_tools_export,'callback',@obj.menu_tools_export2workspace_callback);
             % batch
             set(handles.menu_tools_batch,'callback',@obj.menuToolsBatchCallback);
-            % results
-            set(handles.menu_tools_results,'callback',@obj.menuToolsResultsCallback);
             
+            %% Settings
+            % View Modes
             
+            set(handles.menu_settings_mode_timeseries,'callback',@obj.menuSettingsModeTimeSeriesCallback);
+            set(handles.menu_settings_mode_results,'callback',@obj.menuSettingsModeResultsCallback);
             
+                
+            % enable everything
+            set([
+                handles.menu_file
+                handles.menu_file_open
+                handles.menu_file_quit
+                handles.menu_settings
+                ],'enable','on');
+            
+            obj.VIEW.restore_state();
         end
+
         
         function initWidgets(obj)
             
@@ -841,8 +867,9 @@ classdef PAController < handle
             f=uigetfullfile({'*.csv;*.raw;*.bin','All (counts, raw accelerations (.raw, .bin)))';'*.csv','Comma Separated Values';'*.bin','Raw Acceleration (binary format: firmware 2.5.0 and 3.6.1 only)';'*.raw','Raw Acceleration (comma separated values)'},'Select a file','off',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
             try
                 if(~isempty(f))
-                    
                     obj.VIEW.showBusy('Loading');
+
+                    obj.setViewMode('timeseries');
                     obj.accelObj = PAData(f,obj.SETTINGS.DATA);
                     
                     %initialize the PAData object's visual properties
@@ -854,14 +881,29 @@ classdef PAController < handle
                     signalTagLine = obj.getSignalSelection(); %'accel.count.x';
                     obj.accelObj.getAlignedFeatureVecs(featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours)
                     
+                    obj.VIEW.showReady();
                 end
             catch me
                 showME(me);
                 obj.VIEW.showReady();
-                
-                
-                
             end            
+        end
+        
+        
+        % --------------------------------------------------------------------
+        %> @brief Menubar callback for opening a results path for use with
+        %> the results view mode.
+        %> @param obj Instance of PAController
+        %> @param hObject  handle to menu_file_open (see GCBO)
+        %> @param eventdata Required by MATLAB, but not used.
+        % --------------------------------------------------------------------
+        function menuFileOpenResultsPathCallback(obj,hObject,eventdata)
+            initialPath = CONTROLLER.batch.outputDirectory;
+            resultsPath = uigetfulldir(initialPath, 'Select path containing padaco results output directories');
+            if(~isempty(resultsPath))
+               obj.resultsDirectory = resultsPath;
+               obj.setViewMode('results');
+            end
         end
         
         % --------------------------------------------------------------------
@@ -932,33 +974,92 @@ classdef PAController < handle
             end
         end
         
-        % Results viewing callback
-                % --------------------------------------------------------------------
-        %> @brief Menubar callback for quitting the program.
+        %% Settings menu bar callbacks
+        %> @brief Sets padaco's view mode to either time series or results viewing.
+        %> @param obj Instance of PAController
+        %> @param viewMode A string with one of two values
+        %> - @c timeseries
+        %> - @c results
+        % --------------------------------------------------------------------        
+        function setViewMode(obj,viewMode)
+            obj.StatTool = [];
+            handles = guidata(obj.VIEW.figurehandle);
+            
+            resultPanels = handles.panel_results;
+            normalPanels = [handles.panel_timeseries;                        
+                        handles.panel_displayButtonGroup;
+                        handles.panel_epochControls];
+             
+            if(~strcmpi(viewMode,'timeseries') && ~strcmpi(viewMode,'results'))
+                warndlg(sprintf('Unrecognized view mode (%s) - switching to ''timeseries''',viewMode));
+                viewMode = 'timeseries';
+                set(normalPanels,'visible','off');
+                set(resultPanels,'visible','off');                  
+            end            
+               
+            obj.viewMode = viewMode;  
+            
+            obj.VIEW.showBusy(['Switching to ',viewMode,' view']);   
+            if(strcmpi(obj.viewMode,'timeseries'))
+                set(normalPanels,'visible','on');
+                
+                % don't turn this one on unless it is active                
+                set(resultPanels,'visible','off');                
+                set(handles.menu_settings_mode_timeseries,'checked','on');
+                set(handles.menu_settings_mode_results,'checked','off');
+                
+            elseif(strcmpi(obj.viewMode,'results'))
+                            
+                if(~isdir(obj.resultsPathname))
+                    responseButton = questdlg('Results output pathname is not set.  Would you like to choose one now?','Find results output path?');
+                    if(strcmpi(responseButton,'yes'))
+                        obj.menuFileOpenResultsPathCallback();
+                    end
+                end
+                
+                set(normalPanels,'visible','off');
+                set(handles.panel_study,'visible','off');
+                set(resultPanels,'visible','on');
+                set(handles.menu_settings_mode_timeseries,'checked','off');
+                set(handles.menu_settings_mode_results,'checked','on');
+                
+                obj.initResultsMode();                
+                obj.VIEW.showReady();            
+            end   
+                      
+            obj.VIEW.setViewMode(viewMode);
+        end
+        
+        %> @brief Initializes widgets for results view mode.  Widgets are
+        %> disabled if the resultsPathname does not exist.
+        %> @param this Instance of PAController        
+        function initResultsMode(this)
+            if(isdir(this.resultsPathname))
+                this.StatTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname);
+            end
+        end
+        
+        % Time Series viewing callback
+        % --------------------------------------------------------------------
+        %> @brief Menubar callback to set time series view mode.
         %> Executes when user attempts to close padaco fig.
         %> @param obj Instance of PAController
         %> @param hObject    handle to menu_file_quit (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
-        %> @note See startBatchProcessCallback for actual batch processing
-        %> steps.
         % --------------------------------------------------------------------        
-        function menuToolsResultsCallback(obj,hObject,eventdata)           
-            % switch to results viewing 
-            
-            handles = guidata(hObject);
-            % hide the things I am not interested in
-            resultPanels = handles.panel_bottomleft;
-            normalPanels = [handles.panel_topleft;
-                        handles.panel_study;
-                        handles.panel_displayButtonGroup;
-                        handles.panel_epochControls];
-                    
-            set(normalPanels,'visible','off');
-            set(resultPanels,'visible','on');
-            
-            % unhide the things I am interested.
-            %
-
+        function menuSettingsModeTimeSeriesCallback(obj,hObject,eventdata)           
+            obj.setViewMode('timeseries')
+        end   
+        
+        % Results viewing callback
+        % --------------------------------------------------------------------
+        %> @brief Menubar callback for switching to results view mode.
+        %> @param obj Instance of PAController
+        %> @param hObject    handle to menu_file_quit (see GCBO)
+        %> @param eventdata  reserved - to be defined in a future version of MATLAB
+        % --------------------------------------------------------------------        
+        function menuSettingsModeResultsCallback(obj,hObject,eventdata)           
+            obj.setViewMode('results');
         end        
         
         %% Batch mode callbacks        
@@ -1237,10 +1338,8 @@ classdef PAController < handle
                         fprintf(fid,'\n');
                         fclose(fid);
                     end
-                end
-            
-            end
-            
+                end            
+            end            
            
             % setup timers
             pctDone = 0;
@@ -1345,15 +1444,11 @@ classdef PAController < handle
                     waitbar(pctDone,waitH,char(msg));
                 else
                     %                     waitHandle = findall(0,'tag','waitbarHTag');
-                end
-                
-
-
-                
-                
+                end                
             end
-            waitbar(pctDone,waitH,'Finished!');
             
+            waitbar(pctDone,waitH,'Finished!');
+            obj.resultsPathname = obj.batch.outputDirectory;
             if(~isempty(failedFiles))
                 fprintf('\n\n%u Files Failed:\n',numel(failedFiles));
                 for f=1:numel(failedFiles)
@@ -1361,8 +1456,7 @@ classdef PAController < handle
                 end
             end
         end
-        
-            
+           
             
         % --------------------------------------------------------------------
         %> @brief Creates a temporary figure and axes, draws an overlay
@@ -1993,6 +2087,8 @@ classdef PAController < handle
             pStruct.signalTagLine = obj.getSignalSelection();
             pStruct.batch = obj.batch;
             pStruct.screenshotPathname = obj.screenshotPathname;
+            pStruct.viewMode = obj.viewMode;
+            pStruct.resultsPathname = obj.resultsPathname;
         end
         
         % ======================================================================
@@ -2290,8 +2386,9 @@ classdef PAController < handle
                 pStruct.batch.(checkFields{f}) = 0;
             end
             pStruct.screenshotPathname = mPath;            
-        end
-        
+            pStruct.viewMode = 'timeseries';
+            pStruct.resultsPathname = pStruct.batch.outputDirectory;
+        end        
     end
     
     

@@ -44,8 +44,12 @@ classdef PAView < handle
         
         %> @brief struct of text handles.  Fields are: 
         %> - @c status handle to the text status location of the Padaco figure where updates can go
-        %> - @c src_filename handle to the text box for display of loaded filename
-        %> - @c edit_window  handle to the editable window handle        
+        %> - @c studyinfo handle to the text box for display of loaded filename
+        %> - @c curWindow 
+        %> - @c aggregateDuration
+        %> - @c frameDurationMinutes
+        %> - @c frameDurationHours
+        %> - @c trimAmount        
         texthandle; 
         
         %> @brief struct of panel handles.  Fields are: 
@@ -57,9 +61,17 @@ classdef PAView < handle
         %> @brief struct of menu handles.  Fields are: 
         %> - @c windowDurSec The window display duration in seconds
         %> - @c prefilter The selection of prefilter methods
-        %> - @c extractor The selection of feature extraction methods
+        %> - @c signalSelection The signal to use (e.g. x-acceleration)
         %> - @c displayFeature Which feature to display (Default is all)
+        %> - @c signalource - This is for the result type
+        %> - @c featureSource - Result selection feature.
+        %> - @c resultType - plot type used to show signal-feature results.
         menuhandle;
+        
+        %> @brief Struct of check box handles.  Fields include
+        %> - @c normalizeResults - check to show normalized results.
+        %> - @c trimResults - check to trim outlier results.  
+        checkhandle;
         %> @brief Struct of line handles (graphic handle class) for showing
         %> activity data.
         linehandle;
@@ -137,12 +149,23 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         %> @brief Creates line handles and maps figure tags to PAView instance variables.
         %> @param obj Instance of PAView.
+        %> @note This method does not set the view mode.  Call
+        %> setViewMode(.) to configure the axes and widgets accordingly.
         % --------------------------------------------------------------------
         function createView(obj)
             
             handles = guidata(obj.getFigHandle());
             
-            set([handles.panel_topleft,handles.panel_bottomleft],'backgroundcolor',[0.75,0.75,0.75]);
+            % get our panles looking nice and pretty.
+            set([handles.panel_timeseries,handles.panel_results],'backgroundcolor',[0.75,0.75,0.75]);
+            
+            % Line our panels up to same top left position - do this here
+            % so I can edit them easy in guide and not have to conintually
+            % update position in guide each time i need to drag the
+            % panel(s) out to make separate edits.
+            timeSeriesPos = get(handles.panel_timeseries,'position');
+            resultsPos = get(handles.panel_results,'position');
+            set(handles.panel_results,'position',[timeSeriesPos(1:2),resultsPos(3:4)]);
             
             metaDataHandles = [handles.panel_study;get(handles.panel_study,'children')];
             set(metaDataHandles,'backgroundcolor',[0.95,0.95,0.95],'visible','off');
@@ -162,9 +185,10 @@ classdef PAView < handle
             obj.texthandle.curWindow = handles.edit_curWindow;
             obj.texthandle.aggregateDuration = handles.edit_aggregate;
             obj.texthandle.frameDurationMinutes = handles.edit_frameSizeMinutes;
-            obj.texthandle.frameDurationHours = handles.edit_frameSizeHours;
+            obj.texthandle.frameDurationHours = handles.edit_frameSizeHours;            
+            obj.texthandle.trimAmount = handles.edit_aggregate;
             
-            obj.patchhandle.controls = handles.panel_topleft;
+            obj.patchhandle.controls = handles.panel_timeseries;
             obj.patchhandle.features = handles.panel_features;
             obj.patchhandle.metaData = handles.panel_study;
             
@@ -172,6 +196,17 @@ classdef PAView < handle
             obj.menuhandle.signalSelection = handles.menu_signalSelection;
             obj.menuhandle.prefilterMethod = handles.menu_prefilter;
             obj.menuhandle.displayFeature = handles.menu_displayFeature;
+            
+            obj.menuhandle.signalSource = handles.menu_signalsource;
+            obj.menuhandle.featureSource = handles.menu_feature;
+            obj.menuhandle.resultType = handles.menu_plottype;
+            
+            obj.checkhandle.normalizeResults = handles.check_normalizevalues;
+            obj.checkhandle.trimResults = handles.check_trim;
+            
+%             obj.timeseries.menuhandle = obj.menuhandle;
+%             obj.timeseries.texthandle = obj.texthandle;
+%             obj.timeseries.patchhandle = obj.patchhandle;
             
             obj.axeshandle.primary = handles.axes_primary;
             obj.axeshandle.secondary = handles.axes_secondary;
@@ -187,6 +222,20 @@ classdef PAView < handle
             set(obj.axeshandle.primary,'uicontextmenu',obj.contextmenuhandle.primaryAxes);
         end
 
+        
+        
+        % --------------------------------------------------------------------
+        %> @brief Sets padaco's view mode to either time series or results viewing.
+        %> @param obj Instance of PAView
+        %> @param viewModeView A string with one of two values
+        %> - @c timeseries
+        %> - @c results
+        % --------------------------------------------------------------------        
+        function setViewMode(obj,viewMode)
+            obj.initAxesHandles(viewMode);
+            obj.initWidgets(viewMode);           
+        end
+        
         % --------------------------------------------------------------------
         %> @brief Retrieves the window duration drop down menu's current value as a number.
         %> @param obj Instance of PAView.
@@ -399,6 +448,59 @@ classdef PAView < handle
             textProps.string = '';
             obj.recurseHandleInit(obj.texthandle,textProps);
         end
+
+ 
+        % --------------------------------------------------------------------
+        %> @brief Clears axes handles of any children and sets default properties.
+        %> Called when first creating a view.  See also initAxesHandles.
+        %> @param obj Instance of PAView
+        %> @param viewMode A string with one of two values
+        %> - @c timeseries
+        %> - @c results        
+        % --------------------------------------------------------------------
+        function initAxesHandlesViewMode(obj,viewMode) 
+            
+            obj.clearAxesHandles();
+            
+            axesProps.primary.xtickmode='manual';
+            axesProps.primary.xticklabelmode='manual';
+            axesProps.primary.xtick=[];
+            axesProps.primary.ytickmode='manual';
+            axesProps.primary.ytick=[];
+            axesProps.primary.nextplot='replacechildren';
+            axesProps.primary.box= 'on';
+            axesProps.primary.plotboxaspectratiomode='auto';
+            axesProps.primary.fontSize = 12;            
+
+            if(strcmpi(viewMode,'timeseries'))
+                
+                axesProps.primary.units = 'normalized'; %normalized allows it to resize automatically
+                axesProps.primary.drawmode = 'normal'; %fast does not allow alpha blending...
+                axesProps.primary.xgrid='on';
+                axesProps.primary.ygrid='off';
+                axesProps.primary.xminortick='on';
+                axesProps.primary.xlimmode='manual';
+                axesProps.primary.xAxisLocation = 'top';
+                
+            elseif(strcmpi(viewMode,'results'))
+                
+                axesProps.units = 'normalized'; %normalized allows it to resize automatically
+                axesProps.drawmode = 'normal'; %fast does not allow alpha blending...
+                axesProps.xgrid='on';
+                axesProps.ygrid='off';
+                axesProps.xminortick='on';
+                axesProps.xlimmode='auto';
+                axesProps.xAxisLocation = 'bottom';
+            end
+            
+            axesProps.secondary = axesProps.primary;
+            axesProps.secondary.xgrid = 'off';
+            axesProps.secondary.xminortick = 'off';
+            axesProps.secondary.xAxisLocation = 'bottom';
+
+            %initialize axes
+            obj.initAxesHandles(axesProps);           
+        end
         
         % --------------------------------------------------------------------
         %> @brief Clears axes handles of any children and sets default properties.
@@ -409,33 +511,33 @@ classdef PAView < handle
             
             cla(obj.axeshandle.primary);
             cla(obj.axeshandle.secondary);
-            
-            axesProps.units = 'normalized'; %normalized allows it to resize automatically
-            axesProps.drawmode = 'normal'; %fast does not allow alpha blending...
-            axesProps.xgrid='on';
-            axesProps.ygrid='off';
-            axesProps.xminortick='on';
-            axesProps.xlimmode='manual';
-            axesProps.xtickmode='manual';
-            axesProps.xticklabelmode='manual';
-            axesProps.xtick=[];
-            axesProps.ytickmode='manual';
-            axesProps.ytick=[];
-            axesProps.nextplot='replacechildren';
-            axesProps.box= 'on';
-            axesProps.plotboxaspectratiomode='auto';
-            axesProps.fontSize = 12;
-            axesProps.xAxisLocation = 'top';
-            
-            %initialize axes
-            set(obj.axeshandle.primary,axesProps);
-            
-            axesProps.xgrid = 'off';
-            axesProps.xminortick = 'off';  
-            axesProps.xAxisLocation = 'bottom';
-
-            set(obj.axeshandle.secondary,axesProps);             
         end
+%             axesProps.units = 'normalized'; %normalized allows it to resize automatically
+%             axesProps.drawmode = 'normal'; %fast does not allow alpha blending...
+%             axesProps.xgrid='on';
+%             axesProps.ygrid='off';
+%             axesProps.xminortick='on';
+%             axesProps.xlimmode='manual';
+%             axesProps.xtickmode='manual';
+%             axesProps.xticklabelmode='manual';
+%             axesProps.xtick=[];
+%             axesProps.ytickmode='manual';
+%             axesProps.ytick=[];
+%             axesProps.nextplot='replacechildren';
+%             axesProps.box= 'on';
+%             axesProps.plotboxaspectratiomode='auto';
+%             axesProps.fontSize = 12;
+%             axesProps.xAxisLocation = 'top';
+%             
+%             %initialize axes
+%             set(obj.axeshandle.primary,axesProps);
+%             
+%             axesProps.xgrid = 'off';
+%             axesProps.xminortick = 'off';  
+%             axesProps.xAxisLocation = 'bottom';
+% 
+%             set(obj.axeshandle.secondary,axesProps);             
+%         end
         
         % --------------------------------------------------------------------
         %> @brief Disable user interface widgets and clear contents.
@@ -447,26 +549,33 @@ classdef PAView < handle
             obj.initWidgets();
             buttonGroupChildren = get(handles.panel_displayButtonGroup,'children');
             
-            fields = fieldnames(obj.menuhandle);
+%             fields = fieldnames(obj.menuhandle);
+%             menuHandles = zeros(numel(fields),1);
+%             for f=1:numel(fields)
+%                 menuHandles(f) = obj.menuhandle.(fields{f});
+%             end
             
-            menuHandles = zeros(numel(fields),1);
-            for f=1:numel(fields)
-                menuHandles(f) = obj.menuhandle.(fields{f});
-            end
-            
+%                 handles.text_window;
+%                 handles.text_windowResolution;
+%                 handles.edit_curWindow
+%                 handles.edit_aggregate
+%                 handles.edit_frameSizeMinutes
+%                 handles.edit_frameSizeHours
+%                 handles.text_aggregate
+%                 handles.text_frameSizeMinutes
+%                 handles.text_frameSizeHours
+%                 handles.edit_trimPercent
+
+
+            menuHandles = struct2array(obj.menuhandle);
+            textHandles = struct2array(obj.texthandle);
             menubarHandles = [handles.menu_file_screenshot_primaryAxes;
                 handles.menu_file_screenshot_secondaryAxes;];
-            widgetList = [menuHandles;                
-                menubarHandles;
-                handles.text_window;
-                handles.text_windowResolution;
-                handles.edit_curWindow
-                handles.edit_aggregate
-                handles.edit_frameSizeMinutes
-                handles.edit_frameSizeHours
-                handles.text_aggregate
-                handles.text_frameSizeMinutes
-                handles.text_frameSizeHours
+            checkHandles = struct2array(obj.checkhandle);
+            widgetList = [menuHandles(:);                
+                menubarHandles(:);
+                textHandles(:)
+                checkHandles(:)
                 handles.button_go
                 buttonGroupChildren];  
             set(widgetList,'enable','off'); 
