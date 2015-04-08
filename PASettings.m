@@ -29,6 +29,8 @@ classdef  PASettings < handle
         VIEW;
         %> struct of batch processing settings.
         BATCH_PROCESS;        
+        %> struct of StatTool plot/analysis settings.
+        StatTool;        
     end
     
     methods(Static)
@@ -251,7 +253,7 @@ classdef  PASettings < handle
         %> @param obj instance of the PASettings class.
         % =================================================================
         function initialize(obj)            
-            obj.fieldNames = {'DATA','CONTROLLER','VIEW','BATCH_PROCESS'};
+            obj.fieldNames = {'DATA','CONTROLLER','VIEW','BATCH_PROCESS','StatTool'};
             obj.setDefaults();
             
             full_paramsFile = fullfile(obj.rootpathname,obj.parameters_filename);
@@ -433,6 +435,8 @@ classdef  PASettings < handle
             
             for f = 1:numel(fieldNames)
                 switch fieldNames{f}
+                    case 'StatTool'
+                        obj.StatTool = PAStatTool.getDefaultParameters();
                     case 'DATA'
                         obj.DATA = PAData.getDefaultParameters();
                     case 'CONTROLLER'

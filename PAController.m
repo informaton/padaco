@@ -94,7 +94,9 @@ classdef PAController < handle
             if(nargin<3)
                 parameters_filename = '_padaco.parameters.txt';
             end;
-                       
+                 
+            obj.StatTool = [];
+            
             %create/intilize the settings object            
             obj.SETTINGS = PASettings(rootpathname,parameters_filename);
             obj.batch = obj.SETTINGS.CONTROLLER.batch;
@@ -125,6 +127,11 @@ classdef PAController < handle
                 obj.initMenubarCallbacks();
                 
                 obj.setViewMode(obj.SETTINGS.CONTROLLER.viewMode);
+                
+                % attempt to load the last set of results
+                if(strcmpi(obj.viewMode,'results'))
+                    obj.initResultsView();
+                end
             end                
         end
         
@@ -135,9 +142,16 @@ classdef PAController < handle
                 obj.SETTINGS.DATA = obj.accelObj.getSaveParameters();
                
             end
+            
+            % update the stat tool settings if it was used successfully.
+            if(~isempty(obj.StatTool) && obj.StatTool.getCanPlot())
+                obj.SETTINGS.StatTool = obj.StatTool.getSaveParameters();
+            end
+            
             obj.SETTINGS.CONTROLLER = obj.getSaveParameters();
             obj.saveParameters(); %requires SETTINGS variable
             obj.SETTINGS = [];
+            
         end        
         
         function saveParameters(obj)
@@ -994,13 +1008,13 @@ classdef PAController < handle
         %> - @c results
         % --------------------------------------------------------------------        
         function setViewMode(obj,viewMode)
-            obj.StatTool = [];
-             
+            
+            
             if(~strcmpi(viewMode,'timeseries') && ~strcmpi(viewMode,'results'))
                 warndlg(sprintf('Unrecognized view mode (%s) - switching to ''timeseries''',viewMode));
                 viewMode = 'timeseries';
             end            
-               
+            
             obj.viewMode = viewMode;  
             
             obj.VIEW.showBusy(['Switching to ',viewMode,' view']);   
@@ -2048,7 +2062,9 @@ classdef PAController < handle
         function success = initResultsView(this)
             success = false;
             if(isdir(this.resultsPathname))
-                this.StatTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname);
+                this.StatTool = [];  %clear any previously existing instance.
+
+                this.StatTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname,this.SETTINGS.StatTool);
                 success = this.StatTool.getCanPlot();
             end
         end
