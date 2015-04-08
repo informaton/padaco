@@ -271,7 +271,7 @@ classdef  PASettings < handle
                         for f=1:numel(obj.fieldNames)
                             cur_field = obj.fieldNames{f};
                             if(~isfield(paramStruct,cur_field) || ~isstruct(paramStruct.(cur_field)))
-                                fprintf('\nWarning: Could not load parameters from file %s.  Will use default settings instead.\n\r',full_paramsFile);
+                                fprintf('\nWarning: Could not load parameters from file %s.  The %s parameters are missing.  Will use default settings instead.\n\r',full_paramsFile,cur_field);
                                 return;
                             else
                                 structFnames = fieldnames(obj.(cur_field));
@@ -279,7 +279,7 @@ classdef  PASettings < handle
                                     cur_sub_field = structFnames{g};
                                     %check if there is a corruption
                                     if(~isfield(paramStruct.(cur_field),cur_sub_field))
-                                        fprintf('\nSettings file corrupted.  Using default Padaco settings\n\n');
+                                        fprintf('\nSettings file corrupted.  The %s.%s parameter is missing.  Using default Padaco settings\n\n', cur_field,cur_sub_field);
                                         return;
                                     end                            
                                 end

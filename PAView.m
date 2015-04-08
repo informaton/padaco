@@ -140,7 +140,8 @@ classdef PAView < handle
                 obj.contextmenuhandle.signals = lineContextmenuHandle;
                 obj.contextmenuhandle.featureLine = featureLineContextmenuHandle;
                 
-                obj.createView();                
+                obj.createView();  
+                obj.disableWidgets();
             else
                 obj = [];
             end
@@ -217,7 +218,7 @@ classdef PAView < handle
             % Clear the figure and such.  
             obj.clearAxesHandles();
             obj.clearTextHandles(); 
-            obj.disableWidgets();
+            obj.clearWidgets();
             
         end
         
@@ -231,7 +232,7 @@ classdef PAView < handle
         % --------------------------------------------------------------------        
         function setViewMode(obj,viewMode)
             obj.initAxesHandlesViewMode(viewMode);
-            
+            obj.clearTextHandles();
             obj.initWidgets(viewMode);           
         end
         
@@ -516,19 +517,30 @@ classdef PAView < handle
             cla(obj.axeshandle.primary);
             cla(obj.axeshandle.secondary);
         end
-        
+
         % --------------------------------------------------------------------
-        %> @brief Disable user interface widgets and clear contents.
+        %> @brief Clear text ('string') of view's user interface widgets
         %> @param obj Instance of PAView
          % --------------------------------------------------------------------
-        function disableWidgets(obj)            
+        function clearWidgets(obj)            
             handles = guidata(obj.getFigHandle());            
             
-            set(handles.panel_study,'visible','off');
             set(handles.edit_aggregate,'string','');
             set(handles.edit_frameSizeHours,'string','');
             set(handles.edit_frameSizeMinutes,'string','');
             set(handles.edit_curWindow,'string','');
+            
+            %what about all of the menus that I have ?
+            set(handles.panel_study,'visible','off');            
+        end
+        
+        
+        % --------------------------------------------------------------------
+        %> @brief Disable user interface widgets 
+        %> @param obj Instance of PAView
+         % --------------------------------------------------------------------
+        function disableWidgets(obj)            
+            handles = guidata(obj.getFigHandle());            
 
             resultPanels = handles.panel_results;
             timeseriesPanels = [handles.panel_timeseries;
@@ -538,25 +550,9 @@ classdef PAView < handle
                 handles.menu_file_screenshot_secondaryAxes];
             set(menubarHandles,'enable','off');
             
-            set([resultPanels;
-                timeseriesPanels;
-                menubarHandles],'enable','off');        
-            
-            %obj.initWidgets(viewMode);
-            %             buttonGroupChildren = get(handles.panel_displayButtonGroup,'children');
-            %
-            %             menuHandles = struct2array(obj.menuhandle);
-            %             textHandles = struct2array(obj.texthandle);
-            %             menubarHandles = [handles.menu_file_screenshot_primaryAxes;
-            %                 handles.menu_file_screenshot_secondaryAxes;];
-            %             checkHandles = struct2array(obj.checkhandle);
-            %             widgetList = [menuHandles(:);
-            %                 menubarHandles(:);
-            %                 textHandles(:)
-            %                 checkHandles(:)
-            %                 handles.button_go
-            %                 buttonGroupChildren];
-            %             set(widgetList,'enable','off');
+            % disable panel widgets
+            set(findall([resultPanels;timeseriesPanels],'enable','on'),'enable','off');
+
         end
                
         % --------------------------------------------------------------------
@@ -583,16 +579,23 @@ classdef PAView < handle
         %> @param viewMode A string with one of two values
         %> - @c timeseries [default]
         %> - @c results
+        %> @param enableFlag boolean flag
+        %> - @c false [default] do not enable widgets for the view mode
+        %> - @c true - enable widgets for the set view mode
         %> @note Programmers: 
         %> do not enable all radio button group children on init.  Only
         %> if features and aggregate bins are available would we do
         %> this.  However, we do not know if that is the case here.
         %> - buttonGroupChildren = get(handles.panel_displayButtonGroup,'children');
         % --------------------------------------------------------------------
-        function initWidgets(obj, viewMode)
-            if(nargin<2)
-                viewMode = 'timeseries';
+        function initWidgets(obj, viewMode, enableFlag)
+            if(nargin<3)
+                enableFlag = false;
+                if(nargin<2)
+                    viewMode = 'timeseries';
+                end
             end
+            
             handles = guidata(obj.getFigHandle());
             
             resultPanels = handles.panel_results;
@@ -600,30 +603,7 @@ classdef PAView < handle
                 handles.panel_displayButtonGroup;
                 handles.panel_epochControls];
             
-            resultMenuHandles = obj.menuhandle;
-%             fields = fieldnames(obj.menuhandle);
-%             menuHandles = zeros(numel(fields),1);
-%             for f=1:numel(fields)
-%                 menuHandles(f) = obj.menuhandle.(fields{f});
-%             end
-            
-            menubarHandles = [handles.menu_file_screenshot_primaryAxes;
-                handles.menu_file_screenshot_secondaryAxes;];
-            set(menubarHandles,'visible','on','enable','on');
-            
-            widgetList = [resultMenuHandles;
-                handles.text_window
-                handles.text_windowResolution
-                handles.edit_curWindow
-                handles.edit_aggregate
-                handles.edit_frameSizeMinutes
-                handles.edit_frameSizeHours
-                handles.text_aggregate
-                handles.text_frameSizeMinutes
-                handles.text_frameSizeHours
-                handles.button_go
-                handles.radio_time;
-                ];
+
             if(strcmpi(viewMode,'timeseries'))
                 set(timeseriesPanels,'visible','on');               
                 set(resultPanels,'visible','off');
@@ -631,17 +611,35 @@ classdef PAView < handle
                 set(handles.menu_settings_mode_timeseries,'checked','on');
                 set(handles.menu_settings_mode_results,'checked','off');
                 
+                if(enableFlag)
+                    set(findall(timeseriesPanels,'enable','off'),'enable','on');
+                else
+                    set(findall(timeseriesPanels,'enable','on'),'enable','off');
+                end
+                
             elseif(strcmpi(viewMode,'results'))                
                 set(resultPanels,'visible','on');
+                
                 set(timeseriesPanels,'visible','off');
+                
                 set(handles.menu_settings_mode_timeseries,'checked','off');
                 set(handles.menu_settings_mode_results,'checked','on');
+                
+                if(enableFlag)
+                    set(findall(resultPanels,'enable','off'),'enable','on');
+                else
+                    set(findall(resultPanels,'enable','on'),'enable','off');
+                end
             else
                 fprintf('Unknown view mode (%s)\n',viewMode);
-                widgetList = [];
             end
+
+            menubarHandles = [handles.menu_file_screenshot_primaryAxes;
+                handles.menu_file_screenshot_secondaryAxes];
+            set(menubarHandles,'visible','on','enable','on');
             
-            set(widgetList,'enable','on','visible','on');
+            set(handles.panel_study,'visible','off');
+            
         end        
 
         % --------------------------------------------------------------------
@@ -726,8 +724,9 @@ classdef PAView < handle
             
             obj.setStudyPanelContents(PADataObject.getHeaderAsString);
             
-            % clears the widgets (drop down menus, edit boxes, etc.)
-            obj.initWidgets('timeseries');
+            % initialize and enable widgets (drop down menus, edit boxes, etc.)
+            obj.initWidgets('timeseries',true);
+
             
             obj.setAggregateDurationMinutes(num2str(PADataObject.aggregateDurMin));
             [frameDurationMinutes, frameDurationHours] = PADataObject.getFrameDuration();
@@ -745,7 +744,6 @@ classdef PAView < handle
             metaDataHandles = [obj.patchhandle.metaData;get(obj.patchhandle.metaData,'children')];
             set(metaDataHandles,'visible','on');
             
-            obj.restore_state();
         end       
          
         % --------------------------------------------------------------------

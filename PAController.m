@@ -867,13 +867,17 @@ classdef PAController < handle
             f=uigetfullfile({'*.csv;*.raw;*.bin','All (counts, raw accelerations (.raw, .bin)))';'*.csv','Comma Separated Values';'*.bin','Raw Acceleration (binary format: firmware 2.5.0 and 3.6.1 only)';'*.raw','Raw Acceleration (comma separated values)'},'Select a file','off',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
             try
                 if(~isempty(f))
+                    if(~strcmpi(obj.viewMode,'timeseries'))
+                        obj.setViewMode('timeseries');
+                    end
                     obj.VIEW.showBusy('Loading');
 
-                    obj.setViewMode('timeseries');
                     obj.accelObj = PAData(f,obj.SETTINGS.DATA);
                     
                     %initialize the PAData object's visual properties
-                    obj.initView(); %calls show obj.VIEW.showReady() Ready...
+                    obj.VIEW.showBusy('Initializing View');
+
+                    obj.initAccelDataView(); %calls show obj.VIEW.showReady() Ready...
                     
                     featureFcn = 'mean';
                     elapsedStartHour = 0;
@@ -898,11 +902,19 @@ classdef PAController < handle
         %> @param eventdata Required by MATLAB, but not used.
         % --------------------------------------------------------------------
         function menuFileOpenResultsPathCallback(obj,hObject,eventdata)
-            initialPath = CONTROLLER.batch.outputDirectory;
+            initialPath = obj.resultsPathname;
             resultsPath = uigetfulldir(initialPath, 'Select path containing padaco results output directories');
             if(~isempty(resultsPath))
-               obj.resultsDirectory = resultsPath;
-               obj.setViewMode('results');
+                
+                obj.resultsPathname = resultsPath;               
+                if(~strcmpi(obj.viewMode,'results'))
+                    obj.VIEW.showBusy('Switching to results view');
+
+                    obj.setViewMode('results');
+                end
+                obj.VIEW.showBusy('Initializing results view');
+                obj.initResultsView();                
+                obj.VIEW.showReady();
             end
         end
         
@@ -918,7 +930,6 @@ classdef PAController < handle
         %> - @c secondaryAxes
         % --------------------------------------------------------------------
         function menuFileScreenshotCallback(obj,hObject,eventdata,screenshotDescription)
-            handle = [];
             
             switch(lower(screenshotDescription))
                 case 'figure'
@@ -994,35 +1005,9 @@ classdef PAController < handle
             
             obj.VIEW.showBusy(['Switching to ',viewMode,' view']);   
             obj.VIEW.setViewMode(viewMode);
-            
-           
-            if(strcmpi(obj.viewMode,'results'))
-                            
-                if(~isdir(obj.resultsPathname))
-                    responseButton = questdlg('Results output pathname is not set.  Would you like to choose one now?','Find results output path?');
-                    if(strcmpi(responseButton,'yes'))
-                        obj.menuFileOpenResultsPathCallback();
-                    end
-                end                
-                
-                obj.initResultsMode();                
-            end   
-            
             obj.VIEW.showReady();
-                      
-
         end
         
-        % --------------------------------------------------------------------
-        %> @brief Initializes widgets for results view mode.  Widgets are
-        %> disabled if the resultsPathname does not exist.
-        %> @param this Instance of PAController        
-        % --------------------------------------------------------------------
-        function initResultsMode(this)
-            if(isdir(this.resultsPathname))
-                this.StatTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname);
-            end
-        end
         
         % Time Series viewing callback
         % --------------------------------------------------------------------
@@ -1045,6 +1030,12 @@ classdef PAController < handle
         % --------------------------------------------------------------------        
         function menuSettingsModeResultsCallback(obj,hObject,eventdata)           
             obj.setViewMode('results');
+            if(~obj.initResultsView())            
+                responseButton = questdlg('Results output pathname is not set.  Would you like to choose one now?','Find results output path?');
+                if(strcmpi(responseButton,'yes'))
+                    obj.menuFileOpenResultsPathCallback();
+                end
+            end
         end        
         
         %% Batch mode callbacks        
@@ -1970,11 +1961,12 @@ classdef PAController < handle
     methods(Access=private)
         
         % --------------------------------------------------------------------
-        %> @brief Initializes the display using instantiated instance
+        %> @brief Initializes the display for accelerometer data viewing
+        %> using instantiated instance
         %> variables VIEW (PAView) and accelObj (PAData)
         %> @param obj Instance of PAController
         % --------------------------------------------------------------------
-        function initView(obj)
+        function initAccelDataView(obj)
             
             % accelObj has already been initialized with default/saved
             % settings (i.e. obj.SETTINGS.DATA) and these are in turn
@@ -2044,7 +2036,21 @@ classdef PAController < handle
             
             obj.initCallbacks(); %initialize callbacks now that we have some data we can interact with.
             
-            obj.VIEW.showReady();
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Initializes widgets for results view mode.  Widgets are
+        %> disabled if the resultsPathname does not exist or cannot be
+        %> found.
+        %> @param this Instance of PAController
+        %> @retval success A boolean value (true on successful initialization of the resultsPathname into padaco's view
+        % --------------------------------------------------------------------
+        function success = initResultsView(this)
+            success = false;
+            if(isdir(this.resultsPathname))
+                this.StatTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname);
+                success = this.StatTool.getCanPlot();
+            end
         end
         
         % --------------------------------------------------------------------

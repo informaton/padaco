@@ -11,11 +11,29 @@ classdef PAStatTool < handle
         base;  %hold all possible parameter values that can be set
         featureTypes;
         featureDescriptions;
+        %> @brief boolean set to true if result data is found.
+        canPlot; 
     end
     
     properties
     end
     
+    methods(Access=private)
+       function showBusy(obj)
+            set(obj.figureH,'pointer','watch');
+            drawnow();
+        end  
+        
+        % --------------------------------------------------------------------
+        %> @brief Shows ready status (mouse becomes the default pointer).
+        %> @param obj Instance of PAStatTool
+        % --------------------------------------------------------------------
+        function showReady(obj)
+            set(obj.figureH,'pointer','arrow'); 
+            drawnow();
+        end
+        
+    end
     methods        
         
         function this = PAStatTool(padaco_fig_h, resultsPathname, parameters)
@@ -41,19 +59,25 @@ classdef PAStatTool < handle
                 else
                     fprintf('Images pathname (%s) does not exist!\n',imagesPath);
                 end   
+                
                 this.initWidgets();
                 this.refreshPlot();
+
             else
                 fprintf('%s does not exist!\n',resultsPathname); 
             end
         end
         
+        function canPlotValue = getCanPlot(this)
+            canPlotValue = this.canPlot;
+        end
         
         function initWidgets(this,featuresPathname)
             if(nargin<2)
                 featuresPathname = this.featuresDirectory;
             end
             
+            this.canPlot = false;    %changes to true if we find data that can be processed in featuresPathname
             set([this.handles.check_normalizeValues,this.handles.menu_feature,this.handles.menu_signalSource,this.handles.menu_plotType],'callback',[],'enable','off');
 
             if(isdir(featuresPathname))
@@ -63,21 +87,25 @@ classdef PAStatTool < handle
                 if(~isempty(featureNames))
                     [this.featureTypes,~,ib] = intersect(featureNames,this.base.featureTypes);
                     
-                    % Checked state has a value of 1
-                    % Unchecked state has a value of 0
-                    set(this.handles.check_trimValues,'min',0,'max',1,'value',0);
-                    set(this.handles.check_normalizeValues,'min',1,'max',2,'value',2);
-                    this.featureDescriptions = this.base.featureDescriptions(ib);
-                    set(this.handles.menu_feature,'string',this.featureDescriptions,'userdata',this.featureTypes);
-                    
-                    %  set(this.handles.check_normalizevalues,'min',1,'max',2,'value',normalizationSelection);
-                    % This should be updated to parse the actual output feature
-                    % directories for signal type (count) or raw and the signal
-                    % source (vecMag, x, y, z)
-                    set(this.handles.menu_signalSource,'string',this.base.signalDescriptions,'userdata',this.base.signalTypes);
-                    
-                    set(this.handles.menu_plotType,'userdata',this.base.plotTypes,'string',this.base.plotTypeDescriptions);
-                    set([this.handles.check_normalizeValues,this.handles.menu_feature,this.handles.menu_signalSource,this.handles.menu_plotType],'callback',@this.refreshPlot,'enable','on');
+                    if(~isempty(this.featureTypes))
+                        this.canPlot = true;
+
+                        % Checked state has a value of 1
+                        % Unchecked state has a value of 0
+                        set(this.handles.check_trimValues,'min',0,'max',1,'value',0);
+                        set(this.handles.check_normalizeValues,'min',1,'max',2,'value',2);
+                        this.featureDescriptions = this.base.featureDescriptions(ib);
+                        set(this.handles.menu_feature,'string',this.featureDescriptions,'userdata',this.featureTypes);
+                        
+                        %  set(this.handles.check_normalizevalues,'min',1,'max',2,'value',normalizationSelection);
+                        % This should be updated to parse the actual output feature
+                        % directories for signal type (count) or raw and the signal
+                        % source (vecMag, x, y, z)
+                        set(this.handles.menu_signalSource,'string',this.base.signalDescriptions,'userdata',this.base.signalTypes);
+                        
+                        set(this.handles.menu_plotType,'userdata',this.base.plotTypes,'string',this.base.plotTypeDescriptions);
+                        set([this.handles.check_normalizeValues,this.handles.menu_feature,this.handles.menu_signalSource,this.handles.menu_plotType],'callback',@this.refreshPlot,'enable','on');
+                    end
                 end
             end
             
@@ -112,27 +140,35 @@ classdef PAStatTool < handle
         end
         
         function refreshPlot(this,varargin)
-            pSettings = this.getPlotSettings();
-            
-            inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
-            if(exist(inputFilename,'file'))
-                featureStruct = loadAlignedFeatures(inputFilename);
-                loadFeatures = featureStruct.(pSettings.normalizationType);
+
+            if(this.canPlot)
+                this.showBusy();
+                pSettings = this.getPlotSettings();
                 
-                if(pSettings.trimResults)
-                    trimInd = loadFeatures < prctile(loadFeatures,99);
-                    features = loadFeatures(trimInd);
-                    daysofweek = pSettings.daysofweek(trimInd);
+                inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
+                if(exist(inputFilename,'file'))
+                    
+                    featureStruct = loadAlignedFeatures(inputFilename);
+                    loadFeatures = featureStruct.(pSettings.normalizationType);
+                    
+                    if(pSettings.trimResults)
+                        trimInd = loadFeatures < prctile(loadFeatures,99);
+                        features = loadFeatures(trimInd);
+                        daysofweek = pSettings.daysofweek(trimInd);
+                    else
+                        features =  loadFeatures;
+                    end
+                    featureStruct.features = features;
+                    pSettings.ylabelstr = sprintf('%s of %s %s activity',pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
+                    pSettings.xlabelstr = 'Days of Week';
+                    
+                    this.plotSelection(featureStruct,pSettings);
                 else
-                    features =  loadFeatures;
+                    warndlg(sprintf('Could not find %s',inputFilename));
                 end
-                featureStruct.features = features;
-                pSettings.ylabelstr = sprintf('%s of %s %s activity',pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
-                pSettings.xlabelstr = 'Days of Week';
-                
-                this.plotSelection(featureStruct,pSettings);
+                this.showReady();
             else
-                warndlg(sprintf('Could not find %s',inputFilename));
+                fprintf('PAStatTool.m cannot plot (refreshPlot)\n');
             end
         end
         
