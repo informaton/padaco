@@ -2392,6 +2392,7 @@ toc
        %> @retval processVec A vector of size (logicalVec) that has removed
        %> runs (of 1) that are too short and merged runs that are close enough
        %> together.
+       %======================================================================
        function processVec = reprocessEventVector(logicalVec,min_duration_samples,merge_distance_samples)
            
            candidate_events= thresholdcrossings(logicalVec,0);
@@ -2646,6 +2647,7 @@ toc
        %> @param indices Vector (logical or ordinal) of indices to select time
        %> series data by.
        %> @retval structOut Struct with matching fields as input struct, with values taken at indices.
+       %======================================================================
        function structOut = subsStruct(structIn,indices)
            if(isstruct(structIn))
                fnames = fieldnames(structIn);
@@ -3014,12 +3016,14 @@ toc
                ltStruct = rtStruct;
            end           
        end
-       
+
+       %======================================================================     
        %> @brief flattens a structure to a single dimensional array (i.e. a
        %> vector)
        %> @param structure A struct with any number of fields.
        %> @retval vector A vector with values that are taken from the
-       %structure.
+       %> structure.
+       %======================================================================
        function vector = struct2vec(structure,vector)
            if(nargin<2)
                vector = [];
@@ -3040,9 +3044,9 @@ toc
        %> matching fieldnames/organization as the input struct's highest level.
        %> @param dataStruct A structure whose fields are either structures or vectors.
        %> @retval structMinMax a struct whose fields correspond to those of
-       %the input struct and whose values are [min, max] vectors that
-       %correspond to the minimum and maximum values found in the input
-       %structure for that field.
+       %> the input struct and whose values are [min, max] vectors that
+       %> correspond to the minimum and maximum values found in the input
+       %> structure for that field.
        %> @note Consider the example
        %> @note dataStruct.accel.x = [-1 20 5 13];
        %> @note dataStruct.accel.y = [1 70 9 3];
@@ -3050,6 +3054,7 @@ toc
        %> @note dataStruct.lux = [0 0 0 9];
        %> @note structRange.accel is [-10 70]
        %> @note structRange.lux is [0 9]
+       %======================================================================
        function structMinmax = minmax(dataStruct)
            fnames = fieldnames(dataStruct);
            structMinmax = struct();

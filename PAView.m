@@ -219,9 +219,7 @@ classdef PAView < handle
             obj.clearTextHandles(); 
             obj.disableWidgets();
             
-            set(obj.axeshandle.primary,'uicontextmenu',obj.contextmenuhandle.primaryAxes);
         end
-
         
         
         % --------------------------------------------------------------------
@@ -482,6 +480,10 @@ classdef PAView < handle
                 axesProps.primary.xminortick='on';
                 axesProps.primary.xlimmode='manual';
                 axesProps.primary.xAxisLocation = 'top';
+                axesProps.primary.uicontextmenu = obj.contextmenuhandle.primaryAxes;
+
+                %  set(obj.axeshandle.primary,'uicontextmenu',obj.contextmenuhandle.primaryAxes);
+
                 
             elseif(strcmpi(viewMode,'results'))
                 
@@ -492,6 +494,8 @@ classdef PAView < handle
                 axesProps.primary.xminortick='on';
                 axesProps.primary.xlimmode='auto';
                 axesProps.primary.xAxisLocation = 'bottom';
+                axesProps.primary.uicontextmenu = [];
+
             end
             
             axesProps.secondary = axesProps.primary;
@@ -516,39 +520,43 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         %> @brief Disable user interface widgets and clear contents.
         %> @param obj Instance of PAView
-        % --------------------------------------------------------------------
-        function disableWidgets(obj, viewMode)            
+         % --------------------------------------------------------------------
+        function disableWidgets(obj)            
             handles = guidata(obj.getFigHandle());            
             
-            if(strcmpi(viewMode,'timeseries'))
-                set(timeseriesPanels,'visible','on','enable','off');
-                
-                % don't turn this one on unless it is active
-                set(resultPanels,'visible','off');
-                
-            elseif(strcmpi(viewMode,'results'))
-                set(timeseriesPanels,'visible','off');
-                set(handles.panel_study,'visible','off','enable','off');
-            else
+            set(handles.panel_study,'visible','off');
+            set(handles.edit_aggregate,'string','');
+            set(handles.edit_frameSizeHours,'string','');
+            set(handles.edit_frameSizeMinutes,'string','');
+            set(handles.edit_curWindow,'string','');
+
+            resultPanels = handles.panel_results;
+            timeseriesPanels = [handles.panel_timeseries;
+                handles.panel_displayButtonGroup;
+                handles.panel_epochControls];                        
+            menubarHandles = [handles.menu_file_screenshot_primaryAxes;
+                handles.menu_file_screenshot_secondaryAxes];
+            set(menubarHandles,'enable','off');
+            
+            set([resultPanels;
+                timeseriesPanels;
+                menubarHandles],'enable','off');        
             
             %obj.initWidgets(viewMode);
-            
-            
-%             buttonGroupChildren = get(handles.panel_displayButtonGroup,'children');
-% 
-%             menuHandles = struct2array(obj.menuhandle);
-%             textHandles = struct2array(obj.texthandle);
-%             menubarHandles = [handles.menu_file_screenshot_primaryAxes;
-%                 handles.menu_file_screenshot_secondaryAxes;];
-%             checkHandles = struct2array(obj.checkhandle);
-%             widgetList = [menuHandles(:);                
-%                 menubarHandles(:);
-%                 textHandles(:)
-%                 checkHandles(:)
-%                 handles.button_go
-%                 buttonGroupChildren];  
-%             set(widgetList,'enable','off'); 
-            
+            %             buttonGroupChildren = get(handles.panel_displayButtonGroup,'children');
+            %
+            %             menuHandles = struct2array(obj.menuhandle);
+            %             textHandles = struct2array(obj.texthandle);
+            %             menubarHandles = [handles.menu_file_screenshot_primaryAxes;
+            %                 handles.menu_file_screenshot_secondaryAxes;];
+            %             checkHandles = struct2array(obj.checkhandle);
+            %             widgetList = [menuHandles(:);
+            %                 menubarHandles(:);
+            %                 textHandles(:)
+            %                 checkHandles(:)
+            %                 handles.button_go
+            %                 buttonGroupChildren];
+            %             set(widgetList,'enable','off');
         end
                
         % --------------------------------------------------------------------
@@ -575,6 +583,11 @@ classdef PAView < handle
         %> @param viewMode A string with one of two values
         %> - @c timeseries [default]
         %> - @c results
+        %> @note Programmers: 
+        %> do not enable all radio button group children on init.  Only
+        %> if features and aggregate bins are available would we do
+        %> this.  However, we do not know if that is the case here.
+        %> - buttonGroupChildren = get(handles.panel_displayButtonGroup,'children');
         % --------------------------------------------------------------------
         function initWidgets(obj, viewMode)
             if(nargin<2)
@@ -612,30 +625,15 @@ classdef PAView < handle
                 handles.radio_time;
                 ];
             if(strcmpi(viewMode,'timeseries'))
-                set(timeseriesPanels,'visible','on');
-                
-                % don't turn this one on unless it is active
+                set(timeseriesPanels,'visible','on');               
                 set(resultPanels,'visible','off');
+                
                 set(handles.menu_settings_mode_timeseries,'checked','on');
                 set(handles.menu_settings_mode_results,'checked','off');
                 
-                %buttonGroupChildren = get(handles.panel_displayButtonGroup,'children');
-                % do not enable all radio button group children on init.  Only
-                % if features and aggregate bins are available would we do
-                % this.  However, we do not know if that is the case here.
-                
-                set(handles.edit_aggregate,'string','');
-                set(handles.edit_frameSizeHours,'string','');
-                set(handles.edit_frameSizeMinutes,'string','');
-                set(handles.edit_curWindow,'string','');
-                
-                
-                %             obj.displayType = 'Time Series';
-                %             set(obj.menuhandle.displayFeature,'enable','off');
             elseif(strcmpi(viewMode,'results'))                
-                set(timeseriesPanels,'visible','off');
-                set(handles.panel_study,'visible','off');
                 set(resultPanels,'visible','on');
+                set(timeseriesPanels,'visible','off');
                 set(handles.menu_settings_mode_timeseries,'checked','off');
                 set(handles.menu_settings_mode_results,'checked','on');
             else
