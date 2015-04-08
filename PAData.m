@@ -998,9 +998,9 @@ classdef PAData < handle
                    
                    
                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                   % Ensure firmware version is either 2.5.0 or 3.1.0
+                   % Ensure firmware version is either 2.2.1, 2.5.0 or 3.1.0
                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                   if(strcmp(firmwareVersion,'2.5.0')||strcmp(firmwareVersion,'3.1.0'))
+                   if(strcmp(firmwareVersion,'2.5.0')||strcmp(firmwareVersion,'3.1.0') || strcmp(firmwareVersion,'2.2.1'))
                        obj.setFullFilename(fullfilename);
                        obj.sampleRate = str2double(infoStruct.Sample_Rate);
                        
@@ -1033,14 +1033,16 @@ classdef PAData < handle
                            obj.dateTimeNum = datenum(synthDateVec);
                           
                            % Version 3.1.0 firmware
-                       elseif(strcmp(firmwareVersion,'3.1.0'))                           
+                       elseif(strcmp(firmwareVersion,'3.1.0') || strcmp(firmwareVersion,'2.2.1'))  
                            obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
+                           % Version 2.2.1 firmware
+                       elseif(strcmp(firmwareVersion,'2.2.1'))
+                           obj.loadRawActivityBinFile(fullfilename,firmwareVersion);                       
                        end
-                       
                   
                    else
-                           % for future firmware version loaders
-                       % Not 2.5.0 or 3.1.0 - skip - cannot handle right now.
+                       % for future firmware version loaders
+                       % Not 2.2.1, 2.5.0 or 3.1.0 - skip - cannot handle right now.
                        fprintf(1,'Firmware version (%s) either not found or unrecognized in %s.\n',firmwareVersion,infoFile);
                        
                    end
@@ -1995,7 +1997,7 @@ toc
    
        % ======================================================================
        %> @brief Loads raw accelerometer data from binary file produced via
-       %> actigraph Firmware 2.5.0.  This function is
+       %> actigraph Firmware 2.5.0 or 3.1.0.  This function is
        %> intended to be called from loadFile() to ensure that
        %> loadCountFile is called in advance to guarantee that the auxialiary
        %> sensor measurements are loaded into the object (obj).  The
@@ -2045,7 +2047,7 @@ toc
                    try          
                        % both fw 2.5 and 3.1.0 use same packet format for
                        % acceleration data.  
-                       if(strcmp(firmwareVersion,'2.5.0')||strcmp(firmwareVersion,'3.1.0'))
+                       if(strcmp(firmwareVersion,'2.5.0')||strcmp(firmwareVersion,'3.1.0')||strcmp(firmwareVersion,'2.2.1'))
                            tic
                            axesPerRecord = 3;
                            checksumSizeBytes = 1;
@@ -2067,7 +2069,7 @@ toc
                                % desired result here.
                                axesUBitData = fread(fid,[axesPerRecord,inf],precision)';
                                
-                           elseif(strcmp(firmwareVersion,'3.1.0'))
+                           elseif(strcmp(firmwareVersion,'3.1.0')||strcmp(firmwareVersion,'2.2.1'))
                                % endian format: big
                                % global header: none
                                % packet encoding:
