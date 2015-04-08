@@ -217,7 +217,7 @@ classdef PAView < handle
             % Clear the figure and such.  
             obj.clearAxesHandles();
             obj.clearTextHandles(); 
-            obj.clearWidgets();
+            obj.disableWidgets();
             
             set(obj.axeshandle.primary,'uicontextmenu',obj.contextmenuhandle.primaryAxes);
         end
@@ -232,7 +232,8 @@ classdef PAView < handle
         %> - @c results
         % --------------------------------------------------------------------        
         function setViewMode(obj,viewMode)
-            obj.initAxesHandles(viewMode);
+            obj.initAxesHandlesViewMode(viewMode);
+            
             obj.initWidgets(viewMode);           
         end
         
@@ -484,13 +485,13 @@ classdef PAView < handle
                 
             elseif(strcmpi(viewMode,'results'))
                 
-                axesProps.units = 'normalized'; %normalized allows it to resize automatically
-                axesProps.drawmode = 'normal'; %fast does not allow alpha blending...
-                axesProps.xgrid='on';
-                axesProps.ygrid='off';
-                axesProps.xminortick='on';
-                axesProps.xlimmode='auto';
-                axesProps.xAxisLocation = 'bottom';
+                axesProps.primary.units = 'normalized'; %normalized allows it to resize automatically
+                axesProps.primary.drawmode = 'normal'; %fast does not allow alpha blending...
+                axesProps.primary.xgrid='on';
+                axesProps.primary.ygrid='off';
+                axesProps.primary.xminortick='on';
+                axesProps.primary.xlimmode='auto';
+                axesProps.primary.xAxisLocation = 'bottom';
             end
             
             axesProps.secondary = axesProps.primary;
@@ -507,81 +508,144 @@ classdef PAView < handle
         %> Called when first creating a view.  See also initAxesHandles.
         %> @param obj Instance of PAView
         % --------------------------------------------------------------------
-        function clearAxesHandles(obj)
-            
+        function clearAxesHandles(obj)            
             cla(obj.axeshandle.primary);
             cla(obj.axeshandle.secondary);
         end
-%             axesProps.units = 'normalized'; %normalized allows it to resize automatically
-%             axesProps.drawmode = 'normal'; %fast does not allow alpha blending...
-%             axesProps.xgrid='on';
-%             axesProps.ygrid='off';
-%             axesProps.xminortick='on';
-%             axesProps.xlimmode='manual';
-%             axesProps.xtickmode='manual';
-%             axesProps.xticklabelmode='manual';
-%             axesProps.xtick=[];
-%             axesProps.ytickmode='manual';
-%             axesProps.ytick=[];
-%             axesProps.nextplot='replacechildren';
-%             axesProps.box= 'on';
-%             axesProps.plotboxaspectratiomode='auto';
-%             axesProps.fontSize = 12;
-%             axesProps.xAxisLocation = 'top';
-%             
-%             %initialize axes
-%             set(obj.axeshandle.primary,axesProps);
-%             
-%             axesProps.xgrid = 'off';
-%             axesProps.xminortick = 'off';  
-%             axesProps.xAxisLocation = 'bottom';
-% 
-%             set(obj.axeshandle.secondary,axesProps);             
-%         end
         
         % --------------------------------------------------------------------
         %> @brief Disable user interface widgets and clear contents.
         %> @param obj Instance of PAView
         % --------------------------------------------------------------------
-        function clearWidgets(obj)            
+        function disableWidgets(obj, viewMode)            
             handles = guidata(obj.getFigHandle());            
             
-            obj.initWidgets();
-            buttonGroupChildren = get(handles.panel_displayButtonGroup,'children');
+            if(strcmpi(viewMode,'timeseries'))
+                set(timeseriesPanels,'visible','on','enable','off');
+                
+                % don't turn this one on unless it is active
+                set(resultPanels,'visible','off');
+                
+            elseif(strcmpi(viewMode,'results'))
+                set(timeseriesPanels,'visible','off');
+                set(handles.panel_study,'visible','off','enable','off');
+            else
             
+            %obj.initWidgets(viewMode);
+            
+            
+%             buttonGroupChildren = get(handles.panel_displayButtonGroup,'children');
+% 
+%             menuHandles = struct2array(obj.menuhandle);
+%             textHandles = struct2array(obj.texthandle);
+%             menubarHandles = [handles.menu_file_screenshot_primaryAxes;
+%                 handles.menu_file_screenshot_secondaryAxes;];
+%             checkHandles = struct2array(obj.checkhandle);
+%             widgetList = [menuHandles(:);                
+%                 menubarHandles(:);
+%                 textHandles(:)
+%                 checkHandles(:)
+%                 handles.button_go
+%                 buttonGroupChildren];  
+%             set(widgetList,'enable','off'); 
+            
+        end
+               
+        % --------------------------------------------------------------------
+        %> @brief Initialize data specific properties of the axes handles.
+        %> Set the x and y limits of the axes based on limits found in
+        %> dataStruct struct.
+        %> @param obj Instance of PAView
+        %> @param axesProps Structure of axes property structures.  First fields
+        %> are:
+        %> - @c primary (for the primary axes);
+        %> - @c secondary (for the secondary axes, lower, timeline axes)
+        % --------------------------------------------------------------------
+        function initAxesHandles(obj,axesProps)
+            axesNames = fieldnames(axesProps);
+            for a=1:numel(axesNames)
+                axesName = axesNames{a};
+                set(obj.axeshandle.(axesName),axesProps.(axesName));
+            end
+        end
+
+        % --------------------------------------------------------------------
+        %> @brief Initialize user interface widgets on start up.
+        %> @param obj Instance of PAView 
+        %> @param viewMode A string with one of two values
+        %> - @c timeseries [default]
+        %> - @c results
+        % --------------------------------------------------------------------
+        function initWidgets(obj, viewMode)
+            if(nargin<2)
+                viewMode = 'timeseries';
+            end
+            handles = guidata(obj.getFigHandle());
+            
+            resultPanels = handles.panel_results;
+            timeseriesPanels = [handles.panel_timeseries;
+                handles.panel_displayButtonGroup;
+                handles.panel_epochControls];
+            
+            resultMenuHandles = obj.menuhandle;
 %             fields = fieldnames(obj.menuhandle);
 %             menuHandles = zeros(numel(fields),1);
 %             for f=1:numel(fields)
 %                 menuHandles(f) = obj.menuhandle.(fields{f});
 %             end
             
-%                 handles.text_window;
-%                 handles.text_windowResolution;
-%                 handles.edit_curWindow
-%                 handles.edit_aggregate
-%                 handles.edit_frameSizeMinutes
-%                 handles.edit_frameSizeHours
-%                 handles.text_aggregate
-%                 handles.text_frameSizeMinutes
-%                 handles.text_frameSizeHours
-%                 handles.edit_trimPercent
-
-
-            menuHandles = struct2array(obj.menuhandle);
-            textHandles = struct2array(obj.texthandle);
             menubarHandles = [handles.menu_file_screenshot_primaryAxes;
                 handles.menu_file_screenshot_secondaryAxes;];
-            checkHandles = struct2array(obj.checkhandle);
-            widgetList = [menuHandles(:);                
-                menubarHandles(:);
-                textHandles(:)
-                checkHandles(:)
-                handles.button_go
-                buttonGroupChildren];  
-            set(widgetList,'enable','off'); 
+            set(menubarHandles,'visible','on','enable','on');
             
-        end
-        
+            widgetList = [resultMenuHandles;
+                handles.text_window
+                handles.text_windowResolution
+                handles.edit_curWindow
+                handles.edit_aggregate
+                handles.edit_frameSizeMinutes
+                handles.edit_frameSizeHours
+                handles.text_aggregate
+                handles.text_frameSizeMinutes
+                handles.text_frameSizeHours
+                handles.button_go
+                handles.radio_time;
+                ];
+            if(strcmpi(viewMode,'timeseries'))
+                set(timeseriesPanels,'visible','on');
+                
+                % don't turn this one on unless it is active
+                set(resultPanels,'visible','off');
+                set(handles.menu_settings_mode_timeseries,'checked','on');
+                set(handles.menu_settings_mode_results,'checked','off');
+                
+                %buttonGroupChildren = get(handles.panel_displayButtonGroup,'children');
+                % do not enable all radio button group children on init.  Only
+                % if features and aggregate bins are available would we do
+                % this.  However, we do not know if that is the case here.
+                
+                set(handles.edit_aggregate,'string','');
+                set(handles.edit_frameSizeHours,'string','');
+                set(handles.edit_frameSizeMinutes,'string','');
+                set(handles.edit_curWindow,'string','');
+                
+                
+                %             obj.displayType = 'Time Series';
+                %             set(obj.menuhandle.displayFeature,'enable','off');
+            elseif(strcmpi(viewMode,'results'))                
+                set(timeseriesPanels,'visible','off');
+                set(handles.panel_study,'visible','off');
+                set(resultPanels,'visible','on');
+                set(handles.menu_settings_mode_timeseries,'checked','off');
+                set(handles.menu_settings_mode_results,'checked','on');
+            else
+                fprintf('Unknown view mode (%s)\n',viewMode);
+                widgetList = [];
+            end
+            
+            set(widgetList,'enable','on','visible','on');
+        end        
+
         % --------------------------------------------------------------------
         %> @brief Initializes the graphic handles (label and line handles) and maps figure tag names
         %> to PAView instance variables.  Initializes the menubar and various widgets.  Also set the acceleration data instance variable and assigns
@@ -665,7 +729,7 @@ classdef PAView < handle
             obj.setStudyPanelContents(PADataObject.getHeaderAsString);
             
             % clears the widgets (drop down menus, edit boxes, etc.)
-            obj.initWidgets();
+            obj.initWidgets('timeseries');
             
             obj.setAggregateDurationMinutes(num2str(PADataObject.aggregateDurMin));
             [frameDurationMinutes, frameDurationHours] = PADataObject.getFrameDuration();
@@ -674,8 +738,6 @@ classdef PAView < handle
             
             windowDurationSec = PADataObject.getWindowDurSec();
             obj.setWindowDurSecMenu(windowDurationSec);
-            obj.initMenubar();
-            
             
             set(obj.positionBarHandle,'visible','on','xdata',nan(1,5),'ydata',[0 1 1 0 0],'linestyle',':'); 
             set(obj.patchhandle.positionBar,'visible','on','xdata',nan(1,4),'ydata',[0 1 1 0]); 
@@ -687,95 +749,7 @@ classdef PAView < handle
             
             obj.restore_state();
         end       
-        
-        % --------------------------------------------------------------------
-        %> @brief Initialize data specific properties of the axes handles.
-        %> Set the x and y limits of the axes based on limits found in
-        %> dataStruct struct.
-        %> @param obj Instance of PAView
-        %> @param axesProps Structure of axes property structures.  First fields
-        %> are:
-        %> - @c primary (for the primary axes);
-        %> - @c secondary (for the secondary axes, lower, timeline axes)
-        % --------------------------------------------------------------------
-        function initAxesHandles(obj,axesProps)
-            axesNames = fieldnames(axesProps);
-            for a=1:numel(axesNames)
-                axesName = axesNames{a};
-                set(obj.axeshandle.(axesName),axesProps.(axesName));
-            end
-        end
-
-        % --------------------------------------------------------------------
-        %> @brief Configures the figure's menubar
-        %> @param obj Instance of PAView
-        % --------------------------------------------------------------------
-        function initMenubar(obj)
-
-            %turn on the appropriate menu items still for initial use
-            %before any files are loaded
-            handles = guidata(obj.getFigHandle());
-            
-            set(handles.menu_file,'enable','on');
-            set(handles.menu_file_open,'enable','on');
-            set(handles.menu_file_quit,'enable','on');
-            
-            set(handles.menu_settings,'enable','on');
-            
-            obj.restore_state();
-        end
-
-        % --------------------------------------------------------------------
-        %> @brief Initialize user interface widgets on start up.
-        %> @param obj Instance of PAView        
-        % --------------------------------------------------------------------
-        function initWidgets(obj)
-            handles = guidata(obj.getFigHandle());
-            %buttonGroupChildren = get(handles.panel_displayButtonGroup,'children');
-            % do not enable all radio button group children on init.  Only
-            % if features and aggregate bins are available would we do
-            % this.  However, we do not know if that is the case here.
-            
-            fields = fieldnames(obj.menuhandle);
-            
-            menuHandles = zeros(numel(fields),1);
-            for f=1:numel(fields)
-                menuHandles(f) = obj.menuhandle.(fields{f});
-            end
-            
-            menubarHandles = [handles.menu_file_screenshot_primaryAxes;
-                handles.menu_file_screenshot_secondaryAxes;];
-            
-            widgetList = [menuHandles;
-                menubarHandles;
-                handles.text_window
-                handles.text_windowResolution
-                handles.edit_curWindow
-                handles.edit_aggregate
-                handles.edit_frameSizeMinutes
-                handles.edit_frameSizeHours
-                handles.text_aggregate
-                handles.text_frameSizeMinutes
-                handles.text_frameSizeHours
-                handles.button_go
-                handles.radio_time;
-                ];                
-            
-            set(handles.edit_aggregate,'string','');
-            set(handles.edit_frameSizeHours,'string','');
-            set(handles.edit_frameSizeMinutes,'string','');
-            set(handles.edit_curWindow,'string','');
-            
-
-            %             obj.displayType = 'Time Series';
-            %             set(obj.menuhandle.displayFeature,'enable','off');
-            
-            set(widgetList,'enable','on','visible','on');
-        end        
-        
-        
-     
-
+         
         % --------------------------------------------------------------------
         %> @brief Updates the secondary axes x and y axes limits.
         %> @param obj Instance of PAView
@@ -808,7 +782,6 @@ classdef PAView < handle
             obj.initAxesHandles(axesProps);
 %             datetick(obj.axeshandle.secondary,'x','ddd HH:MM')
         end
-
 
         % --------------------------------------------------------------------
         %> @brief Adds a feature vector as a heatmap and as a line plot to the secondary axes.

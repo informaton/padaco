@@ -974,6 +974,7 @@ classdef PAController < handle
             end
         end
         
+        % --------------------------------------------------------------------
         %% Settings menu bar callbacks
         %> @brief Sets padaco's view mode to either time series or results viewing.
         %> @param obj Instance of PAController
@@ -983,56 +984,40 @@ classdef PAController < handle
         % --------------------------------------------------------------------        
         function setViewMode(obj,viewMode)
             obj.StatTool = [];
-            handles = guidata(obj.VIEW.figurehandle);
-            
-            resultPanels = handles.panel_results;
-            normalPanels = [handles.panel_timeseries;                        
-                        handles.panel_displayButtonGroup;
-                        handles.panel_epochControls];
              
             if(~strcmpi(viewMode,'timeseries') && ~strcmpi(viewMode,'results'))
                 warndlg(sprintf('Unrecognized view mode (%s) - switching to ''timeseries''',viewMode));
                 viewMode = 'timeseries';
-                set(normalPanels,'visible','off');
-                set(resultPanels,'visible','off');                  
             end            
                
             obj.viewMode = viewMode;  
             
             obj.VIEW.showBusy(['Switching to ',viewMode,' view']);   
-            if(strcmpi(obj.viewMode,'timeseries'))
-                set(normalPanels,'visible','on');
-                
-                % don't turn this one on unless it is active                
-                set(resultPanels,'visible','off');                
-                set(handles.menu_settings_mode_timeseries,'checked','on');
-                set(handles.menu_settings_mode_results,'checked','off');
-                
-            elseif(strcmpi(obj.viewMode,'results'))
+            obj.VIEW.setViewMode(viewMode);
+            
+           
+            if(strcmpi(obj.viewMode,'results'))
                             
                 if(~isdir(obj.resultsPathname))
                     responseButton = questdlg('Results output pathname is not set.  Would you like to choose one now?','Find results output path?');
                     if(strcmpi(responseButton,'yes'))
                         obj.menuFileOpenResultsPathCallback();
                     end
-                end
-                
-                set(normalPanels,'visible','off');
-                set(handles.panel_study,'visible','off');
-                set(resultPanels,'visible','on');
-                set(handles.menu_settings_mode_timeseries,'checked','off');
-                set(handles.menu_settings_mode_results,'checked','on');
+                end                
                 
                 obj.initResultsMode();                
-                obj.VIEW.showReady();            
             end   
+            
+            obj.VIEW.showReady();
                       
-            obj.VIEW.setViewMode(viewMode);
+
         end
         
+        % --------------------------------------------------------------------
         %> @brief Initializes widgets for results view mode.  Widgets are
         %> disabled if the resultsPathname does not exist.
         %> @param this Instance of PAController        
+        % --------------------------------------------------------------------
         function initResultsMode(this)
             if(isdir(this.resultsPathname))
                 this.StatTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname);

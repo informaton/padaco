@@ -16,8 +16,7 @@ classdef PAStatTool < handle
     properties
     end
     
-    methods
-        
+    methods        
         
         function this = PAStatTool(padaco_fig_h, resultsPathname, parameters)
             this.figureH = padaco_fig_h;
@@ -43,34 +42,12 @@ classdef PAStatTool < handle
                     fprintf('Images pathname (%s) does not exist!\n',imagesPath);
                 end   
                 this.initWidgets();
-                this.initAxes();
                 this.refreshPlot();
             else
                 fprintf('%s does not exist!\n',resultsPathname); 
             end
         end
-        function initAxes(this)
-            cla(this.handles.axes_primary) 
-            
-            axesProps.units = 'normalized'; %normalized allows it to resize automatically
-            axesProps.drawmode = 'normal'; %fast does not allow alpha blending...
-            axesProps.xgrid='on';
-            axesProps.ygrid='off';
-            axesProps.xminortick='on';
-            axesProps.xlimmode='auto';
-            axesProps.xtickmode='manual';
-            axesProps.xticklabelmode='manual';
-            axesProps.xtick=[];
-            axesProps.ytickmode='auto';
-            axesProps.ytick=[];
-            axesProps.nextplot='replacechildren';
-            axesProps.box= 'on';
-            axesProps.plotboxaspectratiomode='auto';
-            axesProps.fontSize = 12;
-            axesProps.xAxisLocation = 'bottom';
-            set(this.handles.axes_primary,axesProps);
-            
-        end
+        
         
         function initWidgets(this,featuresPathname)
             if(nargin<2)
