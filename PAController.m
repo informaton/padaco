@@ -330,6 +330,9 @@ classdef PAController < handle
             set(handles.menu_file_screenshot_primaryAxes,'callback',{@obj.menuFileScreenshotCallback,'primaryAxes'});
             set(handles.menu_file_screenshot_secondaryAxes,'callback',{@obj.menuFileScreenshotCallback,'secondaryAxes'});
             
+            % settings
+            set(handles.menu_file_settings,'callback',@obj.menuFileSettingsCallback);
+            
              %  quit - handled in main window.
             set(handles.menu_file_quit,'callback',{@obj.menuFileQuitCallback,guidata(figH)});
             
@@ -339,11 +342,11 @@ classdef PAController < handle
             % batch
             set(handles.menu_tools_batch,'callback',@obj.menuToolsBatchCallback);
             
-            %% Settings
-            % View Modes
             
-            set(handles.menu_settings_mode_timeseries,'callback',@obj.menuSettingsModeTimeSeriesCallback);
-            set(handles.menu_settings_mode_results,'callback',@obj.menuSettingsModeResultsCallback);
+            %% View Modes
+            
+            set(handles.menu_viewmode_timeseries,'callback',@obj.menuViewmodeTimeSeriesCallback);
+            set(handles.menu_viewmode_results,'callback',@obj.menuViewmodeResultsCallback);
             
                 
             % enable everything
@@ -351,12 +354,26 @@ classdef PAController < handle
                 handles.menu_file
                 handles.menu_file_open
                 handles.menu_file_quit
-                handles.menu_settings
+                handles.menu_file_settings
+                handles.menu_viewmode
                 ],'enable','on');
             
             obj.VIEW.restore_state();
         end
 
+        %settingsName is a string specifying the settings to update:
+        %   
+        function menuFileSettingsCallback(obj,hObject,eventdata,optionalSettingsName)
+            if(nargin<4)
+                optionalSettingsName = [];
+            end
+            wasModified = obj.SETTINGS.defaultsEditor(optionalSettingsName);
+            if(wasModified)
+                % save parameters to disk?
+                fprintf('Settings have been updated.\n');
+            end
+        end
+                
         
         function initWidgets(obj)
             
@@ -1031,7 +1048,7 @@ classdef PAController < handle
         %> @param hObject    handle to menu_file_quit (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         % --------------------------------------------------------------------        
-        function menuSettingsModeTimeSeriesCallback(obj,hObject,eventdata)           
+        function menuViewmodeTimeSeriesCallback(obj,hObject,eventdata)           
             obj.setViewMode('timeseries')
         end   
         
@@ -1042,7 +1059,7 @@ classdef PAController < handle
         %> @param hObject    handle to menu_file_quit (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         % --------------------------------------------------------------------        
-        function menuSettingsModeResultsCallback(obj,hObject,eventdata)           
+        function menuViewmodeResultsCallback(obj,hObject,eventdata)           
             obj.setViewMode('results');
             if(~obj.initResultsView())            
                 responseButton = questdlg('Results output pathname is not set.  Would you like to choose one now?','Find results output path?');

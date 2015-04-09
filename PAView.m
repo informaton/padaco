@@ -161,12 +161,15 @@ classdef PAView < handle
             set([handles.panel_timeseries,handles.panel_results],'backgroundcolor',[0.75,0.75,0.75]);
             
             % Line our panels up to same top left position - do this here
-            % so I can edit them easy in guide and not have to conintually
-            % update position in guide each time i need to drag the
-            % panel(s) out to make separate edits.
-            timeSeriesPos = get(handles.panel_timeseries,'position');
-            resultsPos = get(handles.panel_results,'position');
-            set(handles.panel_results,'position',[timeSeriesPos(1:2),resultsPos(3:4)]);
+            % so I can edit them easy in GUIDE and avoid to continually
+            % updating the position property each time i need to drag the
+            % panel(s) around to make edits.  Position is given as
+            % 'x','y','w','h' with 'x' starting from left (and increasing right)
+            % and 'y' starting from bottom (and increasing up)
+            timeSeriesPanelPos = get(handles.panel_timeseries,'position');
+            resultsPanelPos = get(handles.panel_results,'position');
+            newResultsPanelY = sum(timeSeriesPanelPos([2,4]))-resultsPanelPos(4);
+            set(handles.panel_results,'position',[timeSeriesPanelPos(1),newResultsPanelY,resultsPanelPos(3:4)]);
             
             metaDataHandles = [handles.panel_study;get(handles.panel_study,'children')];
             set(metaDataHandles,'backgroundcolor',[0.95,0.95,0.95],'visible','off');
@@ -471,14 +474,15 @@ classdef PAView < handle
             axesProps.primary.box= 'on';
             axesProps.primary.plotboxaspectratiomode='auto';
             axesProps.primary.fontSize = 12;            
+            axesProps.primary.units = 'normalized'; %normalized allows it to resize automatically
+            axesProps.primary.drawmode = 'normal'; %fast does not allow alpha blending...
+            axesProps.primary.xgrid='on';
+            axesProps.primary.xminortick='on';
+
 
             if(strcmpi(viewMode,'timeseries'))
                 
-                axesProps.primary.units = 'normalized'; %normalized allows it to resize automatically
-                axesProps.primary.drawmode = 'normal'; %fast does not allow alpha blending...
-                axesProps.primary.xgrid='on';
                 axesProps.primary.ygrid='off';
-                axesProps.primary.xminortick='on';
                 axesProps.primary.xlimmode='manual';
                 axesProps.primary.xAxisLocation = 'top';
                 axesProps.primary.uicontextmenu = obj.contextmenuhandle.primaryAxes;
@@ -488,11 +492,7 @@ classdef PAView < handle
                 
             elseif(strcmpi(viewMode,'results'))
                 
-                axesProps.primary.units = 'normalized'; %normalized allows it to resize automatically
-                axesProps.primary.drawmode = 'normal'; %fast does not allow alpha blending...
-                axesProps.primary.xgrid='on';
-                axesProps.primary.ygrid='off';
-                axesProps.primary.xminortick='on';
+                axesProps.primary.ygrid='on';
                 axesProps.primary.xlimmode='auto';
                 axesProps.primary.xAxisLocation = 'bottom';
                 axesProps.primary.uicontextmenu = [];
@@ -608,8 +608,8 @@ classdef PAView < handle
                 set(timeseriesPanels,'visible','on');               
                 set(resultPanels,'visible','off');
                 
-                set(handles.menu_settings_mode_timeseries,'checked','on');
-                set(handles.menu_settings_mode_results,'checked','off');
+                set(handles.menu_viewmode_timeseries,'checked','on');
+                set(handles.menu_viewmode_results,'checked','off');
                 
                 if(enableFlag)
                     set(findall(timeseriesPanels,'enable','off'),'enable','on');
@@ -622,8 +622,8 @@ classdef PAView < handle
                 
                 set(timeseriesPanels,'visible','off');
                 
-                set(handles.menu_settings_mode_timeseries,'checked','off');
-                set(handles.menu_settings_mode_results,'checked','on');
+                set(handles.menu_viewmode_timeseries,'checked','off');
+                set(handles.menu_viewmode_results,'checked','on');
                 
                 if(enableFlag)
                     set(findall(resultPanels,'enable','off'),'enable','on');

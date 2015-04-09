@@ -296,28 +296,7 @@ classdef  PASettings < handle
             end
         end
         
-        % -----------------------------------------------------------------
-        % =================================================================
-        %> @brief Activates GUI for editing single study mode settings
-        %> (<b>VIEW</b>,<b>PSD</b>,<b>MUSIC</b>)
-        %> @param obj instance of PASettings.      
-        %> @param settingsField String indicating which settings to update.
-        %> Can be
-        %> - @c BATCH_PROCESS
-        %> - @c DEFAULTS
-        %> @retval wasModified a boolean value; true if any changes were
-        %> made to the settings in the GUI and false otherwise.
-        % =================================================================
-        % --------------------------------------------------------------------
-        function wasModified = update_callback(obj,settingsField)
-            wasModified = false;
-            switch settingsField                
-                case 'BATCH_PROCESS'
-                case 'DEFAULTS'
-                    wasModified= obj.defaultsEditor();
-            end
-        end
-        
+
         % -----------------------------------------------------------------
         % =================================================================
         %> @brief Activates GUI for editing single study mode settings
@@ -332,8 +311,8 @@ classdef  PASettings < handle
         % =================================================================
         function wasModified = defaultsEditor(obj,optional_fieldName)
             tmp_obj = obj.copy();
-            if(nargin<2)
-                lite_fieldNames = {'DATA','CONTROLLER','VIEW'}; %these are only one structure deep
+            if(nargin<2 || isempty(optional_fieldName))
+                lite_fieldNames = {'StatTool','VIEW'}; %these are only one structure deep
             else
                 lite_fieldNames = optional_fieldName;
                 if(~iscell(lite_fieldNames))

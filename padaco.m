@@ -26,7 +26,7 @@ function varargout = padaco(varargin)
 
 % Edit the above text to modify the response to help padaco
 
-% Last Modified by GUIDE v2.5 06-Apr-2015 09:00:40
+% Last Modified by GUIDE v2.5 09-Apr-2015 12:31:40
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -130,3 +130,30 @@ function menu_displayFeature_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+function edit_centroidMinimum_Callback(hObject, eventdata, handles)
+
+
+function edit_centroidMinimum_CreateFcn(hObject, eventdata, handles)
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+function edit_centroidThreshold_Callback(hObject, eventdata, handles)
+
+
+function edit_centroidThreshold_CreateFcn(hObject, eventdata, handles)
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+function push_refreshCentroids_Callback(hObject, eventdata, handles)

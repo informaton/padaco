@@ -13,6 +13,14 @@ classdef PAStatTool < handle
         featureDescriptions;
         %> @brief boolean set to true if result data is found.
         canPlot; 
+        %> @brief Struct to keep track of settings from previous plot type
+        %> selections to make transitioning back and forth between cluster
+        %> plotting and others easier to stomach.  Fields include:
+        %> - @c normalization The value of the check_normalizevalues widget
+        %> - @c plotType The tag of the current plot type 
+        %> - @c colorMap - colormap of figure;
+        %> These are initialized in the initWidgets() method.
+        previousState;
     end
     
     properties
@@ -52,7 +60,9 @@ classdef PAStatTool < handle
                 end   
                 
                 this.initWidgets(widgetSettings);
-                this.refreshPlot();
+                
+                this.plotSelectionChange(this.handles.menu_plotType,[]);
+                % this.refreshPlot();
 
             else
                 fprintf('%s does not exist!\n',resultsPathname); 
@@ -64,11 +74,10 @@ classdef PAStatTool < handle
         end
         
 
-        
         function paramStruct = getSaveParameters(this)
             paramStruct = this.getPlotSettings();            
         end
-        
+
         
         function refreshPlot(this,varargin)
             if(this.canPlot)
@@ -104,7 +113,7 @@ classdef PAStatTool < handle
         
         % Refresh the user settings from current GUI configuration.
         function userSettings = getPlotSettings(this)
-            
+            userSettings.showCentroidMembers = get(this.handles.check_showCentroidMembers,'value');
             userSettings.processedTypeSelection = 1;
             userSettings.baseFeatureSelection = get(this.handles.menu_feature,'value');
             userSettings.signalSelection = get(this.handles.menu_signalSource,'value');
@@ -120,6 +129,9 @@ classdef PAStatTool < handle
             
             userSettings.trimResults = get(this.handles.check_trimValues,'value'); % returns 0 for unchecked, 1 for checked            
             userSettings.trimPercent = str2double(get(this.handles.edit_trimPercent,'string'));
+            
+            userSettings.minClusters = str2double(get(this.handles.edit_centroidMinimum,'string'));
+            userSettings.clusterThreshold = str2double(get(this.handles.edit_centroidThreshold,'string'));
         end
     end
     
@@ -138,15 +150,43 @@ classdef PAStatTool < handle
             drawnow();
         end
         
+        function plotSelectionChange(this, menuHandle, ~)
+            plotType = this.base.plotTypes{get(menuHandle,'value')};
+            switch(plotType)
+                case 'adaptivekmeans'
+                    this.keepNormalizationOn();
+                otherwise
+                    if(strcmpi(this.previousState.plotType,'adaptivekmeans'))
+                        this.resetNormalization();
+                    end
+            end
+            this.previousState.plotType = plotType;
+            this.refreshPlot();            
+        end
+        
+        function keepNormalizationOn(this)
+            this.previousState.normalization = get(this.handles.check_normalizeValues,'value');
+            set(this.handles.check_normalizeValues,'value',2,'enable','off');
+        end
+        
+        function resetNormalization(this)
+            set(this.handles.check_normalizeValues,'value',this.previousState.normalization,'enable','on');
+        end
+        
         function initWidgets(this, widgetSettings)
             if(nargin<2 || isempty(widgetSettings))
-                widgetSettings = this.getDefaultParameters();
-                
+                widgetSettings = this.getDefaultParameters();                
             end
+            
             featuresPathname = this.featuresDirectory;
             
             this.canPlot = false;    %changes to true if we find data that can be processed in featuresPathname
-            set([this.handles.check_normalizeValues,this.handles.menu_feature,this.handles.menu_signalSource,this.handles.menu_plotType],'callback',[],'enable','off');
+            set([this.handles.check_normalizeValues;
+                this.handles.menu_feature;
+                this.handles.menu_signalSource;
+                this.handles.menu_plotType;
+                this.handles.check_showCentroidMembers;
+                this.handles.push_refreshCentroids],'callback',[],'enable','off');
 
             if(isdir(featuresPathname))
                 % find allowed features which are in our base parameter and
@@ -158,10 +198,19 @@ classdef PAStatTool < handle
                     if(~isempty(this.featureTypes))
                         this.canPlot = true;
 
+                        % This is good for a true false checkbox value
                         % Checked state has a value of 1
                         % Unchecked state has a value of 0
                         set(this.handles.check_trimValues,'min',0,'max',1,'value',widgetSettings.trimResults);
+                        set(this.handles.check_showCentroidMembers,'min',0,'max',1,'value',widgetSettings.showCentroidMembers);
+
+                        % This is good for using checkbox value as a
+                        % selection index in MATLAB.
+                        % Checked state has a value of 2
+                        % Unchecked state has a value of 1
                         set(this.handles.check_normalizeValues,'min',1,'max',2,'value',widgetSettings.normalizationSelection);
+                        this.previousState.normalize = widgetSettings.normalizationSelection;
+                        
                         this.featureDescriptions = this.base.featureDescriptions(ib);
                         set(this.handles.menu_feature,'string',this.featureDescriptions,'userdata',this.featureTypes,'value',widgetSettings.baseFeatureSelection);
                         
@@ -180,14 +229,32 @@ classdef PAStatTool < handle
                         set(this.handles.menu_signalSource,'string',this.base.signalDescriptions,'userdata',this.base.signalTypes,'value',widgetSettings.signalSelection);
                         
                         set(this.handles.menu_plotType,'userdata',this.base.plotTypes,'string',this.base.plotTypeDescriptions,'value',widgetSettings.plotTypeSelection);
-                        set([this.handles.check_normalizeValues,this.handles.menu_feature,this.handles.menu_signalSource,this.handles.menu_plotType],'callback',@this.refreshPlot,'enable','on');
+                        this.previousState.plotType = this.base.plotTypes{widgetSettings.plotTypeSelection};
+                        
+                        % set callbacks
+                        set([this.handles.check_normalizeValues;
+                            this.handles.menu_feature;
+                            this.handles.menu_signalSource;
+                            this.handles.check_showCentroidMembers],'callback',@this.refreshPlot,'enable','on');
+                        set(this.handles.menu_plotType,'callback',@this.plotSelectionChange,'enable','on');   
+                        
+                        % this should not normally be enabled if plotType
+                        % is not adaptivekmeans.  However, this will be
+                        % taken care of by the enable/disabling of the
+                        % parent centroid panel based on the menu selection
+                        % change callback which is called after initWidgets
+                        % in the constructor.
+                        set(this.handles.push_refreshCentroids,'callback',@this.refreshCentroids,'enable','on');
+                        
+                        % address centroid panel                        
+                        set(this.handles.edit_centroidMinimum,'string',num2str(widgetSettings.minClusters));
+                        set(this.handles.edit_centroidThreshold,'string',num2str(widgetSettings.clusterThreshold));                        
                     end
                 end
             end
-            
-            
         end
         
+        % only extract the handles we are interested in using for the stat tool.
         function initHandles(this)
             tmpHandles = guidata(this.figureH);
             this.handles.check_normalizeValues = tmpHandles.check_normalizevalues;
@@ -198,6 +265,10 @@ classdef PAStatTool < handle
             this.handles.axes_secondary = tmpHandles.axes_secondary;
             this.handles.check_trimValues = tmpHandles.check_trim;
             this.handles.edit_trimPercent = tmpHandles.edit_trimPercent;
+            this.handles.check_showCentroidMembers = tmpHandles.check_showCentroidMembers;
+            this.handles.edit_centroidMinimum = tmpHandles.edit_centroidMinimum;
+            this.handles.edit_centroidThreshold = tmpHandles.edit_centroidThreshold;  
+            this.handles.push_refreshCentroids = tmpHandles.push_refreshCentroids;
         end
         
         function initBase(this)
@@ -212,6 +283,7 @@ classdef PAStatTool < handle
             features = featureStruct.features;
             divisionsPerDay = size(features,2);
             
+            set(axesHandle,'ytick',[],'yticklabel',[]);
             
             switch(plotOptions.plotType)
                 case 'dailyaverage'
@@ -296,6 +368,60 @@ classdef PAStatTool < handle
                     titleStr = 'Morning Rolling Map (00:00-06:00AM daily)';
                     weekdayticks = linspace(0,24*6,7);
                     set(axesHandle,'ygrid','on');
+                case 'adaptivekmeans'
+                    thresholdScale = 1.5;
+                    minClusters = 40;
+                    loadShapes = featureStruct.normalizedValues;    % does not converge well if not normalized...
+                    maxClusters = size(loadShapes,1)/2;
+
+                    
+                    ylabelstr = sprintf('Frequency of %s %s clusters', featureStruct.signal.tag, featureStruct.method);
+                    xlabelstr = 'Cluster index';
+                    
+                    [idx, centroids] = adaptiveKmeans(loadShapes,minClusters, maxClusters, thresholdScale);
+                    numCentroids = size(centroids,1);
+                    n = histc(idx,1:numCentroids);
+                    [nsorted,ind] = sort(n);
+                                        
+                    bar(this.handles.axes_secondary,nsorted);
+                    title(this.handles.axes_secondary,sprintf('Distribution of adaptive k-means clusters (n=%u)',numel(ind)));
+                    ylabel(this.handles.axes_secondary,ylabelstr);
+                    xlabel(this.handles.axes_secondary,xlabelstr);
+                    
+                    topN = 1;
+                    t=1;
+                    
+                    % because centroids were sorted in ascending order, we
+                    % obtain the index of the most frequent centroid from
+                    % the end of the sorted indices here:
+                    topCentroidInd = ind(end-t+1);
+                    clusterMemberIndices = idx==topCentroidInd;
+                    clusterMembershipCount = sum(clusterMemberIndices);
+
+                    
+                    titleStr = sprintf('Top %u centroid (id=%u, member count = %u) centroids (%s)',topN,topCentroidInd, clusterMembershipCount, featureStruct.method);
+                    sortedCentroids = centroids(ind,:);
+                    dailyDivisionTicks = 1:8:featureStruct.totalCount;
+                    xticks = dailyDivisionTicks;
+                    weekdayticks = xticks;
+                    xtickLabels = featureStruct.startTimes(1:8:end);
+                    daysofweekStr = xtickLabels;
+                    
+                    if(plotOptions.showCentroidMembers)
+                        hold(axesHandle,'on');
+                        
+                        clusterMembers = loadShapes(clusterMemberIndices,:);
+                        plot(axesHandle,clusterMembers','-','linewidth',1,'color',[0.85 0.85 0.85]);
+                        plot(axesHandle,sortedCentroids(end-t+1,:),'linewidth',2,'color',[0 0 0]);
+
+                        hold(axesHandle,'off');
+                    else
+                        plot(axesHandle,sortedCentroids(end-t+1,:),'linewidth',2,'color',[0 0 0]);
+
+                    end
+
+                    set(axesHandle,'ylimmode','auto');  
+                    
                     
                 case 'quantile'
                     
@@ -303,7 +429,7 @@ classdef PAStatTool < handle
                     disp Oops!;
             end
             title(axesHandle,titleStr);
-            set(axesHandle,'xtick',weekdayticks,'xticklabel',daysofweekStr,'xgrid','on');
+            set(axesHandle,'xtick',weekdayticks,'xticklabel',daysofweekStr);
         end
     end
     
@@ -315,7 +441,10 @@ classdef PAStatTool < handle
             paramStruct.baseFeatureSelection = 1;
             paramStruct.signalSelection = 1;
             paramStruct.plotTypeSelection = 1;
-            paramStruct.trimPercent = 0;            
+            paramStruct.trimPercent = 0;
+            paramStruct.showCentroidMembers = 0;
+            paramStruct.minClusters = 40;
+            paramStruct.clusterThreshold = 1.5;
         end
         
         function baseSettings = getBaseSettings()
@@ -324,8 +453,8 @@ classdef PAStatTool < handle
             baseSettings.signalTypes = {'x','y','z','vecMag'};
             baseSettings.signalDescriptions = {'X','Y','Z','Vector Magnitude'};
             
-            baseSettings.plotTypes = {'dailyaverage','dailytally','morningheatmap','heatmap','rolling','morningrolling'};
-            baseSettings.plotTypeDescriptions = {'Average Daily Tallies','Total Daily Tallies','Heat map (early morning)','Heat map','Time series','Time series (morning)'};
+            baseSettings.plotTypes = {'dailyaverage','dailytally','morningheatmap','heatmap','rolling','morningrolling','adaptivekmeans'};
+            baseSettings.plotTypeDescriptions = {'Average Daily Tallies','Total Daily Tallies','Heat map (early morning)','Heat map','Time series','Time series (morning)','Clusters (~k-means)'};
             
             baseSettings.processedTypes = {'count','raw'};
             
