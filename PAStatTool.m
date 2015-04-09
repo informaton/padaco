@@ -61,7 +61,15 @@ classdef PAStatTool < handle
                 
                 this.initWidgets(widgetSettings);
                 
-                this.plotSelectionChange(this.handles.menu_plottype,[]);
+                plotType = this.base.plotTypes{get(this.handles.menu_plottype,'value')};
+                switch(plotType)
+                    case 'adaptivekmeans'
+                        this.switch2clustering();
+                    otherwise                        
+                        this.switchFromClustering();                
+                end
+                this.previousState.plotType = plotType;
+                this.refreshPlot();
                 % this.refreshPlot();
 
             else
@@ -131,7 +139,7 @@ classdef PAStatTool < handle
             plotType = this.base.plotTypes{get(menuHandle,'value')};
             switch(plotType)
                 case 'adaptivekmeans'
-                    this.switch2clusteringkeepNormalizationOn();
+                    this.switch2clustering();
                 otherwise
                     if(strcmpi(this.previousState.plotType,'adaptivekmeans'))
                         this.switchFromClustering();
@@ -189,7 +197,7 @@ classdef PAStatTool < handle
                         % Checked state has a value of 2
                         % Unchecked state has a value of 1
                         set(this.handles.check_normalizevalues,'min',1,'max',2,'value',widgetSettings.normalizationSelection);
-                        this.previousState.normalize = widgetSettings.normalizationSelection;
+                        this.previousState.normalization = widgetSettings.normalizationSelection;
                         
                         this.featureDescriptions = this.base.featureDescriptions(ib);
                         set(this.handles.menu_feature,'string',this.featureDescriptions,'userdata',this.featureTypes,'value',widgetSettings.baseFeatureSelection);
@@ -254,19 +262,7 @@ classdef PAStatTool < handle
                 fname = handlesOfInterest{f};
                 this.handles.(fname) = tmpHandles.(fname);
             end
-%             this.handles.check_normalizevalues = tmpHandles.check_normalizevalues;
-%             this.handles.menu_feature = tmpHandles.menu_feature;
-%             this.handles.menu_signalsource = tmpHandles.menu_signalsource;
-%             this.handles.menu_plottype = tmpHandles.menu_plottype;   
-%             this.handles.axes_primary = tmpHandles.axes_primary;
-%             this.handles.axes_secondary = tmpHandles.axes_secondary;
-%             this.handles.check_trim = tmpHandles.check_trim;
-%             this.handles.edit_trimPercent = tmpHandles.edit_trimPercent;
-%             this.handles.check_showCentroidMembers = tmpHandles.check_showCentroidMembers;
-%             this.handles.edit_centroidMinimum = tmpHandles.edit_centroidMinimum;
-%             this.handles.edit_centroidThreshold = tmpHandles.edit_centroidThreshold;  
-%             this.handles.push_refreshCentroids = tmpHandles.push_refreshCentroids;
-%             this.handles.panel_plotCentroid = tmpHandles.panel_plotCentroid;
+
         end
         
         function initBase(this)
@@ -274,7 +270,7 @@ classdef PAStatTool < handle
         end
         
         
-                % Refresh the user settings from current GUI configuration.
+        % Refresh the user settings from current GUI configuration.
         function userSettings = getPlotSettings(this)
             userSettings.showCentroidMembers = get(this.handles.check_showCentroidMembers,'value');
             userSettings.processedTypeSelection = 1;
