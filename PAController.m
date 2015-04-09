@@ -19,6 +19,7 @@ classdef PAController < handle
         %> by the users signal selection via GUI dropdown menu.  See
         %> updateSecondaryFeaturesDisplayCallback
         accelTypeShown;
+        
     end
     properties
         %> acceleration activity object - instance of PAData
@@ -81,13 +82,13 @@ classdef PAController < handle
     methods
         
         function obj = PAController(Padaco_fig_h,...
-                rootpathname,...
+                rootPathname,...
                 parameters_filename)
             if(nargin<1)
                 Padaco_fig_h = [];
             end
             if(nargin<2)
-                rootpathname = fileparts(mfilename('fullpath'));
+                rootPathname = fileparts(mfilename('fullpath'));
             end
             
             %check to see if a settings file exists
@@ -96,9 +97,9 @@ classdef PAController < handle
             end;
                  
             obj.StatTool = [];
-            
+
             %create/intilize the settings object            
-            obj.SETTINGS = PASettings(rootpathname,parameters_filename);
+            obj.SETTINGS = PASettings(rootPathname,parameters_filename);
             obj.batch = obj.SETTINGS.CONTROLLER.batch;
             obj.screenshotPathname = obj.SETTINGS.CONTROLLER.screenshotPathname;
             obj.resultsPathname = obj.SETTINGS.CONTROLLER.resultsPathname;
@@ -338,9 +339,9 @@ classdef PAController < handle
             
             %% Tools
             % export
-            set(handles.menu_tools_export,'callback',@obj.menu_tools_export2workspace_callback);
+            set(handles.menu_file_exportData,'callback',@obj.menu_file_exportData2workspace_callback);
             % batch
-            set(handles.menu_tools_batch,'callback',@obj.menuToolsBatchCallback);
+            set(handles.menu_viewmode_batch,'callback',@obj.menuViewmodeBatchCallback);
             
             
             %% View Modes
@@ -986,7 +987,7 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         %> @brief Menubar callback for running the batch tool.
         %> @param obj Instance of PAController
-        %> @param hObject    handle to menu_tools_batch (see GCBO)
+        %> @param hObject    handle to menu_viewmode_batch (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
@@ -999,11 +1000,11 @@ classdef PAController < handle
         %> workspace.  This is useful for debugging and developing methods
         %> ad hoc.
         %> @param obj Instance of PAController
-        %> @param hObject    handle to menu_tools_batch (see GCBO)
+        %> @param hObject    handle to menu_viewmode_batch (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------        
-        function menu_tools_export2workspace_callback(obj,hObject,~)
+        function menu_file_exportData2workspace_callback(obj,hObject,~)
             dataObj = obj.accelObj;
             varName = 'dataObject';
             try
@@ -1080,7 +1081,7 @@ classdef PAController < handle
         %> @note See startBatchProcessCallback for actual batch processing
         %> steps.
         % --------------------------------------------------------------------        
-        function menuToolsBatchCallback(obj,hObject,eventdata)           
+        function menuViewmodeBatchCallback(obj,hObject,eventdata)           
             batchFig = batchTool();
             batchHandles = guidata(batchFig);
             
@@ -2082,8 +2083,10 @@ classdef PAController < handle
                 this.StatTool = [];  %clear any previously existing instance.
 
                 this.StatTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname,this.SETTINGS.StatTool);
-                success = this.StatTool.getCanPlot();
+                success = this.StatTool.getCanPlot();                
             end
+            enableFlag = success;
+            this.VIEW.initWidgets('results',enableFlag);
         end
         
         % --------------------------------------------------------------------

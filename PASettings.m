@@ -15,6 +15,10 @@ classdef  PASettings < handle
     
     properties
         %> pathname of Padaco working directory - determined at run time.
+        %> @brief Keeps track of the folder that padaco is run from.  This
+        %> is useful when saving the setting's file to make sure it is
+        %> always saved in the same place and not in another directory
+        %> (e.g. if the user moves about in MATLAB's editor).
         rootpathname
         %> @brief name of text file that stores the toolkit's settings
         parameters_filename
@@ -347,20 +351,13 @@ classdef  PASettings < handle
         %> the input paramater filename.  Enter empty (i.e., []) to save
         %> all available fields
         %> @param filename (optional) name of file to save parameters to.
+        %> If it is not included then the save file is taken from the
+        %> instance variables rootpathname and parameters_filename
         % =================================================================
         % -----------------------------------------------------------------
         function saveParametersToFile(obj,dataStruct2Save,filename)
-            %written by Hyatt Moore IV sometime during his PhD (2010-2011'ish)
-            %
-            %last modified
-            %   9/28/2012 - added CHANNELS_CONTAINER.saveSettings() call - removed on
-            %   9/29/2012
-            %   7/10/2012 - added batch_process.images field
-            %   5/7/2012 - added batch_process.database field
-            %   8/24/2013 - import into settings class; remove globals
-            
             if(nargin<3)
-                filename = obj.parameters_filename;
+                filename = fullfile(obj.rootpathname,obj.parameters_filename);
                 if(nargin<2)
                     dataStruct2Save = [];
                 end                

@@ -61,7 +61,7 @@ classdef PAStatTool < handle
                 
                 this.initWidgets(widgetSettings);
                 
-                this.plotSelectionChange(this.handles.menu_plotType,[]);
+                this.plotSelectionChange(this.handles.menu_plottype,[]);
                 % this.refreshPlot();
 
             else
@@ -77,7 +77,6 @@ classdef PAStatTool < handle
         function paramStruct = getSaveParameters(this)
             paramStruct = this.getPlotSettings();            
         end
-
         
         function refreshPlot(this,varargin)
             if(this.canPlot)
@@ -110,29 +109,7 @@ classdef PAStatTool < handle
                 fprintf('PAStatTool.m cannot plot (refreshPlot)\n');
             end
         end
-        
-        % Refresh the user settings from current GUI configuration.
-        function userSettings = getPlotSettings(this)
-            userSettings.showCentroidMembers = get(this.handles.check_showCentroidMembers,'value');
-            userSettings.processedTypeSelection = 1;
-            userSettings.baseFeatureSelection = get(this.handles.menu_feature,'value');
-            userSettings.signalSelection = get(this.handles.menu_signalSource,'value');
-            userSettings.plotTypeSelection = get(this.handles.menu_plotType,'value');
-            userSettings.normalizationSelection = get(this.handles.check_normalizeValues,'value');  %return 1 for unchecked, 2 for checked
-            
-            userSettings.processType = this.base.processedTypes{userSettings.processedTypeSelection};
-            userSettings.baseFeature = this.featureTypes{userSettings.baseFeatureSelection};
-            userSettings.curSignal = this.base.signalTypes{userSettings.signalSelection};            
-            userSettings.normalizationType = this.base.normalizationTypes{userSettings.normalizationSelection};
-            userSettings.plotType = this.base.plotTypes{userSettings.plotTypeSelection};            
-            userSettings.numShades = this.base.numShades;
-            
-            userSettings.trimResults = get(this.handles.check_trimValues,'value'); % returns 0 for unchecked, 1 for checked            
-            userSettings.trimPercent = str2double(get(this.handles.edit_trimPercent,'string'));
-            
-            userSettings.minClusters = str2double(get(this.handles.edit_centroidMinimum,'string'));
-            userSettings.clusterThreshold = str2double(get(this.handles.edit_centroidThreshold,'string'));
-        end
+
     end
     
     methods(Access=private)
@@ -154,23 +131,26 @@ classdef PAStatTool < handle
             plotType = this.base.plotTypes{get(menuHandle,'value')};
             switch(plotType)
                 case 'adaptivekmeans'
-                    this.keepNormalizationOn();
+                    this.switch2clusteringkeepNormalizationOn();
                 otherwise
                     if(strcmpi(this.previousState.plotType,'adaptivekmeans'))
-                        this.resetNormalization();
+                        this.switchFromClustering();
                     end
             end
             this.previousState.plotType = plotType;
             this.refreshPlot();            
         end
         
-        function keepNormalizationOn(this)
-            this.previousState.normalization = get(this.handles.check_normalizeValues,'value');
-            set(this.handles.check_normalizeValues,'value',2,'enable','off');
+        function switch2clustering(this)
+            this.previousState.normalization = get(this.handles.check_normalizevalues,'value');
+            set(this.handles.check_normalizevalues,'value',2,'enable','off');
+            set(findall(this.handles.panel_plotCentroid,'enable','off'),'enable','on');
         end
         
-        function resetNormalization(this)
-            set(this.handles.check_normalizeValues,'value',this.previousState.normalization,'enable','on');
+        function switchFromClustering(this)
+            set(this.handles.check_normalizevalues,'value',this.previousState.normalization,'enable','on');
+            set(findall(this.handles.panel_plotCentroid,'enable','on'),'enable','off');
+
         end
         
         function initWidgets(this, widgetSettings)
@@ -181,10 +161,10 @@ classdef PAStatTool < handle
             featuresPathname = this.featuresDirectory;
             
             this.canPlot = false;    %changes to true if we find data that can be processed in featuresPathname
-            set([this.handles.check_normalizeValues;
+            set([this.handles.check_normalizevalues;
                 this.handles.menu_feature;
-                this.handles.menu_signalSource;
-                this.handles.menu_plotType;
+                this.handles.menu_signalsource;
+                this.handles.menu_plottype;
                 this.handles.check_showCentroidMembers;
                 this.handles.push_refreshCentroids],'callback',[],'enable','off');
 
@@ -201,14 +181,14 @@ classdef PAStatTool < handle
                         % This is good for a true false checkbox value
                         % Checked state has a value of 1
                         % Unchecked state has a value of 0
-                        set(this.handles.check_trimValues,'min',0,'max',1,'value',widgetSettings.trimResults);
+                        set(this.handles.check_trim,'min',0,'max',1,'value',widgetSettings.trimResults);
                         set(this.handles.check_showCentroidMembers,'min',0,'max',1,'value',widgetSettings.showCentroidMembers);
 
                         % This is good for using checkbox value as a
                         % selection index in MATLAB.
                         % Checked state has a value of 2
                         % Unchecked state has a value of 1
-                        set(this.handles.check_normalizeValues,'min',1,'max',2,'value',widgetSettings.normalizationSelection);
+                        set(this.handles.check_normalizevalues,'min',1,'max',2,'value',widgetSettings.normalizationSelection);
                         this.previousState.normalize = widgetSettings.normalizationSelection;
                         
                         this.featureDescriptions = this.base.featureDescriptions(ib);
@@ -226,17 +206,17 @@ classdef PAStatTool < handle
                         % This should be updated to parse the actual output feature
                         % directories for signal type (count) or raw and the signal
                         % source (vecMag, x, y, z)
-                        set(this.handles.menu_signalSource,'string',this.base.signalDescriptions,'userdata',this.base.signalTypes,'value',widgetSettings.signalSelection);
+                        set(this.handles.menu_signalsource,'string',this.base.signalDescriptions,'userdata',this.base.signalTypes,'value',widgetSettings.signalSelection);
                         
-                        set(this.handles.menu_plotType,'userdata',this.base.plotTypes,'string',this.base.plotTypeDescriptions,'value',widgetSettings.plotTypeSelection);
+                        set(this.handles.menu_plottype,'userdata',this.base.plotTypes,'string',this.base.plotTypeDescriptions,'value',widgetSettings.plotTypeSelection);
                         this.previousState.plotType = this.base.plotTypes{widgetSettings.plotTypeSelection};
                         
                         % set callbacks
-                        set([this.handles.check_normalizeValues;
+                        set([this.handles.check_normalizevalues;
                             this.handles.menu_feature;
-                            this.handles.menu_signalSource;
+                            this.handles.menu_signalsource;
                             this.handles.check_showCentroidMembers],'callback',@this.refreshPlot,'enable','on');
-                        set(this.handles.menu_plotType,'callback',@this.plotSelectionChange,'enable','on');   
+                        set(this.handles.menu_plottype,'callback',@this.plotSelectionChange,'enable','on');   
                         
                         % this should not normally be enabled if plotType
                         % is not adaptivekmeans.  However, this will be
@@ -257,23 +237,66 @@ classdef PAStatTool < handle
         % only extract the handles we are interested in using for the stat tool.
         function initHandles(this)
             tmpHandles = guidata(this.figureH);
-            this.handles.check_normalizeValues = tmpHandles.check_normalizevalues;
-            this.handles.menu_feature = tmpHandles.menu_feature;
-            this.handles.menu_signalSource = tmpHandles.menu_signalsource;
-            this.handles.menu_plotType = tmpHandles.menu_plottype;   
-            this.handles.axes_primary = tmpHandles.axes_primary;
-            this.handles.axes_secondary = tmpHandles.axes_secondary;
-            this.handles.check_trimValues = tmpHandles.check_trim;
-            this.handles.edit_trimPercent = tmpHandles.edit_trimPercent;
-            this.handles.check_showCentroidMembers = tmpHandles.check_showCentroidMembers;
-            this.handles.edit_centroidMinimum = tmpHandles.edit_centroidMinimum;
-            this.handles.edit_centroidThreshold = tmpHandles.edit_centroidThreshold;  
-            this.handles.push_refreshCentroids = tmpHandles.push_refreshCentroids;
+            handlesOfInterest = {'check_normalizevalues'
+                'menu_feature'
+                'menu_signalsource'
+                'menu_plottype'
+                'axes_primary'
+                'axes_secondary'
+                'check_trim'
+                'edit_trimPercent'
+                'check_showCentroidMembers'
+                'edit_centroidThreshold'
+                'edit_centroidMinimum'
+                'push_refreshCentroids'
+                'panel_plotCentroid'};
+            for f=1:numel(handlesOfInterest)
+                fname = handlesOfInterest{f};
+                this.handles.(fname) = tmpHandles.(fname);
+            end
+%             this.handles.check_normalizevalues = tmpHandles.check_normalizevalues;
+%             this.handles.menu_feature = tmpHandles.menu_feature;
+%             this.handles.menu_signalsource = tmpHandles.menu_signalsource;
+%             this.handles.menu_plottype = tmpHandles.menu_plottype;   
+%             this.handles.axes_primary = tmpHandles.axes_primary;
+%             this.handles.axes_secondary = tmpHandles.axes_secondary;
+%             this.handles.check_trim = tmpHandles.check_trim;
+%             this.handles.edit_trimPercent = tmpHandles.edit_trimPercent;
+%             this.handles.check_showCentroidMembers = tmpHandles.check_showCentroidMembers;
+%             this.handles.edit_centroidMinimum = tmpHandles.edit_centroidMinimum;
+%             this.handles.edit_centroidThreshold = tmpHandles.edit_centroidThreshold;  
+%             this.handles.push_refreshCentroids = tmpHandles.push_refreshCentroids;
+%             this.handles.panel_plotCentroid = tmpHandles.panel_plotCentroid;
         end
         
         function initBase(this)
             this.base = this.getBaseSettings();
         end
+        
+        
+                % Refresh the user settings from current GUI configuration.
+        function userSettings = getPlotSettings(this)
+            userSettings.showCentroidMembers = get(this.handles.check_showCentroidMembers,'value');
+            userSettings.processedTypeSelection = 1;
+            userSettings.baseFeatureSelection = get(this.handles.menu_feature,'value');
+            userSettings.signalSelection = get(this.handles.menu_signalsource,'value');
+            userSettings.plotTypeSelection = get(this.handles.menu_plottype,'value');
+            userSettings.normalizationSelection = get(this.handles.check_normalizevalues,'value');  %return 1 for unchecked, 2 for checked
+            
+            userSettings.processType = this.base.processedTypes{userSettings.processedTypeSelection};
+            userSettings.baseFeature = this.featureTypes{userSettings.baseFeatureSelection};
+            userSettings.curSignal = this.base.signalTypes{userSettings.signalSelection};            
+            userSettings.normalizationType = this.base.normalizationTypes{userSettings.normalizationSelection};
+            userSettings.plotType = this.base.plotTypes{userSettings.plotTypeSelection};            
+            userSettings.numShades = this.base.numShades;
+            
+            userSettings.trimResults = get(this.handles.check_trim,'value'); % returns 0 for unchecked, 1 for checked            
+            userSettings.trimPercent = str2double(get(this.handles.edit_trimPercent,'string'));
+            
+            userSettings.minClusters = str2double(get(this.handles.edit_centroidMinimum,'string'));
+            userSettings.clusterThreshold = str2double(get(this.handles.edit_centroidThreshold,'string'));
+        end
+        
         
         function plotSelection(this,featureStruct,plotOptions)
             axesHandle = this.handles.axes_primary;

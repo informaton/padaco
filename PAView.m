@@ -177,11 +177,21 @@ classdef PAView < handle
             whiteHandles = [handles.text_aggregate
                 handles.text_frameSizeMinutes
                 handles.text_frameSizeHours
+                handles.text_pct
+                handles.edit_trimPercent
                 handles.panel_features_prefilter
                 handles.panel_features_aggregate
                 handles.panel_features_frame
-                handles.panel_features_signal];
+                handles.panel_features_signal                
+                handles.panel_plotType
+                handles.panel_plotSignal
+                handles.panel_plotData
+                handles.panel_plotCentroid];
             set(whiteHandles,'backgroundcolor',[0.95,0.95,0.95]);
+            
+            set([handles.panel_centroidSettings
+                handles.text_min_clusters
+                handles.text_threshold],'backgroundColor',[1 1 1]);
             
             obj.texthandle.status = handles.text_status;
             obj.texthandle.filename = handles.text_filename;
@@ -488,7 +498,8 @@ classdef PAView < handle
                 axesProps.primary.uicontextmenu = obj.contextmenuhandle.primaryAxes;
 
                 %  set(obj.axeshandle.primary,'uicontextmenu',obj.contextmenuhandle.primaryAxes);
-
+                axesProps.secondary = axesProps.primary;
+                axesProps.secondary.ylimmode = 'manual';
                 
             elseif(strcmpi(viewMode,'results'))
                 
@@ -496,10 +507,12 @@ classdef PAView < handle
                 axesProps.primary.xlimmode='auto';
                 axesProps.primary.xAxisLocation = 'bottom';
                 axesProps.primary.uicontextmenu = [];
-
+                
+                axesProps.secondary = axesProps.primary;
+                axesProps.secondary.ylimmode = 'auto';
+                
             end
             
-            axesProps.secondary = axesProps.primary;
             axesProps.secondary.xgrid = 'off';
             axesProps.secondary.xminortick = 'off';
             axesProps.secondary.xAxisLocation = 'bottom';
@@ -513,9 +526,15 @@ classdef PAView < handle
         %> Called when first creating a view.  See also initAxesHandles.
         %> @param obj Instance of PAView
         % --------------------------------------------------------------------
-        function clearAxesHandles(obj)            
-            cla(obj.axeshandle.primary);
-            cla(obj.axeshandle.secondary);
+        function clearAxesHandles(obj)    
+            axesH = struct2array(obj.axeshandle);
+            for a=1:numel(axesH)
+                h=axesH(a);
+                cla(h);
+                title(h,'');
+                ylabel(h,'');
+                xlabel(h,'');
+            end
         end
 
         % --------------------------------------------------------------------
