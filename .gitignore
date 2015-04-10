@@ -10,3 +10,13 @@ disableHandles.m
 archive/adaptiveKmeans.m
 
 archive/adaptiveKmeansBulk.m
+
+archive/loadAlignedFeatures.m
+
+archive/normalizeLoadShapes.m
+
+archive/processClusters.m
+
+archive/processProgressions.m
+
+archive/processResults.m

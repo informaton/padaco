@@ -8,11 +8,17 @@ classdef PAStatTool < handle
         resultsDirectory;
         featuresDirectory;
         imagesDirectory;
+        %> handle of parent figure
         figureH;
         featureInputFilePattern;
         featureInputFileFieldnames;
-        handles; % struct of handles that PAStatTool interacts with
-        base;  %hold all possible parameter values that can be set
+        %> structure of loaded features
+        featureStruct;
+        %> struct of handles that PAStatTool interacts with.  See
+        %> initHandles()
+        handles; 
+        %> struct of base (all possible) parameter values that can be set
+        base;  
         featureTypes;
         featureDescriptions;
         %> @brief boolean set to true if result data is found.
@@ -51,7 +57,7 @@ classdef PAStatTool < handle
             this.imagesDirectory = [];
 
             this.figureH = padaco_fig_h;
-            
+            this.featureStruct = [];
             this.initHandles();            
             this.initBase();
             
@@ -91,23 +97,54 @@ classdef PAStatTool < handle
         end
         
         % ======================================================================
-        %> @brief
+        %> @brief Get method for canPlot instance variable.
         %> @param this Instance of PAStatTool
+        %> @retval canPlot Boolean (true if results are loaded and displayable).
         % ======================================================================
         function canPlotValue = getCanPlot(this)
             canPlotValue = this.canPlot;
         end
         
         % ======================================================================
-        %> @brief
+        %> @brief Returns plot settings that can be used to initialize a
+        %> a PAStatTool with the same settings.
         %> @param this Instance of PAStatTool
+        %> @retval Structure of current plot settings.
         % ======================================================================
         function paramStruct = getSaveParameters(this)
             paramStruct = this.getPlotSettings();            
         end
         
         % ======================================================================
-        %> @brief
+        %> @brief Loads feature struct from disk using results feature
+        %> directory.
+        %> @param this Instance of PAStatTool
+        %> @retval success Boolean: true if features are loaded from file.  False if they are not.
+        % ======================================================================
+        function success = loadFeatureStruct(this)
+            pSettings = this.getPlotSettings();
+            inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
+            if(exist(inputFilename,'file'))                
+                this.featureStruct = this.loadAlignedFeatures(inputFilename);
+                loadFeatures = this.featureStruct.(pSettings.normalizationType);
+                
+                if(pSettings.trimResults)
+                    pctValues = prctile(loadFeatures,pSettings.trimPercent);
+                    pctValuesMat = repmat(pctValues,size(loadFeatures,1),1);
+                    adjustInd = loadFeatures>pctValuesMat;
+                    loadFeatures(adjustInd) = pctValuesMat(adjustInd);
+                end
+                this.featureStruct.features = loadFeatures;
+                success = true;
+            else
+                this.featureStruct = [];
+                success = false;
+            end               
+        end
+        
+        % ======================================================================
+        %> @brief Initializes widget using current plot settings and
+        %> refreshes the view.
         %> @param this Instance of PAStatTool
         % ======================================================================        
         function init(this)
@@ -116,34 +153,32 @@ classdef PAStatTool < handle
         end
         
         % ======================================================================
-        %> @brief
+        %> @brief Updates the plot according to gui settings.  The method
+        %> is assigned as the callback function to most of the gui widgets,
+        %> but can called from the instance object anytime a refresh is desired.
         %> @param this Instance of PAStatTool
-        %> @param varargin
+        %> @param varargin Handle of callback parent and associated event
+        %> data.  Neither are used, but required by MATLAB gui callbacks
         % ======================================================================        
         function refreshPlot(this,varargin)
             if(this.canPlot)
                 this.showBusy();
                 pSettings = this.getPlotSettings();
                 
-                inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
-                if(exist(inputFilename,'file'))
-                    
-                    featureStruct = loadAlignedFeatures(inputFilename);
-                    loadFeatures = featureStruct.(pSettings.normalizationType);
-                    
-                    if(pSettings.trimResults)
-                        pctValues = prctile(loadFeatures,pSettings.trimPercent);
-                        pctValuesMat = repmat(pctValues,size(loadFeatures,1),1);
-                        adjustInd = loadFeatures>pctValuesMat;
-                        loadFeatures(adjustInd) = pctValuesMat(adjustInd);
-                    end
-                    featureStruct.features = loadFeatures;
-                    pSettings.ylabelstr = sprintf('%s of %s %s activity',pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
-                    pSettings.xlabelstr = 'Days of Week';
-                    
-                    this.plotSelection(featureStruct,pSettings);
-                else
-                    warndlg(sprintf('Could not find %s',inputFilename));
+                switch(pSettings.plotType)
+                    case 'centroids'
+                        this.plotCentroids();                        
+                    otherwise
+                        
+                        this.loadFeatureStruct();
+                        if(~isempty(this.featureStruct))
+                            pSettings.ylabelstr = sprintf('%s of %s %s activity',pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
+                            pSettings.xlabelstr = 'Days of Week';
+                            
+                            this.plotSelection(pSettings);
+                        else
+                            warndlg(sprintf('Could not find %s',inputFilename));
+                        end
                 end
                 this.showReady();
             else
@@ -155,7 +190,7 @@ classdef PAStatTool < handle
     
     methods(Access=private)
         % ======================================================================
-        %> @brief
+        %> @brief Shows busy state (mouse pointer becomes a watch)
         %> @param this Instance of PAStatTool
         % ======================================================================
         function showBusy(this)
@@ -173,9 +208,10 @@ classdef PAStatTool < handle
         end
         
         % ======================================================================
-        %> @brief
+        %> @brief Plot dropdown selection menu callback.
         %> @param this Instance of PAStatTool
-        %> @param
+        %> @param Handle of the dropdown menu.
+        %> @param unused
         % ======================================================================
         function plotSelectionChange(this, menuHandle, ~)
             plotType = this.base.plotTypes{get(menuHandle,'value')};
@@ -192,7 +228,7 @@ classdef PAStatTool < handle
         end
         
         % ======================================================================
-        %> @brief
+        %> @brief Configure gui handles for centroid analysis and viewing.
         %> @param this Instance of PAStatTool
         % ======================================================================
         function switch2clustering(this)
@@ -202,21 +238,22 @@ classdef PAStatTool < handle
         end
         
         % ======================================================================
-        %> @brief
+        %> @brief Configure gui handles for non centroid/clusting viewing
         %> @param this Instance of PAStatTool
         % ======================================================================
         function switchFromClustering(this)
             set(this.handles.check_normalizevalues,'value',this.previousState.normalization,'enable','on');
             set(findall(this.handles.panel_plotCentroid,'enable','on'),'enable','off');
-%             set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','off');
-
-        end
-        
+            %  set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','off');
+        end        
 
         % ======================================================================
-        %> @brief
+        %> @brief Initialize gui handles using input parameter or default
+        %> parameters
         %> @param this Instance of PAStatTool
-        %> @param widgetSettings
+        %> @param widgetSettings GUI setting parameters (optional).  If
+        %> this is not included or is empty, then the default parameters are
+        %> used to initialize the gui (See getDefaultParameters).
         % ======================================================================        
         function initWidgets(this, widgetSettings)
             if(nargin<2 || isempty(widgetSettings))
@@ -307,8 +344,6 @@ classdef PAStatTool < handle
                 end
             end
             
-
-            
             % enable everything
             if(this.canPlot)
                 set(findall(this.handles.panel_results,'enable','off'),'enable','on');
@@ -318,24 +353,27 @@ classdef PAStatTool < handle
             end
         end
         
-        % callback for updating the centroids being displayed.
         % ======================================================================
-        %> @brief
+        %> @brief Push button callback for updating the centroids being displayed.
         %> @param this Instance of PAStatTool
-        %> @param
+        %> @param Variable number of arguments required by MATLAB gui callbacks
         % ======================================================================
         function updateCentroids(this,varargin)
             
-            plotSettings = this.getPlotSettings();
+            if(this.loadFeatureStruct())            
+                
+                loadShapes = featureStruct.normalizedValues;    % does not converge well if not normalized as we are no longer looking at the shape alone
+                this.centroidObj = PACentroid(loadShapes,plotSettings);
+                this.refreshPlot();
+            else
+               warndlg(sprintf('Could not find the input file required (%s)!',inputFilename));
+            end
+        end
+        
+        
+        function plotCentroids(this,plotSettings)
             
-            this.centroidObj = PACentroid(loadShapes,plotSettings);
-            thresholdScale = 1.5;
-            minClusters = 40;
-            loadShapes = featureStruct.normalizedValues;    % does not converge well if not normalized...
-            maxClusters = size(loadShapes,1)/2;
-            
-            
-            ylabelstr = sprintf('Frequency of %s %s clusters', featureStruct.signal.tag, featureStruct.method);
+            ylabelstr = sprintf('Frequency of %s %s clusters', this.featureStruct.signal.tag, this.featureStruct.method);
             xlabelstr = 'Cluster index';
             
             [idx, centroids] = adaptiveKmeans(loadShapes,minClusters, maxClusters, thresholdScale);
@@ -393,11 +431,11 @@ classdef PAStatTool < handle
         %> @param
         %> @param eventdata (req'd by matlab, but unset)
         % ======================================================================
-        function editTrimPercentChange(this,editHandle,eventdata)
+        function editTrimPercentChange(this,editHandle,~)
             percent = str2double(get(editHandle,'string'));
-            if(isempty(percent) || isnan(percent) || percent<0 || percent>=100)
+            if(isempty(percent) || isnan(percent) || percent<=0 || percent>100)
                 percent = 0;
-                warndlg('Percent value should be in the range of 0 to less than 100.0');
+                warndlg('Percent value should be in the range: (0, 100]');
             end
             set(editHandle,'string',num2str(percent));
             this.refreshPlot();
@@ -474,14 +512,15 @@ classdef PAStatTool < handle
         % ======================================================================
         %> @brief
         %> @param this Instance of PAStatTool
-        %> @param
+        %> @param plotOptions struct of options for how to plot
+        %> featureStruct values.
         % ======================================================================
-        function plotSelection(this,featureStruct,plotOptions)
+        function plotSelection(this,plotOptions)
             axesHandle = this.handles.axes_primary;
             daysofweek = featureStruct.startDaysOfWeek;
             daysofweekStr = {'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
             daysofweekOrder = 1:7;
-            features = featureStruct.features;
+            features = this.featureStruct.features;
             divisionsPerDay = size(features,2);
             
             set(axesHandle,'ytick',[],'yticklabel',[]);
@@ -528,7 +567,7 @@ classdef PAStatTool < handle
                     imagesc(imageMap','parent',axesHandle);
                     weekdayticks = 1:1:7; %linspace(0,6,7);
                     dailyDivisionTicks = 1:2:24;
-                    set(axesHandle,'ytick',dailyDivisionTicks,'yticklabel',featureStruct.startTimes(1:2:24));
+                    set(axesHandle,'ytick',dailyDivisionTicks,'yticklabel',this.featureStruct.startTimes(1:2:24));
                     titleStr = 'Heat map (early morning)';
                 case 'heatmap'
                     imageMap = nan(7,size(features,2));
@@ -544,8 +583,8 @@ classdef PAStatTool < handle
                     imageMap = round(imageMap*plotOptions.numShades);
                     imagesc(imageMap','parent',axesHandle);
                     weekdayticks = 1:1:7; %linspace(0,6,7);
-                    dailyDivisionTicks = 1:8:featureStruct.totalCount;
-                    set(axesHandle,'ytick',dailyDivisionTicks,'yticklabel',featureStruct.startTimes(1:8:end));
+                    dailyDivisionTicks = 1:8:this.featureStruct.totalCount;
+                    set(axesHandle,'ytick',dailyDivisionTicks,'yticklabel',this.featureStruct.startTimes(1:8:end));
                     titleStr = 'Heat map';
                 case 'rolling'
                     imageMap = nan(7,size(features,2));
@@ -570,7 +609,7 @@ classdef PAStatTool < handle
                     weekdayticks = linspace(0,24*6,7);
                     set(axesHandle,'ygrid','on');
                 case 'centroids'
-
+                    
                     
                 case 'quantile'
                     
@@ -589,7 +628,7 @@ classdef PAStatTool < handle
         %> @retval
         % ======================================================================
         function paramStruct = getDefaultParameters()
-            paramStruct.trimResults = 0;
+            paramStruct.trimResults = 100;
             paramStruct.normalizationSelection = 2;            
             paramStruct.processedTypeSelection = 1;
             paramStruct.baseFeatureSelection = 1;
@@ -616,6 +655,74 @@ classdef PAStatTool < handle
             
             baseSettings.normalizationTypes = {'values','normalizedValues'};
             baseSettings.numShades = 1000;
+        end
+        
+        
+        
+        %     filename='/Volumes/SeaG 1TB/sampleData/output/features/mean/features.mean.accel.count.vecMag.txt';
+        function featureStruct = loadAlignedFeatures(filename)
+            
+            
+            
+            [~,fileN, ~] = fileparts(filename);
+            [~, remain] = strtok(fileN,'.');
+            
+            [method, remain] = strtok(remain,'.');
+            featureStruct.method = method;
+            featureStruct.signal.tag = remain(2:end);
+            
+            [signalGroup, remain] = strtok(remain,'.');
+            [signalSource, remain] = strtok(remain,'.');
+            signalName = strtok(remain,'.');
+            
+            
+            featureStruct.signal.group = signalGroup;
+            featureStruct.signal.source = signalSource;
+            featureStruct.signal.name = signalName;
+            
+            
+            fid = fopen(filename,'r');
+            
+            featureStruct.methodDescription = strrep(strrep(fgetl(fid),'# Feature:',''),char(9),'');
+            featureStruct.totalCount = str2double(strrep(strrep(fgetl(fid),'# Length:',''),char(9),''));
+            
+            startTimes = strrep(fgetl(fid),sprintf('# Start Datenum\tStart Day'),'');
+            pattern = '\s+(\d+:\d+)+';
+            result = regexp(startTimes,pattern,'tokens');
+            
+            startTimes = cell(size(result));
+            numCols = numel(startTimes);
+            
+            if(numCols~=featureStruct.totalCount)
+                fprintf('Warning!  The number of columns listed and the number of columns found in %s do not match.\n',filename);
+            end
+            for c=1:numCols
+                startTimes{c} = result{c}{1};
+            end
+            
+            featureStruct.startTimes = startTimes;
+            %     urhere = ftell(fid);
+            %     fseek(fid,urhere,'bof');
+            
+            % +2 because of datenum and start date of the week that precede the
+            % time stamps.
+            scanStr = repmat(' %f',1,numCols+2);
+            
+            C = textscan(fid,scanStr,'commentstyle','#','delimiter','\t');
+            featureStruct.startDatenums = cell2mat(C(:,1));
+            featureStruct.startDaysOfWeek = cell2mat(C(:,2));
+            featureStruct.values = cell2mat(C(:,3:end));
+            featureStruct.normalizedValues =  PAStatTool.normalizeLoadShapes(featureStruct.values);
+            fclose(fid);
+        end
+        
+        function normalizedLoadShapes = normalizeLoadShapes(loadShapes)
+            
+            a= sum(loadShapes,2);
+            %nzi = nonZeroIndices
+            nzi = a~=0;
+            normalizedLoadShapes(nzi,:) = loadShapes(nzi,:)./repmat(a(nzi),1,size(loadShapes,2));
+            
         end
         
     end
