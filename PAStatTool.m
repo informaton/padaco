@@ -21,6 +21,8 @@ classdef PAStatTool < handle
         %> - @c colorMap - colormap of figure;
         %> These are initialized in the initWidgets() method.
         previousState;
+        %> instance of PACentroid class
+        centroidObj;
     end
     
     properties
@@ -63,7 +65,7 @@ classdef PAStatTool < handle
                 plotType = this.base.plotTypes{get(this.handles.menu_plottype,'value')};
                 
                 switch(plotType)
-                    case 'adaptivekmeans'
+                    case 'centroids'
                         this.switch2clustering();
                     otherwise
                         this.switchFromClustering();
@@ -140,10 +142,10 @@ classdef PAStatTool < handle
         function plotSelectionChange(this, menuHandle, ~)
             plotType = this.base.plotTypes{get(menuHandle,'value')};
             switch(plotType)
-                case 'adaptivekmeans'
+                case 'centroids'
                     this.switch2clustering();
                 otherwise
-                    if(strcmpi(this.previousState.plotType,'adaptivekmeans'))
+                    if(strcmpi(this.previousState.plotType,'centroids'))
                         this.switchFromClustering();
                     end
             end
@@ -241,7 +243,7 @@ classdef PAStatTool < handle
                         set(this.handles.edit_trimPercent,'callback',@this.editTrimPercentChange);
                         
                         % this should not normally be enabled if plotType
-                        % is not adaptivekmeans.  However, this will be
+                        % is not centroids.  However, this will be
                         % taken care of by the enable/disabling of the
                         % parent centroid panel based on the menu selection
                         % change callback which is called after initWidgets
@@ -264,6 +266,13 @@ classdef PAStatTool < handle
             else
                 set(findall(this.handles.panel_results,'enable','on'),'enable','off');                
             end
+        end
+        
+        % callback for updating the centroids being displayed.
+        function updateCentroids(this,varargin)            
+            
+            % this.refreshPlot();
+            set(this.refreshCentroids,'enable','off');
         end
         
         function editTrimPercentChange(this,editHandle,eventdata)
@@ -425,7 +434,7 @@ classdef PAStatTool < handle
                     titleStr = 'Morning Rolling Map (00:00-06:00AM daily)';
                     weekdayticks = linspace(0,24*6,7);
                     set(axesHandle,'ygrid','on');
-                case 'adaptivekmeans'
+                case 'centroids'
                     thresholdScale = 1.5;
                     minClusters = 40;
                     loadShapes = featureStruct.normalizedValues;    % does not converge well if not normalized...
@@ -510,8 +519,8 @@ classdef PAStatTool < handle
             baseSettings.signalTypes = {'x','y','z','vecMag'};
             baseSettings.signalDescriptions = {'X','Y','Z','Vector Magnitude'};
             
-            baseSettings.plotTypes = {'dailyaverage','dailytally','morningheatmap','heatmap','rolling','morningrolling','adaptivekmeans'};
-            baseSettings.plotTypeDescriptions = {'Average Daily Tallies','Total Daily Tallies','Heat map (early morning)','Heat map','Time series','Time series (morning)','Clusters (~k-means)'};
+            baseSettings.plotTypes = {'dailyaverage','dailytally','morningheatmap','heatmap','rolling','morningrolling','centroids'};
+            baseSettings.plotTypeDescriptions = {'Average Daily Tallies','Total Daily Tallies','Heat map (early morning)','Heat map','Time series','Time series (morning)','Centroids'};
             
             baseSettings.processedTypes = {'count','raw'};
             
