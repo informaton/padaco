@@ -101,13 +101,12 @@ classdef PAStatTool < handle
                     loadFeatures = featureStruct.(pSettings.normalizationType);
                     
                     if(pSettings.trimResults)
-                        trimInd = loadFeatures < prctile(loadFeatures,99);
-                        features = loadFeatures(trimInd);
-                        daysofweek = pSettings.daysofweek(trimInd);
-                    else
-                        features =  loadFeatures;
+                        pctValues = prctile(loadFeatures,pSettings.trimPercent);
+                        pctValuesMat = repmat(pctValues,size(loadFeatures,1),1);
+                        adjustInd = loadFeatures>pctValuesMat;
+                        loadFeatures(adjustInd) = pctValuesMat(adjustInd);
                     end
-                    featureStruct.features = features;
+                    featureStruct.features = loadFeatures;
                     pSettings.ylabelstr = sprintf('%s of %s %s activity',pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
                     pSettings.xlabelstr = 'Days of Week';
                     
@@ -180,7 +179,9 @@ classdef PAStatTool < handle
                 this.handles.menu_signalsource;
                 this.handles.menu_plottype;
                 this.handles.check_showCentroidMembers;
-                this.handles.push_refreshCentroids],'callback',[],'enable','off');
+                this.handles.push_refreshCentroids;
+                this.handles.check_trim;
+                this.handles.edit_trimPercent],'callback',[],'enable','off');
 
             if(isdir(featuresPathname))
                 % find allowed features which are in our base parameter and
@@ -227,10 +228,17 @@ classdef PAStatTool < handle
                         
                         % set callbacks
                         set([this.handles.check_normalizevalues;
-                            this.handles.menu_feature;
-                            this.handles.menu_signalsource;
-                            this.handles.check_showCentroidMembers],'callback',@this.refreshPlot,'enable','on');
+                            this.handles.check_trim;
+                            this.handles.menu_feature;                            
+                            this.handles.menu_signalsource],'callback',@this.refreshPlot,'enable','on');
+                        
+                        % The enabling of centroid is determined based on
+                        % the plot type, and that is handled elsewhere...
+                        % For now it is sufficient to refreshPlot
+                        set(this.handles.check_showCentroidMembers,'callback',[]);
                         set(this.handles.menu_plottype,'callback',@this.plotSelectionChange,'enable','on');   
+                        
+                        set(this.handles.edit_trimPercent,'callback',@this.editTrimPercentChange);
                         
                         % this should not normally be enabled if plotType
                         % is not adaptivekmeans.  However, this will be
@@ -247,6 +255,8 @@ classdef PAStatTool < handle
                 end
             end
             
+
+            
             % enable everything
             if(this.canPlot)
                 set(findall(this.handles.panel_results,'enable','off'),'enable','on');
@@ -254,6 +264,16 @@ classdef PAStatTool < handle
             else
                 set(findall(this.handles.panel_results,'enable','on'),'enable','off');                
             end
+        end
+        
+        function editTrimPercentChange(this,editHandle,eventdata)
+            percent = str2double(get(editHandle,'string'));
+            if(isempty(percent) || isnan(percent) || percent<0 || percent>=100)
+                percent = 0;
+                warndlg('Percent value should be in the range of 0 to less than 100.0');
+            end
+            set(editHandle,'string',num2str(percent));
+            this.refreshPlot();
         end
         
         % only extract the handles we are interested in using for the stat tool.
@@ -272,7 +292,10 @@ classdef PAStatTool < handle
                 'edit_centroidMinimum'
                 'push_refreshCentroids'
                 'panel_plotCentroid'
-                'panel_results'};
+                'panel_results'
+                'push_nextCentroid'
+                'push_previousCentroid'};
+            
             for f=1:numel(handlesOfInterest)
                 fname = handlesOfInterest{f};
                 this.handles.(fname) = tmpHandles.(fname);
