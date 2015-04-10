@@ -491,7 +491,7 @@ classdef PAStatTool < handle
             userSettings.baseFeatureSelection = get(this.handles.menu_feature,'value');
             userSettings.signalSelection = get(this.handles.menu_signalsource,'value');
             userSettings.plotTypeSelection = get(this.handles.menu_plottype,'value');
-            userSettings.normalizeResults = get(this.handles.check_normalizevalues,'value');  %return 0 for unchecked, 1 for checked
+            userSettings.normalizeValues = get(this.handles.check_normalizevalues,'value');  %return 0 for unchecked, 1 for checked
             
             userSettings.processType = this.base.processedTypes{userSettings.processedTypeSelection};
             userSettings.baseFeature = this.featureTypes{userSettings.baseFeatureSelection};
