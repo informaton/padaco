@@ -1,3 +1,7 @@
+% ======================================================================
+%> @file PAStatTool.cpp
+%> @brief PAStatTool serves as Padaco's batch results analsysis controller 
+% ======================================================================
 classdef PAStatTool < handle
     
     properties(Access=private)
@@ -30,6 +34,14 @@ classdef PAStatTool < handle
     
     methods        
         
+        % ======================================================================
+        %> @brief Constructor for PAStatTool
+        %> @param padaco_fig_h Handle to figure to be instantiated with
+        %> @param resultsPathname
+        %> @param optional struct with field value pairs for initializing
+        %> user settings.  See getSaveParameters
+        %> @retval this Instance of PAStatTool
+        % ======================================================================
         function this = PAStatTool(padaco_fig_h, resultsPathname, widgetSettings)
             if(nargin<3)
                 widgetSettings = [];
@@ -78,19 +90,36 @@ classdef PAStatTool < handle
             end
         end
         
+        % ======================================================================
+        %> @brief
+        %> @param this Instance of PAStatTool
+        % ======================================================================
         function canPlotValue = getCanPlot(this)
             canPlotValue = this.canPlot;
         end
         
-
+        % ======================================================================
+        %> @brief
+        %> @param this Instance of PAStatTool
+        % ======================================================================
         function paramStruct = getSaveParameters(this)
             paramStruct = this.getPlotSettings();            
         end
         
+        % ======================================================================
+        %> @brief
+        %> @param this Instance of PAStatTool
+        % ======================================================================        
         function init(this)
             this.initWidgets(this.getPlotSettings);
             this.refreshPlot();
         end
+        
+        % ======================================================================
+        %> @brief
+        %> @param this Instance of PAStatTool
+        %> @param varargin
+        % ======================================================================        
         function refreshPlot(this,varargin)
             if(this.canPlot)
                 this.showBusy();
@@ -125,8 +154,12 @@ classdef PAStatTool < handle
     end
     
     methods(Access=private)
-        function showBusy(obj)
-            set(obj.figureH,'pointer','watch');
+        % ======================================================================
+        %> @brief
+        %> @param this Instance of PAStatTool
+        % ======================================================================
+        function showBusy(this)
+            set(this.figureH,'pointer','watch');
             drawnow();
         end
         
@@ -139,6 +172,11 @@ classdef PAStatTool < handle
             drawnow();
         end
         
+        % ======================================================================
+        %> @brief
+        %> @param this Instance of PAStatTool
+        %> @param
+        % ======================================================================
         function plotSelectionChange(this, menuHandle, ~)
             plotType = this.base.plotTypes{get(menuHandle,'value')};
             switch(plotType)
@@ -153,12 +191,20 @@ classdef PAStatTool < handle
             this.refreshPlot();            
         end
         
+        % ======================================================================
+        %> @brief
+        %> @param this Instance of PAStatTool
+        % ======================================================================
         function switch2clustering(this)
             this.previousState.normalization = get(this.handles.check_normalizevalues,'value');
             set(this.handles.check_normalizevalues,'value',2,'enable','off');
             set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','on');
         end
         
+        % ======================================================================
+        %> @brief
+        %> @param this Instance of PAStatTool
+        % ======================================================================
         function switchFromClustering(this)
             set(this.handles.check_normalizevalues,'value',this.previousState.normalization,'enable','on');
             set(findall(this.handles.panel_plotCentroid,'enable','on'),'enable','off');
@@ -167,7 +213,11 @@ classdef PAStatTool < handle
         end
         
 
-        
+        % ======================================================================
+        %> @brief
+        %> @param this Instance of PAStatTool
+        %> @param widgetSettings
+        % ======================================================================        
         function initWidgets(this, widgetSettings)
             if(nargin<2 || isempty(widgetSettings))
                 widgetSettings = this.getDefaultParameters();                
@@ -269,12 +319,80 @@ classdef PAStatTool < handle
         end
         
         % callback for updating the centroids being displayed.
-        function updateCentroids(this,varargin)            
+        % ======================================================================
+        %> @brief
+        %> @param this Instance of PAStatTool
+        %> @param
+        % ======================================================================
+        function updateCentroids(this,varargin)
+            
+            plotSettings = this.getPlotSettings();
+            
+            this.centroidObj = PACentroid(loadShapes,plotSettings);
+            thresholdScale = 1.5;
+            minClusters = 40;
+            loadShapes = featureStruct.normalizedValues;    % does not converge well if not normalized...
+            maxClusters = size(loadShapes,1)/2;
+            
+            
+            ylabelstr = sprintf('Frequency of %s %s clusters', featureStruct.signal.tag, featureStruct.method);
+            xlabelstr = 'Cluster index';
+            
+            [idx, centroids] = adaptiveKmeans(loadShapes,minClusters, maxClusters, thresholdScale);
+            numCentroids = size(centroids,1);
+            n = histc(idx,1:numCentroids);
+            [nsorted,ind] = sort(n);
+            
+            bar(this.handles.axes_secondary,nsorted);
+            title(this.handles.axes_secondary,sprintf('Distribution of adaptive k-means clusters (n=%u)',numel(ind)));
+            ylabel(this.handles.axes_secondary,ylabelstr);
+            xlabel(this.handles.axes_secondary,xlabelstr);
+            
+            topN = 1;
+            t=1;
+            
+            % because centroids were sorted in ascending order, we
+            % obtain the index of the most frequent centroid from
+            % the end of the sorted indices here:
+            topCentroidInd = ind(end-t+1);
+            clusterMemberIndices = idx==topCentroidInd;
+            clusterMembershipCount = sum(clusterMemberIndices);
+            
+            
+            titleStr = sprintf('Top %u centroid (id=%u, member count = %u) centroids (%s)',topN,topCentroidInd, clusterMembershipCount, featureStruct.method);
+            sortedCentroids = centroids(ind,:);
+            dailyDivisionTicks = 1:8:featureStruct.totalCount;
+            xticks = dailyDivisionTicks;
+            weekdayticks = xticks;
+            xtickLabels = featureStruct.startTimes(1:8:end);
+            daysofweekStr = xtickLabels;
+            
+            if(plotOptions.showCentroidMembers)
+                hold(axesHandle,'on');
+                
+                clusterMembers = loadShapes(clusterMemberIndices,:);
+                plot(axesHandle,clusterMembers','-','linewidth',1,'color',[0.85 0.85 0.85]);
+                plot(axesHandle,sortedCentroids(end-t+1,:),'linewidth',2,'color',[0 0 0]);
+                
+                hold(axesHandle,'off');
+            else
+                plot(axesHandle,sortedCentroids(end-t+1,:),'linewidth',2,'color',[0 0 0]);
+                
+            end
+            
+            set(axesHandle,'ylimmode','auto');
             
             % this.refreshPlot();
             set(this.refreshCentroids,'enable','off');
         end
         
+        
+        % ======================================================================
+        %> @brief
+        %> @param this Instance of PAStatTool
+        %> @param
+        %> @param eventdata (req'd by matlab, but unset)
+        % ======================================================================
         function editTrimPercentChange(this,editHandle,eventdata)
             percent = str2double(get(editHandle,'string'));
             if(isempty(percent) || isnan(percent) || percent<0 || percent>=100)
@@ -286,6 +404,10 @@ classdef PAStatTool < handle
         end
         
         % only extract the handles we are interested in using for the stat tool.
+        % ======================================================================
+        %> @brief
+        %> @param this Instance of PAStatTool
+        % ======================================================================
         function initHandles(this)
             tmpHandles = guidata(this.figureH);
             handlesOfInterest = {'check_normalizevalues'
@@ -309,15 +431,23 @@ classdef PAStatTool < handle
                 fname = handlesOfInterest{f};
                 this.handles.(fname) = tmpHandles.(fname);
             end
-
         end
         
+        % ======================================================================
+        %> @brief
+        %> @param this Instance of PAStatTool
+        % ======================================================================
         function initBase(this)
             this.base = this.getBaseSettings();
         end
         
         
         % Refresh the user settings from current GUI configuration.
+        % ======================================================================
+        %> @brief
+        %> @param this Instance of PAStatTool
+        %> @retval
+        % ======================================================================
         function userSettings = getPlotSettings(this)
             userSettings.showCentroidMembers = get(this.handles.check_showCentroidMembers,'value');
             userSettings.processedTypeSelection = 1;
@@ -341,6 +471,11 @@ classdef PAStatTool < handle
         end
         
         
+        % ======================================================================
+        %> @brief
+        %> @param this Instance of PAStatTool
+        %> @param
+        % ======================================================================
         function plotSelection(this,featureStruct,plotOptions)
             axesHandle = this.handles.axes_primary;
             daysofweek = featureStruct.startDaysOfWeek;
@@ -435,59 +570,7 @@ classdef PAStatTool < handle
                     weekdayticks = linspace(0,24*6,7);
                     set(axesHandle,'ygrid','on');
                 case 'centroids'
-                    thresholdScale = 1.5;
-                    minClusters = 40;
-                    loadShapes = featureStruct.normalizedValues;    % does not converge well if not normalized...
-                    maxClusters = size(loadShapes,1)/2;
 
-                    
-                    ylabelstr = sprintf('Frequency of %s %s clusters', featureStruct.signal.tag, featureStruct.method);
-                    xlabelstr = 'Cluster index';
-                    
-                    [idx, centroids] = adaptiveKmeans(loadShapes,minClusters, maxClusters, thresholdScale);
-                    numCentroids = size(centroids,1);
-                    n = histc(idx,1:numCentroids);
-                    [nsorted,ind] = sort(n);
-                                        
-                    bar(this.handles.axes_secondary,nsorted);
-                    title(this.handles.axes_secondary,sprintf('Distribution of adaptive k-means clusters (n=%u)',numel(ind)));
-                    ylabel(this.handles.axes_secondary,ylabelstr);
-                    xlabel(this.handles.axes_secondary,xlabelstr);
-                    
-                    topN = 1;
-                    t=1;
-                    
-                    % because centroids were sorted in ascending order, we
-                    % obtain the index of the most frequent centroid from
-                    % the end of the sorted indices here:
-                    topCentroidInd = ind(end-t+1);
-                    clusterMemberIndices = idx==topCentroidInd;
-                    clusterMembershipCount = sum(clusterMemberIndices);
-
-                    
-                    titleStr = sprintf('Top %u centroid (id=%u, member count = %u) centroids (%s)',topN,topCentroidInd, clusterMembershipCount, featureStruct.method);
-                    sortedCentroids = centroids(ind,:);
-                    dailyDivisionTicks = 1:8:featureStruct.totalCount;
-                    xticks = dailyDivisionTicks;
-                    weekdayticks = xticks;
-                    xtickLabels = featureStruct.startTimes(1:8:end);
-                    daysofweekStr = xtickLabels;
-                    
-                    if(plotOptions.showCentroidMembers)
-                        hold(axesHandle,'on');
-                        
-                        clusterMembers = loadShapes(clusterMemberIndices,:);
-                        plot(axesHandle,clusterMembers','-','linewidth',1,'color',[0.85 0.85 0.85]);
-                        plot(axesHandle,sortedCentroids(end-t+1,:),'linewidth',2,'color',[0 0 0]);
-
-                        hold(axesHandle,'off');
-                    else
-                        plot(axesHandle,sortedCentroids(end-t+1,:),'linewidth',2,'color',[0 0 0]);
-
-                    end
-
-                    set(axesHandle,'ylimmode','auto');  
-                    
                     
                 case 'quantile'
                     
@@ -500,6 +583,11 @@ classdef PAStatTool < handle
     end
     
     methods (Static)
+        % ======================================================================
+        %> @brief
+        %> @param
+        %> @retval
+        % ======================================================================
         function paramStruct = getDefaultParameters()
             paramStruct.trimResults = 0;
             paramStruct.normalizationSelection = 2;            
@@ -513,6 +601,8 @@ classdef PAStatTool < handle
             paramStruct.clusterThreshold = 1.5;
         end
         
+        % ======================================================================
+        % ======================================================================
         function baseSettings = getBaseSettings()
             baseSettings.featureDescriptions = {'Mean','Mode','RMS','Std Dev','Sum','Variance'};
             baseSettings.featureTypes = {'mean','mode','rms','std','sum','var'};

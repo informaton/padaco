@@ -1,3 +1,8 @@
+% ======================================================================
+%> @file PACentroid.cpp
+%> @brief Class for clustering results data produced via padaco's batch
+%> processing.
+% ======================================================================
 classdef PACentroid < handle
     
     properties(Access=private)
@@ -14,14 +19,32 @@ classdef PACentroid < handle
     end
     
     methods
-        function this = PACentroid(loadShapes,minClusters,maxClusters,thresholdScale)
-            this.settings.minClusters = minClusters;
+        
+        % ======================================================================
+        %> @param loadShapes NxM matrix to  be clustered (Each row represents an M dimensional value).
+        %> @param settings  Optional struct with following fields [and
+        %> default values]
+        %> - @c minClusters [40]  Used to set initial K
+        %> - @c maxClusters [0.5*N]
+        %> - @c thresholdScale [1.5]                  
+        %> @retval Instance of PACentroid
+        % ======================================================================        
+        function this = PACentroid(loadShapes,settings)
+            this.loadShapes = loadShapes;
+            this.settings.thresholdScale = settings.thresholdScale;
+            this.settings.minClusters = settings.minClusters;
+            
+            if(isfield(settings,'maxCluster'))
+                maxClusters = settings.maxClusters;
+            else
+                maxClusters = size(this.loadShapes,1)/2;
+            end
             this.settings.maxClusters = maxClusters;
-            this.settings.thresholdScale = thresholdScale;
-            this.loadShapes = loadShapes;            
             this.calculateCentroids();
         end
         
+        % ======================================================================
+        % ======================================================================
         function calculateCentroids(this)
             [this.loadShape2CentroidMap, this.centroids] = this.adaptiveKmeans(this.loadShapes,this.settings);
             
@@ -30,12 +53,17 @@ classdef PACentroid < handle
     end
     
     methods(Static)
-        %> @param loadShapes
+        
+        % ======================================================================
+        %> @param loadShapes NxM matrix to  be clustered (Each row represents an M dimensional value).
         %> @param settings  Optional struct with following fields [and
         %> default values]
         %> - @c minClusters [40]  Used to set initial K
         %> - @c maxClusters [0.5*N]
         %> - @c thresholdScale [1.5]        
+        %> @retval idx = Rx1 vector of cluster indices that the matching (i.e. same) row of the loadShapes is assigned to.
+        %> @retval centroids - KxC matrix of cluster centroids.
+        % ======================================================================
         function [idx, centroids] = adaptiveKmeans(loadShapes,settings)
             if(nargin<2)
                 settings.minClusters = 40;
@@ -45,9 +73,6 @@ classdef PACentroid < handle
             idx = [];
             K = settings.minClusters;
             
-            %loadShapes - RxC matrix to  be clustered (Each row represents a C dimensional value).
-            %idx = Rx1 vector of cluster indices that the matching (i.e. same) row of the loadShapes is assigned to.
-            %centroids - KxC matrix of cluster centroids.
             
             
             N = size(loadShapes,1);
