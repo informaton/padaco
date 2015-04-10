@@ -59,18 +59,17 @@ classdef PAStatTool < handle
                     fprintf('Images pathname (%s) does not exist!\n',imagesPath);
                 end   
                 
-                this.initWidgets(widgetSettings);
-                
+                this.initWidgets(widgetSettings);  %initializes previousstate.plotType on success
                 plotType = this.base.plotTypes{get(this.handles.menu_plottype,'value')};
+                
                 switch(plotType)
                     case 'adaptivekmeans'
                         this.switch2clustering();
-                    otherwise                        
-                        this.switchFromClustering();                
+                    otherwise
+                        this.switchFromClustering();
                 end
-                this.previousState.plotType = plotType;
-                this.refreshPlot();
-                % this.refreshPlot();
+                
+                this.refreshPlot();                
 
             else
                 fprintf('%s does not exist!\n',resultsPathname); 
@@ -86,6 +85,10 @@ classdef PAStatTool < handle
             paramStruct = this.getPlotSettings();            
         end
         
+        function init(this)
+            this.initWidgets(this.getPlotSettings);
+            this.refreshPlot();
+        end
         function refreshPlot(this,varargin)
             if(this.canPlot)
                 this.showBusy();
@@ -152,14 +155,17 @@ classdef PAStatTool < handle
         function switch2clustering(this)
             this.previousState.normalization = get(this.handles.check_normalizevalues,'value');
             set(this.handles.check_normalizevalues,'value',2,'enable','off');
-            set(findall(this.handles.panel_plotCentroid,'enable','off'),'enable','on');
+            set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','on');
         end
         
         function switchFromClustering(this)
             set(this.handles.check_normalizevalues,'value',this.previousState.normalization,'enable','on');
             set(findall(this.handles.panel_plotCentroid,'enable','on'),'enable','off');
+%             set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','off');
 
         end
+        
+
         
         function initWidgets(this, widgetSettings)
             if(nargin<2 || isempty(widgetSettings))
@@ -240,6 +246,14 @@ classdef PAStatTool < handle
                     end
                 end
             end
+            
+            % enable everything
+            if(this.canPlot)
+                set(findall(this.handles.panel_results,'enable','off'),'enable','on');
+            % disable everything
+            else
+                set(findall(this.handles.panel_results,'enable','on'),'enable','off');                
+            end
         end
         
         % only extract the handles we are interested in using for the stat tool.
@@ -257,7 +271,8 @@ classdef PAStatTool < handle
                 'edit_centroidThreshold'
                 'edit_centroidMinimum'
                 'push_refreshCentroids'
-                'panel_plotCentroid'};
+                'panel_plotCentroid'
+                'panel_results'};
             for f=1:numel(handlesOfInterest)
                 fname = handlesOfInterest{f};
                 this.handles.(fname) = tmpHandles.(fname);

@@ -2080,13 +2080,16 @@ classdef PAController < handle
         function success = initResultsView(this)
             success = false;
             if(isdir(this.resultsPathname))
-                this.StatTool = [];  %clear any previously existing instance.
+                if(~isempty(this.StatTool))                   
+                    this.StatTool.init();  %calls a plot refresh
+                else
+                    this.StatTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname,this.SETTINGS.StatTool);                    
+                end
 
-                this.StatTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname,this.SETTINGS.StatTool);
                 success = this.StatTool.getCanPlot();                
             end
-            enableFlag = success;
-            this.VIEW.initWidgets('results',enableFlag);
+            disableFlag = ~success;
+            this.VIEW.initWidgets('results',disableFlag);
         end
         
         % --------------------------------------------------------------------

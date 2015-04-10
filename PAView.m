@@ -598,18 +598,19 @@ classdef PAView < handle
         %> @param viewMode A string with one of two values
         %> - @c timeseries [default]
         %> - @c results
-        %> @param enableFlag boolean flag
-        %> - @c false [default] do not enable widgets for the view mode
-        %> - @c true - enable widgets for the set view mode
+        %> @param disableFlag boolean flag
+        %> - @c false [default] do not disable widgets for the view mode
+        %> - @c true - disable widgets for the view mode (sets 
+        %> 'enable' properties to 'off'
         %> @note Programmers: 
         %> do not enable all radio button group children on init.  Only
         %> if features and aggregate bins are available would we do
         %> this.  However, we do not know if that is the case here.
         %> - buttonGroupChildren = get(handles.panel_displayButtonGroup,'children');
         % --------------------------------------------------------------------
-        function initWidgets(obj, viewMode, enableFlag)
+        function initWidgets(obj, viewMode, disableFlag)
             if(nargin<3)
-                enableFlag = false;
+                disableFlag = false;
                 if(nargin<2)
                     viewMode = 'timeseries';
                 end
@@ -622,21 +623,18 @@ classdef PAView < handle
                 handles.panel_displayButtonGroup;
                 handles.panel_epochControls];
             
-
             if(strcmpi(viewMode,'timeseries'))
-                set(timeseriesPanels,'visible','on');               
+                set(timeseriesPanels,'visible','on');
                 set(resultPanels,'visible','off');
                 
                 set(handles.menu_viewmode_timeseries,'checked','on');
                 set(handles.menu_viewmode_results,'checked','off');
                 
-                if(enableFlag)
-                    set(findall(timeseriesPanels,'enable','off'),'enable','on');
-                else
+                if(disableFlag)                    
                     set(findall(timeseriesPanels,'enable','on'),'enable','off');
                 end
                 
-            elseif(strcmpi(viewMode,'results'))                
+            elseif(strcmpi(viewMode,'results'))
                 set(resultPanels,'visible','on');
                 
                 set(timeseriesPanels,'visible','off');
@@ -644,9 +642,9 @@ classdef PAView < handle
                 set(handles.menu_viewmode_timeseries,'checked','off');
                 set(handles.menu_viewmode_results,'checked','on');
                 
-                if(enableFlag)
-                    set(findall(resultPanels,'enable','off'),'enable','on');
-                else
+                % Handle the enabling or disabling in the PAStatTool ->
+                % which has more control
+                if(disableFlag)                    
                     set(findall(resultPanels,'enable','on'),'enable','off');
                 end
             else
@@ -744,7 +742,7 @@ classdef PAView < handle
             obj.setStudyPanelContents(PADataObject.getHeaderAsString);
             
             % initialize and enable widgets (drop down menus, edit boxes, etc.)
-            obj.initWidgets('timeseries',true);
+            obj.initWidgets('timeseries');
 
             
             obj.setAggregateDurationMinutes(num2str(PADataObject.aggregateDurMin));
@@ -757,6 +755,12 @@ classdef PAView < handle
             
             set(obj.positionBarHandle,'visible','on','xdata',nan(1,5),'ydata',[0 1 1 0 0],'linestyle',':'); 
             set(obj.patchhandle.positionBar,'visible','on','xdata',nan(1,4),'ydata',[0 1 1 0]); 
+            
+            % Enable panels            
+            timeseriesPanels = [handles.panel_timeseries;
+                handles.panel_displayButtonGroup;
+                handles.panel_epochControls];
+            set(findall(timeseriesPanels,'enable','off'),'enable','on');
             
             % Turn on the meta data handles - panel that shows information
             % about the current file/study.
