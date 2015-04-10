@@ -26,7 +26,7 @@ classdef PAStatTool < handle
         %> @brief Struct to keep track of settings from previous plot type
         %> selections to make transitioning back and forth between cluster
         %> plotting and others easier to stomach.  Fields include:
-        %> - @c normalization The value of the check_normalizevalues widget
+        %> - @c normalizeValues The value of the check_normalizevalues widget
         %> - @c plotType The tag of the current plot type 
         %> - @c colorMap - colormap of figure;
         %> These are initialized in the initWidgets() method.
@@ -126,13 +126,18 @@ classdef PAStatTool < handle
             inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
             if(exist(inputFilename,'file'))                
                 this.featureStruct = this.loadAlignedFeatures(inputFilename);
-                loadFeatures = this.featureStruct.(pSettings.normalizationType);
+                
+                loadFeatures = this.featureStruct.values;
                 
                 if(pSettings.trimResults)
                     pctValues = prctile(loadFeatures,pSettings.trimPercent);
                     pctValuesMat = repmat(pctValues,size(loadFeatures,1),1);
                     adjustInd = loadFeatures>pctValuesMat;
                     loadFeatures(adjustInd) = pctValuesMat(adjustInd);
+                end
+                
+                if(pSettings.normalizeValues)
+                    loadFeatures = PAStatTool.normalizeLoadShapes(loadFeatures);
                 end
                 this.featureStruct.features = loadFeatures;
                 success = true;
@@ -232,8 +237,8 @@ classdef PAStatTool < handle
         %> @param this Instance of PAStatTool
         % ======================================================================
         function switch2clustering(this)
-            this.previousState.normalization = get(this.handles.check_normalizevalues,'value');
-            set(this.handles.check_normalizevalues,'value',2,'enable','off');
+            this.previousState.normalizeValues = get(this.handles.check_normalizevalues,'value');
+            set(this.handles.check_normalizevalues,'value',1,'enable','off');
             set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','on');
         end
         
@@ -242,7 +247,7 @@ classdef PAStatTool < handle
         %> @param this Instance of PAStatTool
         % ======================================================================
         function switchFromClustering(this)
-            set(this.handles.check_normalizevalues,'value',this.previousState.normalization,'enable','on');
+            set(this.handles.check_normalizevalues,'value',this.previousState.normalizeValues,'enable','on');
             set(findall(this.handles.panel_plotCentroid,'enable','on'),'enable','off');
             %  set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','off');
         end        
@@ -287,13 +292,8 @@ classdef PAStatTool < handle
                         % Unchecked state has a value of 0
                         set(this.handles.check_trim,'min',0,'max',1,'value',widgetSettings.trimResults);
                         set(this.handles.check_showCentroidMembers,'min',0,'max',1,'value',widgetSettings.showCentroidMembers);
-
-                        % This is good for using checkbox value as a
-                        % selection index in MATLAB.
-                        % Checked state has a value of 2
-                        % Unchecked state has a value of 1
-                        set(this.handles.check_normalizevalues,'min',1,'max',2,'value',widgetSettings.normalizationSelection);
-                        this.previousState.normalization = widgetSettings.normalizationSelection;
+                        set(this.handles.check_normalizevalues,'min',0,'max',1,'value',widgetSettings.normalizeValues);
+                        this.previousState.normalizeValues = widgetSettings.normalizeValues;
                         
                         this.featureDescriptions = this.base.featureDescriptions(ib);
                         set(this.handles.menu_feature,'string',this.featureDescriptions,'userdata',this.featureTypes,'value',widgetSettings.baseFeatureSelection);
@@ -306,7 +306,6 @@ classdef PAStatTool < handle
                         
                         set(this.handles.edit_trimPercent,'string',num2str(widgetSettings.trimPercent),'enable',enableState);
                         
-                        %  set(this.handles.check_normalizevalues,'min',1,'max',2,'value',normalizationSelection);
                         % This should be updated to parse the actual output feature
                         % directories for signal type (count) or raw and the signal
                         % source (vecMag, x, y, z)
@@ -362,7 +361,7 @@ classdef PAStatTool < handle
             
             if(this.loadFeatureStruct())            
                 
-                loadShapes = featureStruct.normalizedValues;    % does not converge well if not normalized as we are no longer looking at the shape alone
+                loadShapes = this.featureStruct.normalizedValues;    % does not converge well if not normalized as we are no longer looking at the shape alone
                 this.centroidObj = PACentroid(loadShapes,plotSettings);
                 this.refreshPlot();
             else
@@ -492,12 +491,11 @@ classdef PAStatTool < handle
             userSettings.baseFeatureSelection = get(this.handles.menu_feature,'value');
             userSettings.signalSelection = get(this.handles.menu_signalsource,'value');
             userSettings.plotTypeSelection = get(this.handles.menu_plottype,'value');
-            userSettings.normalizationSelection = get(this.handles.check_normalizevalues,'value');  %return 1 for unchecked, 2 for checked
+            userSettings.normalizeResults = get(this.handles.check_normalizevalues,'value');  %return 0 for unchecked, 1 for checked
             
             userSettings.processType = this.base.processedTypes{userSettings.processedTypeSelection};
             userSettings.baseFeature = this.featureTypes{userSettings.baseFeatureSelection};
             userSettings.curSignal = this.base.signalTypes{userSettings.signalSelection};            
-            userSettings.normalizationType = this.base.normalizationTypes{userSettings.normalizationSelection};
             userSettings.plotType = this.base.plotTypes{userSettings.plotTypeSelection};            
             userSettings.numShades = this.base.numShades;
             
@@ -510,14 +508,15 @@ classdef PAStatTool < handle
         
         
         % ======================================================================
-        %> @brief
+        %> @brief Display a selection of results organized by day of the
+        %> week.
         %> @param this Instance of PAStatTool
         %> @param plotOptions struct of options for how to plot
-        %> featureStruct values.
+        %> featureStruct instance variable values.
         % ======================================================================
         function plotSelection(this,plotOptions)
             axesHandle = this.handles.axes_primary;
-            daysofweek = featureStruct.startDaysOfWeek;
+            daysofweek = this.featureStruct.startDaysOfWeek;
             daysofweekStr = {'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
             daysofweekOrder = 1:7;
             features = this.featureStruct.features;
@@ -629,7 +628,7 @@ classdef PAStatTool < handle
         % ======================================================================
         function paramStruct = getDefaultParameters()
             paramStruct.trimResults = 100;
-            paramStruct.normalizationSelection = 2;            
+            paramStruct.normalizeValues = 0;            
             paramStruct.processedTypeSelection = 1;
             paramStruct.baseFeatureSelection = 1;
             paramStruct.signalSelection = 1;
@@ -651,9 +650,7 @@ classdef PAStatTool < handle
             baseSettings.plotTypes = {'dailyaverage','dailytally','morningheatmap','heatmap','rolling','morningrolling','centroids'};
             baseSettings.plotTypeDescriptions = {'Average Daily Tallies','Total Daily Tallies','Heat map (early morning)','Heat map','Time series','Time series (morning)','Centroids'};
             
-            baseSettings.processedTypes = {'count','raw'};
-            
-            baseSettings.normalizationTypes = {'values','normalizedValues'};
+            baseSettings.processedTypes = {'count','raw'};            
             baseSettings.numShades = 1000;
         end
         
@@ -712,7 +709,7 @@ classdef PAStatTool < handle
             featureStruct.startDatenums = cell2mat(C(:,1));
             featureStruct.startDaysOfWeek = cell2mat(C(:,2));
             featureStruct.values = cell2mat(C(:,3:end));
-            featureStruct.normalizedValues =  PAStatTool.normalizeLoadShapes(featureStruct.values);
+            % featureStruct.normalizedValues =  PAStatTool.normalizeLoadShapes(featureStruct.values);
             fclose(fid);
         end
         
