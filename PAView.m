@@ -477,40 +477,45 @@ classdef PAView < handle
             
             axesProps.primary.xtickmode='manual';
             axesProps.primary.xticklabelmode='manual';
+            axesProps.primary.xlimmode='manual';
             axesProps.primary.xtick=[];
-            axesProps.primary.ytickmode='manual';
-            axesProps.primary.ytick=[];
+            axesProps.primary.xgrid='on';
+            axesProps.primary.xminortick='on';
+            
+            
             axesProps.primary.nextplot='replacechildren';
             axesProps.primary.box= 'on';
             axesProps.primary.plotboxaspectratiomode='auto';
             axesProps.primary.fontSize = 12;            
             axesProps.primary.units = 'normalized'; %normalized allows it to resize automatically
             axesProps.primary.drawmode = 'normal'; %fast does not allow alpha blending...
-            axesProps.primary.xgrid='on';
-            axesProps.primary.xminortick='on';
-
+            
 
             if(strcmpi(viewMode,'timeseries'))
                 
                 axesProps.primary.ygrid='off';
-                axesProps.primary.xlimmode='manual';
                 axesProps.primary.xAxisLocation = 'top';
                 axesProps.primary.uicontextmenu = obj.contextmenuhandle.primaryAxes;
+                axesProps.primary.ylimmode = 'manual';
+                axesProps.primary.ytickmode='manual';
+                axesProps.primary.ytick=[];
+                axesProps.primary.yticklabelmode = 'manual';
 
+                
                 %  set(obj.axeshandle.primary,'uicontextmenu',obj.contextmenuhandle.primaryAxes);
                 axesProps.secondary = axesProps.primary;
-                axesProps.secondary.ylimmode = 'manual';
+%                 axesProps.secondary.ylimmode = 'manual';
                 
             elseif(strcmpi(viewMode,'results'))
+                axesProps.primary.ylimmode = 'auto';
+                axesProps.primary.ytickmode='auto';
+                axesProps.primary.yticklabelmode = 'auto';
                 
                 axesProps.primary.ygrid='on';
-                axesProps.primary.xlimmode='auto';
                 axesProps.primary.xAxisLocation = 'bottom';
                 axesProps.primary.uicontextmenu = [];
                 
-                axesProps.secondary = axesProps.primary;
-                axesProps.secondary.ylimmode = 'auto';
-                
+                axesProps.secondary = axesProps.primary;               
             end
             
             axesProps.secondary.xgrid = 'off';
