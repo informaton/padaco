@@ -815,20 +815,45 @@ classdef PAStatTool < handle
                 set(centroidAxes,'xlim',[1,this.featureStruct.totalCount],'xtick',xTicks,'xticklabel',xTickLabels);
                 
                 %%  Show distribution on secondary axes
-                barH = bar(distributionAxes,this.centroidObj.getHistogram());
-                
-                highlightColor = [0.75 0.75 0];
-                defaultColor = [0 0 9/16];
-                faceVertexCData = repmat(defaultColor,numCentroids,1);
-                faceVertexCData(coi.sortOrder,:) = highlightColor;
-                patchH = get(barH,'children');
-                set(patchH,'facevertexcdata',faceVertexCData)
-                
-                title(distributionAxes,sprintf('Load shape count per centroid (Total centroid count: %u\tTotal load shape count: %u)',this.centroidObj.numCentroids(), this.centroidObj.numLoadShapes()));
-                %ylabel(distributionAxes,sprintf('Load shape count'));
-                xlabel(distributionAxes,'Centroid');
-                xlim(distributionAxes,[0.25 numCentroids+.75]);  
-                set(distributionAxes,'ygrid','on','ytickmode','auto');
+                distributionType = 'centroids';
+                distributionType = 'weekdays';
+                switch(distributionType)
+                    
+                    % plots the distribution of weekdays on x-axis
+                    % and the loadshape count (for the centroid of
+                    % interest) on the y-axis.
+                    case 'weekdays'
+                        coiDaysOfWeek = this.featureStruct.startDaysOfWeek(coi.memberIndices)+1;
+                        bar(distributionAxes,coiDaysOfWeek);
+                        
+                        daysofweekStr = {'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
+                        daysofweekOrder = 1:7;
+
+                        title(distributionAxes,sprintf('Weekday distribution for Centroid #%u (membership count = %u)',coi.index,coi.numMembers));
+                        %ylabel(distributionAxes,sprintf('Load shape count'));
+                        xlabel(distributionAxes,'Days of week');
+                        xlim(distributionAxes,[daysofweekOrder(1)-0.75 daysofweekOrder(end)+0.75]);
+                        set(distributionAxes,'ygrid','on','ytickmode','auto','xtick',daysofweekOrder,'xticklabel',daysofweekStr);
+            
+                    % plots centroids id's (sorted by membership in ascending order) on x-axis
+                    % and the count of loadshapes (i.e. membership count) on the y-axis.
+                    case 'centroids'
+                        barH = bar(distributionAxes,this.centroidObj.getHistogram());                        
+                        highlightColor = [0.75 0.75 0];
+                        defaultColor = [0 0 9/16];
+                        faceVertexCData = repmat(defaultColor,numCentroids,1);
+                        faceVertexCData(coi.sortOrder,:) = highlightColor;
+                        patchH = get(barH,'children');
+                        set(patchH,'facevertexcdata',faceVertexCData);
+                        
+                        title(distributionAxes,sprintf('Load shape count per centroid (Total centroid count: %u\tTotal load shape count: %u)',this.centroidObj.numCentroids(), this.centroidObj.numLoadShapes()));
+                        %ylabel(distributionAxes,sprintf('Load shape count'));
+                        xlabel(distributionAxes,'Centroid');
+                        xlim(distributionAxes,[0.25 numCentroids+.75]);
+                        set(distributionAxes,'ygrid','on','ytickmode','auto','xtick',[]);
+                    otherwise
+                        warndlg(sprintf('Distribution type (%s) is unknonwn and or not supported',distributionType));                        
+                end
             end   
             
             this.showReady();

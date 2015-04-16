@@ -150,20 +150,37 @@ classdef PACentroid < handle
                 didChange = true;
             else
                 didChange = false;
-            end  
-            
+            end
         end
         
         % ======================================================================
-        %> @brief 
+        %> @brief Returns a descriptive struct for the centroid of interest (coi) 
+        %> which is determined by the member variable coiSortOrder.
         %> @param Instance of PACentroid
-        %> @retval Structure for centroid of interes.  Fields include
+        %> @retval Structure for centroid of interest.  Fields include
+        %> - @c sortOrder The sort order of coi.  If all centroids are placed in
+        %> a line numbering from 1 to the number of centroids in increasing order of
+        %> the number of load shapes the centroid has clustered to it, then the sort order
+        %> is the value of the number on the line for the coi.  The sort order of
+        %> a coi having the fewest number of load shape members is 1, while the sort
+        %> sort order of a coi having the largest proportion of load shape members has 
+        %> the value C (centroid count).
+        %> - @c index - id of the coi.  This is its original, unsorted
+        %> index value which is the range of [1, C]
+        %> - @c shape - 1xM vector.  The coi.
+        %> - @c memberIndices = Lx1 logical vector indices of member shapes
+        %> obtained from the loadShapes member variable, for the coi.  L is
+        %> the number of load shapes (see numLoadShapes()).
+        %> @note memberShapes = loadShapes(memberIndices,:)
+        %> - @c memberShapes - NxM array of load shapes clustered to the coi.
+        %> - @c numMembers - N, the number of load shapes clustered to the coi.
         % ======================================================================        
         function coi = getCentroidOfInterest(this)
             coi.sortOrder = this.coiSortOrder;
             coi.index = this.centroidSortMap(coi.sortOrder);           
             coi.shape = this.centroidShapes(coi.index,:);
-            coi.memberShapes = this.loadShapes(coi.index==this.load2centroidMap,:);
+            coi.memberIndices = coi.index==this.load2centroidMap;
+            coi.memberShapes = this.loadShapes(coi.memberIndices,:);
             coi.numMembers = size(coi.memberShapes,1);
         end
         
