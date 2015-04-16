@@ -823,21 +823,30 @@ classdef PAStatTool < handle
                     % and the loadshape count (for the centroid of
                     % interest) on the y-axis.
                     case 'weekdays'
-                        coiDaysOfWeek = this.featureStruct.startDaysOfWeek(coi.memberIndices)+1;
-                        bar(distributionAxes,coiDaysOfWeek);
-                        
                         daysofweekStr = {'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
                         daysofweekOrder = 1:7;
-
+                        
+                        % +1 to adjust startDaysOfWeek range from [0,6] to [1,7]
+                        coiDaysOfWeek = this.featureStruct.startDaysOfWeek(coi.memberIndices)+1;
+                        coiDaysOfWeekCount = histc(coiDaysOfWeek,daysofweekOrder);
+                        coiDaysOfWeekPct = coiDaysOfWeekCount/sum(coiDaysOfWeekCount(:));
+                        bar(distributionAxes,coiDaysOfWeekPct);
+                        
+                        for d=1:7
+                            daysofweekStr{d} = sprintf('%s (n=%u)',daysofweekStr{d},coiDaysOfWeekCount(d));
+                        end
+                        
                         title(distributionAxes,sprintf('Weekday distribution for Centroid #%u (membership count = %u)',coi.index,coi.numMembers));
                         %ylabel(distributionAxes,sprintf('Load shape count'));
                         xlabel(distributionAxes,'Days of week');
-                        xlim(distributionAxes,[daysofweekOrder(1)-0.75 daysofweekOrder(end)+0.75]);
-                        set(distributionAxes,'ygrid','on','ytickmode','auto','xtick',daysofweekOrder,'xticklabel',daysofweekStr);
+                        xlim(distributionAxes,[daysofweekOrder(1)-0.75 daysofweekOrder(end)+0.75]);                        
+                        set(distributionAxes,'ylim',[0,1],'ygrid','on','ytickmode','auto','xtick',daysofweekOrder,'xticklabel',daysofweekStr);
             
                     % plots centroids id's (sorted by membership in ascending order) on x-axis
                     % and the count of loadshapes (i.e. membership count) on the y-axis.
                     case 'centroids'
+                        set(distributionAxes,'ylim','auto');
+
                         barH = bar(distributionAxes,this.centroidObj.getHistogram());                        
                         highlightColor = [0.75 0.75 0];
                         defaultColor = [0 0 9/16];
