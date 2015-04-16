@@ -80,8 +80,8 @@ classdef PAStatTool < handle
                 end   
                 
                 this.initWidgets(widgetSettings);  %initializes previousstate.plotType on success
-                plotType = this.base.plotTypes{get(this.handles.menu_plottype,'value')};
-                
+                plotType = this.base.plotTypes{get(this.handles.menu_plottype,'value')};                
+                set(padaco_fig_h,'visible','on');
                 switch(plotType)
                     case 'centroids'
                         this.switch2clustering();
@@ -119,13 +119,12 @@ classdef PAStatTool < handle
         %> @retval success Boolean: true if features are loaded from file.  False if they are not.
         % ======================================================================
         function success = loadFeatureStruct(this)
+            
             pSettings = this.getPlotSettings();
             inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
             if(exist(inputFilename,'file'))                
                 this.featureStruct = this.loadAlignedFeatures(inputFilename);                
                 loadFeatures = this.featureStruct.shapes;
-                
-                
                 
                 if(pSettings.trimResults)
                     pctValues = prctile(loadFeatures,pSettings.trimPercent);
@@ -147,6 +146,7 @@ classdef PAStatTool < handle
                 else
                     this.featureStruct.features = loadFeatures;    
                 end
+                
                 success = true;
             else
                 this.featureStruct = [];
@@ -173,11 +173,13 @@ classdef PAStatTool < handle
             title(this.handles.axes_primary,'');
             ylabel(this.handles.axes_primary,'');
             xlabel(this.handles.axes_primary,'');
+            set(this.handles.axes_primary,'xgrid','off','ygrid','off','xtick',[],'ytick',[]);
             
             cla(this.handles.axes_secondary);
             title(this.handles.axes_secondary,'');
             ylabel(this.handles.axes_secondary,'');
             xlabel(this.handles.axes_secondary,'');            
+            set(this.handles.axes_secondary,'xgrid','off','ygrid','off','xtick',[],'ytick',[]);
         end
         
         % ======================================================================
@@ -190,16 +192,18 @@ classdef PAStatTool < handle
         % ======================================================================        
         function refreshPlot(this,varargin)
             if(this.canPlot)
-                this.showBusy();
-                this.clearPlots();
                 
                 pSettings = this.getPlotSettings();
                 
                 switch(pSettings.plotType)
                     case 'centroids'
-                        this.plotCentroids(pSettings);                        
+                        this.plotCentroids(pSettings);
+                        this.enableCentroidRecalculation();                        
                     otherwise
                         
+                        this.showBusy();
+                        this.clearPlots();
+
                         this.loadFeatureStruct();
                         if(~isempty(this.featureStruct))
                             pSettings.ylabelstr = sprintf('%s of %s %s activity',pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
@@ -219,12 +223,14 @@ classdef PAStatTool < handle
     end
     
     methods(Access=private)
+        
         % ======================================================================
         %> @brief Shows busy state (mouse pointer becomes a watch)
         %> @param this Instance of PAStatTool
         % ======================================================================
         function showBusy(this)
             set(this.figureH,'pointer','watch');
+            %             set(this.handles.panel_results,'enable','off');
             drawnow();
         end
         
@@ -234,9 +240,11 @@ classdef PAStatTool < handle
         % --------------------------------------------------------------------
         function showReady(obj)
             set(obj.figureH,'pointer','arrow');
+            %             set(this.handles.panel_results,'enable','on');
             drawnow();
         end
         
+                
         % ======================================================================
         %> @brief Plot dropdown selection menu callback.
         %> @param this Instance of PAStatTool
@@ -268,7 +276,30 @@ classdef PAStatTool < handle
             set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','on');
             if(isempty(this.centroidObj) || this.centroidObj.failedToConverge())
                 this.refreshCentroidsAndPlot();
-                set(this.handles.axes_secondary,'visible','on');            
+                set(this.handles.axes_secondary,'visible','on'); 
+                
+                set(this.figureH,'WindowKeyPressFcn',@this.keyPressFcn);
+            end
+        end
+        
+        % ======================================================================
+        %> @brief Window key press callback for centroid view changes
+        %> @param this Instance of PAStatTool
+        %> @param figH Handle to the callback figure
+        %> @param eventdata Struct of key press parameters.  Fields include
+        % ======================================================================
+        function keyPressFcn(this,figH,eventdata)
+            key=eventdata.Key;
+            switch(key)
+                case 'rightarrow'
+                    this.showNextCentroid();
+                case 'uparrow'
+                    this.showNextCentroid();
+                case 'leftarrow'
+                    this.showPreviousCentroid();
+                case 'downarrow'
+                    this.showPreviousCentroid();
+                otherwise                
             end
         end
         
@@ -280,6 +311,7 @@ classdef PAStatTool < handle
             set(this.handles.check_normalizevalues,'value',this.previousState.normalizeValues,'enable','on');
             set(findall(this.handles.panel_plotCentroid,'enable','on'),'enable','off');            %  set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','off');
             set(this.handles.axes_secondary,'visible','off');
+            set(this.figureH,'WindowKeyPressFcn',[]);
             this.refreshPlot();
         end        
 
@@ -303,6 +335,7 @@ classdef PAStatTool < handle
                 this.handles.menu_feature;
                 this.handles.menu_signalsource;
                 this.handles.menu_plottype;
+                this.handles.menu_weekdays;
                 this.handles.check_showCentroidMembers;
                 this.handles.push_refreshCentroids;
                 this.handles.push_nextCentroid;
@@ -318,22 +351,21 @@ classdef PAStatTool < handle
                     [this.featureTypes,~,ib] = intersect(featureNames,this.base.featureTypes);
                     
                     if(~isempty(this.featureTypes))
+                        
+                        % Enable everything and then shut things down as needed. 
+                        set(findall(this.handles.panel_results,'enable','off'),'enable','on');
                         this.canPlot = true;
                         
-                        %enable everything and then shut things down as
-                        %needed.                        
-                        set(findall(this.handles.panel_results,'enable','off'),'enable','on');
-                        
+                        this.featureDescriptions = this.base.featureDescriptions(ib);
+                        set(this.handles.menu_feature,'string',this.featureDescriptions,'userdata',this.featureTypes,'value',widgetSettings.baseFeatureSelection);
+
+                        % Checkboxes
                         % This is good for a true false checkbox value
                         % Checked state has a value of 1
                         % Unchecked state has a value of 0
                         set(this.handles.check_trim,'min',0,'max',1,'value',widgetSettings.trimResults);
                         set(this.handles.check_showCentroidMembers,'min',0,'max',1,'value',widgetSettings.showCentroidMembers);
                         set(this.handles.check_normalizevalues,'min',0,'max',1,'value',widgetSettings.normalizeValues);
-                        this.previousState.normalizeValues = widgetSettings.normalizeValues;
-                        
-                        this.featureDescriptions = this.base.featureDescriptions(ib);
-                        set(this.handles.menu_feature,'string',this.featureDescriptions,'userdata',this.featureTypes,'value',widgetSettings.baseFeatureSelection);
                         
                         % This should be updated to parse the actual output feature
                         % directories for signal type (count) or raw and the signal
@@ -341,20 +373,25 @@ classdef PAStatTool < handle
                         set(this.handles.menu_signalsource,'string',this.base.signalDescriptions,'userdata',this.base.signalTypes,'value',widgetSettings.signalSelection);
                         
                         set(this.handles.menu_plottype,'userdata',this.base.plotTypes,'string',this.base.plotTypeDescriptions,'value',widgetSettings.plotTypeSelection);
-                        this.previousState.plotType = this.base.plotTypes{widgetSettings.plotTypeSelection};
                         
-                        % set callbacks
+                        % Previous state initialization - set to current state.
+                        this.previousState.normalizeValues = widgetSettings.normalizeValues;
+                        this.previousState.plotType = this.base.plotTypes{widgetSettings.plotTypeSelection};
+
+                        % Centroid widgets
+                        set(this.handles.menu_weekdays,'userdata',this.base.weekdayTags,'string',this.base.weekdayDescriptions,'value',widgetSettings.weekdaySelection);                       
+                        set(this.handles.edit_centroidMinimum,'string',num2str(widgetSettings.minClusters));
+                        set(this.handles.edit_centroidThreshold,'string',num2str(widgetSettings.clusterThreshold)); 
+                        
+                        %% set callbacks
                         set([this.handles.check_normalizevalues;                            
                             this.handles.menu_feature;                            
-                            this.handles.menu_signalsource],'callback',@this.refreshPlot);
+                            this.handles.menu_signalsource],'callback',@this.refreshPlot);                        
+                        set(this.handles.menu_plottype,'callback',@this.plotSelectionChange);
+                       
+                        set(this.handles.check_showCentroidMembers,'callback',@this.checkShowCentroidsCallback);
                         
-                        % The enabling of centroid is determined based on
-                        % the plot type, and that is handled elsewhere...
-                        % For now it is sufficient to refreshPlot
-                        set(this.handles.check_showCentroidMembers,'callback',@this.refreshPlot);
-                        set(this.handles.menu_plottype,'callback',@this.plotSelectionChange); 
-                        
-
+                        % Trim results
                         if(widgetSettings.trimResults)
                             enableState = 'on';
                         else
@@ -362,6 +399,8 @@ classdef PAStatTool < handle
                         end
                         set(this.handles.edit_trimPercent,'string',num2str(widgetSettings.trimPercent),'callback',@this.editTrimPercentChange,'enable',enableState);
                         set(this.handles.check_trim,'callback',@this.checkTrimCallback);
+
+                        % Push buttons
                         % this should not normally be enabled if plotType
                         % is not centroids.  However, this will be
                         % taken care of by the enable/disabling of the
@@ -372,9 +411,12 @@ classdef PAStatTool < handle
                         set(this.handles.push_previousCentroid,'callback',@this.showPreviousCentroid);
                         set(this.handles.push_nextCentroid,'callback',@this.showNextCentroid);
                         
-                        % address centroid panel                        
-                        set(this.handles.edit_centroidMinimum,'string',num2str(widgetSettings.minClusters));
-                        set(this.handles.edit_centroidThreshold,'string',num2str(widgetSettings.clusterThreshold));                        
+                        set([this.handles.menu_weekdays
+                            this.handles.edit_centroidMinimum
+                            this.handles.edit_centroidThreshold
+                        ],'callback',@this.enableCentroidRecalculation);
+                    %'h = guidata(gcbf), set(h.push_refreshCentroids,''enable'',''on'');');
+                       
                     end
                 end
             end
@@ -384,23 +426,7 @@ classdef PAStatTool < handle
                 set(findall(this.handles.panel_results,'enable','on'),'enable','off');                
             end
         end
-        
 
-        % ======================================================================
-        %> @brief
-        %> @param this Instance of PAStatTool
-        %> @param
-        %> @param eventdata (req'd by matlab, but unset)
-        % ======================================================================
-        function editTrimPercentChange(this,editHandle,~)
-            percent = str2double(get(editHandle,'string'));
-            if(isempty(percent) || isnan(percent) || percent<=0 || percent>100)
-                percent = 0;
-                warndlg('Percent value should be in the range: (0, 100]');
-            end
-            set(editHandle,'string',num2str(percent));
-            this.refreshPlot();
-        end
         
         % only extract the handles we are interested in using for the stat tool.
         % ======================================================================
@@ -413,6 +439,7 @@ classdef PAStatTool < handle
                 'menu_feature'
                 'menu_signalsource'
                 'menu_plottype'
+                'menu_weekdays'
                 'axes_primary'
                 'axes_secondary'
                 'check_trim'
@@ -465,7 +492,9 @@ classdef PAStatTool < handle
             userSettings.trimPercent = str2double(get(this.handles.edit_trimPercent,'string'));
             
             userSettings.minClusters = str2double(get(this.handles.edit_centroidMinimum,'string'));
-            userSettings.clusterThreshold = str2double(get(this.handles.edit_centroidThreshold,'string'));
+            userSettings.clusterThreshold = str2double(get(this.handles.edit_centroidThreshold,'string'));            
+            userSettings.weekdaySelection = get(this.handles.menu_weekdays,'value');
+            userSettings.weekdayTag = this.base.weekdayTags{userSettings.weekdaySelection};
         end
         
         
@@ -495,18 +524,23 @@ classdef PAStatTool < handle
                         else
                             imageMap(dayofweek+1) = sum(sum(features(dayofweek==daysofweek,:),1))/numSubjects;
                         end
-                        daysofweekStr{dayofweekIndex} = sprintf('%s\n(n=%u)',daysofweekStr{dayofweekIndex},numSubjects);
-                        
+                        daysofweekStr{dayofweekIndex} = sprintf('%s\n(n=%u)',daysofweekStr{dayofweekIndex},numSubjects);                        
                     end
+                    
                     bar(axesHandle,imageMap);
-                    titleStr = 'Average Daily Tallies';
+                    titleStr = 'Average Daily Tallies (total daily tally divided by number of subjects that day)';
                     weekdayticks = linspace(1,7,7);
                     
                 case 'dailytally'
                     imageMap = nan(7,1);
                     for dayofweek=0:6
                         imageMap(dayofweek+1) = sum(sum(features(dayofweek==daysofweek,:),1));
+                        
+                        dayofweekIndex = daysofweekOrder(dayofweek+1);
+                        numSubjects = sum(dayofweek==daysofweek);
+                        daysofweekStr{dayofweekIndex} = sprintf('%s\n(n=%u)',daysofweekStr{dayofweekIndex},numSubjects);
                     end
+                    
                     bar(axesHandle,imageMap);
                     titleStr ='Total Daily Tallies';
                     weekdayticks = linspace(1,7,7);
@@ -528,6 +562,7 @@ classdef PAStatTool < handle
                     dailyDivisionTicks = 1:2:24;
                     set(axesHandle,'ytick',dailyDivisionTicks,'yticklabel',this.featureStruct.startTimes(1:2:24));
                     titleStr = 'Heat map (early morning)';
+                    
                 case 'heatmap'
                     imageMap = nan(7,size(features,2));
                     for dayofweek=0:6
@@ -545,6 +580,7 @@ classdef PAStatTool < handle
                     dailyDivisionTicks = 1:8:this.featureStruct.totalCount;
                     set(axesHandle,'ytick',dailyDivisionTicks,'yticklabel',this.featureStruct.startTimes(1:8:end));
                     titleStr = 'Heat map';
+                    
                 case 'rolling'
                     imageMap = nan(7,size(features,2));
                     for dayofweek=0:6
@@ -556,6 +592,7 @@ classdef PAStatTool < handle
                     titleStr = 'Rolling Map';
                     weekdayticks = linspace(0,divisionsPerDay*6,7);
                     set(axesHandle,'ygrid','on');
+                    
                 case 'morningrolling'
                     imageMap = nan(7,24);
                     for dayofweek=0:6
@@ -567,6 +604,7 @@ classdef PAStatTool < handle
                     titleStr = 'Morning Rolling Map (00:00-06:00AM daily)';
                     weekdayticks = linspace(0,24*6,7);
                     set(axesHandle,'ygrid','on');
+                    
                 case 'centroids'
                     
                     
@@ -579,6 +617,23 @@ classdef PAStatTool < handle
             set(axesHandle,'xtick',weekdayticks,'xticklabel',daysofweekStr,'xlim',minmax(weekdayticks));
         end
 
+
+        % ======================================================================
+        %> @brief Callback for trim percent change edit box
+        %> @param this Instance of PAStatTool
+        %> @param editHandle handle to edit box.
+        %> @param eventdata (req'd by matlab, but unset)
+        % ======================================================================
+        function editTrimPercentChange(this,editHandle,~)
+            percent = str2double(get(editHandle,'string'));
+            if(isempty(percent) || isnan(percent) || percent<=0 || percent>100)
+                percent = 0;
+                warndlg('Percent value should be in the range: (0, 100]');
+            end
+            set(editHandle,'string',num2str(percent));
+            this.refreshPlot();
+        end
+        
         % ======================================================================
         %> @brief Push button callback for displaying the next centroid.
         %> @param this Instance of PAStatTool
@@ -603,7 +658,7 @@ classdef PAStatTool < handle
         function showNextCentroid(this,varargin)
             if(~isempty(this.centroidObj))
                 this.centroidObj.increaseCOISortOrder();
-                this.refreshPlot();
+                this.plotCentroids();
             end
         end
         
@@ -615,10 +670,32 @@ classdef PAStatTool < handle
         function showPreviousCentroid(this,varargin)
             if(~isempty(this.centroidObj))
                 this.centroidObj.decreaseCOISortOrder();
-                this.refreshPlot();
+                this.plotCentroids();
             end
         end
         
+        % ======================================================================
+        %> @brief Callback to enable the push_refreshCentroids button.  The button's 
+        %> background color is switched to green to highlight the change and need
+        %> for recalculation.
+        %> @param this Instance of PAStatTool
+        %> @param Variable number of arguments required by MATLAB gui callbacks
+        % ======================================================================
+        function enableCentroidRecalculation(this,varargin)
+            set(this.handles.push_refreshCentroids,'enable','on','backgroundcolor','green');
+        end
+        
+        
+        % ======================================================================
+        %> @brief Check button callback to refresh centroid display.
+        %> @param this Instance of PAStatTool
+        %> @param Variable number of arguments required by MATLAB gui callbacks
+        % ======================================================================
+        function checkShowCentroidsCallback(this,varargin)
+            this.plotCentroids();
+        end
+        
+
         % ======================================================================
         %> @brief Push button callback for updating the centroids being displayed.
         %> @param this Instance of PAStatTool
@@ -635,6 +712,39 @@ classdef PAStatTool < handle
             this.centroidObj = [];            
             if(this.loadFeatureStruct())            
                 % does not converge well if not normalized as we are no longer looking at the shape alone
+                
+                % @b weekdayTag String to identify how/if data should be
+                % filtered according to when it was recorded during the week.
+                % Values include
+                % - @c all (default) Returns all recorded data (Sunday to
+                % Saturday)
+                % - @c weekdays Returns only data recorded on the weekdays (Monday
+                % to Friday)
+                % - @c weekends Returns data recored on the weekend
+                % (Saturday-Sunday)                
+                switch(pSettings.weekdayTag)
+                    
+                    case 'weekdays'
+                        daysOfInterest = 1:5;
+                    case 'weekends'
+                        daysOfInterest = [0,6];
+                    case 'all'
+                        daysOfInterest = [];
+                    otherwise               
+                        daysOfInterest = [];
+                        %this is the default case with 'all'
+                end
+                
+                if(~isempty(daysOfInterest))
+                    rowsOfInterest = ismember(this.featureStruct.startDaysOfWeek,daysOfInterest); 
+                    fieldsOfInterest = {'startDatenums','startDaysOfWeek','shapes','features'};
+                    for f=1:numel(fieldsOfInterest)
+                        fname = fieldsOfInterest{f};
+                        this.featureStruct.(fname) = this.featureStruct.(fname)(rowsOfInterest,:);                        
+                    end                    
+                end
+                
+                
                 this.centroidObj = PACentroid(this.featureStruct.features,pSettings);
                 if(this.centroidObj.failedToConverge())
                     this.centroidObj = [];
@@ -645,12 +755,13 @@ classdef PAStatTool < handle
             end
             
             if(~isempty(this.centroidObj))
-                set(this.handles.push_refreshCentroids,'enable','off');
-                this.plotCentroids(pSettings); 
-                
+                defaultBackgroundColor = get(0,'FactoryuicontrolBackgroundColor');
+                set(this.handles.push_refreshCentroids,'enable','off','backgroundcolor',defaultBackgroundColor);
+                this.plotCentroids(pSettings);                
             end
             this.showReady();
         end
+        
         
         % ======================================================================
         %> @brief Displays most recent centroid data according to gui
@@ -660,11 +771,17 @@ classdef PAStatTool < handle
         %> display of centroid data.
         % ======================================================================
         function plotCentroids(this,centroidAndPlotSettings)
+            this.showBusy();
+            this.clearPlots();
+
             
             if(isempty(this.centroidObj)|| this.centroidObj.failedToConverge())
                % clear everything and give a warning that the centroid is empty
                fprintf('Clustering results are empty');
-            else                
+            else
+                if(nargin<2)
+                    centroidAndPlotSettings = this.getPlotSettings();
+                end
                 distributionAxes = this.handles.axes_secondary;
                 centroidAxes = this.handles.axes_primary;
                 numCentroids = this.centroidObj.numCentroids();
@@ -683,6 +800,7 @@ classdef PAStatTool < handle
                     plot(centroidAxes,coi.memberShapes','-','linewidth',1,'color',[0.85 0.85 0.85]);    
                 end
                 
+                set(centroidAxes,'ygrid','on','ytickmode','auto');
                 plot(centroidAxes,coi.shape,'linewidth',2,'color',[0 0 0]);
                 hold(centroidAxes,'off');
                 
@@ -706,20 +824,34 @@ classdef PAStatTool < handle
                 patchH = get(barH,'children');
                 set(patchH,'facevertexcdata',faceVertexCData)
                 
-                title(distributionAxes,sprintf('Load shape distribution by centroid (centroids = %u, load shapes = %u)',this.centroidObj.numCentroids(), this.centroidObj.numLoadShapes()));
-                ylabel(distributionAxes,sprintf('Load shape count'));
-                xlabel(distributionAxes,'Cluster profile');
-                xlim(distributionAxes,[0.25 numCentroids+.75]);                       
-            end           
+                title(distributionAxes,sprintf('Load shape count per centroid (Total centroid count: %u\tTotal load shape count: %u)',this.centroidObj.numCentroids(), this.centroidObj.numLoadShapes()));
+                %ylabel(distributionAxes,sprintf('Load shape count'));
+                xlabel(distributionAxes,'Centroid');
+                xlim(distributionAxes,[0.25 numCentroids+.75]);  
+                set(distributionAxes,'ygrid','on','ytickmode','auto');
+            end   
+            
+            this.showReady();
         end
                 
     end
     
     methods (Static)
         % ======================================================================
-        %> @brief
-        %> @param
-        %> @retval
+        %> @brief Gets parameters for default initialization of a
+        %> PAStatTool object.
+        %> @retval Struct of default paramters.  Fields include
+        %> - @c trimResults
+        %> - @c normalizeValues
+        %> - @c processedTypeSelection
+        %> - @c baseFeatureSelection
+        %> - @c signalSelection
+        %> - @c plotTypeSelection
+        %> - @c trimPercent
+        %> - @c showCentroidMembers
+        %> - @c minClusters
+        %> - @c clusterThreshold
+        %> - @c weekdaySelection
         % ======================================================================
         function paramStruct = getDefaultParameters()
             paramStruct.trimResults = 100;
@@ -732,9 +864,23 @@ classdef PAStatTool < handle
             paramStruct.showCentroidMembers = 0;
             paramStruct.minClusters = 40;
             paramStruct.clusterThreshold = 1.5;
+            paramStruct.weekdaySelection = 1;
         end
         
         % ======================================================================
+        %> @brief Gets default parameter selection values for GUI dropdown menus
+        %> used in conjunction with PAStatTool.
+        %> @retval Struct of default menu selection values.  Fields include
+        %> - @c featureDescriptions
+        %> - @c featureTypes
+        %> - @c signalTypes
+        %> - @c signalDescriptions
+        %> - @c plotTypes
+        %> - @c plotTypeDescription
+        %> - @c processedTypes
+        %> - @c numShades
+        %> - @c weekdayDescriptions
+        %> - @c weekdayTags
         % ======================================================================
         function baseSettings = getBaseSettings()
             baseSettings.featureDescriptions = {'Mean','Mode','RMS','Std Dev','Sum','Variance'};
@@ -747,11 +893,29 @@ classdef PAStatTool < handle
             
             baseSettings.processedTypes = {'count','raw'};            
             baseSettings.numShades = 1000;
+            
+            baseSettings.weekdayDescriptions = {'All days (Sun-Sat)','Weekdays (Mon-Fri)','Weekends (Sat-Sun)'};            
+            baseSettings.weekdayTags = {'all','weekdays','weekends'};
         end
         
         
-        
+        % ======================================================================
+        %> @brief Loads and aligns features from a padaco batch process
+        %> results output file.
+        %> @param filename Full filename (i.e. contains absolute pathname)
+        %> of features file produced by padaco's batch processing mode.
+        %> @retval featureStruct A structure of aligned features obtained
+        %> from filename.  Fields include:
+        %> - @c shapes
+        %> - @c startTimes
+        %> - @c startDaysOfWeek
+        %> - @c startDatenums
+        %> - @c totalCount
+        %> - @c signal
+        %> - @c method
+        %> - @c methodDescription
         %     filename='/Volumes/SeaG 1TB/sampleData/output/features/mean/features.mean.accel.count.vecMag.txt';
+        % ======================================================================
         function featureStruct = loadAlignedFeatures(filename)
             
             [~,fileN, ~] = fileparts(filename);
@@ -803,6 +967,7 @@ classdef PAStatTool < handle
             fclose(fid);
         end
         
+        % ======================================================================
         %> @brief Normalizes each load according to the sum of its parts.
         %> @param loadShapes NxM array of N load shapes, each of dimension M.
         %> @retval normalizedLoadShapes NxM array of normalized load
@@ -811,6 +976,7 @@ classdef PAStatTool < handle
         %> @retval nzi Indices of non-zero sum load shapes.
         %> @note normalizedLoadShapes(n,:) = 0 in the case of
         %> sum(loadShapes(n,:)) is a zero sum.        
+        % ======================================================================
         function [normalizedLoadShapes, nzi] = normalizeLoadShapes(loadShapes)
             normalizedLoadShapes = loadShapes;            
             a= sum(loadShapes,2);

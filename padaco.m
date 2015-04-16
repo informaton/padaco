@@ -26,7 +26,7 @@ function varargout = padaco(varargin)
 
 % Edit the above text to modify the response to help padaco
 
-% Last Modified by GUIDE v2.5 09-Apr-2015 12:31:40
+% Last Modified by GUIDE v2.5 15-Apr-2015 10:08:17
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -112,13 +112,6 @@ function varargout = padaco_OutputFcn(hObject, eventdata, handles)
 varargout{1} = handles.output;
 
 
-% --- Executes on button press in button_go.
-function button_go_Callback(hObject, eventdata, handles)
-% hObject    handle to button_go (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-
 % --- Executes during object creation, after setting all properties.
 function menu_displayFeature_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to menu_displayFeature (see GCBO)
@@ -132,9 +125,6 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
-function edit_centroidMinimum_Callback(hObject, eventdata, handles)
-
-
 function edit_centroidMinimum_CreateFcn(hObject, eventdata, handles)
 
 % Hint: edit controls usually have a white background on Windows.
@@ -143,8 +133,6 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-
-function edit_centroidThreshold_Callback(hObject, eventdata, handles)
 
 
 function edit_centroidThreshold_CreateFcn(hObject, eventdata, handles)
@@ -156,4 +144,11 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
-function push_refreshCentroids_Callback(hObject, eventdata, handles)
+
+function menu_weekdays_CreateFcn(hObject, eventdata, handles)
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end

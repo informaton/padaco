@@ -246,7 +246,7 @@ classdef PAView < handle
         function setViewMode(obj,viewMode)
             obj.initAxesHandlesViewMode(viewMode);
             obj.clearTextHandles();
-            obj.initWidgets(viewMode);           
+            obj.initWidgets(viewMode);          
         end
         
         % --------------------------------------------------------------------

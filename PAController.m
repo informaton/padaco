@@ -1026,12 +1026,12 @@ classdef PAController < handle
         %> - @c results
         % --------------------------------------------------------------------        
         function setViewMode(obj,viewMode)
-            
+            set(obj.VIEW.getFigHandle(),'WindowKeyPressFcn',[]);
             
             if(~strcmpi(viewMode,'timeseries') && ~strcmpi(viewMode,'results'))
                 warndlg(sprintf('Unrecognized view mode (%s) - switching to ''timeseries''',viewMode));
                 viewMode = 'timeseries';
-            end            
+            end
             
             obj.viewMode = viewMode;  
             
