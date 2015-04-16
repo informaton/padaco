@@ -244,6 +244,9 @@ classdef PAView < handle
         %> - @c results
         % --------------------------------------------------------------------        
         function setViewMode(obj,viewMode)
+            set(obj.figurehandle,'WindowKeyPressFcn',[]);
+            set(obj.axeshandle.secondary,'uicontextmenu',[]);
+
             obj.initAxesHandlesViewMode(viewMode);
             obj.clearTextHandles();
             obj.initWidgets(viewMode);          

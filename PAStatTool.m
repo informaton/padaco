@@ -32,7 +32,13 @@ classdef PAStatTool < handle
         %> These are initialized in the initWidgets() method.
         previousState;
         %> instance of PACentroid class
-        centroidObj;        
+        centroidObj;  
+        %> @brief Centroid distribution mode, which is updated from the ui
+        %> contextmenu of the secondary axes.  Valid tags include
+        %> - @c weekday
+        %> - @c membership [default]        
+        centroidDistributionType;
+        
     end
     
     properties
@@ -60,6 +66,7 @@ classdef PAStatTool < handle
             this.featureStruct = [];
             this.initHandles();            
             this.initBase();
+            this.centroidDistributionType = 'membership';  % 'weekday'            
             
             this.featureInputFilePattern = ['%s',filesep,'%s',filesep,'features.%s.accel.%s.%s.txt'];
             this.featureInputFileFieldnames = {'inputPathname','displaySeletion','processType','curSignal'};
@@ -414,9 +421,14 @@ classdef PAStatTool < handle
                         set([this.handles.menu_weekdays
                             this.handles.edit_centroidMinimum
                             this.handles.edit_centroidThreshold
-                        ],'callback',@this.enableCentroidRecalculation);
-                    %'h = guidata(gcbf), set(h.push_refreshCentroids,''enable'',''on'');');
-                       
+                            ],'callback',@this.enableCentroidRecalculation);
+                        %'h = guidata(gcbf), set(h.push_refreshCentroids,''enable'',''on'');');
+                        
+                        % add a context menu now to secondary axes                        
+                        contextmenu_secondaryAxes = uicontextmenu('callback',@this.contextmenu_secondaryaxes);
+                        this.handles.contextmenu.weekday = uimenu(contextmenu_secondaryAxes,'Label','Show current centroid''s weekday distribution','callback',{@this.centroidDistributionCallback,'weekday'});
+                        this.handles.contextmenu.membership = uimenu(contextmenu_secondaryAxes,'Label','Show membership distribution by centroid','callback',{@this.centroidDistributionCallback,'membership'});
+                        set(this.handles.axes_secondary,'uicontextmenu',contextmenu_secondaryAxes);                    
                     end
                 end
             end
@@ -427,6 +439,16 @@ classdef PAStatTool < handle
             end
         end
 
+        function contextmenu_secondaryaxes(this,varargin)
+            set([this.handles.contextmenu.weekday
+                this.handles.contextmenu.membership],'checked','off');
+            set(this.handles.contextmenu.(this.centroidDistributionType),'checked','on');                
+        end
+        
+        function centroidDistributionCallback(this,hObject,eventdata,selection)
+            this.centroidDistributionType = selection;
+            this.plotCentroids();
+        end
         
         % only extract the handles we are interested in using for the stat tool.
         % ======================================================================
@@ -815,14 +837,12 @@ classdef PAStatTool < handle
                 set(centroidAxes,'xlim',[1,this.featureStruct.totalCount],'xtick',xTicks,'xticklabel',xTickLabels);
                 
                 %%  Show distribution on secondary axes
-                distributionType = 'centroids';
-                distributionType = 'weekdays';
-                switch(distributionType)
+                switch(this.centroidDistributionType)
                     
                     % plots the distribution of weekdays on x-axis
                     % and the loadshape count (for the centroid of
                     % interest) on the y-axis.
-                    case 'weekdays'
+                    case 'weekday'
                         daysofweekStr = {'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
                         daysofweekOrder = 1:7;
                         
@@ -844,8 +864,8 @@ classdef PAStatTool < handle
             
                     % plots centroids id's (sorted by membership in ascending order) on x-axis
                     % and the count of loadshapes (i.e. membership count) on the y-axis.
-                    case 'centroids'
-                        set(distributionAxes,'ylim','auto');
+                    case 'membership'
+                        set(distributionAxes,'ylimmode','auto');
 
                         barH = bar(distributionAxes,this.centroidObj.getHistogram());                        
                         highlightColor = [0.75 0.75 0];
