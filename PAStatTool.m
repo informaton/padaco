@@ -285,6 +285,7 @@ classdef PAStatTool < handle
         %> @param unused
         % ======================================================================
         function plotSelectionChange(this, menuHandle, ~)
+            this.clearPlots();
             plotType = this.base.plotTypes{get(menuHandle,'value')};
             switch(plotType)
                 case 'centroids'
@@ -307,12 +308,15 @@ classdef PAStatTool < handle
             this.previousState.normalizeValues = get(this.handles.check_normalizevalues,'value');
             set(this.handles.check_normalizevalues,'value',1,'enable','off');
             set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','on');
+            
             if(isempty(this.centroidObj) || this.centroidObj.failedToConverge())
-                this.refreshCentroidsAndPlot();
-                set(this.handles.axes_secondary,'visible','on'); 
-                
-                set(this.figureH,'WindowKeyPressFcn',@this.keyPressFcn);
+                this.refreshCentroidsAndPlot();  
+            else
+                this.plotCentroids();
             end
+            
+            set(this.handles.axes_secondary,'visible','on');
+            set(this.figureH,'WindowKeyPressFcn',@this.keyPressFcn);
         end
         
         % ======================================================================
@@ -807,6 +811,7 @@ classdef PAStatTool < handle
                 end
                 distributionAxes = this.handles.axes_secondary;
                 centroidAxes = this.handles.axes_primary;
+                
                 numCentroids = this.centroidObj.numCentroids();
                 numLoadShapes = this.centroidObj.numLoadShapes();
                 
@@ -824,7 +829,7 @@ classdef PAStatTool < handle
                     plot(centroidAxes,coi.memberShapes','-','linewidth',1,'color',[0.85 0.85 0.85]);    
                 end
                 
-                set(centroidAxes,'ygrid','on','ytickmode','auto');
+                set(centroidAxes,'ygrid','on','ytickmode','auto','ylimmode','auto');
                 plot(centroidAxes,coi.shape,'linewidth',2,'color',[0 0 0]);
                 hold(centroidAxes,'off');
                 

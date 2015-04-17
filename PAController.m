@@ -133,7 +133,9 @@ classdef PAController < handle
                 
                 % attempt to load the last set of results
                 if(strcmpi(obj.viewMode,'results'))
-                    obj.initResultsView();
+                    if(obj.initResultsView())
+                        obj.VIEW.showReady('all');
+                    end
                 end
             end                
         end
@@ -969,8 +971,9 @@ classdef PAController < handle
                     obj.setViewMode('results');
                 end
                 obj.VIEW.showBusy('Initializing results view','all');
-                obj.initResultsView();                
-                obj.VIEW.showReady('all');
+                if(obj.initResultsView())
+                    obj.VIEW.showReady('all');
+                end
             end
         end
         
