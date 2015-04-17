@@ -308,7 +308,7 @@ classdef PAStatTool < handle
             this.previousState.normalizeValues = get(this.handles.check_normalizevalues,'value');
             set(this.handles.check_normalizevalues,'value',1,'enable','off');
             set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','on');
-            
+            set(this.handles.axes_primary,'ydir','normal');  %sometimes this gets changed by the heatmap displays which have the time shown in reverse on the y-axis
             if(isempty(this.centroidObj) || this.centroidObj.failedToConverge())
                 this.refreshCentroidsAndPlot();  
             else
@@ -540,6 +540,7 @@ classdef PAStatTool < handle
             divisionsPerDay = size(features,2);
             
             switch(plotOptions.plotType)
+                
                 case 'dailyaverage'
                     imageMap = nan(7,1);
                     for dayofweek=0:6
@@ -640,7 +641,14 @@ classdef PAStatTool < handle
                     disp Oops!;
             end
             title(axesHandle,titleStr);
-            set(axesHandle,'xtick',weekdayticks,'xticklabel',daysofweekStr,'xlim',minmax(weekdayticks));
+
+            xlimits = minmax(weekdayticks);
+
+            if(strcmpi(plotOptions.plotType,'dailytally')||strcmpi(plotOptions.plotType,'dailyaverage'))
+                xlimits = xlimits+[-1,1]*0.75;
+            end
+            set(axesHandle,'xtick',weekdayticks,'xticklabel',daysofweekStr,'xlim',xlimits);
+
         end
 
 
@@ -829,7 +837,7 @@ classdef PAStatTool < handle
                     plot(centroidAxes,coi.memberShapes','-','linewidth',1,'color',[0.85 0.85 0.85]);    
                 end
                 
-                set(centroidAxes,'ygrid','on','ytickmode','auto','ylimmode','auto');
+                set(centroidAxes,'ygrid','on','ytickmode','auto','ylimmode','auto','yticklabelmode','auto');
                 plot(centroidAxes,coi.shape,'linewidth',2,'color',[0 0 0]);
                 hold(centroidAxes,'off');
                 
