@@ -765,11 +765,13 @@ classdef PAView < handle
             set(obj.positionBarHandle,'visible','on','xdata',nan(1,5),'ydata',[0 1 1 0 0],'linestyle',':'); 
             set(obj.patchhandle.positionBar,'visible','on','xdata',nan(1,4),'ydata',[0 1 1 0]); 
             
-            % Enable panels            
-            timeseriesPanels = [handles.panel_timeseries;
-                handles.panel_displayButtonGroup;
+            % Enable panels 
+            handles = guidata(obj.getFigHandle());
+            timeseriesPanels = [handles.panel_timeseries;                
                 handles.panel_epochControls];
             set(findall(timeseriesPanels,'enable','off'),'enable','on');
+            set(handles.panel_displayButtonGroup,'enable','on');
+
             
             % Turn on the meta data handles - panel that shows information
             % about the current file/study.
@@ -875,6 +877,14 @@ classdef PAView < handle
         end
 
         
+        % --------------------------------------------------------------------
+        %> @brief Adds an overlay of the lumens signal to the secondary axes.
+        %> @param obj Instance of PAView.
+        %> @param lumenVector An Nx1 vector of lumen values to be displayed in the
+        %> secondary axes.
+        %> @param startStopDatenum An Nx2 matrix start and stop datenums which
+        %> correspond to the start and stop times of the same row in overlayVector.
+        % --------------------------------------------------------------------
         function addLumensOverlayToSecondaryAxes(obj, lumenVector, startStopDatenum)
             yLim = get(obj.axeshandle.secondary,'ylim');
             yLim = yLim*1/3+2/3;
@@ -1049,10 +1059,16 @@ classdef PAView < handle
         %> @note Requires aggregate data exists in the associated
         %> PAData object instance variable 
         %> @param obj Instance of PAView
+        %> @param enableState Optional tag for specifying the 'enable' state. 
+        %> - @c 'on' [default]
+        %> - @c 'off'
         % --------------------------------------------------------------------
-        function enableAggregateRadioButton(obj)
+        function enableAggregateRadioButton(obj,enableState)
+            if(nargin<2)
+                enableState = 'on';
+            end
             handles = guidata(obj.getFigHandle());
-            set(handles.radio_bins,'enable','on');
+            set(handles.radio_bins,'enable',enableState);
         end
         
         % --------------------------------------------------------------------
@@ -1060,10 +1076,16 @@ classdef PAView < handle
         %> @note Requires feature data exist in the associated
         %> PAData object instance variable 
         %> @param obj Instance of PAView
+        %> @param enableState Optional tag for specifying the 'enable' state. 
+        %> - @c 'on' [default]
+        %> - @c 'off'
         % --------------------------------------------------------------------
-        function enableFeatureRadioButton(obj)
+        function enableFeatureRadioButton(obj,enableState)
+            if(nargin<2)
+                enableState = 'on';
+            end
             handles = guidata(obj.getFigHandle());
-            set(handles.radio_features,'enable','on');
+            set(handles.radio_features,'enable',enableState);
         end
         
         % --------------------------------------------------------------------

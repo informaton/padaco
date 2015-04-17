@@ -524,7 +524,8 @@ classdef PAController < handle
             %obtain the prefilter and feature extraction methods
             prefilterMethod = obj.getPrefilterMethod();
             
-            
+            set(hObject,'enable','off');
+            obj.VIEW.showBusy('Calculating Features');
             % get the prefilter duration in minutes. 
             % aggregateDurMin = obj.VIEW.getAggregateDuration();
             
@@ -533,8 +534,12 @@ classdef PAController < handle
                 obj.accelObj.prefilter(prefilterMethod);
                 obj.VIEW.enableAggregateRadioButton();
                 
-                displayType = 'bins';
-                obj.setRadioButton(displayType);  
+                % No point of changing to the bin state right now as we
+                % will be selecting features anyway...
+                %                 displayType = 'bins';
+                %                 obj.setRadioButton(displayType);
+            else
+                obj.VIEW.enableAggregateRadioButton('off');
             end
             
             %extractorMethod = obj.getExtractorMethod();
@@ -550,6 +555,7 @@ classdef PAController < handle
             obj.setRadioButton(displayType);            
             
             obj.VIEW.draw();
+            set(hObject,'enable','on');
         end
         
         % --------------------------------------------------------------------
@@ -911,11 +917,12 @@ classdef PAController < handle
 
                     obj.initAccelDataView(); %calls show obj.VIEW.showReady() Ready...
                     
-                    featureFcn = 'mean';
-                    elapsedStartHour = 0;
-                    intervalDurationHours = 24;
-                    signalTagLine = obj.getSignalSelection(); %'accel.count.x';
-                    obj.accelObj.getAlignedFeatureVecs(featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours)
+                    % For testing/debugging
+                    %                     featureFcn = 'mean';
+                    %                     elapsedStartHour = 0;
+                    %                     intervalDurationHours = 24;
+                    %                     signalTagLine = obj.getSignalSelection(); %'accel.count.x';
+                    %                     obj.accelObj.getAlignedFeatureVecs(featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours);
                     
                     obj.VIEW.showReady();
                 end
