@@ -554,8 +554,16 @@ classdef PAController < handle
             displayType = 'features';
             obj.setRadioButton(displayType);            
             
+            
+            % This is disabled until the first time features are
+            % calculated.
+            obj.VIEW.enableTimeSeriesRadioButton();
+            
+            
             obj.VIEW.draw();
+            obj.VIEW.showReady();
             set(hObject,'enable','on');
+            
         end
         
         % --------------------------------------------------------------------

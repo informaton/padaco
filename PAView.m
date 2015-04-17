@@ -770,7 +770,9 @@ classdef PAView < handle
             timeseriesPanels = [handles.panel_timeseries;                
                 handles.panel_epochControls];
             set(findall(timeseriesPanels,'enable','off'),'enable','on');
-            set(handles.panel_displayButtonGroup,'enable','on');
+            
+            % Disable button group
+            set(findall(handles.panel_displayButtonGroup,'enable','on'),'enable','off');
 
             
             % Turn on the meta data handles - panel that shows information
@@ -1087,6 +1089,25 @@ classdef PAView < handle
             handles = guidata(obj.getFigHandle());
             set(handles.radio_features,'enable',enableState);
         end
+        
+        % --------------------------------------------------------------------
+        %> @brief Enables the time series radio button.  
+        %> @note Requires feature data exist in the associated
+        %> PAData object instance variable 
+        %> @param obj Instance of PAView
+        %> @param enableState Optional tag for specifying the 'enable' state. 
+        %> - @c 'on' [default]
+        %> - @c 'off'
+        % --------------------------------------------------------------------
+        function enableTimeSeriesRadioButton(obj,enableState)
+            if(nargin<2)
+                enableState = 'on';
+            end
+            handles = guidata(obj.getFigHandle());
+            set(handles.radio_time,'enable',enableState);
+        end
+        
+        
         
         % --------------------------------------------------------------------
         %> @brief Appends the new feature to the drop down feature menu.

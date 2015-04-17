@@ -1448,6 +1448,7 @@ toc
        %> @param method String name of the prefilter method.
        % ======================================================================
        function obj = prefilter(obj,method)
+           fprintf('Prefiltering is not currently implemented\n');
            currentNumBins = floor((obj.durationSec/60)/obj.aggregateDurMin);
            if(currentNumBins~=obj.numBins)
                obj.numBins = currentNumBins;
