@@ -765,14 +765,24 @@ classdef PAView < handle
             set(obj.positionBarHandle,'visible','on','xdata',nan(1,5),'ydata',[0 1 1 0 0],'linestyle',':'); 
             set(obj.patchhandle.positionBar,'visible','on','xdata',nan(1,4),'ydata',[0 1 1 0]); 
             
-            % Enable panels 
+            % Enable and some panels 
             handles = guidata(obj.getFigHandle());
             timeseriesPanels = [handles.panel_timeseries;                
                 handles.panel_epochControls];
             set(findall(timeseriesPanels,'enable','off'),'enable','on');
             
-            % Disable button group
+            % This has not been implemented yet, so disable it.
+            set(findall(handles.panel_features_prefilter,'enable','on'),'enable','off');
+            
+            % Disable button group - option to switch radio buttons will be
+            % allowed after go callback (i.e. user presses a gui button).
+            
             set(findall(handles.panel_displayButtonGroup,'enable','on'),'enable','off');
+            
+            % This is in the panel display button group, but is not
+            % actually part of it and should be moved to another place
+            % soon.
+            set(handles.menu_displayFeature,'enable','on');
 
             
             % Turn on the meta data handles - panel that shows information
@@ -1074,9 +1084,7 @@ classdef PAView < handle
         end
         
         % --------------------------------------------------------------------
-        %> @brief Enables the Feature radio button.  
-        %> @note Requires feature data exist in the associated
-        %> PAData object instance variable 
+        %> @brief Enables the Feature radio button
         %> @param obj Instance of PAView
         %> @param enableState Optional tag for specifying the 'enable' state. 
         %> - @c 'on' [default]
@@ -1087,7 +1095,7 @@ classdef PAView < handle
                 enableState = 'on';
             end
             handles = guidata(obj.getFigHandle());
-            set(handles.radio_features,'enable',enableState);
+            set([handles.radio_features],'enable',enableState);
         end
         
         % --------------------------------------------------------------------

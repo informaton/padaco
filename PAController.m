@@ -437,13 +437,13 @@ classdef PAController < handle
             set(obj.VIEW.menuhandle.displayFeature,'callback',@obj.updateSecondaryFeaturesDisplayCallback);
             set(handles.menu_windowDurSec,'callback',@obj.menu_windowDurSecCallback);
             
-            set(obj.VIEW.menuhandle.signalSelection,'callback',@obj.updateSecondaryFeaturesDisplayCallback);
+%             set(obj.VIEW.menuhandle.prefilterMethod,'callback',[]);
+%             set(obj.VIEW.menuhandle.signalSelection,'callback',[]);
+%             set(obj.VIEW.menuhandle.signalSelection,'callback',@obj.updateSecondaryFeaturesDisplayCallback);
             
             set(handles.panel_displayButtonGroup,'selectionChangeFcn',@obj.displayChangeCallback);
             
             set(handles.button_go,'callback',@obj.button_goCallback);
-            
-            
             
             % Configure stats panel callbacks ...
             set([handles.check_normalizevalues,handles.menu_feature,handles.menu_signalsource,handles.menu_plottype],'callback',@refreshResultsPlot);
@@ -552,7 +552,9 @@ classdef PAController < handle
             obj.updateSecondaryFeaturesDisplay();
             % obj.VIEW.appendFeatureMenu(extractorMethod);
             displayType = 'features';
-            obj.setRadioButton(displayType);            
+            obj.setRadioButton(displayType); 
+            
+            
             
             
             % This is disabled until the first time features are
@@ -621,10 +623,7 @@ classdef PAController < handle
         %> @param eventdata Not used.  Required by MATLAB.
         % --------------------------------------------------------------------
         function updateSecondaryFeaturesDisplayCallback(obj,hObject,eventdata)
-            numFrames = obj.getFrameCount(); 
-            signalTags = get(hObject,'userdata');
-            selectedSignal = signalTags{get(hObject,'value')};
-            
+            numFrames = obj.getFrameCount();            
             obj.updateSecondaryFeaturesDisplay(numFrames);        
         end
         
