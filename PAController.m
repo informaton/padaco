@@ -579,12 +579,12 @@ classdef PAController < handle
         %> additional items on top of in the secondary axes.
         % --------------------------------------------------------------------
         function heightOffset = updateSecondaryFeaturesDisplay(obj,numFeatures)
+            obj.VIEW.showBusy('Calculating features');
+            
             if(nargin<2 || isempty(numFeatures))
                 numFeatures = obj.getFrameCount(); 
             end
-            if(nargin<3 || isempty(heightPercentAllowed))
-                heightPercentAllowed=1;
-            end
+
             featureFcn = obj.getExtractorMethod();
             
             %  signalTagLine = obj.getSignalSelection();
@@ -611,7 +611,9 @@ classdef PAController < handle
                     obj.VIEW.addFeaturesVecAndOverlayToSecondaryAxes(featureVec,startStopDatenums,height*2,heightOffset);
                     heightOffset = heightOffset+height*2;
                 end
-            end            
+            end   
+            
+            obj.VIEW.showReady();
         end
         
         % --------------------------------------------------------------------
@@ -623,8 +625,10 @@ classdef PAController < handle
         %> @param eventdata Not used.  Required by MATLAB.
         % --------------------------------------------------------------------
         function updateSecondaryFeaturesDisplayCallback(obj,hObject,eventdata)
+            set(hObject,'enable','off');
             numFrames = obj.getFrameCount();            
             obj.updateSecondaryFeaturesDisplay(numFrames);        
+            set(hObject,'enable','on');
         end
         
         % --------------------------------------------------------------------
