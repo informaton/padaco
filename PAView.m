@@ -23,8 +23,6 @@ classdef PAView < handle
         
         %>cell of string choices for the marking state (off, 'marking','general')
         state_choices_cell; 
-        %>string of the current selected choice
-        marking_state; 
         %> figure handle that the class instance is associated with
         figurehandle;
         
@@ -1259,37 +1257,59 @@ classdef PAView < handle
         %> @param status_label Optional string which, if included, is displayed
         %> in the figure's status text field (currently at the top right of
         %> the view).
+        %> @param axesTag Optional tag, that if set will set the axes tag's
+        %> state to 'busy'.  See setAxesState method.
         % --------------------------------------------------------------------
-        function showBusy(obj,status_label)
+        function showBusy(obj,status_label,axesTag)
             set(obj.getFigHandle(),'pointer','watch');
             if(nargin>1)
                 set(obj.texthandle.status,'string',status_label);
+                if(nargin>2)
+                    obj.setAxesState(axesTag,'busy');
+                end
             end
             drawnow();
         end  
         
         % --------------------------------------------------------------------
         %> @brief Shows ready status (mouse becomes the default pointer).
+        %> @param axesTag Optional tag, that if set will set the axes tag's
+        %> state to 'ready'.  See setAxesState method.
         %> @param obj Instance of PAView        
         % --------------------------------------------------------------------
-        function showReady(obj)
+        function showReady(obj,axesTag)
             set(obj.getFigHandle(),'pointer','arrow');
             set(obj.texthandle.status,'string','');
+            if(nargin>1)
+                obj.setAxesState(axesTag,'ready');
+            end
             drawnow();
         end
         
-     
-        % --------------------------------------------------------------------
-        %> @brief Restores the view to ready state (mouse becomes the default pointer).
-        %> @param obj Instance of PAView        
-        % --------------------------------------------------------------------
-        function obj = restore_state(obj)
-            obj.clear_handles();
-            
-            set(obj.getFigHandle(),'pointer','arrow');
-            obj.marking_state = 'off';
+        %> @brief Adjusts the color of the specified axes according to the
+        %> specified state.
+        %> @param obj Instance of PAView
+        %> @param axesTag tag of the axes to set as ready or busy. Can be:
+        %> - @c primary
+        %> - @c secondary
+        %> - @c all
+        %> @param stateTag State to set the axes as. Can be:
+        %> - @c busy - color is darker
+        %> - @c ready - color is white
+        function setAxesState(obj,axesTag,stateTag)
+            if(ismember(axesTag,{'primary','secondary','all'}) && ismember(stateTag,{'busy','ready'}))
+                colorMap.ready = [1 1 1];
+                colorMap.busy = [0.75 0.75 0.75];
+                if(strcmp(axesTag,'all'))
+                    set([obj.axeshandle.primary;
+                        obj.axeshandle.secondary],'color',colorMap.(stateTag));
+                else
+                    set(obj.axeshandle.(axesTag),'color',colorMap.(stateTag));
+                end
+            end
         end
         
+               
         % --------------------------------------------------------------------
         %> @brief An alias for showReady()
         %> @param obj Instance of PAView        

@@ -120,6 +120,8 @@ classdef PAController < handle
                 % initialize the view here ...?
                 obj.VIEW = PAView(Padaco_fig_h,uiLinecontextmenu_handle,uiPrimaryAxescontextmenu_handle,featureLineContextMenuHandle);
 
+                obj.VIEW.showBusy([],'all');
+                
                 obj.initWidgets();
                 
                 set(Padaco_fig_h,'CloseRequestFcn',{@obj.figureCloseCallback,guidata(Padaco_fig_h)});
@@ -359,7 +361,7 @@ classdef PAController < handle
                 handles.menu_viewmode
                 ],'enable','on');
             
-            obj.VIEW.restore_state();
+
         end
 
         %settingsName is a string specifying the settings to update:
@@ -525,7 +527,7 @@ classdef PAController < handle
             prefilterMethod = obj.getPrefilterMethod();
             
             set(hObject,'enable','off');
-            obj.VIEW.showBusy('Calculating Features');
+            obj.VIEW.showBusy('Calculating Features','primary');
             % get the prefilter duration in minutes. 
             % aggregateDurMin = obj.VIEW.getAggregateDuration();
             
@@ -563,7 +565,7 @@ classdef PAController < handle
             
             
             obj.VIEW.draw();
-            obj.VIEW.showReady();
+            obj.VIEW.showReady('primary');
             set(hObject,'enable','on');
             
         end
@@ -579,7 +581,7 @@ classdef PAController < handle
         %> additional items on top of in the secondary axes.
         % --------------------------------------------------------------------
         function heightOffset = updateSecondaryFeaturesDisplay(obj,numFeatures)
-            obj.VIEW.showBusy('Calculating features');
+            
             
             if(nargin<2 || isempty(numFeatures))
                 numFeatures = obj.getFrameCount(); 
@@ -612,8 +614,6 @@ classdef PAController < handle
                     heightOffset = heightOffset+height*2;
                 end
             end   
-            
-            obj.VIEW.showReady();
         end
         
         % --------------------------------------------------------------------
@@ -626,9 +626,15 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function updateSecondaryFeaturesDisplayCallback(obj,hObject,eventdata)
             set(hObject,'enable','off');
+            handles = guidata(hObject);
+            initColor = get(handles.axes_secondary,'color');
+            obj.VIEW.showBusy('Calculating features','secondary');
             numFrames = obj.getFrameCount();            
             obj.updateSecondaryFeaturesDisplay(numFrames);        
-            set(hObject,'enable','on');
+            set(handles.axes_secondary,'color',initColor);
+
+            obj.VIEW.showReady('secondary');
+            set(hObject,'enable','on');            
         end
         
         % --------------------------------------------------------------------
@@ -919,11 +925,11 @@ classdef PAController < handle
                     if(~strcmpi(obj.viewMode,'timeseries'))
                         obj.setViewMode('timeseries');
                     end
-                    obj.VIEW.showBusy('Loading');
+                    obj.VIEW.showBusy('Loading','all');
 
                     obj.accelObj = PAData(f,obj.SETTINGS.DATA);
                     
-                    %initialize the PAData object's visual properties
+                    %initialize the PAData object's visual properties                    
                     obj.VIEW.showBusy('Initializing View');
 
                     obj.initAccelDataView(); %calls show obj.VIEW.showReady() Ready...
@@ -935,11 +941,11 @@ classdef PAController < handle
                     %                     signalTagLine = obj.getSignalSelection(); %'accel.count.x';
                     %                     obj.accelObj.getAlignedFeatureVecs(featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours);
                     
-                    obj.VIEW.showReady();
+                    obj.VIEW.showReady('all');
                 end
             catch me
                 showME(me);
-                obj.VIEW.showReady();
+                obj.VIEW.showReady('all');
             end            
         end
         
@@ -962,9 +968,9 @@ classdef PAController < handle
 
                     obj.setViewMode('results');
                 end
-                obj.VIEW.showBusy('Initializing results view');
+                obj.VIEW.showBusy('Initializing results view','all');
                 obj.initResultsView();                
-                obj.VIEW.showReady();
+                obj.VIEW.showReady('all');
             end
         end
         
