@@ -1390,9 +1390,10 @@ classdef PAView < handle
                 set(contextmenuH,'userdata',featureVector);
             end
             
-            vectorSum = cumsum(featureVector)/sum(featureVector)*overlayHeight/2;
-            feature_cumsumLineH =line('parent',axesH,'ydata',vectorSum+overlayOffset,'xdata',startStopDatenum(:,1),'color','g','hittest','off');
-
+            % No longer want to keep the cumulative sum in this one.
+            %vectorSum = cumsum(featureVector)/sum(featureVector)*overlayHeight/2;
+            % feature_cumsumLineH =line('parent',axesH,'ydata',vectorSum+overlayOffset,'xdata',startStopDatenum(:,1),'color','g','hittest','off');
+            feature_cumsumLineH = [];
         end
         
         
