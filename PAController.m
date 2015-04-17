@@ -919,7 +919,7 @@ classdef PAController < handle
         function menuFileOpenCallback(obj,hObject,eventdata)
             %DATA.pathname	/Volumes/SeaG 1TB/sampleData/csv
             %DATA.filename	700023t00c1.csv.csv
-            f=uigetfullfile({'*.csv;*.raw;*.bin','All (counts, raw accelerations (.raw, .bin)))';'*.csv','Comma Separated Values';'*.bin','Raw Acceleration (binary format: firmware 2.5.0 and 3.6.1 only)';'*.raw','Raw Acceleration (comma separated values)'},'Select a file','off',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
+            f=uigetfullfile({'*.csv;*.raw;*.bin','All (counts, raw accelerations)';'*.csv','Comma Separated Values';'*.bin','Raw Acceleration (binary format: firmwares 2.2.1, 2.5.0, and 3.1.0)';'*.raw','Raw Acceleration (comma separated values)'},'Select a file','off',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
             try
                 if(~isempty(f))
                     if(~strcmpi(obj.viewMode,'timeseries'))
@@ -1769,9 +1769,9 @@ classdef PAController < handle
            uimenu(uicontextmenu_handle,'Label','Resize','separator','off','callback',@obj.contextmenu_line_resize_callback);
            uimenu(uicontextmenu_handle,'Label','Use Default Scale','separator','off','callback',@obj.contextmenu_line_defaultScale_callback,'tag','defaultScale');
            uimenu(uicontextmenu_handle,'Label','Move','separator','off','callback',@obj.contextmenu_line_move_callback);
-           uimenu(uicontextmenu_handle,'Label','Add Reference Line','separator','on','callback',@obj.contextmenu_line_referenceline_callback);
            uimenu(uicontextmenu_handle,'Label','Change Color','separator','off','callback',@obj.contextmenu_line_color_callback);
-           uimenu(uicontextmenu_handle,'Label','Align Channel','separator','off','callback',@obj.align_channels_on_axes);
+           %            uimenu(uicontextmenu_handle,'Label','Add Reference Line','separator','on','callback',@obj.contextmenu_line_referenceline_callback);
+           %            uimenu(uicontextmenu_handle,'Label','Align Channel','separator','off','callback',@obj.align_channels_on_axes);
            uimenu(uicontextmenu_handle,'Label','Hide','separator','on','callback',@obj.contextmenu_line_hide_callback);
            uimenu(uicontextmenu_handle,'Label','Copy window to clipboard','separator','off','callback',@obj.contextmenu_window2clipboard_callback,'tag','copy_window2clipboard');
        end

@@ -156,10 +156,8 @@ classdef PAStatTool < handle
                     %  durationHoursPerFeature = 24/this.featureStruct.totalCount;
                     % featuresPerHour = this.featureStruct.totalCount/24;
                     % featuresPerCentroid = hoursPerCentroid*featuresPerHour;
-                    
                 
                 end
-                
                 
                 if(pSettings.trimResults)
                     pctValues = prctile(loadFeatures,pSettings.trimPercent);

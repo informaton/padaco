@@ -139,6 +139,8 @@ classdef PAView < handle
                 obj.contextmenuhandle.featureLine = featureLineContextmenuHandle;
                 
                 obj.createView();  
+                
+                
                 obj.disableWidgets();
             else
                 obj = [];
@@ -504,9 +506,8 @@ classdef PAView < handle
                 axesProps.primary.yticklabelmode = 'manual';
 
                 
-                %  set(obj.axeshandle.primary,'uicontextmenu',obj.contextmenuhandle.primaryAxes);
                 axesProps.secondary = axesProps.primary;
-%                 axesProps.secondary.ylimmode = 'manual';
+                axesProps.secondary.uicontextmenu = [];
                 
             elseif(strcmpi(viewMode,'results'))
                 axesProps.primary.ylimmode = 'auto';
