@@ -191,7 +191,8 @@ classdef PAView < handle
             
             set([handles.panel_centroidSettings
                 handles.text_min_clusters
-                handles.text_threshold],'backgroundColor',[1 1 1]);
+                handles.text_threshold
+                handles.text_duration],'backgroundColor',[1 1 1]);
             
             obj.texthandle.status = handles.text_status;
             obj.texthandle.filename = handles.text_filename;

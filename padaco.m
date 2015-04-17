@@ -26,7 +26,7 @@ function varargout = padaco(varargin)
 
 % Edit the above text to modify the response to help padaco
 
-% Last Modified by GUIDE v2.5 15-Apr-2015 10:08:17
+% Last Modified by GUIDE v2.5 16-Apr-2015 15:22:51
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -146,6 +146,15 @@ end
 
 
 function menu_weekdays_CreateFcn(hObject, eventdata, handles)
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+function menu_duration_CreateFcn(hObject, eventdata, handles)
 
 % Hint: popupmenu controls usually have a white background on Windows.
 %       See ISPC and COMPUTER.

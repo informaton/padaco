@@ -133,6 +133,34 @@ classdef PAStatTool < handle
                 this.featureStruct = this.loadAlignedFeatures(inputFilename);                
                 loadFeatures = this.featureStruct.shapes;
                 
+                
+                if(pSettings.centroidDurationHours~=24)
+                    hoursPerCentroid = pSettings.centroidDurationHours;
+                    repRows = 24/hoursPerCentroid;
+                    
+                    this.featureStruct.totalCount = this.featureStruct.totalCount/repRows;
+                    
+                    % This will put the start days of week in the same
+                    % order as the loadFeatures after their reshaping below
+                    % (which causes the interspersion).
+                    this.featureStruct.startDaysOfWeek = repmat(this.featureStruct.startDaysOfWeek,1,repRows)';
+                    this.featureStruct.startDaysOfWeek = this.featureStruct.startDaysOfWeek(:);
+                    
+                    [nrow,ncol] = size(loadFeatures);
+                    newRowCount = nrow*repRows;
+                    newColCount = ncol/repRows;
+                    loadFeatures = reshape(loadFeatures',newColCount,newRowCount)';
+                    
+                    % assumes features are provided in 24 hour intervals
+                    % from batch processing mode
+                    %  durationHoursPerFeature = 24/this.featureStruct.totalCount;
+                    % featuresPerHour = this.featureStruct.totalCount/24;
+                    % featuresPerCentroid = hoursPerCentroid*featuresPerHour;
+                    
+                
+                end
+                
+                
                 if(pSettings.trimResults)
                     pctValues = prctile(loadFeatures,pSettings.trimPercent);
                     pctValuesMat = repmat(pctValues,size(loadFeatures,1),1);
@@ -343,6 +371,7 @@ classdef PAStatTool < handle
                 this.handles.menu_signalsource;
                 this.handles.menu_plottype;
                 this.handles.menu_weekdays;
+                this.handles.menu_duration;
                 this.handles.check_showCentroidMembers;
                 this.handles.push_refreshCentroids;
                 this.handles.push_nextCentroid;
@@ -386,7 +415,8 @@ classdef PAStatTool < handle
                         this.previousState.plotType = this.base.plotTypes{widgetSettings.plotTypeSelection};
 
                         % Centroid widgets
-                        set(this.handles.menu_weekdays,'userdata',this.base.weekdayTags,'string',this.base.weekdayDescriptions,'value',widgetSettings.weekdaySelection);                       
+                        set(this.handles.menu_weekdays,'userdata',this.base.weekdayTags,'string',this.base.weekdayDescriptions,'value',widgetSettings.weekdaySelection);
+                        set(this.handles.menu_duration,'string',this.base.centroidDurationDescriptions,'value',widgetSettings.centroidDurationSelection);
                         set(this.handles.edit_centroidMinimum,'string',num2str(widgetSettings.minClusters));
                         set(this.handles.edit_centroidThreshold,'string',num2str(widgetSettings.clusterThreshold)); 
                         
@@ -421,6 +451,7 @@ classdef PAStatTool < handle
                         set([this.handles.menu_weekdays
                             this.handles.edit_centroidMinimum
                             this.handles.edit_centroidThreshold
+                            this.handles.menu_duration
                             ],'callback',@this.enableCentroidRecalculation);
                         %'h = guidata(gcbf), set(h.push_refreshCentroids,''enable'',''on'');');
                         
@@ -462,6 +493,7 @@ classdef PAStatTool < handle
                 'menu_signalsource'
                 'menu_plottype'
                 'menu_weekdays'
+                'menu_duration'
                 'axes_primary'
                 'axes_secondary'
                 'check_trim'
@@ -489,37 +521,7 @@ classdef PAStatTool < handle
             this.base = this.getBaseSettings();
         end
         
-        
-        % Refresh the user settings from current GUI configuration.
-        % ======================================================================
-        %> @brief
-        %> @param this Instance of PAStatTool
-        %> @retval userSettings Struct of GUI parameter value pairs
-        % ======================================================================
-        function userSettings = getPlotSettings(this)
-            userSettings.showCentroidMembers = get(this.handles.check_showCentroidMembers,'value');
-            userSettings.processedTypeSelection = 1;
-            userSettings.baseFeatureSelection = get(this.handles.menu_feature,'value');
-            userSettings.signalSelection = get(this.handles.menu_signalsource,'value');
-            userSettings.plotTypeSelection = get(this.handles.menu_plottype,'value');
-            userSettings.normalizeValues = get(this.handles.check_normalizevalues,'value');  %return 0 for unchecked, 1 for checked
-            
-            userSettings.processType = this.base.processedTypes{userSettings.processedTypeSelection};
-            userSettings.baseFeature = this.featureTypes{userSettings.baseFeatureSelection};
-            userSettings.curSignal = this.base.signalTypes{userSettings.signalSelection};            
-            userSettings.plotType = this.base.plotTypes{userSettings.plotTypeSelection};            
-            userSettings.numShades = this.base.numShades;
-            
-            userSettings.trimResults = get(this.handles.check_trim,'value'); % returns 0 for unchecked, 1 for checked            
-            userSettings.trimPercent = str2double(get(this.handles.edit_trimPercent,'string'));
-            
-            userSettings.minClusters = str2double(get(this.handles.edit_centroidMinimum,'string'));
-            userSettings.clusterThreshold = str2double(get(this.handles.edit_centroidThreshold,'string'));            
-            userSettings.weekdaySelection = get(this.handles.menu_weekdays,'value');
-            userSettings.weekdayTag = this.base.weekdayTags{userSettings.weekdaySelection};
-        end
-        
-        
+
         % ======================================================================
         %> @brief Display a selection of results organized by day of the
         %> week.
@@ -759,7 +761,8 @@ classdef PAStatTool < handle
                 
                 if(~isempty(daysOfInterest))
                     rowsOfInterest = ismember(this.featureStruct.startDaysOfWeek,daysOfInterest); 
-                    fieldsOfInterest = {'startDatenums','startDaysOfWeek','shapes','features'};
+                    % fieldsOfInterest = {'startDatenums','startDaysOfWeek','shapes','features'};
+                    fieldsOfInterest = {'startDaysOfWeek','features'};
                     for f=1:numel(fieldsOfInterest)
                         fname = fieldsOfInterest{f};
                         this.featureStruct.(fname) = this.featureStruct.(fname)(rowsOfInterest,:);                        
@@ -807,7 +810,8 @@ classdef PAStatTool < handle
                 distributionAxes = this.handles.axes_secondary;
                 centroidAxes = this.handles.axes_primary;
                 numCentroids = this.centroidObj.numCentroids();
-
+                numLoadShapes = this.centroidObj.numLoadShapes();
+                
                 %% Show centroids on primary axes
                 coi = this.centroidObj.getCentroidOfInterest();
                 
@@ -832,7 +836,7 @@ classdef PAStatTool < handle
                 end
                 xTickLabels = this.featureStruct.startTimes(xTicks);
                 
-                centroidTitle = sprintf('Centroid #%u (%s). Popularity %u of %u (membership count = %u)',coi.index, this.featureStruct.method, numCentroids-coi.sortOrder+1,numCentroids, coi.numMembers);
+                centroidTitle = sprintf('Centroid #%u (%s). Popularity %u of %u (membership count = %u of %u)',coi.index, this.featureStruct.method, numCentroids-coi.sortOrder+1,numCentroids, coi.numMembers, numLoadShapes);
                 title(centroidAxes,centroidTitle);
                 set(centroidAxes,'xlim',[1,this.featureStruct.totalCount],'xtick',xTicks,'xticklabel',xTickLabels);
                 
@@ -887,6 +891,38 @@ classdef PAStatTool < handle
             
             this.showReady();
         end
+        
+        % Refresh the user settings from current GUI configuration.
+        % ======================================================================
+        %> @brief
+        %> @param this Instance of PAStatTool
+        %> @retval userSettings Struct of GUI parameter value pairs
+        % ======================================================================
+        function userSettings = getPlotSettings(this)
+            userSettings.showCentroidMembers = get(this.handles.check_showCentroidMembers,'value');
+            userSettings.processedTypeSelection = 1;
+            userSettings.baseFeatureSelection = get(this.handles.menu_feature,'value');
+            userSettings.signalSelection = get(this.handles.menu_signalsource,'value');
+            userSettings.plotTypeSelection = get(this.handles.menu_plottype,'value');
+            userSettings.normalizeValues = get(this.handles.check_normalizevalues,'value');  %return 0 for unchecked, 1 for checked
+            
+            userSettings.processType = this.base.processedTypes{userSettings.processedTypeSelection};
+            userSettings.baseFeature = this.featureTypes{userSettings.baseFeatureSelection};
+            userSettings.curSignal = this.base.signalTypes{userSettings.signalSelection};            
+            userSettings.plotType = this.base.plotTypes{userSettings.plotTypeSelection};            
+            userSettings.numShades = this.base.numShades;
+            
+            userSettings.trimResults = get(this.handles.check_trim,'value'); % returns 0 for unchecked, 1 for checked            
+            userSettings.trimPercent = str2double(get(this.handles.edit_trimPercent,'string'));
+            
+            userSettings.minClusters = str2double(get(this.handles.edit_centroidMinimum,'string'));
+            userSettings.clusterThreshold = str2double(get(this.handles.edit_centroidThreshold,'string'));            
+            userSettings.weekdaySelection = get(this.handles.menu_weekdays,'value');
+            userSettings.weekdayTag = this.base.weekdayTags{userSettings.weekdaySelection};
+            userSettings.centroidDurationSelection = get(this.handles.menu_duration,'value');
+            userSettings.centroidDurationHours = this.base.centroidHourlyDurations(userSettings.centroidDurationSelection);
+        end
+                
                 
     end
     
@@ -906,9 +942,10 @@ classdef PAStatTool < handle
         %> - @c minClusters
         %> - @c clusterThreshold
         %> - @c weekdaySelection
+        %> - @c centroidDurationSelection
         % ======================================================================
         function paramStruct = getDefaultParameters()
-            paramStruct.trimResults = 100;
+            paramStruct.trimResults = 0;
             paramStruct.normalizeValues = 0;            
             paramStruct.processedTypeSelection = 1;
             paramStruct.baseFeatureSelection = 1;
@@ -919,6 +956,7 @@ classdef PAStatTool < handle
             paramStruct.minClusters = 40;
             paramStruct.clusterThreshold = 1.5;
             paramStruct.weekdaySelection = 1;
+            paramStruct.centroidDurationSelection = 1;
         end
         
         % ======================================================================
@@ -950,6 +988,15 @@ classdef PAStatTool < handle
             
             baseSettings.weekdayDescriptions = {'All days (Sun-Sat)','Weekdays (Mon-Fri)','Weekends (Sat-Sun)'};            
             baseSettings.weekdayTags = {'all','weekdays','weekends'};
+            
+            baseSettings.centroidDurationDescriptions = {'1 day','12 hours','6 hours','4 hours','3 hours','2 hours','1 hour'};
+            baseSettings.centroidHourlyDurations = [24
+                12
+                6
+                4
+                3
+                2
+                1];
         end
         
         
