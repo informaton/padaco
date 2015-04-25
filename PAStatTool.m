@@ -87,7 +87,8 @@ classdef PAStatTool < handle
                 end   
                 
                 this.initWidgets(widgetSettings);  %initializes previousstate.plotType on success
-                plotType = this.base.plotTypes{get(this.handles.menu_plottype,'value')};                
+                plotType = this.base.plotTypes{get(this.handles.menu_plottype,'value')};
+                this.clearPlots();
                 set(padaco_fig_h,'visible','on');
                 switch(plotType)
                     case 'centroids'
@@ -412,10 +413,6 @@ classdef PAStatTool < handle
                         
                         set(this.handles.menu_plottype,'userdata',this.base.plotTypes,'string',this.base.plotTypeDescriptions,'value',widgetSettings.plotTypeSelection);
                         
-                        % Previous state initialization - set to current state.
-                        this.previousState.normalizeValues = widgetSettings.normalizeValues;
-                        this.previousState.plotType = this.base.plotTypes{widgetSettings.plotTypeSelection};
-
                         % Centroid widgets
                         set(this.handles.menu_weekdays,'userdata',this.base.weekdayTags,'string',this.base.weekdayDescriptions,'value',widgetSettings.weekdaySelection);
                         set(this.handles.menu_duration,'string',this.base.centroidDurationDescriptions,'value',widgetSettings.centroidDurationSelection);
@@ -462,9 +459,19 @@ classdef PAStatTool < handle
                         this.handles.contextmenu.weekday = uimenu(contextmenu_secondaryAxes,'Label','Show current centroid''s weekday distribution','callback',{@this.centroidDistributionCallback,'weekday'});
                         this.handles.contextmenu.membership = uimenu(contextmenu_secondaryAxes,'Label','Show membership distribution by centroid','callback',{@this.centroidDistributionCallback,'membership'});
                         set(this.handles.axes_secondary,'uicontextmenu',contextmenu_secondaryAxes);                    
+                        
                     end
-                end
+                end                
             end
+            
+            
+            % These are required by follow-on calls, regardless if the gui
+            % can be shown or not.  
+            
+            % Previous state initialization - set to current state.
+            this.previousState.normalizeValues = widgetSettings.normalizeValues;
+            this.previousState.plotType = this.base.plotTypes{widgetSettings.plotTypeSelection};
+
             
             % disable everything
             if(~this.canPlot)

@@ -932,8 +932,6 @@ classdef PAController < handle
                     obj.accelObj = PAData(f,obj.SETTINGS.DATA);
                     
                     %initialize the PAData object's visual properties                    
-                    obj.VIEW.showBusy('Initializing View');
-
                     obj.initAccelDataView(); %calls show obj.VIEW.showReady() Ready...
                     
                     % For testing/debugging
@@ -943,7 +941,7 @@ classdef PAController < handle
                     %                     signalTagLine = obj.getSignalSelection(); %'accel.count.x';
                     %                     obj.accelObj.getAlignedFeatureVecs(featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours);
                     
-                    obj.VIEW.showReady('all');
+                    
                 end
             catch me
                 showME(me);
@@ -967,13 +965,14 @@ classdef PAController < handle
                 obj.resultsPathname = resultsPath;               
                 if(~strcmpi(obj.viewMode,'results'))
                     obj.VIEW.showBusy('Switching to results view');
-
                     obj.setViewMode('results');
                 end
+                
                 obj.VIEW.showBusy('Initializing results view','all');
                 if(obj.initResultsView())
-                    obj.VIEW.showReady('all');
+                    obj.VIEW.showReady('all');                
                 end
+                
             end
         end
         
@@ -1059,9 +1058,8 @@ classdef PAController < handle
                 viewMode = 'timeseries';
             end
             
-            obj.viewMode = viewMode;  
-            
-            obj.VIEW.showBusy(['Switching to ',viewMode,' view']);   
+            obj.viewMode = viewMode;              
+            obj.VIEW.showBusy(['Switching to ',viewMode,' view'],'all');   
             obj.VIEW.setViewMode(viewMode);
             obj.VIEW.showReady();
         end
@@ -1076,7 +1074,11 @@ classdef PAController < handle
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         % --------------------------------------------------------------------        
         function menuViewmodeTimeSeriesCallback(obj,hObject,eventdata)           
-            obj.setViewMode('timeseries')
+            obj.setViewMode('timeseries');
+            if(~isempty(obj.accelObj))
+                obj.initAccelDataView();
+            end
+            
         end   
         
         % Results viewing callback
@@ -1088,7 +1090,9 @@ classdef PAController < handle
         % --------------------------------------------------------------------        
         function menuViewmodeResultsCallback(obj,hObject,eventdata)           
             obj.setViewMode('results');
-            if(~obj.initResultsView())            
+            if(obj.initResultsView())  
+                obj.VIEW.showReady('all');
+            else
                 responseButton = questdlg('Results output pathname is not set.  Would you like to choose one now?','Find results output path?');
                 if(strcmpi(responseButton,'yes'))
                     obj.menuFileOpenResultsPathCallback();
@@ -2031,6 +2035,7 @@ classdef PAController < handle
             % passed along to the VIEW class here and used to initialize 
             % many of the selected widgets.
 
+            obj.VIEW.showBusy('Initializing View','all');
             
             obj.initSignalSelectionMenu();
             
@@ -2038,8 +2043,7 @@ classdef PAController < handle
                 obj.accelTypeShown = 'raw';
             else
                 obj.accelTypeShown = 'count';
-            end
-               
+            end               
                 
             obj.VIEW.initWithAccelData(obj.accelObj);
             
@@ -2093,7 +2097,9 @@ classdef PAController < handle
             obj.VIEW.addOverlayToSecondaryAxes(daylight,startStopDatenums,height-0.005,heightOffset,maxDaylight);
             
             obj.initCallbacks(); %initialize callbacks now that we have some data we can interact with.
-            
+
+            obj.VIEW.showReady('all');
+
         end
         
         % --------------------------------------------------------------------
@@ -2116,6 +2122,9 @@ classdef PAController < handle
             end
             disableFlag = ~success;
             this.VIEW.initWidgets('results',disableFlag);
+            if(~success)
+                this.StatTool = [];
+            end
         end
         
         % --------------------------------------------------------------------

@@ -475,7 +475,7 @@ classdef PAView < handle
         %> - @c timeseries
         %> - @c results        
         % --------------------------------------------------------------------
-        function initAxesHandlesViewMode(obj,viewMode) 
+        function initAxesHandlesViewMode(obj,viewMode)
             
             obj.clearAxesHandles();
             
@@ -485,7 +485,7 @@ classdef PAView < handle
             axesProps.primary.xtick=[];
             axesProps.primary.xgrid='on';
             axesProps.primary.xminortick='on';
-            
+            axesProps.primary.visible = 'on';
             
             axesProps.primary.nextplot='replacechildren';
             axesProps.primary.box= 'on';
@@ -493,7 +493,6 @@ classdef PAView < handle
             axesProps.primary.fontSize = 12;            
             axesProps.primary.units = 'normalized'; %normalized allows it to resize automatically
             axesProps.primary.drawmode = 'normal'; %fast does not allow alpha blending...
-            
 
             if(strcmpi(viewMode,'timeseries'))
                 
@@ -509,6 +508,7 @@ classdef PAView < handle
                 axesProps.secondary = axesProps.primary;
                 axesProps.secondary.uicontextmenu = [];
                 
+                
             elseif(strcmpi(viewMode,'results'))
                 axesProps.primary.ylimmode = 'auto';
                 axesProps.primary.ytickmode='auto';
@@ -518,7 +518,8 @@ classdef PAView < handle
                 axesProps.primary.xAxisLocation = 'bottom';
                 axesProps.primary.uicontextmenu = [];
                 
-                axesProps.secondary = axesProps.primary;               
+                axesProps.secondary = axesProps.primary; 
+                axesProps.secondary.visible = 'off';
             end
             
             axesProps.secondary.xgrid = 'off';
@@ -1302,7 +1303,7 @@ classdef PAView < handle
                 colorMap.ready = [1 1 1];
                 colorMap.busy = [0.75 0.75 0.75];
                 if(strcmp(axesTag,'all'))
-                    set([obj.axeshandle.primary;
+                    set([obj.axeshandle.primary
                         obj.axeshandle.secondary],'color',colorMap.(stateTag));
                 else
                     set(obj.axeshandle.(axesTag),'color',colorMap.(stateTag));
