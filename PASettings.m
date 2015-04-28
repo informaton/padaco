@@ -163,7 +163,12 @@ classdef  PASettings < handle
                     fields = [fields '.' tok{k}{:}];
                 end;
                 
-                %     if(isempty(str2num(tok{end}{:})))
+                
+                % the str2num approach fails for timeseries objects that
+                % are passed in as the valueStr.  So use the str2vec method
+                % instead.                
+                %    if(~isnan(str2num(valueStr))) %#ok<ST2NM>
+                %    evalmsg = ['pstruct' fields '=str2num(valueStr);'];
                 valueStr = tok{end}{:};
                 if(~isnan(PASettings.str2vec(valueStr)))
                     evalmsg = ['pstruct' fields '=PASettings.str2vec(valueStr);'];                    
@@ -193,21 +198,30 @@ classdef  PASettings < handle
                 vec = nan;
             else
                 if(nargin<2)
-                    numElements = numel(textscan(str,'%s'));
+                    vecStr = textscan(str,'%s');
                     vec = textscan(str,'%f');
+                    
                 else
-                    numElements = numel(textscan(str,'%s','delimiter',delim));
+                    vecStr = textscan(str,'%s','delimiter',delim);
                     vec = textscan(str,'%f','delimiter',delim);
                     
                 end
                 
+                if(~isempty(vecStr) && iscell(vecStr))
+                    vecStr = vecStr{1};                    
+                end
+                if(~isempty(vec) && iscell(vec))
+                    vec = vec{1};                    
+                end
+                
+                
                 % Set this to 1 or less to avoid catching things like this:
                 % 700023t00c1.csv.csv  
                 % which gets parsed to 700023
-                if(numElements <=1 || numel(vec)~=numElements)
+                if(numel(vecStr) <=1 || numel(vec)~=numel(vecStr))
                     vec = nan;
                 else
-                    vec = cell2mat(vec);
+                    %vec = cell2mat(vec);
                     %we have column vectors
                     vec = vec(:)';
                     if(any(isnan(vec)))

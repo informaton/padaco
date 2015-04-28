@@ -161,7 +161,7 @@ classdef PAStatTool < handle
                 end
                 
                 if(pSettings.trimResults)
-                    pctValues = prctile(loadFeatures,pSettings.trimPercent);
+                    pctValues = prctile(loadFeatures,pSettings.trimToPercent);
                     pctValuesMat = repmat(pctValues,size(loadFeatures,1),1);
                     adjustInd = loadFeatures>pctValuesMat;
                     loadFeatures(adjustInd) = pctValuesMat(adjustInd);
@@ -195,7 +195,7 @@ classdef PAStatTool < handle
         % ======================================================================        
         function init(this)
             this.initWidgets(this.getPlotSettings);
-            this.refreshPlot();
+            this.plotSelectionChange(this.handles.menu_plottype);
         end
         
         % ======================================================================
@@ -380,7 +380,7 @@ classdef PAStatTool < handle
                 this.handles.push_nextCentroid;
                 this.handles.push_previousCentroid;
                 this.handles.check_trim;
-                this.handles.edit_trimPercent],'callback',[],'enable','off');
+                this.handles.edit_trimToPercent],'callback',[],'enable','off');
 
             if(isdir(featuresPathname))
                 % find allowed features which are in our base parameter and
@@ -392,7 +392,7 @@ classdef PAStatTool < handle
                     if(~isempty(this.featureTypes))
                         
                         % Enable everything and then shut things down as needed. 
-                        set(findall(this.handles.panel_results,'enable','off'),'enable','on');
+                        set(findall(this.handles.panels_sansCentroids,'enable','off'),'enable','on');
                         this.canPlot = true;
                         
                         this.featureDescriptions = this.base.featureDescriptions(ib);
@@ -433,7 +433,7 @@ classdef PAStatTool < handle
                         else
                             enableState = 'off';
                         end
-                        set(this.handles.edit_trimPercent,'string',num2str(widgetSettings.trimPercent),'callback',@this.editTrimPercentChange,'enable',enableState);
+                        set(this.handles.edit_trimToPercent,'string',num2str(widgetSettings.trimToPercent),'callback',@this.edittrimToPercentChange,'enable',enableState);
                         set(this.handles.check_trim,'callback',@this.checkTrimCallback);
 
                         % Push buttons
@@ -459,7 +459,6 @@ classdef PAStatTool < handle
                         this.handles.contextmenu.weekday = uimenu(contextmenu_secondaryAxes,'Label','Show current centroid''s weekday distribution','callback',{@this.centroidDistributionCallback,'weekday'});
                         this.handles.contextmenu.membership = uimenu(contextmenu_secondaryAxes,'Label','Show membership distribution by centroid','callback',{@this.centroidDistributionCallback,'membership'});
                         set(this.handles.axes_secondary,'uicontextmenu',contextmenu_secondaryAxes);                    
-                        
                     end
                 end                
             end
@@ -506,7 +505,7 @@ classdef PAStatTool < handle
                 'axes_primary'
                 'axes_secondary'
                 'check_trim'
-                'edit_trimPercent'
+                'edit_trimToPercent'
                 'check_showCentroidMembers'
                 'edit_centroidThreshold'
                 'edit_centroidMinimum'
@@ -520,6 +519,10 @@ classdef PAStatTool < handle
                 fname = handlesOfInterest{f};
                 this.handles.(fname) = tmpHandles.(fname);
             end
+            this.handles.panels_sansCentroids = [
+                tmpHandles.panel_plotType;
+                tmpHandles.panel_plotSignal;
+                tmpHandles.panel_plotData];
         end
         
         % ======================================================================
@@ -665,7 +668,7 @@ classdef PAStatTool < handle
         %> @param editHandle handle to edit box.
         %> @param eventdata (req'd by matlab, but unset)
         % ======================================================================
-        function editTrimPercentChange(this,editHandle,~)
+        function edittrimToPercentChange(this,editHandle,~)
             percent = str2double(get(editHandle,'string'));
             if(isempty(percent) || isnan(percent) || percent<=0 || percent>100)
                 percent = 0;
@@ -687,7 +690,7 @@ classdef PAStatTool < handle
             else
                 enableState = 'off';
             end
-            set(this.handles.edit_trimPercent,'enable',enableState);            
+            set(this.handles.edit_trimToPercent,'enable',enableState);            
             this.refreshPlot();
         end
         
@@ -819,7 +822,7 @@ classdef PAStatTool < handle
             
             if(isempty(this.centroidObj)|| this.centroidObj.failedToConverge())
                % clear everything and give a warning that the centroid is empty
-               fprintf('Clustering results are empty');
+               fprintf('Clustering results are empty\n');
             else
                 if(nargin<2)
                     centroidAndPlotSettings = this.getPlotSettings();
@@ -931,7 +934,7 @@ classdef PAStatTool < handle
             userSettings.numShades = this.base.numShades;
             
             userSettings.trimResults = get(this.handles.check_trim,'value'); % returns 0 for unchecked, 1 for checked            
-            userSettings.trimPercent = str2double(get(this.handles.edit_trimPercent,'string'));
+            userSettings.trimToPercent = str2double(get(this.handles.edit_trimToPercent,'string'));
             
             userSettings.minClusters = str2double(get(this.handles.edit_centroidMinimum,'string'));
             userSettings.clusterThreshold = str2double(get(this.handles.edit_centroidThreshold,'string'));            
@@ -955,7 +958,7 @@ classdef PAStatTool < handle
         %> - @c baseFeatureSelection
         %> - @c signalSelection
         %> - @c plotTypeSelection
-        %> - @c trimPercent
+        %> - @c trimToPercent
         %> - @c showCentroidMembers
         %> - @c minClusters
         %> - @c clusterThreshold
@@ -969,7 +972,7 @@ classdef PAStatTool < handle
             paramStruct.baseFeatureSelection = 1;
             paramStruct.signalSelection = 1;
             paramStruct.plotTypeSelection = 1;
-            paramStruct.trimPercent = 0;
+            paramStruct.trimToPercent = 100;
             paramStruct.showCentroidMembers = 0;
             paramStruct.minClusters = 40;
             paramStruct.clusterThreshold = 1.5;

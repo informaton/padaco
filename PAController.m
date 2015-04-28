@@ -304,15 +304,22 @@ classdef PAController < handle
         %> @param obj Instance of PAController
         %> @param hObject    handle to figure (gcf), unused
         %> @param eventData Structure of mouse press information; unused
+        %> @param Note - this turns off all other mouse movement and mouse
+        %> wheel callback methods.
         % --------------------------------------------------------------------
         function windowButtonDownCallback(obj,hObject,eventData)
             if(ishandle(obj.current_linehandle))                
                 set(obj.VIEW.figurehandle,'windowbuttonmotionfcn',[]);
                 
-                set(obj.current_linehandle,'selected','off');
-                obj.current_linehandle = [];
-                obj.VIEW.showReady();
+                obj.deactivateLineHandle();
             end
+        end
+        
+        function deactivateLineHandle(obj)
+            set(obj.current_linehandle,'selected','off');
+            obj.current_linehandle = [];
+            obj.VIEW.showReady();
+            set(obj.VIEW.figurehandle,'windowbuttonmotionfcn',[],'WindowScrollWheelFcn',[]);            
         end
         
         %-- Menubar configuration --
@@ -435,7 +442,6 @@ classdef PAController < handle
             set(handles.edit_aggregate,'callback',@obj.edit_aggregateCallback);
             set(handles.edit_frameSizeMinutes,'callback',@obj.edit_frameSizeMinutesCallback);
             set(handles.edit_frameSizeHours,'callback',@obj.edit_frameSizeHoursCallback);
-            
             
             %initialize dropdown menu callbacks
             set(obj.VIEW.menuhandle.displayFeature,'callback',@obj.updateSecondaryFeaturesDisplayCallback);
@@ -1865,8 +1871,7 @@ classdef PAController < handle
                {@obj.move_line_mouseFcnCallback,tagLine,y_lim}...
                );
        end;
-       
-       
+      
        % =================================================================
        %> @brief Channel contextmenu callback to move the selected
        %> channel's position in the SEV.

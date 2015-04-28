@@ -178,7 +178,7 @@ classdef PAView < handle
                 handles.text_frameSizeMinutes
                 handles.text_frameSizeHours
                 handles.text_pct
-                handles.edit_trimPercent
+                handles.edit_trimToPercent
                 handles.panel_features_prefilter
                 handles.panel_features_aggregate
                 handles.panel_features_frame
@@ -493,30 +493,28 @@ classdef PAView < handle
             axesProps.primary.fontSize = 12;            
             axesProps.primary.units = 'normalized'; %normalized allows it to resize automatically
             axesProps.primary.drawmode = 'normal'; %fast does not allow alpha blending...
+            axesProps.primary.ygrid='off';
+            axesProps.primary.ytick = [];
+            axesProps.primary.yticklabel = [];
+            axesProps.primary.uicontextmenu = [];
 
             if(strcmpi(viewMode,'timeseries'))
                 
-                axesProps.primary.ygrid='off';
                 axesProps.primary.xAxisLocation = 'top';
                 axesProps.primary.uicontextmenu = obj.contextmenuhandle.primaryAxes;
                 axesProps.primary.ylimmode = 'manual';
                 axesProps.primary.ytickmode='manual';
-                axesProps.primary.ytick=[];
                 axesProps.primary.yticklabelmode = 'manual';
 
                 
                 axesProps.secondary = axesProps.primary;
-                axesProps.secondary.uicontextmenu = [];
                 
                 
             elseif(strcmpi(viewMode,'results'))
                 axesProps.primary.ylimmode = 'auto';
-                axesProps.primary.ytickmode='auto';
-                axesProps.primary.yticklabelmode = 'auto';
-                
-                axesProps.primary.ygrid='on';
+%                 axesProps.primary.ytickmode='auto';
+%                 axesProps.primary.yticklabelmode = 'auto';
                 axesProps.primary.xAxisLocation = 'bottom';
-                axesProps.primary.uicontextmenu = [];
                 
                 axesProps.secondary = axesProps.primary; 
                 axesProps.secondary.visible = 'off';
@@ -619,7 +617,7 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         function initWidgets(obj, viewMode, disableFlag)
             if(nargin<3)
-                disableFlag = false;
+                disableFlag = true;
                 if(nargin<2)
                     viewMode = 'timeseries';
                 end
@@ -644,18 +642,16 @@ classdef PAView < handle
                 end
                 
             elseif(strcmpi(viewMode,'results'))
-                set(resultPanels,'visible','on');
-                
                 set(timeseriesPanels,'visible','off');
-                
-                set(handles.menu_viewmode_timeseries,'checked','off');
-                set(handles.menu_viewmode_results,'checked','on');
-                
                 % Handle the enabling or disabling in the PAStatTool ->
                 % which has more control
                 if(disableFlag)                    
                     set(findall(resultPanels,'enable','on'),'enable','off');
                 end
+
+                set(resultPanels,'visible','on');                
+                set(handles.menu_viewmode_timeseries,'checked','off');
+                set(handles.menu_viewmode_results,'checked','on');
             else
                 fprintf('Unknown view mode (%s)\n',viewMode);
             end

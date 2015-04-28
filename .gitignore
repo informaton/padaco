@@ -20,3 +20,5 @@ archive/processClusters.m
 archive/processProgressions.m
 
 archive/processResults.m
+
+*.bak
