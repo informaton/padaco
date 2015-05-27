@@ -27,7 +27,7 @@ classdef PACentroid < handle
         histogram;
         
         %> Nx1 vector that maps the constructor's input load shapes matrix
-        %> to the sorted, instance variable loadShapes matrix.
+        %> to the sorted  @c loadShapes matrix.
         sortIndices;
         
         %> Cx1 vector that maps load shapes' original cluster indices to
@@ -205,11 +205,12 @@ classdef PACentroid < handle
                     inputLoadShapes = this.loadShapes;
                 end
             end
-            
-            [this.load2centroidMap, this.centroidShapes] = this.adaptiveKmeans(inputLoadShapes,inputSettings);
+            useDefaultRandomizerSeed = true;
+            showCalinskiIndex = true;
+            [this.load2centroidMap, this.centroidShapes] = this.adaptiveKmeans(inputLoadShapes,inputSettings,showCalinskiIndex, useDefaultRandomizerSeed);
             if(~isempty(this.centroidShapes))
-                this.calculateAndSortDistribution(this.load2centroidMap);
-                % [this.histogram, this.centroidSortMap] = this.calculateDistributionAndSort(loadShapeMap);
+                %                 calculateAndSortDistribution(this.load2centroidMap);
+                [this.histogram, this.centroidSortMap] = this.calculateDistributionAndSort(loadShapeMap);
                 this.coiSortOrder = this.numCentroids();
             else
                 fprintf('Clustering failed!  No clusters found!\n');
@@ -217,23 +218,58 @@ classdef PACentroid < handle
             end
         end
         
+        %> @brief Calculates within-cluster sum of squares (WCSS); a metric of cluster tightness.  
+        %> @note This measure is not helpful when clusters are not well separated (see @c getCalinskiHarabaszIndex).
+        %> @param Instance PACentroid
+        %> @retval The within-cluster sum of squares (WCSS); a metric of cluster tightness
+        function wcss = getWCSS(this)
+            fprintf(1,'To be finished');
+            wcss = [];
+            
+        end
+        
+        %> @brief Validation metric for cluster separation.   Useful in determining if clusters are well separated.  
+        %> If clusters are not well separated, then the Adaptive K-means threshold should be adjusted according to the segmentation resolution desired.
+        %> @note See Calinski, T., and J. Harabasz. "A dendrite method for cluster analysis." Communications in Statistics. Vol. 3, No. 1, 1974, pp. 1?27.
+        %> @note See also http://www.mathworks.com/help/stats/clustering.evaluation.calinskiharabaszevaluation-class.html 
+        %> @param Vector of output from mapping loadShapes to parent
+        %> centroids.
+        %> @param Centroids calculated via kmeans
+        %> @param sum of euclidean distances
+        %> @param Overall mean of the loadshape data
+        %> @retval The Calinzki-Harabasz index
+        function calinzkiIndex = getCalinskiHarabaszIndex(loadShapeMap,centroids,sumD,loadShapeMean)
+            [sortedCounts, sortedIndices] = PACentroid.calculateAndSortDistribution(loadShapeMap);
+            sortedCentroids = centroids(sortedIndices,:);
+            numObservations = numel(loadShapeMap);
+            numCentroids = size(centroids,1);
+
+            ssWithin = sum(sumD,1);
+            ssBetween = (pdist2(sortedCentroids,loadShapeMean)).^2;
+            ssBetween = sum(sortedCounts*ssBetween);
+            calinzkiIndex =ssBetween/ssWithin*(numObservations-numCentroids)/(numCentroids-1);
+        end
+        
     end
 
-    methods(Access=private)
+    methods(Static, Access=private)
         % ======================================================================
         %> @brief Calculates the distribution of load shapes according to
         %> centroid, in ascending order.
-        %> @param Instance of PACentroid
+        % @param Instance of PACentroid
         %> @param loadShapeMap Nx1 vector of centroid indices.  Each
-        %> element's position represents the loadShape
-        %> @param number of centroids (i.e number of bins/edges to use when
-        %> calculating the distribution)
+        %> element's position represents the loadShape.  
+        %> @note This is the @c @b idx parameter returned from kmeans
+        % @param number of centroids (i.e number of bins/edges to use when
+        % calculating the distribution)
+        %> @retval
+        %> @retval        
         % ======================================================================
-        function [sortedCounts, sortedIndices] = calculateAndSortDistribution(this,loadShapeMap)
+        function [sortedCounts, sortedIndices] = calculateAndSortDistribution(loadShapeMap)
             centroidCounts = histc(loadShapeMap,1:max(loadShapeMap));
             [sortedCounts,sortedIndices] = sort(centroidCounts);
-            this.histogram = sortedCounts;
-            this.centroidSortMap = sortedIndices;
+            %             this.histogram = sortedCounts;
+            %             this.centroidSortMap = sortedIndices;
         end
     end
     
@@ -246,19 +282,44 @@ classdef PACentroid < handle
         %> - @c minClusters [40]  Used to set initial K
         %> - @c maxClusters [0.5*N]
         %> - @c thresholdScale [1.5]        
+        %> @param Boolean
+        %> - @c true Display calinski index at each adaptive k-means iteration (slower)
+        %> - @c false (default) Do not calcuate Calinzki index.
+        %> @param Boolean Set randomizer seed to default
+        %> - @c true Use 'default' for randomizer (rng)
+        %> - @c false (default) Do not update randomizer seed (rng).
         %> @retval idx = Rx1 vector of cluster indices that the matching (i.e. same) row of the loadShapes is assigned to.
         %> @retval centroids - KxC matrix of cluster centroids.
         % ======================================================================
-        function [idx, centroids] = adaptiveKmeans(loadShapes,settings)
-            if(nargin<2)
-                settings.minClusters = 40;
-                settings.maxClusters = size(loadShapes,1)/2;
-                settings.thresholdScale = 1.5; %higher threshold equates to fewer clusters.
+        function [idx, centroids] = adaptiveKmeans(loadShapes,settings,showCalinskiIndex,defaultRandomizer)
+            if(nargin<4)
+                defaultRandomizer = false;
+                if(nargin<3)
+                    showCalinskiIndex = false;
+                    if(nargin<2)
+                        settings.minClusters = 40;
+                        settings.maxClusters = size(loadShapes,1)/2;
+                        settings.thresholdScale = 1.5; %higher threshold equates to fewer clusters.
+                    end
+                end
             end
+            if(defaultRandomizer)
+                rng('default');  % To get same results from run to run...
+            end
+            if(showCalinskiIndex)
+                globalLoadShapeMean = mean(loadShapes(:));
+                calinskiFig = figure;
+                
+                calinskiAxes = axes('parent',calinskiFig,'box','on');
+                calinskiLine = line('xdata',nan,'ydata',nan,'parent',calinskiAxes,'linestyle','none','marker','o');
+                xlabel(calinskiAxes,'K');
+                ylabel(calinskiAxes,'Calinksi Index');
+                X = [];
+                Y = [];
+            end
+            
             idx = [];
             K = settings.minClusters;
-            
-            
             
             N = size(loadShapes,1);
             % prime the kmeans algorithms starting centroids
@@ -270,9 +331,32 @@ classdef PACentroid < handle
                 fprintf('%u were not close enough.  Setting cluster size to %u.\n',numNotCloseEnough,K);
                 
                 tic
+                %     IDX = kmeans(X,K) returns an N-by-1 vector IDX containing the cluster
+                %     indices of each point -> the loadshapeMap
+                %
+                %     [IDX, C] = kmeans(X, K) returns the K cluster centroid locations in
+                %     the K-by-P matrix C.
+                %
+                %     [IDX, C, SUMD] = kmeans(X, K) returns the within-cluster sums of
+                %     point-to-centroid distances in the 1-by-K vector sumD.
+                %
+                %     [IDX, C, SUMD, D] = kmeans(X, K) returns distances from each point
+                %     to every centroid in the N-by-K matrix D.
                 [idx, centroids, sumD, pointToClusterDistances] = kmeans(loadShapes,K,'Start',centroids,'EmptyAction','drop');
                 
                 %    [~, centroids, sumOfPointToCentroidDistances] = kmeans(loadShapes,K,'EmptyAction','drop');
+                if(showCalinskiIndex)
+                    if(ishandle(calinskiAxes))
+                        calinskiIndex  = this.getCalinskiHarabaszIndex(idx,centroids,sumD,globalLoadShapeMean);
+                        X(end+1)= K;
+                        Y(end+1)=calinskiIndex;
+                        plot(calinskiAxes,'xdata',X,'ydata',Y);
+                        %set(calinskiLine,'xdata',X,'ydata',Y);
+                        %set(calinkiAxes,'xlim',[min(X)-5,
+                        %max(X)]+5,[min(Y)-10,max(Y)+10]);
+                    end
+                end
+            
                 
                 removed = sum(isnan(centroids),2)>0;
                 numRemoved = sum(removed);
