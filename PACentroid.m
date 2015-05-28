@@ -41,7 +41,16 @@ classdef PACentroid < handle
         %> class construction or subsequent, successful call of
         %> calculateCentroids.  (i.e. A value of 1 refers to the centroid with fewest members,
         %> while a value of C refers to the centroid with the most members (as seen in histogram)
-        coiSortOrder;        
+        coiSortOrder;  
+        
+        %> A line handle for updating clustering performace.  Default is
+        %> -1, which means that clustering performance is not displayed.
+        %> This value is initialized in the constructor based on input
+        %> arguments.
+        performanceLineHandle;
+        
+        %> Similar to performance line, but is an axes handle.
+        performanceAxesHandle;
     end
 
             
@@ -53,13 +62,54 @@ classdef PACentroid < handle
         %> - @c minClusters [40]  Used to set initial K
         %> - @c maxClusters [0.5*N]
         %> - @c clusterThreshold [1.5]                  
+        %> @param Optional axes or line handle for displaying clustering progress.
+        %> - If argument is a handle to a MATLAB @b axes, then a line handle
+        %> will be added to the axes and adjusted with clustering progress.
+        %> - If argument is a handle to a MATLAB @b line, then the handle
+        %> will be manipulated directly in its current context (i.e. whatever
+        %> axes it currently falls under).
+        %> - If argument is not included, empty, or is not a line or
+        %> axes handle then progress will only be displayed to the console
+        %> (default)
+        %> @note Including a handle increases processing time as additional calculations
+        %> are made to measuring clustering separation and performance.
         %> @retval Instance of PACentroid on success.  Empty matrix on
         %> failure.
         % ======================================================================        
-        function this = PACentroid(loadShapes,settings)            
+        function this = PACentroid(loadShapes,settings,axesOrLineH)            
             
             this.init();
+            if(nargin<3)
+                axesOrLineH = [];
+                if(nargin<2)
+                    settings = [];
+                end
+            end
 
+            if(isempty(settings))
+                N = size(loadShapes,1);
+                settings.minClusters = 10;
+                settings.maxClusters = ceil(N/2);
+                settings.clusterThreshold = 0.2;
+            end
+            
+            if(~isempty(axesOrLineH) && ishandle(axesOrLineH))
+                handleType = get(axesOrLineH,'type');
+                if(strcmpi(handleType,'axes'))
+                    this.performanceAxesHandle = axesOrLineH;
+                    this.performanceLineHandle = line('parent',axesOrLineH,'xdata',nan,'ydata','nan','linestyle',':','marker','o');
+                elseif(strcmpi(handleType,'line'))
+                    this.performanceLineHandle = axesOrLineH;
+                    set(this.performanceLineHandle,'xdata',nan,'ydata',nan,'linestyle',':','marker','o');
+                    this.performanceAxesHandle = get(axesOrLineH,'parent');
+                else
+                    this.performanceAxesHandle = -1;
+                    this.performanceLineHandle = -1;
+                end
+            else
+                this.performanceLineHandle = -1;
+            end
+            
             this.settings.thresholdScale = settings.clusterThreshold;
             this.settings.minClusters = settings.minClusters;
             
@@ -68,11 +118,9 @@ classdef PACentroid < handle
             else
                 maxClusters = ceil(size(loadShapes,1)/2);
             end
+            
             this.settings.maxClusters = maxClusters;
-            
-            
             this.loadShapes = loadShapes;
-
             this.calculateCentroids();  
         end
         
@@ -206,11 +254,10 @@ classdef PACentroid < handle
                 end
             end
             useDefaultRandomizerSeed = true;
-            showCalinskiIndex = true;
-            [this.load2centroidMap, this.centroidShapes] = this.adaptiveKmeans(inputLoadShapes,inputSettings,showCalinskiIndex, useDefaultRandomizerSeed);
-            if(~isempty(this.centroidShapes))
-                %                 calculateAndSortDistribution(this.load2centroidMap);
-                [this.histogram, this.centroidSortMap] = this.calculateDistributionAndSort(loadShapeMap);
+            
+            [this.load2centroidMap, this.centroidShapes] = this.adaptiveKmeans(inputLoadShapes,inputSettings, useDefaultRandomizerSeed,this.performanceAxesHandle);
+            if(~isempty(this.centroidShapes))                
+                [this.histogram, this.centroidSortMap] = this.calculateAndSortDistribution(this.load2centroidMap);%  was -->       calculateAndSortDistribution(this.load2centroidMap);
                 this.coiSortOrder = this.numCentroids();
             else
                 fprintf('Clustering failed!  No clusters found!\n');
@@ -222,33 +269,12 @@ classdef PACentroid < handle
         %> @note This measure is not helpful when clusters are not well separated (see @c getCalinskiHarabaszIndex).
         %> @param Instance PACentroid
         %> @retval The within-cluster sum of squares (WCSS); a metric of cluster tightness
-        function wcss = getWCSS(this)
+        function wcss = getWCSS()
             fprintf(1,'To be finished');
             wcss = [];
             
         end
-        
-        %> @brief Validation metric for cluster separation.   Useful in determining if clusters are well separated.  
-        %> If clusters are not well separated, then the Adaptive K-means threshold should be adjusted according to the segmentation resolution desired.
-        %> @note See Calinski, T., and J. Harabasz. "A dendrite method for cluster analysis." Communications in Statistics. Vol. 3, No. 1, 1974, pp. 1?27.
-        %> @note See also http://www.mathworks.com/help/stats/clustering.evaluation.calinskiharabaszevaluation-class.html 
-        %> @param Vector of output from mapping loadShapes to parent
-        %> centroids.
-        %> @param Centroids calculated via kmeans
-        %> @param sum of euclidean distances
-        %> @param Overall mean of the loadshape data
-        %> @retval The Calinzki-Harabasz index
-        function calinzkiIndex = getCalinskiHarabaszIndex(loadShapeMap,centroids,sumD,loadShapeMean)
-            [sortedCounts, sortedIndices] = PACentroid.calculateAndSortDistribution(loadShapeMap);
-            sortedCentroids = centroids(sortedIndices,:);
-            numObservations = numel(loadShapeMap);
-            numCentroids = size(centroids,1);
 
-            ssWithin = sum(sumD,1);
-            ssBetween = (pdist2(sortedCentroids,loadShapeMean)).^2;
-            ssBetween = sum(sortedCounts*ssBetween);
-            calinzkiIndex =ssBetween/ssWithin*(numObservations-numCentroids)/(numCentroids-1);
-        end
         
     end
 
@@ -283,37 +309,44 @@ classdef PACentroid < handle
         %> - @c maxClusters [0.5*N]
         %> - @c thresholdScale [1.5]        
         %> @param Boolean
-        %> - @c true Display calinski index at each adaptive k-means iteration (slower)
-        %> - @c false (default) Do not calcuate Calinzki index.
         %> @param Boolean Set randomizer seed to default
         %> - @c true Use 'default' for randomizer (rng)
         %> - @c false (default) Do not update randomizer seed (rng).
+        %> - @c true Display calinski index at each adaptive k-means iteration (slower)
+        %> - @c false (default) Do not calcuate Calinzki index.
         %> @retval idx = Rx1 vector of cluster indices that the matching (i.e. same) row of the loadShapes is assigned to.
         %> @retval centroids - KxC matrix of cluster centroids.
         % ======================================================================
-        function [idx, centroids] = adaptiveKmeans(loadShapes,settings,showCalinskiIndex,defaultRandomizer)
+        function [idx, centroids] = adaptiveKmeans(loadShapes,settings,defaultRandomizer,performanceAxesH)
+            
+            % argument checking and validation ....
             if(nargin<4)
-                defaultRandomizer = false;
+                performanceAxesH = -1;
                 if(nargin<3)
-                    showCalinskiIndex = false;
+                    defaultRandomizer = false;
                     if(nargin<2)
                         settings.minClusters = 40;
                         settings.maxClusters = size(loadShapes,1)/2;
-                        settings.thresholdScale = 1.5; %higher threshold equates to fewer clusters.
+                        settings.thresholdScale = 5; %higher threshold equates to fewer clusters.
                     end
                 end
             end
+            
             if(defaultRandomizer)
                 rng('default');  % To get same results from run to run...
-            end
-            if(showCalinskiIndex)
-                globalLoadShapeMean = mean(loadShapes(:));
-                calinskiFig = figure;
-                
-                calinskiAxes = axes('parent',calinskiFig,'box','on');
-                calinskiLine = line('xdata',nan,'ydata',nan,'parent',calinskiAxes,'linestyle','none','marker','o');
-                xlabel(calinskiAxes,'K');
-                ylabel(calinskiAxes,'Calinksi Index');
+            end            
+            
+            if(ishandle(performanceAxesH) && ~strcmpi(get(performanceAxesH,'type'),'axes'))
+                fprintf(1,'Input graphic handle is of type %s, but ''axes'' type is required.  Performance measures will not be shown.',get(performanceAxesH,'type'));
+                performanceAxesH = -1;
+            end    
+            
+            % Make sure we have an axes handle.
+            if(ishandle(performanceAxesH))
+                %performanceAxesH = axes('parent',calinskiFig,'box','on');
+                %calinskiLine = line('xdata',nan,'ydata',nan,'parent',performanceAxesH,'linestyle','none','marker','o');
+                xlabel(performanceAxesH,'K');
+                ylabel(performanceAxesH,'Calinksi Index');
                 X = [];
                 Y = [];
             end
@@ -326,9 +359,19 @@ classdef PACentroid < handle
             centroids = loadShapes(randperm(N,K),:);
             % prime loop condition since we don't have a do while ...
             numNotCloseEnough = settings.minClusters;
-            
+            firstLoop = true;
             while(numNotCloseEnough>0 && K<=settings.maxClusters)
-                fprintf('%u were not close enough.  Setting cluster size to %u.\n',numNotCloseEnough,K);
+                if(~firstLoop)
+                    if(numNotCloseEnough==1)
+                        fprintf('1 cluster was not close enough.  Setting desired number of clusters to %u.\n',numNotCloseEnough,K);
+                        
+                    else
+                        fprintf('%u clusters were not close enough.  Setting desired number of clusters to %u.\n',numNotCloseEnough,K);
+                    end
+                else
+                    fprintf('Initializing desired number of clusters to %u.\n',K);
+                    firstLoop = false;
+                end
                 
                 tic
                 %     IDX = kmeans(X,K) returns an N-by-1 vector IDX containing the cluster
@@ -345,16 +388,16 @@ classdef PACentroid < handle
                 [idx, centroids, sumD, pointToClusterDistances] = kmeans(loadShapes,K,'Start',centroids,'EmptyAction','drop');
                 
                 %    [~, centroids, sumOfPointToCentroidDistances] = kmeans(loadShapes,K,'EmptyAction','drop');
-                if(showCalinskiIndex)
-                    if(ishandle(calinskiAxes))
-                        calinskiIndex  = this.getCalinskiHarabaszIndex(idx,centroids,sumD,globalLoadShapeMean);
-                        X(end+1)= K;
-                        Y(end+1)=calinskiIndex;
-                        plot(calinskiAxes,'xdata',X,'ydata',Y);
-                        %set(calinskiLine,'xdata',X,'ydata',Y);
-                        %set(calinkiAxes,'xlim',[min(X)-5,
-                        %max(X)]+5,[min(Y)-10,max(Y)+10]);
-                    end
+                if(ishandle(performanceAxesH))
+                    calinskiIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);
+                    X(end+1)= K;
+                    Y(end+1)=calinskiIndex;
+                    plot(performanceAxesH,X,Y,'linestyle',':','marker','o');
+                    drawnow();
+                    %plot(calinskiAxes,'xdata',X,'ydata',Y);
+                    %set(calinskiLine,'xdata',X,'ydata',Y);
+                    %set(calinkiAxes,'xlim',[min(X)-5,
+                    %max(X)]+5,[min(Y)-10,max(Y)+10]);
                 end
             
                 
@@ -365,7 +408,19 @@ classdef PACentroid < handle
                     centroids(removed,:)=[];
                     K = K-numRemoved;
                     [idx, centroids, sumD, pointToClusterDistances] = kmeans(loadShapes,K,'Start',centroids,'EmptyAction','drop','onlinephase','off');
-                end
+                                        
+                    if(ishandle(performanceAxesH))
+                        calinskiIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);
+                        X(end+1)= K;
+                        Y(end+1)=calinskiIndex;
+                        plot(performanceAxesH,X,Y,'linestyle',':','marker','o');
+                        drawnow();
+                        
+                        %set(calinskiLine,'xdata',X,'ydata',Y);
+                        %set(calinkiAxes,'xlim',[min(X)-5,
+                        %max(X)]+5,[min(Y)-10,max(Y)+10]);
+                    end                    
+                end                
                 
                 toc
                 
@@ -414,10 +469,49 @@ classdef PACentroid < handle
             if(numNotCloseEnough~=0)
                 fprintf('Failed to converge using a maximum limit of %u clusters.\n',settings.maxClusters);
             else
+                
+                if(ishandle(performanceAxesH))
+                    if(ishandle(performanceAxesH))
+                        calinskiIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);
+                        X(end+1)= K;
+                        Y(end+1)=calinskiIndex;
+                        plot(performanceAxesH,X,Y);
+                        drawnow();
+                        %set(calinskiLine,'xdata',X,'ydata',Y);
+                        %set(calinkiAxes,'xlim',[min(X)-5,
+                        %max(X)]+5,[min(Y)-10,max(Y)+10]);
+                    end
+                end                
+                
                 fprintf('Converged with a cluster size of %u.\n',K);
                 
             end
         end
+        
+        
+                
+        %> @brief Validation metric for cluster separation.   Useful in determining if clusters are well separated.  
+        %> If clusters are not well separated, then the Adaptive K-means threshold should be adjusted according to the segmentation resolution desired.
+        %> @note See Calinski, T., and J. Harabasz. "A dendrite method for cluster analysis." Communications in Statistics. Vol. 3, No. 1, 1974, pp. 1?27.
+        %> @note See also http://www.mathworks.com/help/stats/clustering.evaluation.calinskiharabaszevaluation-class.html 
+        %> @param Vector of output from mapping loadShapes to parent
+        %> centroids.
+        %> @param Centroids calculated via kmeans
+        %> @param sum of euclidean distances
+        %> @retval The Calinzki-Harabasz index
+        function calinskiIndex = getCalinskiHarabaszIndex(loadShapeMap,centroids,sumD)
+            [sortedCounts, sortedIndices] = PACentroid.calculateAndSortDistribution(loadShapeMap);
+            sortedCentroids = centroids(sortedIndices,:);
+            numObservations = numel(loadShapeMap);
+            numCentroids = size(centroids,1);
+            globalMeans = mean(sortedCentroids,1);
+            
+            ssWithin = sum(sumD,1);
+            ssBetween = (pdist2(sortedCentroids,globalMeans)).^2;
+            ssBetween = sortedCounts(:)'*ssBetween(:);  %inner product
+            calinskiIndex = ssBetween/ssWithin*(numObservations-numCentroids)/(numCentroids-1);
+        end
+        
     end
     
 end
