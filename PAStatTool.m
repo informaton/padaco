@@ -790,7 +790,7 @@ classdef PAStatTool < handle
                 end
                 
                 
-                this.centroidObj = PACentroid(this.featureStruct.features,pSettings);
+                this.centroidObj = PACentroid(this.featureStruct.features,pSettings,this.handles.axes_primary);
                 if(this.centroidObj.failedToConverge())
                     this.centroidObj = [];
                 end
@@ -892,10 +892,12 @@ classdef PAStatTool < handle
                     case 'membership'
                         set(distributionAxes,'ylimmode','auto');
 
-                        barH = bar(distributionAxes,this.centroidObj.getHistogram());                        
+                        barH = bar(distributionAxes,this.centroidObj.getHistogram(),0.8);                        
                         highlightColor = [0.75 0.75 0];
                         defaultColor = [0 0 9/16];
                         faceVertexCData = repmat(defaultColor,numCentroids,1);
+                        faceVertexCData = repmat(defaultColor,1331,1);
+                        
                         faceVertexCData(coi.sortOrder,:) = highlightColor;
                         patchH = get(barH,'children');
                         set(patchH,'facevertexcdata',faceVertexCData);

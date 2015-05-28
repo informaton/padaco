@@ -97,7 +97,7 @@ classdef PACentroid < handle
                 handleType = get(axesOrLineH,'type');
                 if(strcmpi(handleType,'axes'))
                     this.performanceAxesHandle = axesOrLineH;
-                    this.performanceLineHandle = line('parent',axesOrLineH,'xdata',nan,'ydata','nan','linestyle',':','marker','o');
+                    this.performanceLineHandle = line('parent',axesOrLineH,'xdata',nan,'ydata',nan,'linestyle',':','marker','o');
                 elseif(strcmpi(handleType,'line'))
                     this.performanceLineHandle = axesOrLineH;
                     set(this.performanceLineHandle,'xdata',nan,'ydata',nan,'linestyle',':','marker','o');
