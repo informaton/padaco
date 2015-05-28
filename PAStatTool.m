@@ -61,7 +61,6 @@ classdef PAStatTool < handle
             
             this.featuresDirectory = [];
             this.imagesDirectory = [];
-
             this.figureH = padaco_fig_h;
             this.featureStruct = [];
             this.initHandles();            
@@ -792,7 +791,11 @@ classdef PAStatTool < handle
                 
                 this.centroidObj = PACentroid(this.featureStruct.features,pSettings,this.handles.axes_primary);
                 if(this.centroidObj.failedToConverge())
+                    warndlg('Failed to converge');
                     this.centroidObj = [];
+                else
+                    fprintf(1,'pause(3)');
+                    pause(3);
                 end
             else
                 inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);                
@@ -895,8 +898,7 @@ classdef PAStatTool < handle
                         barH = bar(distributionAxes,this.centroidObj.getHistogram(),0.8);                        
                         highlightColor = [0.75 0.75 0];
                         defaultColor = [0 0 9/16];
-                        faceVertexCData = repmat(defaultColor,numCentroids,1);
-                        faceVertexCData = repmat(defaultColor,1331,1);
+                        faceVertexCData = repmat(defaultColor,numCentroids,1);                        
                         
                         faceVertexCData(coi.sortOrder,:) = highlightColor;
                         patchH = get(barH,'children');

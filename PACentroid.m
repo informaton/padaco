@@ -51,6 +51,9 @@ classdef PACentroid < handle
         
         %> Similar to performance line, but is an axes handle.
         performanceAxesHandle;
+        
+        %> Measure of performance.  Currently, this is the Calinski index.
+        performanceMeasure;
     end
 
             
@@ -110,6 +113,7 @@ classdef PACentroid < handle
                 this.performanceLineHandle = -1;
             end
             
+            this.performanceMeasure = [];
             this.settings.thresholdScale = settings.clusterThreshold;
             this.settings.minClusters = settings.minClusters;
             
@@ -201,6 +205,12 @@ classdef PACentroid < handle
             end
         end
         
+        
+        function performance = getClusteringPerformance(this)
+            performance = this.performanceMeasure;
+        end
+        
+        
         % ======================================================================
         %> @brief Returns a descriptive struct for the centroid of interest (coi) 
         %> which is determined by the member variable coiSortOrder.
@@ -255,7 +265,7 @@ classdef PACentroid < handle
             end
             useDefaultRandomizerSeed = true;
             
-            [this.load2centroidMap, this.centroidShapes] = this.adaptiveKmeans(inputLoadShapes,inputSettings, useDefaultRandomizerSeed,this.performanceAxesHandle);
+            [this.load2centroidMap, this.centroidShapes, this.performanceMeasure] = this.adaptiveKmeans(inputLoadShapes,inputSettings, useDefaultRandomizerSeed,this.performanceAxesHandle);
             if(~isempty(this.centroidShapes))                
                 [this.histogram, this.centroidSortMap] = this.calculateAndSortDistribution(this.load2centroidMap);%  was -->       calculateAndSortDistribution(this.load2centroidMap);
                 this.coiSortOrder = this.numCentroids();
@@ -317,8 +327,8 @@ classdef PACentroid < handle
         %> @retval idx = Rx1 vector of cluster indices that the matching (i.e. same) row of the loadShapes is assigned to.
         %> @retval centroids - KxC matrix of cluster centroids.
         % ======================================================================
-        function [idx, centroids] = adaptiveKmeans(loadShapes,settings,defaultRandomizer,performanceAxesH)
-            
+        function [idx, centroids, performanceIndex] = adaptiveKmeans(loadShapes,settings,defaultRandomizer,performanceAxesH)
+            performanceIndex = [];
             % argument checking and validation ....
             if(nargin<4)
                 performanceAxesH = -1;
@@ -389,9 +399,9 @@ classdef PACentroid < handle
                 
                 %    [~, centroids, sumOfPointToCentroidDistances] = kmeans(loadShapes,K,'EmptyAction','drop');
                 if(ishandle(performanceAxesH))
-                    calinskiIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);
+                    performanceIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);
                     X(end+1)= K;
-                    Y(end+1)=calinskiIndex;
+                    Y(end+1)=performanceIndex;
                     plot(performanceAxesH,X,Y,'linestyle',':','marker','o');
                     drawnow();
                     %plot(calinskiAxes,'xdata',X,'ydata',Y);
@@ -410,9 +420,9 @@ classdef PACentroid < handle
                     [idx, centroids, sumD, pointToClusterDistances] = kmeans(loadShapes,K,'Start',centroids,'EmptyAction','drop','onlinephase','off');
                                         
                     if(ishandle(performanceAxesH))
-                        calinskiIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);
+                        performanceIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);
                         X(end+1)= K;
-                        Y(end+1)=calinskiIndex;
+                        Y(end+1)=performanceIndex;
                         plot(performanceAxesH,X,Y,'linestyle',':','marker','o');
                         drawnow();
                         
@@ -472,20 +482,19 @@ classdef PACentroid < handle
                 
                 if(ishandle(performanceAxesH))
                     if(ishandle(performanceAxesH))
-                        calinskiIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);
+                        performanceIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);
                         X(end+1)= K;
-                        Y(end+1)=calinskiIndex;
-                        plot(performanceAxesH,X,Y);
+                        Y(end+1)=performanceIndex;
+                        plot(performanceAxesH,X,Y,'linestyle',':','marker','o');
                         drawnow();
+                        
                         %set(calinskiLine,'xdata',X,'ydata',Y);
                         %set(calinkiAxes,'xlim',[min(X)-5,
                         %max(X)]+5,[min(Y)-10,max(Y)+10]);
                     end
-                end                
-                
-                fprintf('Converged with a cluster size of %u.\n',K);
-                
-            end
+                end                                
+                fprintf('Converged with a cluster size of %u.\n',K);                
+            end             
         end
         
         
