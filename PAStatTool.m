@@ -902,6 +902,7 @@ classdef PAStatTool < handle
                         
                         faceVertexCData(coi.sortOrder,:) = highlightColor;
                         patchH = get(barH,'children');
+                        set(patchH,'edgecolor','k');
                         set(patchH,'facevertexcdata',faceVertexCData);
                         
                         title(distributionAxes,sprintf('Load shape count per centroid (Total centroid count: %u\tTotal load shape count: %u)',this.centroidObj.numCentroids(), this.centroidObj.numLoadShapes()));
