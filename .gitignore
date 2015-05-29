@@ -22,3 +22,5 @@ archive/processProgressions.m
 archive/processResults.m
 
 *.bak
+
+huh/bartest.m
