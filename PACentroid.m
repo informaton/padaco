@@ -128,9 +128,10 @@ classdef PACentroid < handle
             
             this.performanceMeasure = [];
             this.settings.thresholdScale = settings.clusterThreshold;
-            this.settings.minClusters = settings.minClusters;
+            %/ Do not let K start off higher than 
+            this.settings.minClusters = min(floor(size(loadShapes,1)/2),settings.minClusters);
             
-            if(isfield(settings,'maxCluster'))
+            if(isfield(settings,'maxCluster'))                
                 maxClusters = settings.maxClusters;
             else
                 maxClusters = ceil(size(loadShapes,1)/2);
