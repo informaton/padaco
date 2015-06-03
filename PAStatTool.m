@@ -517,9 +517,10 @@ classdef PAStatTool < handle
                 'push_refreshCentroids'
                 'panel_plotCentroid'
                 'panel_results'
+                'panel_controlCentroid'
                 'push_nextCentroid'
                 'push_previousCentroid'
-                'text_primaryAxes'};
+                'text_resultsCentroid'};
             
             for f=1:numel(handlesOfInterest)
                 fname = handlesOfInterest{f};
@@ -735,7 +736,6 @@ classdef PAStatTool < handle
             set(this.handles.push_refreshCentroids,'enable','on','backgroundcolor','green');
         end
         
-        
         % ======================================================================
         %> @brief Check button callback to refresh centroid display.
         %> @param this Instance of PAStatTool
@@ -744,7 +744,6 @@ classdef PAStatTool < handle
         function checkShowCentroidsCallback(this,varargin)
             this.plotCentroids();
         end
-        
 
         % ======================================================================
         %> @brief Push button callback for updating the centroids being displayed.
@@ -793,21 +792,20 @@ classdef PAStatTool < handle
                         fname = fieldsOfInterest{f};
                         this.featureStruct.(fname) = this.featureStruct.(fname)(rowsOfInterest,:);                        
                     end                    
-                end
-                
+                end                
+                resultsTextH = this.handles.text_resultsCentroid;
                 set(this.handles.axes_primary,'color',[1 1 1],'xlimmode','auto','ylimmode','auto','xtickmode','auto','ytickmode','auto','xticklabelmode','auto','yticklabelmode','auto','xminortick','off','yminortick','off');
-                set(this.handles.text_primaryAxes,'backgroundcolor',[0 0 0],'foregroundcolor',[1 1 0],'visible','on','string',{''});
+                %   set(this.handles.text_primaryAxes,'backgroundcolor',[0 0 0],'foregroundcolor',[1 1 0],'visible','on','string',{''});
                 drawnow();
-                this.centroidObj = PACentroid(this.featureStruct.features,pSettings,this.handles.axes_primary,this.handles.text_primaryAxes);
+                this.centroidObj = PACentroid(this.featureStruct.features,pSettings,this.handles.axes_primary,resultsTextH);
                 if(this.centroidObj.failedToConverge())
                     warndlg('Failed to converge');
                     this.centroidObj = [];
                 else
-                    fprintf(1,'pause(3)');
-                    pause(3);
-                    set(this.handles.text_primaryAxes,'visible','off','string','');
-
-                    fprintf(1,'\n');
+                    %                     fprintf(1,'pause(3)');
+                    %                     pause(3);
+                    %                     set(this.handles.text_results,'visible','off','string','');
+                    %                     fprintf(1,'\n');
                 end
             else
                 inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);                
@@ -820,7 +818,6 @@ classdef PAStatTool < handle
                 this.plotCentroids(pSettings); 
             else
                 set(this.handles.axes_primary,'color',[0.75 0.75 0.75]);
-
             end
             this.showReady();
         end

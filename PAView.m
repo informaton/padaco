@@ -159,7 +159,10 @@ classdef PAView < handle
             handles = guidata(obj.getFigHandle());
             
             % get our panles looking nice and pretty.
-            set([handles.panel_timeseries,handles.panel_results],'backgroundcolor',[0.75,0.75,0.75]);
+            set([
+                    handles.panel_timeseries;
+                    handles.panel_results
+                ],'backgroundcolor',[0.75,0.75,0.75]);
             
             % Line our panels up to same top left position - do this here
             % so I can edit them easy in GUIDE and avoid to continually
@@ -571,7 +574,11 @@ classdef PAView < handle
         function disableWidgets(obj)            
             handles = guidata(obj.getFigHandle());            
 
-            resultPanels = handles.panel_results;
+            resultPanels = [
+                            handles.panel_results;
+                            handles.panel_controlCentroid;
+                           ];
+
             timeseriesPanels = [handles.panel_timeseries;
                 handles.panel_displayButtonGroup;
                 handles.panel_epochControls];                        
@@ -628,8 +635,14 @@ classdef PAView < handle
             
             handles = guidata(obj.getFigHandle());
             
-            resultPanels = handles.panel_results;
-            timeseriesPanels = [handles.panel_timeseries;
+            
+            resultPanels = [
+                handles.panel_results;
+                handles.panel_controlCentroid;
+                ];
+                       
+            timeseriesPanels = [
+                handles.panel_timeseries;
                 handles.panel_displayButtonGroup;
                 handles.panel_epochControls];
             
@@ -1631,50 +1644,3 @@ classdef PAView < handle
     end
 end
 
-
-% % --------------------------------------------------------------------
-% %> @brief Initialize the line handles that will be used in the view.
-% %> Also turns on the vertical positioning line seen in the
-% %> secondary axes.
-% %> @param Instance of PAView.
-% %> @param Structure of line properties corresponding to the
-% %> fields of the linehandle instance variable.
-% %> If empty ([]) then default PAData.getDummyDisplayStruct is used.
-% % --------------------------------------------------------------------
-% function initLineHandles(obj,lineProps)
-% 
-% if(nargin<2 || isempty(lineProps))
-%     lineProps = PAData.getDummyDisplayStruct();
-% end
-% 
-% obj.recurseHandleSetter(obj.linehandle, lineProps);
-% obj.recurseHandleSetter(obj.referencelinehandle, lineProps);
-% 
-% 
-% end
-% 
-% % --------------------------------------------------------------------
-% %> @brief Initialize the label handles that will be used in the view.
-% %> Also turns on the vertical positioning line seen in the
-% %> secondary axes.
-% %> @param Instance of PAView.
-% %> @param Structure of label properties corresponding to the
-% %> fields of the labelhandle instance variable.
-% % --------------------------------------------------------------------
-% function initLabelHandles(obj,labelProps)
-% obj.recurseHandleSetter(obj.labelhandle, labelProps);
-% end
-
-
-
-% % --------------------------------------------------------------------
-% %> @brief Restores the view to ready state (mouse becomes the default pointer).
-% %> @param obj Instance of PAView
-% % --------------------------------------------------------------------
-% function popout_axes(~, ~, axes_h)
-% % hObject    handle to context_menu_pop_out (see GCBO)
-% % eventdata  reserved - to be defined in a future version of MATLAB
-% % handles    structure with handles and user data (see GUIDATA)
-% fig = figure;
-% copyobj(axes_h,fig); %or get parent of hObject's parent
-% end

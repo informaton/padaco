@@ -105,6 +105,7 @@ classdef PACentroid < handle
             end
             if(~isempty(textHandle) && ishandle(textHandle) && strcmpi(get(textHandle,'type'),'uicontrol') && strcmpi(get(textHandle,'style'),'text'))
                 this.statusTextHandle = textHandle;
+                
             else
                 this.statusTextHandle = -1;
             end
@@ -139,6 +140,7 @@ classdef PACentroid < handle
             
             this.settings.maxClusters = maxClusters;
             this.loadShapes = loadShapes;
+            
             this.calculateCentroids();  
         end
         
@@ -279,6 +281,9 @@ classdef PACentroid < handle
             end
             useDefaultRandomizerSeed = true;
             
+            if(ishandle(this.statusTextHandle))
+               set(this.statusTextHandle ,'string',{sprintf('Performaing adaptive K-means algorithm of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.thresholdScale)});                
+            end            
             [this.load2centroidMap, this.centroidShapes, this.performanceMeasure] = this.adaptiveKmeans(inputLoadShapes,inputSettings, useDefaultRandomizerSeed,this.performanceAxesHandle,this.statusTextHandle);
             if(~isempty(this.centroidShapes))                
                 [this.histogram, this.centroidSortMap] = this.calculateAndSortDistribution(this.load2centroidMap);%  was -->       calculateAndSortDistribution(this.load2centroidMap);

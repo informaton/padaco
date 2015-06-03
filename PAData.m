@@ -1686,7 +1686,7 @@ toc
            remSleepPeriodParams.merge_within_samples = 60*5*obj.getSampleRate();  %merge within 5 minutes
            remSleepPeriodParams.min_dur_samples = 60*20*obj.getSampleRate();   %require minimum of 20 minutes
            remSleepVec = obj.reprocessEventVector(sleepVec&shortNoActivityVec,remSleepPeriodParams.min_dur_samples,remSleepPeriodParams.merge_within_samples);
-           candidate_nonwear_events= thresholdcrossings(longNoActivityVec,0);
+           candidate_nonwear_events= obj.thresholdcrossings(longNoActivityVec,0);
            
            params.merge_within_sec = 3600*4;
            params.min_dur_sec = 3600*4;
@@ -1698,7 +1698,7 @@ toc
                
                if(params.merge_within_sec>0)
                    merge_distance = round(params.merge_within_sec*obj.getSampleRate());
-                   nonwear_events = CLASS_events.merge_nearby_events(candidate_nonwear_events,merge_distance);
+                   nonwear_events = obj.merge_nearby_events(candidate_nonwear_events,merge_distance);
                end
                
                if(params.min_dur_sec>0)
@@ -1709,7 +1709,7 @@ toc
                studyOverParams.merge_within_sec = 3600*6; %-> group within 6 hours ..
                studyOverParams.min_dur_sec = 3600*12;% -> this is for classifying state as over.
                merge_distance = round(studyOverParams.merge_within_sec*obj.getSampleRate());
-               candidate_studyover_events = CLASS_events.merge_nearby_events(nonwear_events,merge_distance);
+               candidate_studyover_events = obj.merge_nearby_events(nonwear_events,merge_distance);
                diff_sec = (candidate_studyover_events(:,2)-candidate_studyover_events(:,1))/obj.getSampleRate();                   
                studyover_events = candidate_studyover_events(diff_sec>=studyOverParams.min_dur_sec,:);
                
@@ -1738,7 +1738,7 @@ toc
            
            studyOverVec = obj.unrollEvents(studyover_events,numel(usageVec));
            
-           nonwear_events = thresholdcrossings(nonwearVec,0);
+           nonwear_events = obj.thresholdcrossings(nonwearVec,0);
 
            nonwearStartStopDateNums = [obj.dateTimeNum(nonwear_events(:,1)),obj.dateTimeNum(nonwear_events(:,2))];
            %durationOff = nonwear(:,2)-nonwear(:,1);
@@ -1747,7 +1747,7 @@ toc
 
            %            wearVec = runningActivitySum>=offBodyThreshold;
            wearVec = ~nonwearVec;
-           wear = thresholdcrossings(wearVec,0);
+           wear = obj.thresholdcrossings(wearVec,0);
            wearStartStopDateNums = [obj.dateTimeNum(wear(:,1)),obj.dateTimeNum(wear(:,2))];
            wearState = repmat(10,size(wear,1),1);
 
@@ -2398,12 +2398,12 @@ toc
        %======================================================================
        function processVec = reprocessEventVector(logicalVec,min_duration_samples,merge_distance_samples)
            
-           candidate_events= thresholdcrossings(logicalVec,0);
+           candidate_events= PAData.thresholdcrossings(logicalVec,0);
            
            if(~isempty(candidate_events))
                
                if(merge_distance_samples>0)
-                   candidate_events = CLASS_events.merge_nearby_events(candidate_events,merge_distance_samples);
+                   candidate_events = PAData.merge_nearby_events(candidate_events,merge_distance_samples);
                end
                
                if(min_duration_samples>0)
@@ -3281,6 +3281,87 @@ toc
                end
            end
        end
+
+       %> @brief Returns start and stop pairs of the sample points where where line_in is
+       %> greater (i.e. crosses) than threshold_line
+       %> threshold_line and line_in must be of the same length if threshold_line is
+       %> not a scalar value.
+       %> @retval 
+       %> - Nx2 matrix of start and stop pairs of the sample points where where line_in is
+       %> greater (i.e. crosses) than threshold_line
+       %> - An empty matrix if no pairings are found
+       %> @note Lifted from informaton/sev suite.  Authored by Hyatt Moore, IV (< June, 2013)
+       function x = thresholdcrossings(line_in, threshold_line)
+
+           if(nargin==1 && islogical(line_in))
+               ind = find(line_in);
+           else
+               ind = find(line_in>threshold_line);
+           end
+           cur_i = 1;
+           
+           if(isempty(ind))
+               x = ind;
+           else
+               x_tmp = zeros(length(ind),2);
+               x_tmp(1,:) = [ind(1) ind(1)];
+               for k = 2:length(ind);
+                   if(ind(k)==x_tmp(cur_i,2)+1)
+                       x_tmp(cur_i,2)=ind(k);
+                   else
+                       cur_i = cur_i+1;
+                       x_tmp(cur_i,:) = [ind(k) ind(k)];
+                   end;
+               end;
+               x = x_tmp(1:cur_i,:);
+           end;
+       end
+
+       % ======================================================================
+       %> @brief Merges events, that are separated by less than some minimum number
+       %> of samples, into a single event that stretches from the start of the first event
+       %> and spans until the last event of each minimally separated event
+       %> pairings.  Events that are not minimally separated by another
+       %> event are retained with the output.
+       %> @param event_mat_in is a two column matrix
+       %> @param min_samples is a scalar value
+       %> @retval merged_events The output of merging event_mat's events
+       %> that are separated by less than min_samples.
+       %> @retval merged_indices is a logical vector of the row indices that
+       %> were merged from event_mat_in. - these are the indices of the
+       %> in event_mat_in that are removed/replaced
+       %> @note Lifted from SEV's CLASS_events.m - authored by Hyatt Moore
+       %> IV
+       % =================================================================
+       function [merged_events, merged_indices] = merge_nearby_events(event_mat_in,min_samples)
+           
+           if(nargin==1)
+               min_samples = 100;
+           end
+           
+           merged_indices = false(size(event_mat_in,1),1);
+           
+           if(~isempty(event_mat_in))
+               merged_events = zeros(size(event_mat_in));
+               num_events_out = 1;
+               num_events_in = size(event_mat_in,1);
+               merged_events(num_events_out,:) = event_mat_in(1,:);
+               for k = 2:num_events_in
+                   if(event_mat_in(k,1)-merged_events(num_events_out,2)<min_samples)
+                       merged_events(num_events_out,2) = event_mat_in(k,2);
+                       merged_indices(k) = true;
+                   else
+                       num_events_out = num_events_out + 1;
+                       merged_events(num_events_out,:) = event_mat_in(k,:);
+                   end
+               end;
+               merged_events = merged_events(1:num_events_out,:);
+           else
+               merged_events = event_mat_in;
+           end;
+       end
+       
+       
    end
 end
 

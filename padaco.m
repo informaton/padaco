@@ -66,7 +66,6 @@ guidata(hObject, handles);
 
 mPathname = fileparts(mfilename('fullpath'));
 
-guidata(hObject, handles);
 try
     parametersFile = '_padaco.parameters.txt';
     handles.user.controller = PAController(hObject,mPathname,parametersFile); 
@@ -78,7 +77,7 @@ catch me
     fprintf(1,['The default settings file may be corrupted or inaccessible.',...
         '  This can occur when installing the software on a new computer or from editing the settings file externally.',...
         '\nChoose OK in the popup dialog to correct the settings file.\n']);
-    resetDlg(fullfile(mPathname,parametersFile));   
+    resetDlg(hObject,fullfile(mPathname,parametersFile));   
 end
 
 
@@ -100,7 +99,7 @@ ch = findobj(hObject,'-regexp','tag','axes.*');
 set(ch,'units','normalized');
 
 set(hObject,'closeRequestFcn','delete(gcbo)');
-
+movegui(hObject,'northwest');
 
 
 
@@ -113,7 +112,11 @@ function varargout = padaco_OutputFcn(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Get default command line output from handles structure
-varargout{1} = handles.output;
+if(ishandle(hObject))
+    varargout{1} = handles.output;
+else
+    varargout{1} = [];
+end
 
 
 % --- Executes during object creation, after setting all properties.
