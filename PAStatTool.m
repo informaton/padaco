@@ -236,12 +236,11 @@ classdef PAStatTool < handle
                 switch(pSettings.plotType)
                     case 'centroids'
                         this.plotCentroids(pSettings);
-                        this.enableCentroidRecalculation();                        
+                        this.enableCentroidRecalculation();
                     otherwise
                         
                         this.showBusy();
                         this.clearPlots();
-
                         this.loadFeatureStruct();
                         if(~isempty(this.featureStruct))
                             pSettings.ylabelstr = sprintf('%s of %s %s activity',pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
@@ -306,6 +305,21 @@ classdef PAStatTool < handle
         end
         
         % ======================================================================
+        %> @brief Configure gui handles for non centroid/clusting viewing
+        %> @param this Instance of PAStatTool
+        % ======================================================================
+        function switchFromClustering(this)
+            set(this.handles.check_normalizevalues,'value',this.previousState.normalizeValues,'enable','on');
+            
+            this.hideCentroidControls();
+            
+            set(findall(this.handles.panel_plotCentroid,'enable','on'),'enable','off');            %  set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','off');
+            set(this.handles.axes_secondary,'visible','off');
+            set(this.figureH,'WindowKeyPressFcn',[]);
+            this.refreshPlot();
+        end    
+        
+        % ======================================================================
         %> @brief Configure gui handles for centroid analysis and viewing.
         %> @param this Instance of PAStatTool
         % ======================================================================
@@ -313,13 +327,16 @@ classdef PAStatTool < handle
             this.previousState.normalizeValues = get(this.handles.check_normalizevalues,'value');
             set(this.handles.check_normalizevalues,'value',1,'enable','off');
             set(this.handles.axes_primary,'ydir','normal');  %sometimes this gets changed by the heatmap displays which have the time shown in reverse on the y-axis
+            
+            this.showCentroidControls();
+            
             if(isempty(this.centroidObj) || this.centroidObj.failedToConverge())
+                this.disableCentroidControls();
                 this.refreshCentroidsAndPlot();  
             else
                 this.plotCentroids();
             end
             set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','on');
-
             
             set(this.handles.axes_secondary,'visible','on');
             set(this.figureH,'WindowKeyPressFcn',@this.keyPressFcn);
@@ -346,17 +363,6 @@ classdef PAStatTool < handle
             end
         end
         
-        % ======================================================================
-        %> @brief Configure gui handles for non centroid/clusting viewing
-        %> @param this Instance of PAStatTool
-        % ======================================================================
-        function switchFromClustering(this)
-            set(this.handles.check_normalizevalues,'value',this.previousState.normalizeValues,'enable','on');
-            set(findall(this.handles.panel_plotCentroid,'enable','on'),'enable','off');            %  set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','off');
-            set(this.handles.axes_secondary,'visible','off');
-            set(this.figureH,'WindowKeyPressFcn',[]);
-            this.refreshPlot();
-        end        
 
         % ======================================================================
         %> @brief Initialize gui handles using input parameter or default
@@ -395,6 +401,9 @@ classdef PAStatTool < handle
                     [this.featureTypes,~,ib] = intersect(featureNames,this.base.featureTypes);
                     
                     if(~isempty(this.featureTypes))
+                        % clear results text
+                        set(this.handles.text_resultsCentroid,'string',[]);
+                        
                         
                         % Enable everything and then shut things down as needed. 
                         set(findall(this.handles.panels_sansCentroids,'enable','off'),'enable','on');
@@ -480,6 +489,7 @@ classdef PAStatTool < handle
             % disable everything
             if(~this.canPlot)
                 set(findall(this.handles.panel_results,'enable','on'),'enable','off');                
+                this.hideCentroidControls();
             end
         end
 
@@ -657,7 +667,7 @@ classdef PAStatTool < handle
                 otherwise
                     disp Oops!;
             end
-            title(axesHandle,titleStr);
+            title(axesHandle,titleStr,'fontsize',14);
 
             xlimits = minmax(weekdayticks);
 
@@ -795,7 +805,8 @@ classdef PAStatTool < handle
                 end                
                 resultsTextH = this.handles.text_resultsCentroid;
                 set(this.handles.axes_primary,'color',[1 1 1],'xlimmode','auto','ylimmode','auto','xtickmode','auto','ytickmode','auto','xticklabelmode','auto','yticklabelmode','auto','xminortick','off','yminortick','off');
-                %   set(this.handles.text_primaryAxes,'backgroundcolor',[0 0 0],'foregroundcolor',[1 1 0],'visible','on','string',{''});
+                set(resultsTextH,'visible','on');
+% %                 set(this.handles.text_primaryAxes,'backgroundcolor',[0 0 0],'foregroundcolor',[1 1 0],'visible','on');
                 drawnow();
                 this.centroidObj = PACentroid(this.featureStruct.features,pSettings,this.handles.axes_primary,resultsTextH);
                 if(this.centroidObj.failedToConverge())
@@ -816,12 +827,30 @@ classdef PAStatTool < handle
                 defaultBackgroundColor = get(0,'FactoryuicontrolBackgroundColor');
                 set(this.handles.push_refreshCentroids,'enable','off','backgroundcolor',defaultBackgroundColor);
                 this.plotCentroids(pSettings); 
+                this.enableCentroidControls();
             else
+                this.disableCentroidControls();
                 set(this.handles.axes_primary,'color',[0.75 0.75 0.75]);
             end
             this.showReady();
         end
         
+        
+        function hideCentroidControls(this)
+            set(this.handles.panel_controlCentroid,'visible','off');            
+        end
+        
+        function showCentroidControls(this)
+            set(this.handles.panel_controlCentroid,'visible','on');
+        end
+        
+        function enableCentroidControls(this)
+            set(findall(this.handles.panel_controlCentroid,'enable','off'),'enable','on');  
+        end
+        
+        function disableCentroidControls(this)
+            set(findall(this.handles.panel_controlCentroid,'enable','on'),'enable','off');              
+        end
         
         % ======================================================================
         %> @brief Displays most recent centroid data according to gui
@@ -1128,6 +1157,8 @@ classdef PAStatTool < handle
             nzi = a~=0;
             normalizedLoadShapes(nzi,:) = loadShapes(nzi,:)./repmat(a(nzi),1,size(loadShapes,2));            
         end
+        
+        
         
     end
 end

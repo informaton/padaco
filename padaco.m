@@ -86,14 +86,15 @@ function initializeGUI(hObject)
 
 % set(hObject,'visible','on');
 figColor = get(hObject,'color');
-
-ch = findall(hObject,'type','uipanel');
-set(ch,'backgroundcolor',figColor);
-
-ch = findobj(hObject,'-regexp','tag','text.*');
-
-ch(strcmp(get(ch,'type'),'uimenu'))=[];
-set(ch,'backgroundcolor',figColor);
+handles = guidata(hObject);
+set(handles.text_status,'backgroundcolor',figColor);
+% ch = findall(hObject,'type','uipanel');
+% set(ch,'backgroundcolor',figColor);
+% 
+% ch = findobj(hObject,'-regexp','tag','text.*');
+% 
+% ch(strcmp(get(ch,'type'),'uimenu'))=[];
+% set(ch,'backgroundcolor',figColor);
 
 ch = findobj(hObject,'-regexp','tag','axes.*');
 set(ch,'units','normalized');
