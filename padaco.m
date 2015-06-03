@@ -60,6 +60,7 @@ function padaco_OpeningFcn(hObject, eventdata, handles, varargin)
 handles.output = hObject;
 
 initializeGUI(hObject);
+
 % Update handles structure
 guidata(hObject, handles);
 
@@ -77,7 +78,7 @@ catch me
     fprintf(1,['The default settings file may be corrupted or inaccessible.',...
         '  This can occur when installing the software on a new computer or from editing the settings file externally.',...
         '\nChoose OK in the popup dialog to correct the settings file.\n']);
-    %menu_help_defaults_Callback([],[],[]);   
+    resetDlg(fullfile(mPathname,parametersFile));   
 end
 
 
@@ -97,6 +98,9 @@ set(ch,'backgroundcolor',figColor);
 
 ch = findobj(hObject,'-regexp','tag','axes.*');
 set(ch,'units','normalized');
+
+set(hObject,'closeRequestFcn','delete(gcbo)');
+
 
 
 

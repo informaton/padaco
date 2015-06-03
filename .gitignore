@@ -24,3 +24,5 @@ archive/processResults.m
 *.bak
 
 huh/bartest.m
+
+matlab_workspace.mat
