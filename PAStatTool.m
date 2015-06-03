@@ -59,6 +59,7 @@ classdef PAStatTool < handle
                 widgetSettings = [];
             end
             
+            this.canPlot = false;
             this.featuresDirectory = [];
             this.imagesDirectory = [];
             this.figureH = padaco_fig_h;
@@ -69,6 +70,7 @@ classdef PAStatTool < handle
             
             this.featureInputFilePattern = ['%s',filesep,'%s',filesep,'features.%s.accel.%s.%s.txt'];
             this.featureInputFileFieldnames = {'inputPathname','displaySeletion','processType','curSignal'};
+            
             
             if(isdir(resultsPathname))
                 this.resultsDirectory = resultsPathname;
@@ -83,9 +85,11 @@ classdef PAStatTool < handle
                     this.imagesDirectory = imagesPath;
                 else
                     fprintf('Images pathname (%s) does not exist!\n',imagesPath);
-                end   
+                end
+                
                 
                 this.initWidgets(widgetSettings);  %initializes previousstate.plotType on success
+
                 plotType = this.base.plotTypes{get(this.handles.menu_plottype,'value')};
                 this.clearPlots();
                 set(padaco_fig_h,'visible','on');
@@ -95,6 +99,7 @@ classdef PAStatTool < handle
                     otherwise
                         this.switchFromClustering();
                 end
+
             else
                 fprintf('%s does not exist!\n',resultsPathname); 
             end
@@ -307,13 +312,14 @@ classdef PAStatTool < handle
         function switch2clustering(this)
             this.previousState.normalizeValues = get(this.handles.check_normalizevalues,'value');
             set(this.handles.check_normalizevalues,'value',1,'enable','off');
-            set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','on');
             set(this.handles.axes_primary,'ydir','normal');  %sometimes this gets changed by the heatmap displays which have the time shown in reverse on the y-axis
             if(isempty(this.centroidObj) || this.centroidObj.failedToConverge())
                 this.refreshCentroidsAndPlot();  
             else
                 this.plotCentroids();
             end
+            set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','on');
+
             
             set(this.handles.axes_secondary,'visible','on');
             set(this.figureH,'WindowKeyPressFcn',@this.keyPressFcn);
@@ -512,7 +518,8 @@ classdef PAStatTool < handle
                 'panel_plotCentroid'
                 'panel_results'
                 'push_nextCentroid'
-                'push_previousCentroid'};
+                'push_previousCentroid'
+                'text_primaryAxes'};
             
             for f=1:numel(handlesOfInterest)
                 fname = handlesOfInterest{f};
@@ -788,14 +795,19 @@ classdef PAStatTool < handle
                     end                    
                 end
                 
-                
-                this.centroidObj = PACentroid(this.featureStruct.features,pSettings,this.handles.axes_primary);
+                set(this.handles.axes_primary,'color',[1 1 1],'xlimmode','auto','ylimmode','auto','xtickmode','auto','ytickmode','auto','xticklabelmode','auto','yticklabelmode','auto','xminortick','off','yminortick','off');
+                set(this.handles.text_primaryAxes,'backgroundcolor',[0 0 0],'foregroundcolor',[1 1 0],'visible','on','string',{''});
+                drawnow();
+                this.centroidObj = PACentroid(this.featureStruct.features,pSettings,this.handles.axes_primary,this.handles.text_primaryAxes);
                 if(this.centroidObj.failedToConverge())
                     warndlg('Failed to converge');
                     this.centroidObj = [];
                 else
                     fprintf(1,'pause(3)');
                     pause(3);
+                    set(this.handles.text_primaryAxes,'visible','off','string','');
+
+                    fprintf(1,'\n');
                 end
             else
                 inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);                
@@ -805,7 +817,10 @@ classdef PAStatTool < handle
             if(~isempty(this.centroidObj))
                 defaultBackgroundColor = get(0,'FactoryuicontrolBackgroundColor');
                 set(this.handles.push_refreshCentroids,'enable','off','backgroundcolor',defaultBackgroundColor);
-                this.plotCentroids(pSettings);                
+                this.plotCentroids(pSettings); 
+            else
+                set(this.handles.axes_primary,'color',[0.75 0.75 0.75]);
+
             end
             this.showReady();
         end
@@ -902,7 +917,12 @@ classdef PAStatTool < handle
                         
                         faceVertexCData(coi.sortOrder,:) = highlightColor;
                         patchH = get(barH,'children');
-                        set(patchH,'edgecolor','k');
+                        
+                        if(numCentroids>100)
+                            %  set(patchH,'edgecolor',[0.4 0.4 0.4]);
+                            set(patchH,'edgecolor','none');
+                        end
+                        
                         set(patchH,'facevertexcdata',faceVertexCData);
                         
                         title(distributionAxes,sprintf('Load shape count per centroid (Total centroid count: %u\tTotal load shape count: %u)',this.centroidObj.numCentroids(), this.centroidObj.numLoadShapes()));

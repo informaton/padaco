@@ -52,6 +52,9 @@ classdef PACentroid < handle
         %> Similar to performance line, but is an axes handle.
         performanceAxesHandle;
         
+        %> Text handle to send status updates to via set(textHandle,'string',statusString) type calls.
+        statusTextHandle;
+        
         %> Measure of performance.  Currently, this is the Calinski index.
         performanceMeasure;
     end
@@ -76,16 +79,21 @@ classdef PACentroid < handle
         %> (default)
         %> @note Including a handle increases processing time as additional calculations
         %> are made to measuring clustering separation and performance.
+        %> @param Optional text handle to send status updates to via set(textHandle,'string',statusString) type calls.
+        %> Status updates are sent to the command window by default.
         %> @retval Instance of PACentroid on success.  Empty matrix on
         %> failure.
         % ======================================================================        
-        function this = PACentroid(loadShapes,settings,axesOrLineH)            
+        function this = PACentroid(loadShapes,settings,axesOrLineH,textHandle)            
             
             this.init();
-            if(nargin<3)
-                axesOrLineH = [];
-                if(nargin<2)
-                    settings = [];
+            if(nargin<4)
+                textHandle = [];
+                if(nargin<3)
+                    axesOrLineH = [];
+                    if(nargin<2)
+                        settings = [];
+                    end
                 end
             end
 
@@ -94,6 +102,11 @@ classdef PACentroid < handle
                 settings.minClusters = 10;
                 settings.maxClusters = ceil(N/2);
                 settings.clusterThreshold = 0.2;
+            end
+            if(~isempty(textHandle) && ishandle(textHandle) && strcmpi(get(textHandle,'type'),'uicontrol') && strcmpi(get(textHandle,'style'),'text'))
+                this.statusTextHandle = textHandle;
+            else
+                this.statusTextHandle = -1;
             end
             
             if(~isempty(axesOrLineH) && ishandle(axesOrLineH))
@@ -265,7 +278,7 @@ classdef PACentroid < handle
             end
             useDefaultRandomizerSeed = true;
             
-            [this.load2centroidMap, this.centroidShapes, this.performanceMeasure] = this.adaptiveKmeans(inputLoadShapes,inputSettings, useDefaultRandomizerSeed,this.performanceAxesHandle);
+            [this.load2centroidMap, this.centroidShapes, this.performanceMeasure] = this.adaptiveKmeans(inputLoadShapes,inputSettings, useDefaultRandomizerSeed,this.performanceAxesHandle,this.statusTextHandle);
             if(~isempty(this.centroidShapes))                
                 [this.histogram, this.centroidSortMap] = this.calculateAndSortDistribution(this.load2centroidMap);%  was -->       calculateAndSortDistribution(this.load2centroidMap);
                 this.coiSortOrder = this.numCentroids();
@@ -327,17 +340,20 @@ classdef PACentroid < handle
         %> @retval idx = Rx1 vector of cluster indices that the matching (i.e. same) row of the loadShapes is assigned to.
         %> @retval centroids - KxC matrix of cluster centroids.
         % ======================================================================
-        function [idx, centroids, performanceIndex] = adaptiveKmeans(loadShapes,settings,defaultRandomizer,performanceAxesH)
+        function [idx, centroids, performanceIndex] = adaptiveKmeans(loadShapes,settings,defaultRandomizer,performanceAxesH,textStatusH)
             performanceIndex = [];
             % argument checking and validation ....
-            if(nargin<4)
-                performanceAxesH = -1;
-                if(nargin<3)
-                    defaultRandomizer = false;
-                    if(nargin<2)
-                        settings.minClusters = 40;
-                        settings.maxClusters = size(loadShapes,1)/2;
-                        settings.thresholdScale = 5; %higher threshold equates to fewer clusters.
+            if(nargin<5)
+                textStatusH = -1;
+                if(nargin<4)
+                    performanceAxesH = -1;
+                    if(nargin<3)
+                        defaultRandomizer = false;
+                        if(nargin<2)
+                            settings.minClusters = 40;
+                            settings.maxClusters = size(loadShapes,1)/2;
+                            settings.thresholdScale = 5; %higher threshold equates to fewer clusters.
+                        end
                     end
                 end
             end
@@ -345,6 +361,12 @@ classdef PACentroid < handle
             if(defaultRandomizer)
                 rng('default');  % To get same results from run to run...
             end            
+            
+            if(ishandle(textStatusH) && ~(strcmpi(get(textStatusH,'type'),'uicontrol') && strcmpi(get(textStatusH,'style'),'text')))
+                fprintf(1,'Input graphic handle is of type %s, but ''text'' type is required.  Status measure will be output to the console window.',get(textStatusH,'type'));
+                textStatusH = -1;
+            end    
+            
             
             if(ishandle(performanceAxesH) && ~strcmpi(get(performanceAxesH,'type'),'axes'))
                 fprintf(1,'Input graphic handle is of type %s, but ''axes'' type is required.  Performance measures will not be shown.',get(performanceAxesH,'type'));
@@ -373,13 +395,24 @@ classdef PACentroid < handle
             while(numNotCloseEnough>0 && K<=settings.maxClusters)
                 if(~firstLoop)
                     if(numNotCloseEnough==1)
-                        fprintf('1 cluster was not close enough.  Setting desired number of clusters to %u.\n',numNotCloseEnough,K);
-                        
+                        statusStr = sprintf('1 cluster was not close enough.  Setting desired number of clusters to %u.',numNotCloseEnough,K);                        
                     else
-                        fprintf('%u clusters were not close enough.  Setting desired number of clusters to %u.\n',numNotCloseEnough,K);
+                        statusStr = sprintf('%u clusters were not close enough.  Setting desired number of clusters to %u.',numNotCloseEnough,K);                        
                     end
+                    fprintf(1,'%s\n',statusStr);                    
+                    if(ishandle(textStatusH))
+                        curString = get(textStatusH,'string');                        
+                        set(textStatusH,'string',[curString(end-1:end);statusStr]);
+                    end
+
                 else
-                    fprintf('Initializing desired number of clusters to %u.\n',K);
+                    statusStr = sprintf('Initializing desired number of clusters to %u.',K);
+                    fprintf(1,'%s\n',statusStr);
+                    if(ishandle(textStatusH))
+                        curString = get(textStatusH,'string');
+                        set(textStatusH,'string',[curString(end);statusStr]);
+                    end
+
                     firstLoop = false;
                 end
                 
@@ -403,6 +436,18 @@ classdef PACentroid < handle
                     X(end+1)= K;
                     Y(end+1)=performanceIndex;
                     plot(performanceAxesH,X,Y,'linestyle',':','marker','o');
+                    xlabel(performanceAxesH,'K');
+                    ylabel(performanceAxesH,'Calinksi Index');
+                    
+                    statusStr = sprintf('Calisnki index = %0.2f for K = %u clusters',performanceIndex,K);
+                    
+                    fprintf(1,'%s\n',statusStr);
+                    if(ishandle(textStatusH))
+                        
+                        curString = get(textStatusH,'string');
+                        set(textStatusH,'string',[curString(end-1:end);statusStr]);
+                    end
+                    
                     drawnow();
                     %plot(calinskiAxes,'xdata',X,'ydata',Y);
                     %set(calinskiLine,'xdata',X,'ydata',Y);
@@ -414,7 +459,13 @@ classdef PACentroid < handle
                 removed = sum(isnan(centroids),2)>0;
                 numRemoved = sum(removed);
                 if(numRemoved>0)
-                    fprintf('%u clusters were dropped during this iteration.\n',numRemoved);
+                    statusStr = sprintf('%u clusters were dropped during this iteration.',numRemoved);
+                    fprintf(1,'%s\n',statusStr);
+                    if(ishandle(textStatusH))
+                        curString = get(textStatusH,'string');
+                        set(textStatusH,'string',[curString(end);statusStr]);
+                    end
+
                     centroids(removed,:)=[];
                     K = K-numRemoved;
                     [idx, centroids, sumD, pointToClusterDistances] = kmeans(loadShapes,K,'Start',centroids,'EmptyAction','drop','onlinephase','off');
@@ -424,6 +475,17 @@ classdef PACentroid < handle
                         X(end+1)= K;
                         Y(end+1)=performanceIndex;
                         plot(performanceAxesH,X,Y,'linestyle',':','marker','o');
+                        xlabel(performanceAxesH,'K');
+                        ylabel(performanceAxesH,'Calinksi Index');
+                        
+                        statusStr = sprintf('Calisnki index = %0.2f for K = %u clusters',pefromanceIndex,K);
+
+                        fprintf(1,'%s\n',statusStr);
+                        if(ishandle(textStatusH))
+                            curString = get(textStatusH,'string');
+                            set(textStatusH,'string',[curString(end);statusStr]);
+                        end
+
                         drawnow();
                         
                         %set(calinskiLine,'xdata',X,'ydata',Y);
@@ -477,7 +539,14 @@ classdef PACentroid < handle
             end
             
             if(numNotCloseEnough~=0)
-                fprintf('Failed to converge using a maximum limit of %u clusters.\n',settings.maxClusters);
+                statusStr = sprintf('Failed to converge using a maximum limit of %u clusters.',settings.maxClusters);
+                fprintf(1,'%s\n',statusStr);
+                if(ishandle(textStatusH))
+                    curString = get(textStatusH,'string');
+                    set(textStatusH,'string',{curString(end);statusStr});
+                    drawnow();
+                end
+
             else
                 
                 if(ishandle(performanceAxesH))
@@ -486,6 +555,17 @@ classdef PACentroid < handle
                         X(end+1)= K;
                         Y(end+1)=performanceIndex;
                         plot(performanceAxesH,X,Y,'linestyle',':','marker','o');
+                        xlabel(performanceAxesH,'K');
+                        ylabel(performanceAxesH,'Calinksi Index');
+                        
+                        statusStr = sprintf('Calisnki index = %0.2f for K = %u clusters',performanceIndex,K);
+
+                        fprintf(1,'%s\n',statusStr);
+                        if(ishandle(textStatusH))
+                            curString = get(textStatusH,'string');
+                            set(textStatusH,'string',[curString(end);statusStr]);
+                        end
+
                         drawnow();
                         
                         %set(calinskiLine,'xdata',X,'ydata',Y);
@@ -493,7 +573,12 @@ classdef PACentroid < handle
                         %max(X)]+5,[min(Y)-10,max(Y)+10]);
                     end
                 end                                
-                fprintf('Converged with a cluster size of %u.\n',K);                
+                statusStr = sprintf('Converged with a cluster size of %u.',K);
+                fprintf(1,'%s\n',statusStr);
+                if(ishandle(textStatusH))
+                    curString = get(textStatusH,'string');
+                    set(textStatusH,'string',[curString(end);statusStr]);                    
+                end
             end             
         end
         
