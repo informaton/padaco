@@ -805,7 +805,7 @@ classdef PAStatTool < handle
                 end                
                 resultsTextH = this.handles.text_resultsCentroid;
                 set(this.handles.axes_primary,'color',[1 1 1],'xlimmode','auto','ylimmode','auto','xtickmode','auto','ytickmode','auto','xticklabelmode','auto','yticklabelmode','auto','xminortick','off','yminortick','off');
-                set(resultsTextH,'visible','on');
+                set(resultsTextH,'visible','on','foregroundcolor',[0.1 0.1 0.1]);
 % %                 set(this.handles.text_primaryAxes,'backgroundcolor',[0 0 0],'foregroundcolor',[1 1 0],'visible','on');
                 drawnow();
                 this.centroidObj = PACentroid(this.featureStruct.features,pSettings,this.handles.axes_primary,resultsTextH);
@@ -832,6 +832,7 @@ classdef PAStatTool < handle
                 this.disableCentroidControls();
                 set(this.handles.axes_primary,'color',[0.75 0.75 0.75]);
             end
+            dissolve(resultsTextH,2.5);
             this.showReady();
         end
         
@@ -850,6 +851,7 @@ classdef PAStatTool < handle
         
         function disableCentroidControls(this)
             set(findall(this.handles.panel_controlCentroid,'enable','on'),'enable','off');              
+            set(this.handles.text_resultsCentroid,'enable','on');
         end
         
         % ======================================================================
@@ -1157,7 +1159,6 @@ classdef PAStatTool < handle
             nzi = a~=0;
             normalizedLoadShapes(nzi,:) = loadShapes(nzi,:)./repmat(a(nzi),1,size(loadShapes,2));            
         end
-        
         
         
     end
