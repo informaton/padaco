@@ -100,7 +100,7 @@ ch = findobj(hObject,'-regexp','tag','axes.*');
 set(ch,'units','normalized');
 
 set(hObject,'closeRequestFcn','delete(gcbo)');
-movegui(hObject,'northwest');
+% movegui(hObject,'southwest');
 
 
 

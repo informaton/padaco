@@ -635,10 +635,11 @@ classdef PAView < handle
             
             handles = guidata(obj.getFigHandle());
             
+
+            set(handles.panel_controlCentroid,'visible','off');
             
             resultPanels = [
                 handles.panel_results;
-                handles.panel_controlCentroid;
                 ];
                        
             timeseriesPanels = [

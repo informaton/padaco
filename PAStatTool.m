@@ -328,12 +328,14 @@ classdef PAStatTool < handle
             set(this.handles.check_normalizevalues,'value',1,'enable','off');
             set(this.handles.axes_primary,'ydir','normal');  %sometimes this gets changed by the heatmap displays which have the time shown in reverse on the y-axis
             
-            this.showCentroidControls();
             
             if(isempty(this.centroidObj) || this.centroidObj.failedToConverge())
+                this.hideCentroidControls();
                 this.disableCentroidControls();
                 this.refreshCentroidsAndPlot();  
             else
+                this.showCentroidControls();
+            
                 this.plotCentroids();
             end
             set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','on');
@@ -378,6 +380,7 @@ classdef PAStatTool < handle
             end
             
             featuresPathname = this.featuresDirectory;
+            this.hideCentroidControls();
             
             this.canPlot = false;    %changes to true if we find data that can be processed in featuresPathname
             set([this.handles.check_normalizevalues;
@@ -937,21 +940,28 @@ classdef PAStatTool < handle
                     % and the count of loadshapes (i.e. membership count) on the y-axis.
                     case 'membership'
                         set(distributionAxes,'ylimmode','auto');
+                        barWidth = 0.8;
+                        
+                        y = this.centroidObj.getHistogram();
+                        x = 1:numel(y);
 
-                        barH = bar(distributionAxes,this.centroidObj.getHistogram(),0.8);                        
-                        highlightColor = [0.75 0.75 0];
-                        defaultColor = [0 0 9/16];
-                        faceVertexCData = repmat(defaultColor,numCentroids,1);                        
-                        
-                        faceVertexCData(coi.sortOrder,:) = highlightColor;
-                        patchH = get(barH,'children');
-                        
-                        if(numCentroids>100)
-                            %  set(patchH,'edgecolor',[0.4 0.4 0.4]);
-                            set(patchH,'edgecolor','none');
+                        highlightColor = [0.75 0.75 0];                        
+                        oldVersion = false;
+                        if(oldVersion)
+                            barH = bar(distributionAxes,y,barWidth);
+                            defaultColor = [0 0 9/16];
+                            faceVertexCData = repmat(defaultColor,numCentroids,1);
+                            faceVertexCData(coi.sortOrder,:) = highlightColor;
+                            patchH = get(barH,'children');
+                            if(numCentroids>100)
+                                %  set(patchH,'edgecolor',[0.4 0.4 0.4]);
+                                set(patchH,'edgecolor','none');
+                            end
+                            set(patchH,'facevertexcdata',faceVertexCData);
+                        else
+                            bar(distributionAxes,y,barWidth);
+                            patch(repmat(x(coi.sortOrder),1,4)+barWidth*[-1 -1 1 1]*1.01,1.01*[y(coi.sortOrder) 0 0 y(coi.sortOrder)],highlightColor,'parent',distributionAxes,'edgecolor',highlightColor);
                         end
-                        
-                        set(patchH,'facevertexcdata',faceVertexCData);
                         
                         title(distributionAxes,sprintf('Load shape count per centroid (Total centroid count: %u\tTotal load shape count: %u)',this.centroidObj.numCentroids(), this.centroidObj.numLoadShapes()));
                         %ylabel(distributionAxes,sprintf('Load shape count'));
