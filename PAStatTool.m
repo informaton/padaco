@@ -66,7 +66,7 @@ classdef PAStatTool < handle
             this.featureStruct = [];
             this.initHandles();            
             this.initBase();
-            this.centroidDistributionType = 'membership';  % 'weekday'            
+            this.centroidDistributionType = 'performance';  %{'performance','membership','weekday'}
             
             this.featureInputFilePattern = ['%s',filesep,'%s',filesep,'features.%s.accel.%s.%s.txt'];
             this.featureInputFileFieldnames = {'inputPathname','displaySeletion','processType','curSignal'};
@@ -330,7 +330,6 @@ classdef PAStatTool < handle
             
             
             if(isempty(this.centroidObj) || this.centroidObj.failedToConverge())
-                this.hideCentroidControls();
                 this.disableCentroidControls();
                 this.refreshCentroidsAndPlot();  
             else
@@ -340,7 +339,7 @@ classdef PAStatTool < handle
             end
             set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','on');
             
-            set(this.handles.axes_secondary,'visible','on');
+            set(this.handles.axes_secondary,'visible','on','color',[1 1 1]);
             set(this.figureH,'WindowKeyPressFcn',@this.keyPressFcn);
         end
         
@@ -442,7 +441,7 @@ classdef PAStatTool < handle
                             this.handles.menu_signalsource],'callback',@this.refreshPlot);                        
                         set(this.handles.menu_plottype,'callback',@this.plotSelectionChange);
                        
-                        set(this.handles.check_showCentroidMembers,'callback',@this.checkShowCentroidsCallback);
+                        set(this.handles.check_showCentroidMembers,'callback',@this.checkShowCentroidMembershipCallback);
                         
                         % Trim results
                         if(widgetSettings.trimResults)
@@ -473,6 +472,7 @@ classdef PAStatTool < handle
                         
                         % add a context menu now to secondary axes                        
                         contextmenu_secondaryAxes = uicontextmenu('callback',@this.contextmenu_secondaryaxes);
+                        this.handles.contextmenu.performance = uimenu(contextmenu_secondaryAxes,'Label','Show adaptive separation performance progression','callback',{@this.centroidDistributionCallback,'performance'});
                         this.handles.contextmenu.weekday = uimenu(contextmenu_secondaryAxes,'Label','Show current centroid''s weekday distribution','callback',{@this.centroidDistributionCallback,'weekday'});
                         this.handles.contextmenu.membership = uimenu(contextmenu_secondaryAxes,'Label','Show membership distribution by centroid','callback',{@this.centroidDistributionCallback,'membership'});
                         set(this.handles.axes_secondary,'uicontextmenu',contextmenu_secondaryAxes);                    
@@ -754,7 +754,7 @@ classdef PAStatTool < handle
         %> @param this Instance of PAStatTool
         %> @param Variable number of arguments required by MATLAB gui callbacks
         % ======================================================================
-        function checkShowCentroidsCallback(this,varargin)
+        function checkShowCentroidMembershipCallback(this,varargin)
             this.plotCentroids();
         end
 
@@ -810,6 +810,8 @@ classdef PAStatTool < handle
                 set(this.handles.axes_primary,'color',[1 1 1],'xlimmode','auto','ylimmode','auto','xtickmode','auto','ytickmode','auto','xticklabelmode','auto','yticklabelmode','auto','xminortick','off','yminortick','off');
                 set(resultsTextH,'visible','on','foregroundcolor',[0.1 0.1 0.1]);
 % %                 set(this.handles.text_primaryAxes,'backgroundcolor',[0 0 0],'foregroundcolor',[1 1 0],'visible','on');
+                this.showCentroidControls();
+                
                 drawnow();
                 this.centroidObj = PACentroid(this.featureStruct.features,pSettings,this.handles.axes_primary,resultsTextH);
                 if(this.centroidObj.failedToConverge())
@@ -907,11 +909,16 @@ classdef PAStatTool < handle
                 xTickLabels = this.featureStruct.startTimes(xTicks);
                 
                 centroidTitle = sprintf('Centroid #%u (%s). Popularity %u of %u (membership count = %u of %u)',coi.index, this.featureStruct.method, numCentroids-coi.sortOrder+1,numCentroids, coi.numMembers, numLoadShapes);
-                title(centroidAxes,centroidTitle);
+                title(centroidAxes,centroidTitle,'fontsize',14);
                 set(centroidAxes,'xlim',[1,this.featureStruct.totalCount],'xtick',xTicks,'xticklabel',xTickLabels);
                 
                 %%  Show distribution on secondary axes
                 switch(this.centroidDistributionType)
+                    
+                    % plots the Calinski-Harabasz indices obtained during
+                    % adaptve k-means filtering.
+                    case 'performance'
+                        this.centroidObj.plotPerformance(distributionAxes);
                     
                     % plots the distribution of weekdays on x-axis
                     % and the loadshape count (for the centroid of
@@ -930,7 +937,7 @@ classdef PAStatTool < handle
                             daysofweekStr{d} = sprintf('%s (n=%u)',daysofweekStr{d},coiDaysOfWeekCount(d));
                         end
                         
-                        title(distributionAxes,sprintf('Weekday distribution for Centroid #%u (membership count = %u)',coi.index,coi.numMembers));
+                        title(distributionAxes,sprintf('Weekday distribution for Centroid #%u (membership count = %u)',coi.index,coi.numMembers),'fontsize',14);
                         %ylabel(distributionAxes,sprintf('Load shape count'));
                         xlabel(distributionAxes,'Days of week');
                         xlim(distributionAxes,[daysofweekOrder(1)-0.75 daysofweekOrder(end)+0.75]);                        
@@ -960,10 +967,10 @@ classdef PAStatTool < handle
                             set(patchH,'facevertexcdata',faceVertexCData);
                         else
                             bar(distributionAxes,y,barWidth);
-                            patch(repmat(x(coi.sortOrder),1,4)+barWidth*[-1 -1 1 1]*1.01,1.01*[y(coi.sortOrder) 0 0 y(coi.sortOrder)],highlightColor,'parent',distributionAxes,'edgecolor',highlightColor);
+                            patch(repmat(x(coi.sortOrder),1,4)+0.5*barWidth*[-1 -1 1 1],1*[y(coi.sortOrder) 0 0 y(coi.sortOrder)],highlightColor,'parent',distributionAxes,'facecolor',highlightColor,'edgecolor',highlightColor);
                         end
                         
-                        title(distributionAxes,sprintf('Load shape count per centroid (Total centroid count: %u\tTotal load shape count: %u)',this.centroidObj.numCentroids(), this.centroidObj.numLoadShapes()));
+                        title(distributionAxes,sprintf('Load shape count per centroid (Total centroid count: %u\tTotal load shape count: %u)',this.centroidObj.numCentroids(), this.centroidObj.numLoadShapes()),'fontsize',14);
                         %ylabel(distributionAxes,sprintf('Load shape count'));
                         xlabel(distributionAxes,'Centroid');
                         xlim(distributionAxes,[0.25 numCentroids+.75]);

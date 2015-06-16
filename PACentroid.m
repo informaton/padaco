@@ -57,6 +57,10 @@ classdef PACentroid < handle
         
         %> Measure of performance.  Currently, this is the Calinski index.
         performanceMeasure;
+        
+        %> struct with X, Y data, and last statusStr calculated during
+        %> adaptive k means.
+        performanceProgression;  
     end
 
             
@@ -114,10 +118,10 @@ classdef PACentroid < handle
                 handleType = get(axesOrLineH,'type');
                 if(strcmpi(handleType,'axes'))
                     this.performanceAxesHandle = axesOrLineH;
-                    this.performanceLineHandle = line('parent',axesOrLineH,'xdata',nan,'ydata',nan,'linestyle',':','marker','o');
+                    this.performanceLineHandle = line('parent',axesOrLineH,'xdata',nan,'ydata',nan,'linestyle',':','marker','o','markerfacecolor','b','markeredgecolor','k','markersize',10);
                 elseif(strcmpi(handleType,'line'))
                     this.performanceLineHandle = axesOrLineH;
-                    set(this.performanceLineHandle,'xdata',nan,'ydata',nan,'linestyle',':','marker','o');
+                    set(this.performanceLineHandle,'xdata',nan,'ydata',nan,'linestyle',':','marker','o','markerfacecolor','b','markeredgecolor','k','markersize',10);
                     this.performanceAxesHandle = get(axesOrLineH,'parent');
                 else
                     this.performanceAxesHandle = -1;
@@ -144,7 +148,6 @@ classdef PACentroid < handle
             this.calculateCentroids();  
         end
         
-        
         % ======================================================================
         %> @brief Determines if clustering failed or succeeded (i.e. do centroidShapes
         %> exist)
@@ -156,7 +159,6 @@ classdef PACentroid < handle
         function failedState = failedToConverge(this)
             failedState = isempty(this.centroidShapes);
         end        
-        
         
         function distribution = getHistogram(this)
             distribution = this.histogram;
@@ -219,14 +221,12 @@ classdef PACentroid < handle
             else
                 didChange = false;
             end
-        end
-        
+        end        
         
         function performance = getClusteringPerformance(this)
             performance = this.performanceMeasure;
         end
-        
-        
+                
         % ======================================================================
         %> @brief Returns a descriptive struct for the centroid of interest (coi) 
         %> which is determined by the member variable coiSortOrder.
@@ -284,7 +284,7 @@ classdef PACentroid < handle
             if(ishandle(this.statusTextHandle))
                set(this.statusTextHandle ,'string',{sprintf('Performaing adaptive K-means algorithm of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.thresholdScale)});                
             end            
-            [this.load2centroidMap, this.centroidShapes, this.performanceMeasure] = this.adaptiveKmeans(inputLoadShapes,inputSettings, useDefaultRandomizerSeed,this.performanceAxesHandle,this.statusTextHandle);
+            [this.load2centroidMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression] = this.adaptiveKmeans(inputLoadShapes,inputSettings, useDefaultRandomizerSeed,this.performanceAxesHandle,this.statusTextHandle);
             if(~isempty(this.centroidShapes))                
                 [this.histogram, this.centroidSortMap] = this.calculateAndSortDistribution(this.load2centroidMap);%  was -->       calculateAndSortDistribution(this.load2centroidMap);
                 this.coiSortOrder = this.numCentroids();
@@ -294,6 +294,17 @@ classdef PACentroid < handle
             end
         end
         
+        
+        function h= plotPerformance(this, axesH)
+            X = this.performanceProgression.X;
+            Y = this.performanceProgression.Y;
+            h=this.plot(axesH,X,Y);
+            set(axesH,'xlim',[min(X)-0.5,max(X)+0.5],'ylimmode','auto','ygrid','on','ytickmode','auto','xtickmode','auto','xticklabelmode','auto','yticklabelmode','auto');
+
+            title(axesH,this.performanceProgression.statusStr,'fontsize',14);
+        end       
+                     
+
         %> @brief Calculates within-cluster sum of squares (WCSS); a metric of cluster tightness.  
         %> @note This measure is not helpful when clusters are not well separated (see @c getCalinskiHarabaszIndex).
         %> @param Instance PACentroid
@@ -345,9 +356,18 @@ classdef PACentroid < handle
         %> - @c false (default) Do not calcuate Calinzki index.
         %> @retval idx = Rx1 vector of cluster indices that the matching (i.e. same) row of the loadShapes is assigned to.
         %> @retval centroids - KxC matrix of cluster centroids.
+        %> @retval The Calinski index for the returned idx and centroids
+        %> @retrval Struct of X and Y fields containing the progression of
+        %> cluster sizes and corresponding Calinksi indices obtained for
+        %> each iteration of k means.
         % ======================================================================
-        function [idx, centroids, performanceIndex] = adaptiveKmeans(loadShapes,settings,defaultRandomizer,performanceAxesH,textStatusH)
+        function [idx, centroids, performanceIndex, performanceProgression] = adaptiveKmeans(loadShapes,settings,defaultRandomizer,performanceAxesH,textStatusH)
             performanceIndex = [];
+            X = [];
+            Y = [];
+            idx = [];
+            centroids = [];
+            
             % argument checking and validation ....
             if(nargin<5)
                 textStatusH = -1;
@@ -379,17 +399,16 @@ classdef PACentroid < handle
                 performanceAxesH = -1;
             end    
             
+            
+            
             % Make sure we have an axes handle.
             if(ishandle(performanceAxesH))
                 %performanceAxesH = axes('parent',calinskiFig,'box','on');
                 %calinskiLine = line('xdata',nan,'ydata',nan,'parent',performanceAxesH,'linestyle','none','marker','o');
                 xlabel(performanceAxesH,'K');
-                ylabel(performanceAxesH,'Calinksi Index');
-                X = [];
-                Y = [];
+                ylabel(performanceAxesH,'Calinksi Index');                
             end
             
-            idx = [];
             K = settings.minClusters;
             
             N = size(loadShapes,1);
@@ -441,9 +460,7 @@ classdef PACentroid < handle
                     performanceIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);
                     X(end+1)= K;
                     Y(end+1)=performanceIndex;
-                    plot(performanceAxesH,X,Y,'linestyle',':','marker','o');
-                    xlabel(performanceAxesH,'K');
-                    ylabel(performanceAxesH,'Calinksi Index');
+                    PACentroid.plot(performanceAxesH,X,Y);
                     
                     statusStr = sprintf('Calisnki index = %0.2f for K = %u clusters',performanceIndex,K);
                     
@@ -480,11 +497,9 @@ classdef PACentroid < handle
                         performanceIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);
                         X(end+1)= K;
                         Y(end+1)=performanceIndex;
-                        plot(performanceAxesH,X,Y,'linestyle',':','marker','o');
-                        xlabel(performanceAxesH,'K');
-                        ylabel(performanceAxesH,'Calinksi Index');
+                        PACentroid.plot(performanceAxesH,X,Y);
                         
-                        statusStr = sprintf('Calisnki index = %0.2f for K = %u clusters',pefromanceIndex,K);
+                        statusStr = sprintf('Calisnki index = %0.2f for K = %u clusters',performanceIndex,K);
 
                         fprintf(1,'%s\n',statusStr);
                         if(ishandle(textStatusH))
@@ -560,9 +575,7 @@ classdef PACentroid < handle
                         performanceIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);
                         X(end+1)= K;
                         Y(end+1)=performanceIndex;
-                        plot(performanceAxesH,X,Y,'linestyle',':','marker','o');
-                        xlabel(performanceAxesH,'K');
-                        ylabel(performanceAxesH,'Calinksi Index');
+                        PACentroid.plot(performanceAxesH,X,Y);
                         
                         statusStr = sprintf('Calisnki index = %0.2f for K = %u clusters',performanceIndex,K);
 
@@ -579,13 +592,17 @@ classdef PACentroid < handle
                         %max(X)]+5,[min(Y)-10,max(Y)+10]);
                     end
                 end                                
-                statusStr = sprintf('Converged with a cluster size of %u.',K);
+                statusStr = sprintf('Converged with a cluster size of %u.  Calinski index = %0.2f  ',K,performanceIndex);
                 fprintf(1,'%s\n',statusStr);
                 if(ishandle(textStatusH))
                     curString = get(textStatusH,'string');
                     set(textStatusH,'string',[curString(end);statusStr]);                    
                 end
             end             
+            
+            performanceProgression.X = X;
+            performanceProgression.Y = Y;
+            performanceProgression.statusStr = statusStr;
         end
         
         
@@ -612,6 +629,16 @@ classdef PACentroid < handle
             calinskiIndex = ssBetween/ssWithin*(numObservations-numCentroids)/(numCentroids-1);
         end
         
+        function h=plot(performanceAxesH,X,Y)
+            plotOptions = PACentroid.getPlotOptions();
+            h=plot(performanceAxesH,X,Y,plotOptions{:});
+            xlabel(performanceAxesH,'K');
+            ylabel(performanceAxesH,'Calinksi Index');
+        end       
+        
+        function plotOptions = getPlotOptions()
+            plotOptions = {'linestyle',':','linewidth',1,'marker','*','markerfacecolor','k','markeredgecolor','k','markersize',8};
+        end
     end
     
 end

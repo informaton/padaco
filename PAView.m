@@ -490,13 +490,12 @@ classdef PAView < handle
             axesProps.primary.xlimmode='manual';
             axesProps.primary.xtick=[];
             axesProps.primary.xgrid='on';
-            axesProps.primary.xminortick='on';
             axesProps.primary.visible = 'on';
             
             axesProps.primary.nextplot='replacechildren';
             axesProps.primary.box= 'on';
             axesProps.primary.plotboxaspectratiomode='auto';
-            axesProps.primary.fontSize = 12;            
+            axesProps.primary.fontSize = 14;            
             axesProps.primary.units = 'normalized'; %normalized allows it to resize automatically
             axesProps.primary.drawmode = 'normal'; %fast does not allow alpha blending...
             axesProps.primary.ygrid='off';
@@ -511,16 +510,15 @@ classdef PAView < handle
                 axesProps.primary.ylimmode = 'manual';
                 axesProps.primary.ytickmode='manual';
                 axesProps.primary.yticklabelmode = 'manual';
-
-                
                 axesProps.secondary = axesProps.primary;
-                
+                axesProps.primary.xminortick='on';
                 
             elseif(strcmpi(viewMode,'results'))
                 axesProps.primary.ylimmode = 'auto';
 %                 axesProps.primary.ytickmode='auto';
 %                 axesProps.primary.yticklabelmode = 'auto';
                 axesProps.primary.xAxisLocation = 'bottom';
+                axesProps.primary.xminortick='off';
                 
                 axesProps.secondary = axesProps.primary; 
                 axesProps.secondary.visible = 'off';
@@ -635,8 +633,6 @@ classdef PAView < handle
             
             handles = guidata(obj.getFigHandle());
             
-
-            set(handles.panel_controlCentroid,'visible','off');
             
             resultPanels = [
                 handles.panel_results;
@@ -648,6 +644,8 @@ classdef PAView < handle
                 handles.panel_epochControls];
             
             if(strcmpi(viewMode,'timeseries'))
+                set(handles.panel_controlCentroid,'visible','off');
+
                 set(timeseriesPanels,'visible','on');
                 set(resultPanels,'visible','off');
                 

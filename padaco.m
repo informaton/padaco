@@ -87,8 +87,10 @@ function initializeGUI(hObject)
 % set(hObject,'visible','on');
 figColor = get(hObject,'color');
 handles = guidata(hObject);
-set(handles.text_status,'backgroundcolor',figColor);
+set(handles.text_status,'backgroundcolor',figColor,'units','normalized');
+
 % ch = findall(hObject,'type','uipanel');
+% set(ch,'units','normalized');
 % set(ch,'backgroundcolor',figColor);
 % 
 % ch = findobj(hObject,'-regexp','tag','text.*');
@@ -100,7 +102,7 @@ ch = findobj(hObject,'-regexp','tag','axes.*');
 set(ch,'units','normalized');
 
 set(hObject,'closeRequestFcn','delete(gcbo)');
-% movegui(hObject,'southwest');
+movegui(hObject,'northwest');
 
 
 
