@@ -2067,7 +2067,7 @@ classdef PAController < handle
             
             obj.setCurWindow(obj.accelObj.getCurWindow());
             
-            %% Update the secondary axes 
+            % Update the secondary axes 
             % Items to display = 8;
             obj.numViewsInSecondaryDisplay = 8;
             

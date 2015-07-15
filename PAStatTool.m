@@ -268,6 +268,7 @@ classdef PAStatTool < handle
         function showBusy(this)
             set(this.figureH,'pointer','watch');
             %             set(this.handles.panel_results,'enable','off');
+            
             drawnow();
         end
         
@@ -334,9 +335,11 @@ classdef PAStatTool < handle
                 this.refreshCentroidsAndPlot();  
             else
                 this.showCentroidControls();
-            
                 this.plotCentroids();
             end
+            
+%             this.disableCentroidControls();
+%             this.showCentroidControls();
             set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','on');
             
             set(this.handles.axes_secondary,'visible','on','color',[1 1 1]);
@@ -471,7 +474,7 @@ classdef PAStatTool < handle
                         %'h = guidata(gcbf), set(h.push_refreshCentroids,''enable'',''on'');');
                         
                         % add a context menu now to secondary axes                        
-                        contextmenu_secondaryAxes = uicontextmenu('callback',@this.contextmenu_secondaryaxes);
+                        contextmenu_secondaryAxes = uicontextmenu('callback',@this.contextmenu_secondaryAxesCallback);
                         this.handles.contextmenu.performance = uimenu(contextmenu_secondaryAxes,'Label','Show adaptive separation performance progression','callback',{@this.centroidDistributionCallback,'performance'});
                         this.handles.contextmenu.weekday = uimenu(contextmenu_secondaryAxes,'Label','Show current centroid''s weekday distribution','callback',{@this.centroidDistributionCallback,'weekday'});
                         this.handles.contextmenu.membership = uimenu(contextmenu_secondaryAxes,'Label','Show membership distribution by centroid','callback',{@this.centroidDistributionCallback,'membership'});
@@ -496,11 +499,14 @@ classdef PAStatTool < handle
             end
         end
 
-        function contextmenu_secondaryaxes(this,varargin)
-            set([this.handles.contextmenu.weekday
+        function contextmenu_secondaryAxesCallback(this,varargin)
+            set([this.handles.contextmenu.performance
+                this.handles.contextmenu.weekday
                 this.handles.contextmenu.membership],'checked','off');
             set(this.handles.contextmenu.(this.centroidDistributionType),'checked','on');                
         end
+        
+                        
         
         function centroidDistributionCallback(this,hObject,eventdata,selection)
             this.centroidDistributionType = selection;
