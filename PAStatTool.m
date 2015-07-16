@@ -219,19 +219,20 @@ classdef PAStatTool < handle
         %> @param this Instance of PAStatTool
         % ======================================================================        
         function clearPlots(this)
-            if(strcmpi('replace',get(this.handles.axes_primary,'nextplot')))
+            if(~isempty(intersect(get(this.handles.axes_primary,'nextplot'),{'replacechildren','replace'})))
                 cla(this.handles.axes_primary);
                 cla(this.handles.axes_secondary);
             end                
             title(this.handles.axes_primary,'');
             ylabel(this.handles.axes_primary,'');
             xlabel(this.handles.axes_primary,'');
-            set(this.handles.axes_primary,'xgrid','off','ygrid','off','xtick',[],'ytick',[]);
+            
             
             title(this.handles.axes_secondary,'');
             ylabel(this.handles.axes_secondary,'');
             xlabel(this.handles.axes_secondary,'');
-            set(this.handles.axes_secondary,'xgrid','off','ygrid','off','xtick',[],'ytick',[]);
+            set([this.handles.axes_primary
+                this.handles.axes_secondary],'xgrid','off','ygrid','off','xtick',[],'ytick',[]);
 
         end
         
@@ -277,7 +278,8 @@ classdef PAStatTool < handle
     methods(Access=private)
         
         % ======================================================================
-        %> @brief Shows busy state (mouse pointer becomes a watch)
+        %> @brief Shows busy state: Disables all non-centroid panel widgets
+        %> and mouse pointer becomes a watch.
         %> @param this Instance of PAStatTool
         % ======================================================================
         function showBusy(this)
@@ -286,8 +288,27 @@ classdef PAStatTool < handle
             drawnow();
         end
         
+        % ======================================================================
+        %> @brief Shows busy state (mouse pointer becomes a watch)
+        %> @param this Instance of PAStatTool
+        % ======================================================================        
+        function showMouseBusy(this)
+            set(this.figureH,'pointer','watch');
+            drawnow();            
+        end
+        
         % --------------------------------------------------------------------
         %> @brief Shows ready status (mouse becomes the default pointer).
+        %> @param obj Instance of PAStatTool
+        % --------------------------------------------------------------------
+        function showMouseReady(this)
+            set(this.figureH,'pointer','arrow');
+            drawnow();
+        end
+                
+        
+        % --------------------------------------------------------------------
+        %> @brief Shows ready status: enables all non centroid panels and mouse becomes the default arrow pointer.
         %> @param obj Instance of PAStatTool
         % --------------------------------------------------------------------
         function showReady(this)
@@ -931,10 +952,10 @@ classdef PAStatTool < handle
             % add a context menu now to primary axes
             contextmenu_primaryAxes = uicontextmenu();
             nextPlotmenu = uimenu(contextmenu_primaryAxes,'Label','Next plot','callback',@this.primaryAxesNextPlotContextmenuCallback);
-            this.handles.contextmenu.nextPlot.replace = uimenu(nextPlotmenu,'Label','Replace','callback',{@this.primaryAxesNextPlotCallback,'replace'});
+%             this.handles.contextmenu.nextPlot.replace = uimenu(nextPlotmenu,'Label','Replace','callback',{@this.primaryAxesNextPlotCallback,'replace'});
             this.handles.contextmenu.nextPlot.add = uimenu(nextPlotmenu,'Label','Add','callback',{@this.primaryAxesNextPlotCallback,'add'});
             %                         this.handles.contextmenu.nextPlot.new = uimenu(nextPlotmenu,'Label','New','callback',{@this.primaryAxesNextPlotCallback,'new'});
-            %                         this.handles.contextmenu.nextPlot.replacechildren = uimenu(nextPlotmenu,'Label','Replace children','callback',{@this.primaryAxesNextPlotCallback,'replacechildren'});
+            this.handles.contextmenu.nextPlot.replacechildren = uimenu(nextPlotmenu,'Label','Replace children','callback',{@this.primaryAxesNextPlotCallback,'replacechildren'});
             set(this.handles.axes_primary,'uicontextmenu',contextmenu_primaryAxes);            
         end
         
@@ -953,8 +974,8 @@ classdef PAStatTool < handle
         %> display of centroid data.
         % ======================================================================
         function plotCentroids(this,centroidAndPlotSettings)
-            this.showBusy();
             this.clearPlots();
+            this.showMouseBusy();
 
             
             if(isempty(this.centroidObj)|| this.centroidObj.failedToConverge())
@@ -967,7 +988,6 @@ classdef PAStatTool < handle
                 distributionAxes = this.handles.axes_secondary;
                 centroidAxes = this.handles.axes_primary;
                 
-                nextPlot = get(centroidAxes,'nextplot');
                 
                 numCentroids = this.centroidObj.numCentroids();
                 numLoadShapes = this.centroidObj.numLoadShapes();
@@ -981,12 +1001,15 @@ classdef PAStatTool < handle
                 %                 xtickLabels = featureStruct.startTimes(1:8:end);
                 %                 daysofweekStr = xtickLabels;
                 
+                nextPlot = get(centroidAxes,'nextplot');                
                 if(centroidAndPlotSettings.showCentroidMembers)
                     hold(centroidAxes,'on');                    
-                    plot(centroidAxes,coi.memberShapes','-','linewidth',1,'color',[0.85 0.85 0.85]);    
-                end
-                
-                set(centroidAxes,'ygrid','on','ytickmode','auto','ylimmode','auto','yticklabelmode','auto');
+                    plot(centroidAxes,coi.memberShapes','-','linewidth',1,'color',[0.85 0.85 0.85]);
+                    set(centroidAxes,'ygrid','on');
+                else
+                    set(centroidAxes,'ygrid','off');                    
+                end                
+                set(centroidAxes,'ytickmode','auto','ylimmode','auto','yticklabelmode','auto');
                 plot(centroidAxes,coi.shape,'linewidth',2,'color',[0 0 0]);
                 
                 set(centroidAxes,'nextplot',nextPlot);
@@ -1069,7 +1092,7 @@ classdef PAStatTool < handle
                 end
             end   
             
-            this.showReady();
+            this.showMouseReady();
         end
         
         % Refresh the user settings from current GUI configuration.
