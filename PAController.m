@@ -250,15 +250,15 @@ classdef PAController < handle
                     delete(hObject);
                     %take screen capture of figure
                 elseif(strcmp(eventdata.Key,'f'))
-                    screencap(hObject);
+                    obj.figureScreenshot();
                     %take screen capture of main axes
                 elseif(strcmp(eventdata.Key,'s'))
-                    if(isa(obj.VIEW,'PAView') &&ishandle(obj.VIEW.axeshandle.secondary))
-                        screencap(obj.VIEW.axeshandle.secondary);
+                    if(isa(obj.VIEW,'PAView') &&ishandle(obj.VIEW.axeshandle.secondary))                        
+                        obj.screenshotPathname = screencap(obj.VIEW.axeshandle.secondary,[],obj.screenshotPathname);
                     end
                 elseif(strcmp(eventdata.Key,'p'))
                     if(isa(obj.VIEW,'PAView') &&ishandle(obj.VIEW.axeshandle.primary))
-                        screencap(obj.VIEW.axeshandle.primary);
+                        obj.screenshotPathname = screencap(obj.VIEW.axeshandle.primary,[],obj.screenshotPathname);
                     end
                 end
             end;
@@ -1007,10 +1007,10 @@ classdef PAController < handle
                     fprintf('%s is not a recognized description.  No screenshot will be taken',screenshotDescription);
             end
             if(ishandle(handle))
-                if(strcmpi(screenshotDescription,'secondaryaxes'))
+                if(strcmpi(screenshotDescription,'figure'))
                     obj.figureScreenshot();
                 else
-                    screencap(handle,[],obj.screenshotPathname);
+                    obj.screenshotPathname = screencap(handle,[],obj.screenshotPathname);
                 end
             end
             
@@ -2352,7 +2352,7 @@ classdef PAController < handle
             end
             [img_filename, img_pathname, filterindex] = uiputfile(filterspec,'Screenshot name',fullfile(obj.screenshotPathname,img_filename));
             if isequal(img_filename,0) || isequal(img_pathname,0)
-                disp('User pressed cancel')
+                disp('User pressed cancel');
             else
                 try
                     if(filterindex>2)

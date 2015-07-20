@@ -26,7 +26,7 @@ function varargout = padaco(varargin)
 
 % Edit the above text to modify the response to help padaco
 
-% Last Modified by GUIDE v2.5 15-Jul-2015 15:30:23
+% Last Modified by GUIDE v2.5 20-Jul-2015 09:09:15
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -173,7 +173,7 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
-function edit_cullToPercent_CreateFcn(hObject, eventdata, handles)
+function edit_cullToValue_CreateFcn(hObject, eventdata, handles)
 
 % Hint: edit controls usually have a white background on Windows.
 %       See ISPC and COMPUTER.

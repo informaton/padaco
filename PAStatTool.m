@@ -170,10 +170,14 @@ classdef PAStatTool < handle
                     adjustInd = loadFeatures>pctValuesMat;
                     
                 end
+                
+                
+                % floor below
                 if(pSettings.cullResults)
-                    pctValues = prctile(loadFeatures,pSettings.cullToPercent);
-                    pctValuesMat = repmat(pctValues,size(loadFeatures,1),1);
-                    culledInd = loadFeatures<pctValuesMat;
+                    culledInd = loadFeatures<=pSettings.cullToValue;
+                    %                     pctValues = prctile(loadFeatures,pSettings.cullToValue);
+                    %                     pctValuesMat = repmat(pctValues,size(loadFeatures,1),1);
+                    %                     culledInd = loadFeatures<pctValuesMat;
                 end
                 
                 if(pSettings.trimResults)
@@ -436,7 +440,7 @@ classdef PAStatTool < handle
                 this.handles.check_trim
                 this.handles.edit_trimToPercent
                 this.handles.check_cull
-                this.handles.edit_cullToPercent],'callback',[],'enable','off');
+                this.handles.edit_cullToValue],'callback',[],'enable','off');
 
             if(isdir(featuresPathname))
                 % find allowed features which are in our base parameter and
@@ -503,7 +507,7 @@ classdef PAStatTool < handle
                             enableState = 'off';
                         end
                         set(this.handles.check_cull,'callback',@this.checkCullCallback);
-                        set(this.handles.edit_cullToPercent,'string',num2str(widgetSettings.cullToPercent),'callback',@this.editCullToPercentChange,'enable',enableState);
+                        set(this.handles.edit_cullToValue,'string',num2str(widgetSettings.cullToValue),'callback',@this.editCullToValueChange,'enable',enableState);
 
                         % Push buttons
                         % this should not normally be enabled if plotType
@@ -587,7 +591,7 @@ classdef PAStatTool < handle
                 'check_trim'
                 'edit_trimToPercent'
                 'check_cull'
-                'edit_cullToPercent'
+                'edit_cullToValue'
                 'check_showCentroidMembers'
                 'edit_centroidThreshold'
                 'edit_centroidMinimum'
@@ -779,18 +783,18 @@ classdef PAStatTool < handle
             this.refreshPlot();
         end
         % ======================================================================
-        %> @brief Callback for cull percent change edit widget
+        %> @brief Callback for cull value change edit widget
         %> @param this Instance of PAStatTool
         %> @param editHandle handle to edit box.
         %> @param eventdata (req'd by matlab, but unset)
         % ======================================================================
-        function editCullToPercentChange(this,editHandle,~)
-            percent = str2double(get(editHandle,'string'));
-            if(isempty(percent) || isnan(percent) || percent<=0 || percent>100)
-                percent = 0;
-                warndlg('Percent value should be in the range: (0, 100]');
+        function editCullToValueChange(this,editHandle,~)
+            value = str2double(get(editHandle,'string'));
+            if(isempty(value) || isnan(value) || value<0)
+                value = 0;
+                warndlg('Cull value must be non-negative');
             end
-            set(editHandle,'string',num2str(percent));
+            set(editHandle,'string',num2str(value));
             this.refreshPlot();
         end
         
@@ -806,7 +810,7 @@ classdef PAStatTool < handle
             else
                 enableState = 'off';
             end
-            set(this.handles.edit_cullToPercent,'enable',enableState);            
+            set(this.handles.edit_cullToValue,'enable',enableState);            
             this.refreshPlot();
         end
         
@@ -1118,7 +1122,7 @@ classdef PAStatTool < handle
             userSettings.trimResults = get(this.handles.check_trim,'value'); % returns 0 for unchecked, 1 for checked            
             userSettings.trimToPercent = str2double(get(this.handles.edit_trimToPercent,'string'));
             userSettings.cullResults = get(this.handles.check_cull,'value'); % returns 0 for unchecked, 1 for checked            
-            userSettings.cullToPercent = str2double(get(this.handles.edit_cullToPercent,'string'));
+            userSettings.cullToValue = str2double(get(this.handles.edit_cullToValue,'string'));
             
             userSettings.minClusters = str2double(get(this.handles.edit_centroidMinimum,'string'));
             userSettings.clusterThreshold = str2double(get(this.handles.edit_centroidThreshold,'string'));            
@@ -1231,7 +1235,7 @@ classdef PAStatTool < handle
         %> - @c signalSelection
         %> - @c plotTypeSelection
         %> - @c trimToPercent
-        %> - @c cullToPercent
+        %> - @c cullToValue
         %> - @c showCentroidMembers
         %> - @c minClusters
         %> - @c clusterThreshold
@@ -1247,7 +1251,7 @@ classdef PAStatTool < handle
             paramStruct.signalSelection = 1;
             paramStruct.plotTypeSelection = 1;
             paramStruct.trimToPercent = 100;
-            paramStruct.trimToPercent = 0;
+            paramStruct.cullToValue = 0;
             paramStruct.showCentroidMembers = 0;
             paramStruct.minClusters = 40;
             paramStruct.clusterThreshold = 1.5;

@@ -182,9 +182,9 @@ classdef PAView < handle
                 handles.text_frameSizeMinutes
                 handles.text_frameSizeHours
                 handles.text_trimPct
-                handles.text_cullPct                
+                handles.text_cullSuffix            
                 handles.edit_trimToPercent
-                handles.edit_cullToPercent
+                handles.edit_cullToValue
                 handles.panel_features_prefilter
                 handles.panel_features_aggregate
                 handles.panel_features_frame

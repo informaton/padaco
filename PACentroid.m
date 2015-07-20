@@ -309,7 +309,7 @@ classdef PACentroid < handle
         %> @note This measure is not helpful when clusters are not well separated (see @c getCalinskiHarabaszIndex).
         %> @param Instance PACentroid
         %> @retval The within-cluster sum of squares (WCSS); a metric of cluster tightness
-        function wcss = getWCSS()
+        function wcss = getWCSS(varargin)
             fprintf(1,'To be finished');
             wcss = [];
             
