@@ -351,13 +351,11 @@ classdef PAController < handle
             %% Tools
             % export
             set(handles.menu_file_exportData,'callback',@obj.menu_file_exportData2workspace_callback);
-            % batch
-            set(handles.menu_viewmode_batch,'callback',@obj.menuViewmodeBatchCallback);
             
             
-            %% View Modes
-            
+            %% View Modes            
             set(handles.menu_viewmode_timeseries,'callback',@obj.menuViewmodeTimeSeriesCallback);
+            set(handles.menu_viewmode_batch,'callback',@obj.menuViewmodeBatchCallback);
             set(handles.menu_viewmode_results,'callback',@obj.menuViewmodeResultsCallback);
             
                 
@@ -978,6 +976,10 @@ classdef PAController < handle
                 if(obj.initResultsView())
                     obj.VIEW.showReady('all');                
                 end
+            else
+                % switch back to other mode?
+                % No - maybe we already were in a results view
+                % Yes - maybe we were not in a results view
                 
             end
         end

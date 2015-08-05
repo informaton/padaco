@@ -492,7 +492,7 @@ classdef PAView < handle
             axesProps.primary.xgrid='on';
             axesProps.primary.visible = 'on';
             
-            axesProps.primary.nextplot='replacechildren';
+%             axesProps.primary.nextplot='replacechildren';
             axesProps.primary.box= 'on';
             axesProps.primary.plotboxaspectratiomode='auto';
             axesProps.primary.fontSize = 14;            
@@ -543,7 +543,7 @@ classdef PAView < handle
         %> @param obj Instance of PAView
         % --------------------------------------------------------------------
         function clearAxesHandles(obj)    
-            axesH = struct2array(obj.axeshandle);
+            axesH = struct2array(obj.axeshandle);  %place in utility folder
             for a=1:numel(axesH)
                 h=axesH(a);
                 cla(h);
@@ -665,6 +665,7 @@ classdef PAView < handle
                 set(timeseriesPanels,'visible','off');
                 % Handle the enabling or disabling in the PAStatTool ->
                 % which has more control
+                % Disable everything.
                 if(disableFlag)                    
                     set(findall(resultPanels,'enable','on'),'enable','off');
                 end

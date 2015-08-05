@@ -69,8 +69,7 @@ classdef PAStatTool < handle
             this.centroidDistributionType = 'performance';  %{'performance','membership','weekday'}
             
             this.featureInputFilePattern = ['%s',filesep,'%s',filesep,'features.%s.accel.%s.%s.txt'];
-            this.featureInputFileFieldnames = {'inputPathname','displaySeletion','processType','curSignal'};
-            
+            this.featureInputFileFieldnames = {'inputPathname','displaySeletion','processType','curSignal'};       
             
             if(isdir(resultsPathname))
                 this.resultsDirectory = resultsPathname;
@@ -85,8 +84,7 @@ classdef PAStatTool < handle
                     this.imagesDirectory = imagesPath;
                 else
                     fprintf('Images pathname (%s) does not exist!\n',imagesPath);
-                end
-                
+                end                
                 
                 this.initWidgets(widgetSettings);  %initializes previousstate.plotType on success
 
@@ -841,7 +839,10 @@ classdef PAStatTool < handle
             this.showReady();
         end
         
-        
+        %> @brief Hides the panel of centroid interaction controls.  For
+        %> example, the forward and back buttons that appear in between the
+        %> two axes.
+        %> @param Instance of PAStatTool
         function hideCentroidControls(this)
             set(this.handles.panel_controlCentroid,'visible','off');            
         end
