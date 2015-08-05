@@ -413,7 +413,7 @@ classdef PACentroid < handle
             
             N = size(loadShapes,1);
             % prime the kmeans algorithms starting centroids
-            centroids = loadShapes(randperm(N,K),:);
+            centroids = loadShapes(pa_randperm(N,K),:);
             % prime loop condition since we don't have a do while ...
             numNotCloseEnough = settings.minClusters;
             firstLoop = true;
