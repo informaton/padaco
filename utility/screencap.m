@@ -6,7 +6,6 @@ function [img_pathname, img_fmt] = screencap(graphic_h,img_fmt,img_pathname,img_
 % pathname and filename can be included for the stored image are optional;
 % the function will request from the user if not provided
 %
-
 % author: Hyatt Moore, IV (< June, 2013)
 
 
