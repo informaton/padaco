@@ -181,8 +181,10 @@ classdef PAView < handle
             whiteHandles = [handles.text_aggregate
                 handles.text_frameSizeMinutes
                 handles.text_frameSizeHours
-                handles.text_pct
+                handles.text_trimPct
+                handles.text_cullSuffix            
                 handles.edit_trimToPercent
+                handles.edit_cullToValue
                 handles.panel_features_prefilter
                 handles.panel_features_aggregate
                 handles.panel_features_frame
@@ -192,6 +194,7 @@ classdef PAView < handle
                 handles.panel_plotData
                 handles.panel_plotCentroid];
             set(whiteHandles,'backgroundcolor',[0.95,0.95,0.95]);
+%             set(findobj(whiteHandles,'-property','shadowcolor'),'shadowcolor',[0 0 0],'highlightcolor',[0 0 0]);
             
             set([handles.panel_centroidSettings
                 handles.text_min_clusters

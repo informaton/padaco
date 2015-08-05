@@ -166,7 +166,23 @@ classdef PAStatTool < handle
                     pctValues = prctile(loadFeatures,pSettings.trimToPercent);
                     pctValuesMat = repmat(pctValues,size(loadFeatures,1),1);
                     adjustInd = loadFeatures>pctValuesMat;
-                    loadFeatures(adjustInd) = pctValuesMat(adjustInd);
+                    
+                end
+                
+                
+                % floor below
+                if(pSettings.cullResults)
+                    culledInd = loadFeatures<=pSettings.cullToValue;
+                    %                     pctValues = prctile(loadFeatures,pSettings.cullToValue);
+                    %                     pctValuesMat = repmat(pctValues,size(loadFeatures,1),1);
+                    %                     culledInd = loadFeatures<pctValuesMat;
+                end
+                
+                if(pSettings.trimResults)
+                    loadFeatures(adjustInd) = pctValuesMat(adjustInd);                    
+                end
+                if(pSettings.cullResults)
+                    loadFeatures(culledInd) = 0;                    
                 end
                 
                 if(pSettings.normalizeValues)
@@ -205,17 +221,21 @@ classdef PAStatTool < handle
         %> @param this Instance of PAStatTool
         % ======================================================================        
         function clearPlots(this)
-            cla(this.handles.axes_primary);
+            if(~isempty(intersect(get(this.handles.axes_primary,'nextplot'),{'replacechildren','replace'})))
+                cla(this.handles.axes_primary);
+                cla(this.handles.axes_secondary);
+            end                
             title(this.handles.axes_primary,'');
             ylabel(this.handles.axes_primary,'');
             xlabel(this.handles.axes_primary,'');
-            set(this.handles.axes_primary,'xgrid','off','ygrid','off','xtick',[],'ytick',[]);
             
-            cla(this.handles.axes_secondary);
+            
             title(this.handles.axes_secondary,'');
             ylabel(this.handles.axes_secondary,'');
-            xlabel(this.handles.axes_secondary,'');            
-            set(this.handles.axes_secondary,'xgrid','off','ygrid','off','xtick',[],'ytick',[]);
+            xlabel(this.handles.axes_secondary,'');
+            set([this.handles.axes_primary
+                this.handles.axes_secondary],'xgrid','off','ygrid','off','xtick',[],'ytick',[]);
+
         end
         
         % ======================================================================
@@ -260,21 +280,43 @@ classdef PAStatTool < handle
     methods(Access=private)
         
         % ======================================================================
-        %> @brief Shows busy state (mouse pointer becomes a watch)
+        %> @brief Shows busy state: Disables all non-centroid panel widgets
+        %> and mouse pointer becomes a watch.
         %> @param this Instance of PAStatTool
         % ======================================================================
         function showBusy(this)
+            set(findall(this.handles.panels_sansCentroids,'enable','on'),'enable','off');             
             set(this.figureH,'pointer','watch');
-            %             set(this.handles.panel_results,'enable','off');
             drawnow();
+        end
+        
+        % ======================================================================
+        %> @brief Shows busy state (mouse pointer becomes a watch)
+        %> @param this Instance of PAStatTool
+        % ======================================================================        
+        function showMouseBusy(this)
+            set(this.figureH,'pointer','watch');
+            drawnow();            
         end
         
         % --------------------------------------------------------------------
         %> @brief Shows ready status (mouse becomes the default pointer).
         %> @param obj Instance of PAStatTool
         % --------------------------------------------------------------------
-        function showReady(obj)
-            set(obj.figureH,'pointer','arrow');
+        function showMouseReady(this)
+            set(this.figureH,'pointer','arrow');
+            drawnow();
+        end
+                
+        
+        % --------------------------------------------------------------------
+        %> @brief Shows ready status: enables all non centroid panels and mouse becomes the default arrow pointer.
+        %> @param obj Instance of PAStatTool
+        % --------------------------------------------------------------------
+        function showReady(this)
+            set(findall(this.handles.panels_sansCentroids,'enable','off'),'enable','on');
+            set(this.figureH,'pointer','arrow');
+            
             %             set(this.handles.panel_results,'enable','on');
             drawnow();
         end
@@ -322,6 +364,7 @@ classdef PAStatTool < handle
         %> @param this Instance of PAStatTool
         % ======================================================================
         function switch2clustering(this)
+            
             this.previousState.normalizeValues = get(this.handles.check_normalizevalues,'value');
             set(this.handles.check_normalizevalues,'value',1,'enable','off');
             set(this.handles.axes_primary,'ydir','normal');  %sometimes this gets changed by the heatmap displays which have the time shown in reverse on the y-axis
@@ -332,9 +375,11 @@ classdef PAStatTool < handle
                 this.refreshCentroidsAndPlot();  
             else
                 this.showCentroidControls();
-            
                 this.plotCentroids();
             end
+            
+%             this.disableCentroidControls();
+%             this.showCentroidControls();
             set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','on');
             
             set(this.handles.axes_secondary,'visible','on','color',[1 1 1]);
@@ -380,18 +425,20 @@ classdef PAStatTool < handle
             this.hideCentroidControls();
             
             this.canPlot = false;    %changes to true if we find data that can be processed in featuresPathname
-            set([this.handles.check_normalizevalues;
-                this.handles.menu_feature;
-                this.handles.menu_signalsource;
-                this.handles.menu_plottype;
-                this.handles.menu_weekdays;
-                this.handles.menu_duration;
-                this.handles.check_showCentroidMembers;
-                this.handles.push_refreshCentroids;
-                this.handles.push_nextCentroid;
-                this.handles.push_previousCentroid;
-                this.handles.check_trim;
-                this.handles.edit_trimToPercent],'callback',[],'enable','off');
+            set([this.handles.check_normalizevalues
+                this.handles.menu_feature
+                this.handles.menu_signalsource
+                this.handles.menu_plottype
+                this.handles.menu_weekdays
+                this.handles.menu_duration
+                this.handles.check_showCentroidMembers
+                this.handles.push_refreshCentroids
+                this.handles.push_nextCentroid
+                this.handles.push_previousCentroid
+                this.handles.check_trim
+                this.handles.edit_trimToPercent
+                this.handles.check_cull
+                this.handles.edit_cullToValue],'callback',[],'enable','off');
 
             if(isdir(featuresPathname))
                 % find allowed features which are in our base parameter and
@@ -417,6 +464,7 @@ classdef PAStatTool < handle
                         % Checked state has a value of 1
                         % Unchecked state has a value of 0
                         set(this.handles.check_trim,'min',0,'max',1,'value',widgetSettings.trimResults);
+                        set(this.handles.check_cull,'min',0,'max',1,'value',widgetSettings.cullResults);
                         set(this.handles.check_showCentroidMembers,'min',0,'max',1,'value',widgetSettings.showCentroidMembers);
                         set(this.handles.check_normalizevalues,'min',0,'max',1,'value',widgetSettings.normalizeValues);
                         
@@ -447,8 +495,17 @@ classdef PAStatTool < handle
                         else
                             enableState = 'off';
                         end
-                        set(this.handles.edit_trimToPercent,'string',num2str(widgetSettings.trimToPercent),'callback',@this.edittrimToPercentChange,'enable',enableState);
                         set(this.handles.check_trim,'callback',@this.checkTrimCallback);
+                        set(this.handles.edit_trimToPercent,'string',num2str(widgetSettings.trimToPercent),'callback',@this.editTrimToPercentChange,'enable',enableState);
+                        
+                        % Cull results
+                        if(widgetSettings.cullResults)
+                            enableState = 'on';
+                        else
+                            enableState = 'off';
+                        end
+                        set(this.handles.check_cull,'callback',@this.checkCullCallback);
+                        set(this.handles.edit_cullToValue,'string',num2str(widgetSettings.cullToValue),'callback',@this.editCullToValueChange,'enable',enableState);
 
                         % Push buttons
                         % this should not normally be enabled if plotType
@@ -468,8 +525,9 @@ classdef PAStatTool < handle
                             ],'callback',@this.enableCentroidRecalculation);
                         %'h = guidata(gcbf), set(h.push_refreshCentroids,''enable'',''on'');');
                         
+                        
                         % add a context menu now to secondary axes                        
-                        contextmenu_secondaryAxes = uicontextmenu('callback',@this.contextmenu_secondaryaxes);
+                        contextmenu_secondaryAxes = uicontextmenu('callback',@this.contextmenu_secondaryAxesCallback);
                         this.handles.contextmenu.performance = uimenu(contextmenu_secondaryAxes,'Label','Show adaptive separation performance progression','callback',{@this.centroidDistributionCallback,'performance'});
                         this.handles.contextmenu.weekday = uimenu(contextmenu_secondaryAxes,'Label','Show current centroid''s weekday distribution','callback',{@this.centroidDistributionCallback,'weekday'});
                         this.handles.contextmenu.membership = uimenu(contextmenu_secondaryAxes,'Label','Show membership distribution by centroid','callback',{@this.centroidDistributionCallback,'membership'});
@@ -477,15 +535,13 @@ classdef PAStatTool < handle
                     end
                 end                
             end
-            
-            
+           
             % These are required by follow-on calls, regardless if the gui
             % can be shown or not.  
             
             % Previous state initialization - set to current state.
             this.previousState.normalizeValues = widgetSettings.normalizeValues;
             this.previousState.plotType = this.base.plotTypes{widgetSettings.plotTypeSelection};
-
             
             % disable everything
             if(~this.canPlot)
@@ -494,11 +550,21 @@ classdef PAStatTool < handle
             end
         end
 
-        function contextmenu_secondaryaxes(this,varargin)
-            set([this.handles.contextmenu.weekday
+        function primaryAxesNextPlotContextmenuCallback(this,hObject,~)
+            set(get(hObject,'children'),'checked','off');            
+            set(this.handles.contextmenu.nextPlot.(get(this.handles.axes_primary,'nextplot')),'checked','on');
+        end
+        
+        function primaryAxesNextPlotCallback(this,hObject,~,nextPlot)
+            set(this.handles.axes_primary,'nextplot',nextPlot);
+        end
+        
+        function contextmenu_secondaryAxesCallback(this,varargin)
+            set([this.handles.contextmenu.performance
+                this.handles.contextmenu.weekday
                 this.handles.contextmenu.membership],'checked','off');
             set(this.handles.contextmenu.(this.centroidDistributionType),'checked','on');                
-        end
+        end               
         
         function centroidDistributionCallback(this,hObject,eventdata,selection)
             this.centroidDistributionType = selection;
@@ -522,6 +588,8 @@ classdef PAStatTool < handle
                 'axes_secondary'
                 'check_trim'
                 'edit_trimToPercent'
+                'check_cull'
+                'edit_cullToValue'
                 'check_showCentroidMembers'
                 'edit_centroidThreshold'
                 'edit_centroidMinimum'
@@ -531,7 +599,8 @@ classdef PAStatTool < handle
                 'panel_controlCentroid'
                 'push_nextCentroid'
                 'push_previousCentroid'
-                'text_resultsCentroid'};
+                'text_resultsCentroid'
+                };
             
             for f=1:numel(handlesOfInterest)
                 fname = handlesOfInterest{f};
@@ -686,7 +755,7 @@ classdef PAStatTool < handle
         %> @param editHandle handle to edit box.
         %> @param eventdata (req'd by matlab, but unset)
         % ======================================================================
-        function edittrimToPercentChange(this,editHandle,~)
+        function editTrimToPercentChange(this,editHandle,~)
             percent = str2double(get(editHandle,'string'));
             if(isempty(percent) || isnan(percent) || percent<=0 || percent>100)
                 percent = 0;
@@ -697,7 +766,7 @@ classdef PAStatTool < handle
         end
         
         % ======================================================================
-        %> @brief Push button callback for displaying the next centroid.
+        %> @brief Check button callback for enabling/disbling load shape trimming.
         %> @param this Instance of PAStatTool
         %> @param hObject Handle of the checkbutton that is calling back.
         %> @param Variable number of arguments required by MATLAB gui callbacks
@@ -709,6 +778,37 @@ classdef PAStatTool < handle
                 enableState = 'off';
             end
             set(this.handles.edit_trimToPercent,'enable',enableState);            
+            this.refreshPlot();
+        end
+        % ======================================================================
+        %> @brief Callback for cull value change edit widget
+        %> @param this Instance of PAStatTool
+        %> @param editHandle handle to edit box.
+        %> @param eventdata (req'd by matlab, but unset)
+        % ======================================================================
+        function editCullToValueChange(this,editHandle,~)
+            value = str2double(get(editHandle,'string'));
+            if(isempty(value) || isnan(value) || value<0)
+                value = 0;
+                warndlg('Cull value must be non-negative');
+            end
+            set(editHandle,'string',num2str(value));
+            this.refreshPlot();
+        end
+        
+        % ======================================================================
+        %> @brief Check button callback for enabling/disbling load shape culling.
+        %> @param this Instance of PAStatTool
+        %> @param hObject Handle of the checkbutton that is calling back.
+        %> @param Variable number of arguments required by MATLAB gui callbacks
+        % ======================================================================
+        function checkCullCallback(this,hObject,~)
+            if(get(hObject,'value'))
+                enableState = 'on';
+            else
+                enableState = 'off';
+            end
+            set(this.handles.edit_cullToValue,'enable',enableState);            
             this.refreshPlot();
         end
         
@@ -844,7 +944,9 @@ classdef PAStatTool < handle
         %> two axes.
         %> @param Instance of PAStatTool
         function hideCentroidControls(this)
-            set(this.handles.panel_controlCentroid,'visible','off');            
+            set(this.handles.panel_controlCentroid,'visible','off'); 
+            % add a context menu now to primary axes
+            set(this.handles.axes_primary,'uicontextmenu',[]);
         end
         
         function showCentroidControls(this)
@@ -853,11 +955,21 @@ classdef PAStatTool < handle
         
         function enableCentroidControls(this)
             set(findall(this.handles.panel_controlCentroid,'enable','off'),'enable','on');  
+            % add a context menu now to primary axes
+            contextmenu_primaryAxes = uicontextmenu();
+            nextPlotmenu = uimenu(contextmenu_primaryAxes,'Label','Next plot','callback',@this.primaryAxesNextPlotContextmenuCallback);
+%             this.handles.contextmenu.nextPlot.replace = uimenu(nextPlotmenu,'Label','Replace','callback',{@this.primaryAxesNextPlotCallback,'replace'});
+            this.handles.contextmenu.nextPlot.add = uimenu(nextPlotmenu,'Label','Add','callback',{@this.primaryAxesNextPlotCallback,'add'});
+            %                         this.handles.contextmenu.nextPlot.new = uimenu(nextPlotmenu,'Label','New','callback',{@this.primaryAxesNextPlotCallback,'new'});
+            this.handles.contextmenu.nextPlot.replacechildren = uimenu(nextPlotmenu,'Label','Replace children','callback',{@this.primaryAxesNextPlotCallback,'replacechildren'});
+            set(this.handles.axes_primary,'uicontextmenu',contextmenu_primaryAxes);            
         end
         
         function disableCentroidControls(this)
             set(findall(this.handles.panel_controlCentroid,'enable','on'),'enable','off');              
             set(this.handles.text_resultsCentroid,'enable','on');
+            % add a context menu now to primary axes           
+            set(this.handles.axes_primary,'uicontextmenu',[]);
         end
         
         % ======================================================================
@@ -868,8 +980,8 @@ classdef PAStatTool < handle
         %> display of centroid data.
         % ======================================================================
         function plotCentroids(this,centroidAndPlotSettings)
-            this.showBusy();
             this.clearPlots();
+            this.showMouseBusy();
 
             
             if(isempty(this.centroidObj)|| this.centroidObj.failedToConverge())
@@ -881,6 +993,7 @@ classdef PAStatTool < handle
                 end
                 distributionAxes = this.handles.axes_secondary;
                 centroidAxes = this.handles.axes_primary;
+                
                 
                 numCentroids = this.centroidObj.numCentroids();
                 numLoadShapes = this.centroidObj.numLoadShapes();
@@ -894,14 +1007,18 @@ classdef PAStatTool < handle
                 %                 xtickLabels = featureStruct.startTimes(1:8:end);
                 %                 daysofweekStr = xtickLabels;
                 
+                nextPlot = get(centroidAxes,'nextplot');                
                 if(centroidAndPlotSettings.showCentroidMembers)
                     hold(centroidAxes,'on');                    
-                    plot(centroidAxes,coi.memberShapes','-','linewidth',1,'color',[0.85 0.85 0.85]);    
-                end
-                
-                set(centroidAxes,'ygrid','on','ytickmode','auto','ylimmode','auto','yticklabelmode','auto');
+                    plot(centroidAxes,coi.memberShapes','-','linewidth',1,'color',[0.85 0.85 0.85]);
+                    set(centroidAxes,'ygrid','on');
+                else
+                    set(centroidAxes,'ygrid','off');                    
+                end                
+                set(centroidAxes,'ytickmode','auto','ylimmode','auto','yticklabelmode','auto');
                 plot(centroidAxes,coi.shape,'linewidth',2,'color',[0 0 0]);
-                hold(centroidAxes,'off');
+                
+                set(centroidAxes,'nextplot',nextPlot);
                 
                 xTicks = 1:8:this.featureStruct.totalCount;
                 if(xTicks(end)~=this.featureStruct.totalCount)
@@ -981,7 +1098,7 @@ classdef PAStatTool < handle
                 end
             end   
             
-            this.showReady();
+            this.showMouseReady();
         end
         
         % Refresh the user settings from current GUI configuration.
@@ -1006,6 +1123,8 @@ classdef PAStatTool < handle
             
             userSettings.trimResults = get(this.handles.check_trim,'value'); % returns 0 for unchecked, 1 for checked            
             userSettings.trimToPercent = str2double(get(this.handles.edit_trimToPercent,'string'));
+            userSettings.cullResults = get(this.handles.check_cull,'value'); % returns 0 for unchecked, 1 for checked            
+            userSettings.cullToValue = str2double(get(this.handles.edit_cullToValue,'string'));
             
             userSettings.minClusters = str2double(get(this.handles.edit_centroidMinimum,'string'));
             userSettings.clusterThreshold = str2double(get(this.handles.edit_centroidThreshold,'string'));            
@@ -1019,78 +1138,6 @@ classdef PAStatTool < handle
     end
     
     methods (Static)
-        % ======================================================================
-        %> @brief Gets parameters for default initialization of a
-        %> PAStatTool object.
-        %> @retval Struct of default paramters.  Fields include
-        %> - @c trimResults
-        %> - @c normalizeValues
-        %> - @c processedTypeSelection
-        %> - @c baseFeatureSelection
-        %> - @c signalSelection
-        %> - @c plotTypeSelection
-        %> - @c trimToPercent
-        %> - @c showCentroidMembers
-        %> - @c minClusters
-        %> - @c clusterThreshold
-        %> - @c weekdaySelection
-        %> - @c centroidDurationSelection
-        % ======================================================================
-        function paramStruct = getDefaultParameters()
-            paramStruct.trimResults = 0;
-            paramStruct.normalizeValues = 0;            
-            paramStruct.processedTypeSelection = 1;
-            paramStruct.baseFeatureSelection = 1;
-            paramStruct.signalSelection = 1;
-            paramStruct.plotTypeSelection = 1;
-            paramStruct.trimToPercent = 100;
-            paramStruct.showCentroidMembers = 0;
-            paramStruct.minClusters = 40;
-            paramStruct.clusterThreshold = 1.5;
-            paramStruct.weekdaySelection = 1;
-            paramStruct.centroidDurationSelection = 1;
-        end
-        
-        % ======================================================================
-        %> @brief Gets default parameter selection values for GUI dropdown menus
-        %> used in conjunction with PAStatTool.
-        %> @retval Struct of default menu selection values.  Fields include
-        %> - @c featureDescriptions
-        %> - @c featureTypes
-        %> - @c signalTypes
-        %> - @c signalDescriptions
-        %> - @c plotTypes
-        %> - @c plotTypeDescription
-        %> - @c processedTypes
-        %> - @c numShades
-        %> - @c weekdayDescriptions
-        %> - @c weekdayTags
-        % ======================================================================
-        function baseSettings = getBaseSettings()
-            baseSettings.featureDescriptions = {'Mean','Mode','RMS','Std Dev','Sum','Variance'};
-            baseSettings.featureTypes = {'mean','mode','rms','std','sum','var'};
-            baseSettings.signalTypes = {'x','y','z','vecMag'};
-            baseSettings.signalDescriptions = {'X','Y','Z','Vector Magnitude'};
-            
-            baseSettings.plotTypes = {'dailyaverage','dailytally','morningheatmap','heatmap','rolling','morningrolling','centroids'};
-            baseSettings.plotTypeDescriptions = {'Average Daily Tallies','Total Daily Tallies','Heat map (early morning)','Heat map','Time series','Time series (morning)','Centroids'};
-            
-            baseSettings.processedTypes = {'count','raw'};            
-            baseSettings.numShades = 1000;
-            
-            baseSettings.weekdayDescriptions = {'All days (Sun-Sat)','Weekdays (Mon-Fri)','Weekends (Sat-Sun)'};            
-            baseSettings.weekdayTags = {'all','weekdays','weekends'};
-            
-            baseSettings.centroidDurationDescriptions = {'1 day','12 hours','6 hours','4 hours','3 hours','2 hours','1 hour'};
-            baseSettings.centroidHourlyDurations = [24
-                12
-                6
-                4
-                3
-                2
-                1];
-        end
-        
         
         % ======================================================================
         %> @brief Loads and aligns features from a padaco batch process
@@ -1178,6 +1225,81 @@ classdef PAStatTool < handle
             normalizedLoadShapes(nzi,:) = loadShapes(nzi,:)./repmat(a(nzi),1,size(loadShapes,2));            
         end
         
+        % ======================================================================
+        %> @brief Gets parameters for default initialization of a
+        %> PAStatTool object.
+        %> @retval Struct of default paramters.  Fields include
+        %> - @c trimResults
+        %> - @c cullResults
+        %> - @c normalizeValues
+        %> - @c processedTypeSelection
+        %> - @c baseFeatureSelection
+        %> - @c signalSelection
+        %> - @c plotTypeSelection
+        %> - @c trimToPercent
+        %> - @c cullToValue
+        %> - @c showCentroidMembers
+        %> - @c minClusters
+        %> - @c clusterThreshold
+        %> - @c weekdaySelection
+        %> - @c centroidDurationSelection
+        % ======================================================================
+        function paramStruct = getDefaultParameters()
+            paramStruct.trimResults = 0;
+            paramStruct.cullResults = 0;
+            paramStruct.normalizeValues = 0;            
+            paramStruct.processedTypeSelection = 1;
+            paramStruct.baseFeatureSelection = 1;
+            paramStruct.signalSelection = 1;
+            paramStruct.plotTypeSelection = 1;
+            paramStruct.trimToPercent = 100;
+            paramStruct.cullToValue = 0;
+            paramStruct.showCentroidMembers = 0;
+            paramStruct.minClusters = 40;
+            paramStruct.clusterThreshold = 1.5;
+            paramStruct.weekdaySelection = 1;
+            paramStruct.centroidDurationSelection = 1;
+        end
         
+        % ======================================================================
+        %> @brief Gets default parameter selection values for GUI dropdown menus
+        %> used in conjunction with PAStatTool.
+        %> @retval Struct of default menu selection values.  Fields include
+        %> - @c featureDescriptions
+        %> - @c featureTypes
+        %> - @c signalTypes
+        %> - @c signalDescriptions
+        %> - @c plotTypes
+        %> - @c plotTypeDescription
+        %> - @c processedTypes
+        %> - @c numShades
+        %> - @c weekdayDescriptions
+        %> - @c weekdayTags
+        % ======================================================================
+        function baseSettings = getBaseSettings()
+            baseSettings.featureDescriptions = {'Mean','Mode','RMS','Std Dev','Sum','Variance'};
+            baseSettings.featureTypes = {'mean','mode','rms','std','sum','var'};
+            baseSettings.signalTypes = {'x','y','z','vecMag'};
+            baseSettings.signalDescriptions = {'X','Y','Z','Vector Magnitude'};
+            
+            baseSettings.plotTypes = {'dailyaverage','dailytally','morningheatmap','heatmap','rolling','morningrolling','centroids'};
+            baseSettings.plotTypeDescriptions = {'Average Daily Tallies','Total Daily Tallies','Heat map (early morning)','Heat map','Time series','Time series (morning)','Centroids'};
+            
+            baseSettings.processedTypes = {'count','raw'};            
+            baseSettings.numShades = 1000;
+            
+            baseSettings.weekdayDescriptions = {'All days','Monday-Friday','Weekend'};            
+            baseSettings.weekdayTags = {'all','weekdays','weekends'};
+            
+            baseSettings.centroidDurationDescriptions = {'1 day','12 hours','6 hours','4 hours','3 hours','2 hours','1 hour'};
+            baseSettings.centroidHourlyDurations = [24
+                12
+                6
+                4
+                3
+                2
+                1];
+        end
+                
     end
 end
