@@ -22,7 +22,7 @@ classdef PAStatTool < handle
         featureTypes;
         featureDescriptions;
         %> @brief boolean set to true if result data is found.
-        canPlot; 
+        canPlot;
         %> @brief Struct to keep track of settings from previous plot type
         %> selections to make transitioning back and forth between cluster
         %> plotting and others easier to stomach.  Fields include:
@@ -128,18 +128,27 @@ classdef PAStatTool < handle
         %> @param this Instance of PAStatTool
         %> @retval success Boolean: true if features are loaded from file.  False if they are not.
         % ======================================================================
-        function success = loadFeatureStruct(this)
+        function success = getFeatureStruct(this)
             
             pSettings = this.getPlotSettings();
             inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
             if(exist(inputFilename,'file'))                
+                
+                
+                % assumes features are provided in 24 hour intervals
+                % from batch processing mode
+
                 this.featureStruct = this.loadAlignedFeatures(inputFilename);                
-                loadFeatures = this.featureStruct.shapes;
+                loadFeatures = this.featureStruct.shapes;                
                 
+                featureDurationInHours = size(loadFeatures,2);
                 
-                if(pSettings.centroidDurationHours~=24)
+                if(pSettings.centroidDurationHours>featureDurationInHours)
+                    warnMsg = sprintf('Duration requested for centroids (%d hours) is longer than the duration of the features (%d hours).\nResults are undefined.\nTo correct, change the desired duration or the start/stop times of the features.',pSettings.centroidDurationHours,featureDurationInHours);
+                    warndlg(warnMsg);
+                elseif(pSettings.centroidDurationHours<featureDurationInHours)
                     hoursPerCentroid = pSettings.centroidDurationHours;
-                    repRows = 24/hoursPerCentroid;
+                    repRows = featureDurationInHours/hoursPerCentroid;
                     
                     this.featureStruct.totalCount = this.featureStruct.totalCount/repRows;
                     
@@ -154,8 +163,6 @@ classdef PAStatTool < handle
                     newColCount = ncol/repRows;
                     loadFeatures = reshape(loadFeatures',newColCount,newRowCount)';
                     
-                    % assumes features are provided in 24 hour intervals
-                    % from batch processing mode
                     %  durationHoursPerFeature = 24/this.featureStruct.totalCount;
                     % featuresPerHour = this.featureStruct.totalCount/24;
                     % featuresPerCentroid = hoursPerCentroid*featuresPerHour;
@@ -259,7 +266,7 @@ classdef PAStatTool < handle
                         
                         this.showBusy();
                         this.clearPlots();
-                        this.loadFeatureStruct();
+                        this.getFeatureStruct();
                         if(~isempty(this.featureStruct))
                             pSettings.ylabelstr = sprintf('%s of %s %s activity',pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
                             pSettings.xlabelstr = 'Days of Week';
@@ -478,11 +485,11 @@ classdef PAStatTool < handle
                         set(this.handles.menu_plottype,'userdata',this.base.plotTypes,'string',this.base.plotTypeDescriptions,'value',widgetSettings.plotTypeSelection);
                         
                         % Centroid widgets
-                        hoursInDay= 0:23;
-                        hoursInDayStr = datestr(hoursInDay/24,'HH:MM');                        
+                        startStopTimesInDay= 0:1/4:24;
+                        hoursInDayStr = datestr(startStopTimesInDay/24,'HH:MM');
                         set(this.handles.menu_weekdays,'userdata',this.base.weekdayTags,'string',this.base.weekdayDescriptions,'value',widgetSettings.weekdaySelection);
-                        set(this.handles.menu_centroidStartTime,'userdata',hoursInDay,'string',hoursInDayStr,'value',widgetSettings.startTimeSelection);
-                        set(this.handles.menu_centroidStopTime,'userdata',hoursInDay,'string',hoursInDayStr,'value',widgetSettings.stopTimeSelection);
+                        set(this.handles.menu_centroidStartTime,'userdata',startStopTimesInDay(1:end-1),'string',hoursInDayStr(1:end-1,:),'value',widgetSettings.startTimeSelection);
+                        set(this.handles.menu_centroidStopTime,'userdata',startStopTimesInDay(2:end),'string',hoursInDayStr(2:end,:),'value',widgetSettings.stopTimeSelection);
                         
                 
                         set(this.handles.menu_duration,'string',this.base.centroidDurationDescriptions,'value',widgetSettings.centroidDurationSelection);
@@ -882,7 +889,7 @@ classdef PAStatTool < handle
             this.showBusy();
             pSettings= this.getPlotSettings();
             this.centroidObj = [];            
-            if(this.loadFeatureStruct())            
+            if(this.getFeatureStruct())            
                 % does not converge well if not normalized as we are no longer looking at the shape alone
                 
                 % @b weekdayTag String to identify how/if data should be
@@ -1142,11 +1149,13 @@ classdef PAStatTool < handle
             userSettings.minClusters = str2double(get(this.handles.edit_centroidMinimum,'string'));
             userSettings.clusterThreshold = str2double(get(this.handles.edit_centroidThreshold,'string'));            
            
-            userSettings.weekdaySelection = get(this.handles.menu_weekdays,'value');            
-            userSettings.centroidStartTime = getSelectedMenuUserData(this.handles.menu_centroidStartTime);
-            userSettings.centroidStopTime = getSelectedMenuUserData(this.handles.menu_centroidStopTime);
-                           
-                
+            userSettings.weekdaySelection = get(this.handles.menu_weekdays,'value');
+            userSettings.startTimeSelection = get(this.handles.menu_weekdays,'value');
+            userSettings.stopTimeSelection = get(this.handles.menu_weekdays,'value');
+            
+            userSettings.centroidStartTime = getSelectedMenuString(this.handles.menu_centroidStartTime);
+            userSettings.centroidStopTime = getSelectedMenuString(this.handles.menu_centroidStopTime);
+                                           
             userSettings.weekdayTag = this.base.weekdayTags{userSettings.weekdaySelection};
             userSettings.centroidDurationSelection = get(this.handles.menu_duration,'value');
             userSettings.centroidDurationHours = this.base.centroidHourlyDurations(userSettings.centroidDurationSelection);
@@ -1313,7 +1322,7 @@ classdef PAStatTool < handle
             baseSettings.weekdayDescriptions = {'All days','Monday-Friday','Weekend'};            
             baseSettings.weekdayTags = {'all','weekdays','weekends'};
             
-            baseSettings.centroidDurationDescriptions = {'1 day','12 hours','6 hours','4 hours','3 hours','2 hours','1 hour'};
+            baseSettings.centroidDurationDescriptions = {'24 hours','12 hours','6 hours','4 hours','3 hours','2 hours','1 hour'};
             baseSettings.centroidHourlyDurations = [24
                 12
                 6

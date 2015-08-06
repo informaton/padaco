@@ -4,7 +4,7 @@
 function selectedData = getSelectedMenuUserData(menuHandle)
     if(ishandle(menuHandle))
         selections = get(menuHandle,'userdata');
-        if(iscell(selections))
+        if(iscell(selections) || ~ischar(selections))
             selectedData = selections{get(menuHandle,'value')};
         else
             selectedData = selections;

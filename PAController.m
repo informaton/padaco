@@ -129,14 +129,25 @@ classdef PAController < handle
                 %configure the menu bar callbacks.
                 obj.initMenubarCallbacks();
                 
-                obj.setViewMode(obj.SETTINGS.CONTROLLER.viewMode);
+                lastViewMode = obj.SETTINGS.CONTROLLER.viewMode;
                 
                 % attempt to load the last set of results
-                if(strcmpi(obj.viewMode,'results'))
-                    if(obj.initResultsView())
-                        obj.VIEW.showReady('all');
-                    end
+                switch(lower(lastViewMode))
+                    case 'results'
+                        obj.menuViewmodeResultsCallback();
+                    case 'timeseries'
+                        obj.menuViewmodeTimeSeriesCallback();
+                    case 'batch'
+                        obj.menuViewmodeBatchCallback();
+                    otherwise
+                        % unhandled
                 end
+
+%                 if(strcmpi(obj.viewMode,'results'))
+%                     if(obj.initResultsView())
+%                         obj.VIEW.showReady('all');
+%                     end
+%                 end
             end                
         end
         
