@@ -91,11 +91,13 @@ classdef PAStatTool < handle
                 plotType = this.base.plotTypes{get(this.handles.menu_plottype,'value')};
                 this.clearPlots();
                 set(padaco_fig_h,'visible','on');
-                switch(plotType)
-                    case 'centroids'
-                        this.switch2clustering();
-                    otherwise
-                        this.switchFromClustering();
+                if(this.getCanPlot())
+                    switch(plotType)
+                        case 'centroids'
+                            this.switch2clustering();
+                        otherwise
+                            this.switchFromClustering();
+                    end
                 end
 
             else
@@ -376,21 +378,22 @@ classdef PAStatTool < handle
             set(this.handles.check_normalizevalues,'value',1,'enable','off');
             set(this.handles.axes_primary,'ydir','normal');  %sometimes this gets changed by the heatmap displays which have the time shown in reverse on the y-axis
             
-            
-            if(isempty(this.centroidObj) || this.centroidObj.failedToConverge())
-                this.disableCentroidControls();
-                this.refreshCentroidsAndPlot();  
-            else
-                this.showCentroidControls();
-                this.plotCentroids();
+            if(this.getCanPlot())
+                if(isempty(this.centroidObj) || this.centroidObj.failedToConverge())
+                    this.disableCentroidControls();
+                    this.refreshCentroidsAndPlot();
+                else
+                    this.showCentroidControls();
+                    this.plotCentroids();
+                end
+                
+                %             this.disableCentroidControls();
+                %             this.showCentroidControls();
+                set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','on');
+                
+                set(this.handles.axes_secondary,'visible','on','color',[1 1 1]);
+                set(this.figureH,'WindowKeyPressFcn',@this.keyPressFcn);
             end
-            
-%             this.disableCentroidControls();
-%             this.showCentroidControls();
-            set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','on');
-            
-            set(this.handles.axes_secondary,'visible','on','color',[1 1 1]);
-            set(this.figureH,'WindowKeyPressFcn',@this.keyPressFcn);
         end
         
         % ======================================================================

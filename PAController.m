@@ -143,11 +143,6 @@ classdef PAController < handle
                         % unhandled
                 end
 
-%                 if(strcmpi(obj.viewMode,'results'))
-%                     if(obj.initResultsView())
-%                         obj.VIEW.showReady('all');
-%                     end
-%                 end
             end                
         end
         
@@ -976,7 +971,12 @@ classdef PAController < handle
             initialPath = obj.resultsPathname;
             resultsPath = uigetfulldir(initialPath, 'Select path containing padaco results output directories');
             if(~isempty(resultsPath))
-                
+                % Say good bye to your old stat tool if you selected a
+                % directory.  This ensures that if a breakdown occurs in
+                % the following steps, we do not have a previous StatTool
+                % hanging around showing results and the user unaware that
+                % a problem occurred (i.e. no change took place).
+                obj.StatTool = [];
                 obj.resultsPathname = resultsPath;               
                 if(~strcmpi(obj.viewMode,'results'))
                     obj.VIEW.showBusy('Switching to results view');
@@ -985,7 +985,11 @@ classdef PAController < handle
                 
                 obj.VIEW.showBusy('Initializing results view','all');
                 if(obj.initResultsView())
-                    obj.VIEW.showReady('all');                
+                    obj.VIEW.showReady('all');
+                else
+                    f=warndlg('I could not find any feature files in the directory you selected.  Check the editor window for further information','Load error','modal');
+                    waitfor(f);
+                    obj.VIEW.showReady();
                 end
             else
                 % switch back to other mode?
