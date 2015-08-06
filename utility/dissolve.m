@@ -3,7 +3,10 @@
 %background color.  The method used is dependent on the handle's type.
 %> @param The graphic handle to dissovle
 %> @param The amount of time (in seconds) to take dissolving.
-function dissolve(hObject,numSeconds)
+function dissolve(hObject,numSeconds,hideParentOnExit)
+    if(nargin<3)
+        hideParentOnExit=false;
+    end
     fps = 25;  %1/24 causes a warning message by matlab which is limited to 1 millisecond precision
     if(ishandle(hObject))
         type = get(hObject,'type');
@@ -28,7 +31,7 @@ function dissolve(hObject,numSeconds)
            for e=1:numel(stepSize)
                stepSize(e) = (stopValue(e)-startValue(e))/numSteps;
            end
-           start(timer('name','dissolver','executionmode','fixedspacing','period',1/fps,'timerfcn',{@dissolveFcn, hObject,property,stepSize,stopValue,numSteps-1}));
+           start(timer('name','dissolver','executionmode','fixedspacing','period',1/fps,'timerfcn',{@dissolveFcn, hObject,property,stepSize,stopValue,numSteps-1,hideParentOnExit}));
         end        
     else
 
@@ -37,7 +40,7 @@ function dissolve(hObject,numSeconds)
 end
 
 % Timer callback for the dissolve method
-function dissolveFcn(timerH,~,handle,property,stepSize,stopValue,stepsLeft)
+function dissolveFcn(timerH,~,handle,property,stepSize,stopValue,stepsLeft,hideParentOnExit)
     try
         if(ishandle(handle))
             stepsLeft = stepsLeft-1;
@@ -54,9 +57,13 @@ function dissolveFcn(timerH,~,handle,property,stepSize,stopValue,stepsLeft)
             if(keepGoing)
                 set(handle,property,curValue+stepSize);
             else
-                set(handles,property,stopValue);
+                %                 set(handle,property,stopValue);
+                set(handle,'visible','off');
                 stop(timerH);  
                 delete(timerH);
+                if(hideParentOnExit)
+                    set(get(handle,'parent'),'visible','off');
+                end
             end
         else
             stop(timerH);
@@ -64,7 +71,12 @@ function dissolveFcn(timerH,~,handle,property,stepSize,stopValue,stepsLeft)
         end
     catch me
         if(ishandle(handle))
-            set(handle,property,stopValue);
+            %             set(handle,property,stopValue);
+            set(handle,'visible','off');
+                
+            if(hideParentOnExit)
+                set(get(handle,'parent'),'visible','off');
+            end
         end
         stop(timerH);
         delete(timerH);

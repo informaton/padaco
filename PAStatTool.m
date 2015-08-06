@@ -906,7 +906,8 @@ classdef PAStatTool < handle
                 end                
                 resultsTextH = this.handles.text_resultsCentroid;
                 set(this.handles.axes_primary,'color',[1 1 1],'xlimmode','auto','ylimmode','auto','xtickmode','auto','ytickmode','auto','xticklabelmode','auto','yticklabelmode','auto','xminortick','off','yminortick','off');
-                set(resultsTextH,'visible','on','foregroundcolor',[0.1 0.1 0.1]);
+                set(resultsTextH,'visible','on','foregroundcolor',[0.1 0.1 0.1],'string','');
+               
 % %                 set(this.handles.text_primaryAxes,'backgroundcolor',[0 0 0],'foregroundcolor',[1 1 0],'visible','on');
                 this.showCentroidControls();
                 
@@ -1133,8 +1134,7 @@ classdef PAStatTool < handle
             userSettings.centroidDurationSelection = get(this.handles.menu_duration,'value');
             userSettings.centroidDurationHours = this.base.centroidHourlyDurations(userSettings.centroidDurationSelection);
         end
-                
-                
+
     end
     
     methods (Static)
