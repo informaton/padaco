@@ -430,6 +430,8 @@ classdef PAStatTool < handle
                 this.handles.menu_signalsource
                 this.handles.menu_plottype
                 this.handles.menu_weekdays
+                this.handles.menu_centroidStartTime
+                this.handles.menu_centroidStopTime                
                 this.handles.menu_duration
                 this.handles.check_showCentroidMembers
                 this.handles.push_refreshCentroids
@@ -477,6 +479,9 @@ classdef PAStatTool < handle
                         
                         % Centroid widgets
                         set(this.handles.menu_weekdays,'userdata',this.base.weekdayTags,'string',this.base.weekdayDescriptions,'value',widgetSettings.weekdaySelection);
+                        this.handles.menu_centroidStartTime
+                        this.handles.menu_centroidStopTime
+                
                         set(this.handles.menu_duration,'string',this.base.centroidDurationDescriptions,'value',widgetSettings.centroidDurationSelection);
                         set(this.handles.edit_centroidMinimum,'string',num2str(widgetSettings.minClusters));
                         set(this.handles.edit_centroidThreshold,'string',num2str(widgetSettings.clusterThreshold)); 
@@ -519,6 +524,8 @@ classdef PAStatTool < handle
                         set(this.handles.push_nextCentroid,'callback',@this.showNextCentroid);
                         
                         set([this.handles.menu_weekdays
+                            this.handles.menu_centroidStartTime
+                            this.handles.menu_centroidStopTime
                             this.handles.edit_centroidMinimum
                             this.handles.edit_centroidThreshold
                             this.handles.menu_duration
@@ -583,6 +590,8 @@ classdef PAStatTool < handle
                 'menu_signalsource'
                 'menu_plottype'
                 'menu_weekdays'
+                'menu_centroidStartTime'
+                'menu_centroidStopTime'
                 'menu_duration'
                 'axes_primary'
                 'axes_secondary'
@@ -1130,6 +1139,10 @@ classdef PAStatTool < handle
             userSettings.minClusters = str2double(get(this.handles.edit_centroidMinimum,'string'));
             userSettings.clusterThreshold = str2double(get(this.handles.edit_centroidThreshold,'string'));            
             userSettings.weekdaySelection = get(this.handles.menu_weekdays,'value');
+            
+                            this.handles.menu_centroidStartTime
+                this.handles.menu_centroidStopTime               
+                
             userSettings.weekdayTag = this.base.weekdayTags{userSettings.weekdaySelection};
             userSettings.centroidDurationSelection = get(this.handles.menu_duration,'value');
             userSettings.centroidDurationHours = this.base.centroidHourlyDurations(userSettings.centroidDurationSelection);
