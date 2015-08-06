@@ -478,9 +478,12 @@ classdef PAStatTool < handle
                         set(this.handles.menu_plottype,'userdata',this.base.plotTypes,'string',this.base.plotTypeDescriptions,'value',widgetSettings.plotTypeSelection);
                         
                         % Centroid widgets
+                        hoursInDay= 0:23;
+                        hoursInDayStr = datestr(hoursInDay/24,'HH:MM');                        
                         set(this.handles.menu_weekdays,'userdata',this.base.weekdayTags,'string',this.base.weekdayDescriptions,'value',widgetSettings.weekdaySelection);
-                        this.handles.menu_centroidStartTime
-                        this.handles.menu_centroidStopTime
+                        set(this.handles.menu_centroidStartTime,'userdata',hoursInDay,'string',hoursInDayStr,'value',widgetSettings.startTimeSelection);
+                        set(this.handles.menu_centroidStopTime,'userdata',hoursInDay,'string',hoursInDayStr,'value',widgetSettings.stopTimeSelection);
+                        
                 
                         set(this.handles.menu_duration,'string',this.base.centroidDurationDescriptions,'value',widgetSettings.centroidDurationSelection);
                         set(this.handles.edit_centroidMinimum,'string',num2str(widgetSettings.minClusters));
@@ -1138,10 +1141,11 @@ classdef PAStatTool < handle
             
             userSettings.minClusters = str2double(get(this.handles.edit_centroidMinimum,'string'));
             userSettings.clusterThreshold = str2double(get(this.handles.edit_centroidThreshold,'string'));            
-            userSettings.weekdaySelection = get(this.handles.menu_weekdays,'value');
-            
-                            this.handles.menu_centroidStartTime
-                this.handles.menu_centroidStopTime               
+           
+            userSettings.weekdaySelection = get(this.handles.menu_weekdays,'value');            
+            userSettings.centroidStartTime = getSelectedMenuUserData(this.handles.menu_centroidStartTime);
+            userSettings.centroidStopTime = getSelectedMenuUserData(this.handles.menu_centroidStopTime);
+                           
                 
             userSettings.weekdayTag = this.base.weekdayTags{userSettings.weekdaySelection};
             userSettings.centroidDurationSelection = get(this.handles.menu_duration,'value');
@@ -1255,6 +1259,8 @@ classdef PAStatTool < handle
         %> - @c minClusters
         %> - @c clusterThreshold
         %> - @c weekdaySelection
+        %> - @c startTimeSelection
+        %> - @c paramStruct.stopTimeSelection
         %> - @c centroidDurationSelection
         % ======================================================================
         function paramStruct = getDefaultParameters()
@@ -1271,6 +1277,9 @@ classdef PAStatTool < handle
             paramStruct.minClusters = 40;
             paramStruct.clusterThreshold = 1.5;
             paramStruct.weekdaySelection = 1;
+            paramStruct.startTimeSelection = 1;
+            paramStruct.stopTimeSelection = 1;
+            
             paramStruct.centroidDurationSelection = 1;
         end
         
