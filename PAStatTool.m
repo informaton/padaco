@@ -12,8 +12,15 @@ classdef PAStatTool < handle
         figureH;
         featureInputFilePattern;
         featureInputFileFieldnames;
-        %> structure of loaded features
+        %> Structure of original loaded features, that are a direct
+        %> replication of the data obtained from disk (i.e. without further
+        %> filtering).
+        originalFeatureStruct;
+        %> structure loaded features which is as current or as in sync with the gui settings 
+        %> as of the last time the 'Calculate' button was pressed.
+        %> manipulated 
         featureStruct;
+        
         %> struct of handles that PAStatTool interacts with.  See
         %> initHandles()
         handles; 
@@ -59,6 +66,7 @@ classdef PAStatTool < handle
                 widgetSettings = [];
             end
             
+            this.originalFeatureStruct = [];
             this.canPlot = false;
             this.featuresDirectory = [];
             this.imagesDirectory = [];
@@ -122,6 +130,12 @@ classdef PAStatTool < handle
             paramStruct = this.getPlotSettings();            
         end
         
+        
+        function setStartTimes(this,startTimeCellStr)
+           set(this.handles.menu_centroidStartTime,'string',startTimeCellStr);
+           set(this.handles.menu_centroidStopTime,'string',startTimeCellStr);
+        end
+        
         % ======================================================================
         %> @brief Loads feature struct from disk using results feature
         %> directory.
@@ -132,11 +146,35 @@ classdef PAStatTool < handle
             
             pSettings = this.getPlotSettings();
             inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
-            if(exist(inputFilename,'file'))                
-                this.featureStruct = this.loadAlignedFeatures(inputFilename);                
+            if(exist(inputFilename,'file')) 
+                if(isempty(this.originalFeatureStruct))
+                    this.originalFeatureStruct = this.loadAlignedFeatures(inputFilename);
+                    this.setStartTimes(this.originalFeatureStruct.startTimes);
+                    
+                end
+                this.featureStruct = this.originalFeatureStruct;
+                
+                startTimeSelection = pSettings.startTimeSelection;
+                stopTimeSelection = pSettings.stopTimeSelection - 1;
+                if(stopTimeSelection<0)
+                    % Do nothing; this means, that we started at rayday and
+                    % will go 24 hours
+                elseif(stopTimeSelection== startTimeSelection)
+                    warndlg('Not going to load only 1 feature; just do a mean ...');
+                elseif(startTimeSelection < stopTimeSelection)
+                    this.featureStruct.startTimes = this.featureStruct.startTimes(startTimeSelection:stopTimeSelection);
+                    this.featureStruct.shapes = this.featureStruct.shapes(:,startTimeSelection:stopTimeSelection);      
+                    this.featureStruct.totalCount = numel(this.featureStruct.startTimes);
+                elseif(stopTimeSelection < startTimeSelection)
+                    this.featureStruct.startTimes = [this.featureStruct.startTimes{stopTimeSelection:end},this.featureStruct.startTimes{1:startTimeSelection}];
+                    this.featureStruct.shapes = [this.featureStruct.shapes(:,stopTimeSelection:end),this.featureStruct.shapes(:,1:startTimeSelection)];
+                    this.featureStruct.totalCount = numel(this.featureStruct.startTimes);
+                else
+                    warndlg('Something unexpected happened');
+                end
+                
                 loadFeatures = this.featureStruct.shapes;
-                
-                
+
                 if(pSettings.centroidDurationHours~=24)
                     hoursPerCentroid = pSettings.centroidDurationHours;
                     repRows = 24/hoursPerCentroid;
@@ -479,8 +517,8 @@ classdef PAStatTool < handle
                         
                         % Centroid widgets
                         set(this.handles.menu_weekdays,'userdata',this.base.weekdayTags,'string',this.base.weekdayDescriptions,'value',widgetSettings.weekdaySelection);
-                        this.handles.menu_centroidStartTime
-                        this.handles.menu_centroidStopTime
+                        set(this.handles.menu_centroidStartTime,'userdata',[],'string',{'Start times'},'value',1);
+                        set(this.handles.menu_centroidStopTime,'userdata',[],'string',{'Stop times'},'value',1);
                 
                         set(this.handles.menu_duration,'string',this.base.centroidDurationDescriptions,'value',widgetSettings.centroidDurationSelection);
                         set(this.handles.edit_centroidMinimum,'string',num2str(widgetSettings.minClusters));
@@ -1138,10 +1176,11 @@ classdef PAStatTool < handle
             
             userSettings.minClusters = str2double(get(this.handles.edit_centroidMinimum,'string'));
             userSettings.clusterThreshold = str2double(get(this.handles.edit_centroidThreshold,'string'));            
-            userSettings.weekdaySelection = get(this.handles.menu_weekdays,'value');
             
-                            this.handles.menu_centroidStartTime
-                this.handles.menu_centroidStopTime               
+            userSettings.weekdaySelection = get(this.handles.menu_weekdays,'value');
+
+            userSettings.startTimeSelection = get(this.handles.menu_centroidStartTime,'value');
+            userSettings.stopTimeSelection = get(this.handles.menu_centroidStopTime,'value');
                 
             userSettings.weekdayTag = this.base.weekdayTags{userSettings.weekdaySelection};
             userSettings.centroidDurationSelection = get(this.handles.menu_duration,'value');
@@ -1255,6 +1294,8 @@ classdef PAStatTool < handle
         %> - @c minClusters
         %> - @c clusterThreshold
         %> - @c weekdaySelection
+        %> - @c startTimeSelection
+        %> - @c stopTimeSelection
         %> - @c centroidDurationSelection
         % ======================================================================
         function paramStruct = getDefaultParameters()
@@ -1271,6 +1312,9 @@ classdef PAStatTool < handle
             paramStruct.minClusters = 40;
             paramStruct.clusterThreshold = 1.5;
             paramStruct.weekdaySelection = 1;
+            paramStruct.startTimeSelection = 1;
+            paramStruct.stopTimeSelection = 1;
+            
             paramStruct.centroidDurationSelection = 1;
         end
         
@@ -1304,6 +1348,10 @@ classdef PAStatTool < handle
             baseSettings.weekdayDescriptions = {'All days','Monday-Friday','Weekend'};            
             baseSettings.weekdayTags = {'all','weekdays','weekends'};
             
+            baseSettings.startTimeSelection = 1;
+            baseSettings.stopTimeSelection = 1;
+            
+
             baseSettings.centroidDurationDescriptions = {'1 day','12 hours','6 hours','4 hours','3 hours','2 hours','1 hour'};
             baseSettings.centroidHourlyDurations = [24
                 12

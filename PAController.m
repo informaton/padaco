@@ -1100,12 +1100,8 @@ classdef PAController < handle
             obj.setViewMode('results');
             if(obj.initResultsView())  
                 obj.VIEW.showReady('all');
-            else
-                responseButton = questdlg('Results output pathname is not set.  Would you like to choose one now?','Find results output path?');
-                if(strcmpi(responseButton,'yes'))
-                    obj.menuFileOpenResultsPathCallback();
-                end
             end
+            
         end        
         
         %% Batch mode callbacks        
@@ -2131,6 +2127,11 @@ classdef PAController < handle
             this.VIEW.initWidgets('results',disableFlag);
             if(~success)
                 this.StatTool = [];
+                responseButton = questdlg('Results output pathname is either not set or was not found.  Would you like to choose one now?','Find results output path?');
+                if(strcmpi(responseButton,'yes'))
+                    this.menuFileOpenResultsPathCallback();
+                end
+                
             end
         end
         
