@@ -16,6 +16,12 @@ classdef PAStatTool < handle
         %> replication of the data obtained from disk (i.e. without further
         %> filtering).
         originalFeatureStruct;
+        %> Structure initialized to input widget settings when passed to
+        %> the constructor (and is empty otherwise).  This is used to
+        %> 'reset' parameters and keep track of time start and stop
+        %> selection fields which are not initialized until after data has
+        %> been load (i.e. and populates the dropdown menus.
+        originalWidgetSettings;
         %> structure loaded features which is as current or as in sync with the gui settings 
         %> as of the last time the 'Calculate' button was pressed.
         %> manipulated 
@@ -29,7 +35,7 @@ classdef PAStatTool < handle
         featureTypes;
         featureDescriptions;
         %> @brief boolean set to true if result data is found.
-        canPlot; 
+        canPlot;
         %> @brief Struct to keep track of settings from previous plot type
         %> selections to make transitioning back and forth between cluster
         %> plotting and others easier to stomach.  Fields include:
@@ -66,6 +72,7 @@ classdef PAStatTool < handle
                 widgetSettings = [];
             end
             
+            this.originalWidgetSettings = widgetSettings;
             this.originalFeatureStruct = [];
             this.canPlot = false;
             this.featuresDirectory = [];
@@ -99,11 +106,13 @@ classdef PAStatTool < handle
                 plotType = this.base.plotTypes{get(this.handles.menu_plottype,'value')};
                 this.clearPlots();
                 set(padaco_fig_h,'visible','on');
-                switch(plotType)
-                    case 'centroids'
-                        this.switch2clustering();
-                    otherwise
-                        this.switchFromClustering();
+                if(this.getCanPlot())
+                    switch(plotType)
+                        case 'centroids'
+                            this.switch2clustering();
+                        otherwise
+                            this.switchFromClustering();
+                    end
                 end
 
             else
@@ -130,10 +139,29 @@ classdef PAStatTool < handle
             paramStruct = this.getPlotSettings();            
         end
         
-        
-        function setStartTimes(this,startTimeCellStr)
-           set(this.handles.menu_centroidStartTime,'string',startTimeCellStr);
-           set(this.handles.menu_centroidStopTime,'string',startTimeCellStr);
+        % ======================================================================
+        %> @brief Sets the start and stop time dropdown menu content and
+        %> returns the selection.  
+        %> @param this Instance of PAStatTool
+        %> @param Cell string of times that can be selected to define a
+        %> range of time to calculate centroid profiles from.
+        %> @retval Selection value for the menu_centroidStartTime menu.
+        %> @retval Selection value for the menu_centroidStopTime menu.
+        % ======================================================================
+        function [startTimeSelection, stopTimeSelection ] = setStartTimes(this,startTimeCellStr)
+            if(~isempty(this.originalWidgetSettings))
+                stopTimeSelection = this.originalWidgetSettings.stopTimeSelection;
+                startTimeSelection = this.originalWidgetSettings.startTimeSelection;
+                if(startTimeSelection>numel(startTimeCellStr) || stopTimeSelection>numel(startTimeCellStr))
+                    startTimeSelection = 1;
+                    stopTimeSelection = 1;                
+                end
+            else
+                startTimeSelection = 1;
+                stopTimeSelection = 1;
+            end
+            set(this.handles.menu_centroidStartTime,'string',startTimeCellStr,'value',startTimeSelection);
+            set(this.handles.menu_centroidStopTime,'string',startTimeCellStr,'value',stopTimeSelection);
         end
         
         % ======================================================================
@@ -142,21 +170,21 @@ classdef PAStatTool < handle
         %> @param this Instance of PAStatTool
         %> @retval success Boolean: true if features are loaded from file.  False if they are not.
         % ======================================================================
-        function success = loadFeatureStruct(this)
+        function success = getFeatureStruct(this)
             
             pSettings = this.getPlotSettings();
             inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
+
             if(exist(inputFilename,'file')) 
                 if(isempty(this.originalFeatureStruct))
                     this.originalFeatureStruct = this.loadAlignedFeatures(inputFilename);
-                    this.setStartTimes(this.originalFeatureStruct.startTimes);
-                    
+                    [pSettings.startTimeSelection, pSettings.stopTimeSelection] = this.setStartTimes(this.originalFeatureStruct.startTimes);
                 end
                 this.featureStruct = this.originalFeatureStruct;
                 
                 startTimeSelection = pSettings.startTimeSelection;
                 stopTimeSelection = pSettings.stopTimeSelection - 1;
-                if(stopTimeSelection<0)
+                if(stopTimeSelection<1)
                     % Do nothing; this means, that we started at rayday and
                     % will go 24 hours
                 elseif(stopTimeSelection== startTimeSelection)
@@ -176,8 +204,9 @@ classdef PAStatTool < handle
                 loadFeatures = this.featureStruct.shapes;
 
                 if(pSettings.centroidDurationHours~=24)
+
                     hoursPerCentroid = pSettings.centroidDurationHours;
-                    repRows = 24/hoursPerCentroid;
+                    repRows = featureDurationInHours/hoursPerCentroid;
                     
                     this.featureStruct.totalCount = this.featureStruct.totalCount/repRows;
                     
@@ -192,8 +221,6 @@ classdef PAStatTool < handle
                     newColCount = ncol/repRows;
                     loadFeatures = reshape(loadFeatures',newColCount,newRowCount)';
                     
-                    % assumes features are provided in 24 hour intervals
-                    % from batch processing mode
                     %  durationHoursPerFeature = 24/this.featureStruct.totalCount;
                     % featuresPerHour = this.featureStruct.totalCount/24;
                     % featuresPerCentroid = hoursPerCentroid*featuresPerHour;
@@ -297,7 +324,7 @@ classdef PAStatTool < handle
                         
                         this.showBusy();
                         this.clearPlots();
-                        this.loadFeatureStruct();
+                        this.getFeatureStruct();
                         if(~isempty(this.featureStruct))
                             pSettings.ylabelstr = sprintf('%s of %s %s activity',pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
                             pSettings.xlabelstr = 'Days of Week';
@@ -407,21 +434,22 @@ classdef PAStatTool < handle
             set(this.handles.check_normalizevalues,'value',1,'enable','off');
             set(this.handles.axes_primary,'ydir','normal');  %sometimes this gets changed by the heatmap displays which have the time shown in reverse on the y-axis
             
-            
-            if(isempty(this.centroidObj) || this.centroidObj.failedToConverge())
-                this.disableCentroidControls();
-                this.refreshCentroidsAndPlot();  
-            else
-                this.showCentroidControls();
-                this.plotCentroids();
+            if(this.getCanPlot())
+                if(isempty(this.centroidObj) || this.centroidObj.failedToConverge())
+                    this.disableCentroidControls();
+                    this.refreshCentroidsAndPlot();
+                else
+                    this.showCentroidControls();
+                    this.plotCentroids();
+                end
+                
+                %             this.disableCentroidControls();
+                %             this.showCentroidControls();
+                set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','on');
+                
+                set(this.handles.axes_secondary,'visible','on','color',[1 1 1]);
+                set(this.figureH,'WindowKeyPressFcn',@this.keyPressFcn);
             end
-            
-%             this.disableCentroidControls();
-%             this.showCentroidControls();
-            set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','on');
-            
-            set(this.handles.axes_secondary,'visible','on','color',[1 1 1]);
-            set(this.figureH,'WindowKeyPressFcn',@this.keyPressFcn);
         end
         
         % ======================================================================
@@ -519,6 +547,11 @@ classdef PAStatTool < handle
                         set(this.handles.menu_weekdays,'userdata',this.base.weekdayTags,'string',this.base.weekdayDescriptions,'value',widgetSettings.weekdaySelection);
                         set(this.handles.menu_centroidStartTime,'userdata',[],'string',{'Start times'},'value',1);
                         set(this.handles.menu_centroidStopTime,'userdata',[],'string',{'Stop times'},'value',1);
+                        %                         startStopTimesInDay= 0:1/4:24;
+                        %                         hoursInDayStr = datestr(startStopTimesInDay/24,'HH:MM');
+                        %                         set(this.handles.menu_centroidStartTime,'userdata',startStopTimesInDay(1:end-1),'string',hoursInDayStr(1:end-1,:),'value',widgetSettings.startTimeSelection);
+                        %                         set(this.handles.menu_centroidStopTime,'userdata',startStopTimesInDay(2:end),'string',hoursInDayStr(2:end,:),'value',widgetSettings.stopTimeSelection);
+                        
                 
                         set(this.handles.menu_duration,'string',this.base.centroidDurationDescriptions,'value',widgetSettings.centroidDurationSelection);
                         set(this.handles.edit_centroidMinimum,'string',num2str(widgetSettings.minClusters));
@@ -917,7 +950,7 @@ classdef PAStatTool < handle
             this.showBusy();
             pSettings= this.getPlotSettings();
             this.centroidObj = [];            
-            if(this.loadFeatureStruct())            
+            if(this.getFeatureStruct())            
                 % does not converge well if not normalized as we are no longer looking at the shape alone
                 
                 % @b weekdayTag String to identify how/if data should be
@@ -1181,7 +1214,11 @@ classdef PAStatTool < handle
 
             userSettings.startTimeSelection = get(this.handles.menu_centroidStartTime,'value');
             userSettings.stopTimeSelection = get(this.handles.menu_centroidStopTime,'value');
-                
+
+%             userSettings.centroidStartTime = getSelectedMenuString(this.handles.menu_centroidStartTime);
+%             userSettings.centroidStopTime = getSelectedMenuString(this.handles.menu_centroidStopTime);
+            
+
             userSettings.weekdayTag = this.base.weekdayTags{userSettings.weekdaySelection};
             userSettings.centroidDurationSelection = get(this.handles.menu_duration,'value');
             userSettings.centroidDurationHours = this.base.centroidHourlyDurations(userSettings.centroidDurationSelection);
@@ -1353,6 +1390,8 @@ classdef PAStatTool < handle
             
 
             baseSettings.centroidDurationDescriptions = {'1 day','12 hours','6 hours','4 hours','3 hours','2 hours','1 hour'};
+            baseSettings.centroidDurationDescriptions = {'24 hours','12 hours','6 hours','4 hours','3 hours','2 hours','1 hour'};
+
             baseSettings.centroidHourlyDurations = [24
                 12
                 6

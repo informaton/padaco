@@ -52,13 +52,8 @@ classdef PAController < handle
         shift_display_samples_delta; %number of samples to adjust display by for moving forward or back
         startDateTime;
                 
-        %> Struct of batch settings with the following fields
-        %> - @c sourceDirectory Directory of Actigraph files that will be batch processed
-        %> - @c outputDirectory Output directory for batch processing
-        %> - @c classifyUsageState
-        %> - @c describeActivity
-        %> - @c describeInactivity
-        %> - @c describeSleep
+        %> Struct of batch settings with fields as described by
+        %PABatchTool's getDefault
         batch;
         
         %> String identifying Padaco's current view mode.  Values include
@@ -129,14 +124,20 @@ classdef PAController < handle
                 %configure the menu bar callbacks.
                 obj.initMenubarCallbacks();
                 
-                obj.setViewMode(obj.SETTINGS.CONTROLLER.viewMode);
+                lastViewMode = obj.SETTINGS.CONTROLLER.viewMode;
                 
                 % attempt to load the last set of results
-                if(strcmpi(obj.viewMode,'results'))
-                    if(obj.initResultsView())
-                        obj.VIEW.showReady('all');
-                    end
+                switch(lower(lastViewMode))
+                    case 'results'
+                        obj.menuViewmodeResultsCallback();
+                    case 'timeseries'
+                        obj.menuViewmodeTimeSeriesCallback();
+                    case 'batch'
+                        obj.menuViewmodeBatchCallback();
+                    otherwise
+                        % unhandled
                 end
+
             end                
         end
         
@@ -965,7 +966,12 @@ classdef PAController < handle
             initialPath = obj.resultsPathname;
             resultsPath = uigetfulldir(initialPath, 'Select path containing padaco results output directories');
             if(~isempty(resultsPath))
-                
+                % Say good bye to your old stat tool if you selected a
+                % directory.  This ensures that if a breakdown occurs in
+                % the following steps, we do not have a previous StatTool
+                % hanging around showing results and the user unaware that
+                % a problem occurred (i.e. no change took place).
+                obj.StatTool = [];
                 obj.resultsPathname = resultsPath;               
                 if(~strcmpi(obj.viewMode,'results'))
                     obj.VIEW.showBusy('Switching to results view');
@@ -974,7 +980,11 @@ classdef PAController < handle
                 
                 obj.VIEW.showBusy('Initializing results view','all');
                 if(obj.initResultsView())
-                    obj.VIEW.showReady('all');                
+                    obj.VIEW.showReady('all');
+                else
+                    f=warndlg('I could not find any feature files in the directory you selected.  Check the editor window for further information','Load error','modal');
+                    waitfor(f);
+                    obj.VIEW.showReady();
                 end
             else
                 % switch back to other mode?
@@ -1018,12 +1028,15 @@ classdef PAController < handle
             
         end
         
+        
         % --------------------------------------------------------------------
-        %> @brief Menubar callback for running the batch tool.
+        %> @brief Menubar callback for quitting the program.
+        %> Executes when user attempts to close padaco fig.
         %> @param obj Instance of PAController
-        %> @param hObject    handle to menu_viewmode_batch (see GCBO)
+        %> @param hObject    handle to menu_file_quit (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
-        %> @param handles    structure with handles and user data (see GUIDATA)
+        %> @note See startBatchProcessCallback for actual batch processing
+        %> steps.
         % --------------------------------------------------------------------
         function menuFileQuitCallback(obj,hObject,eventdata,handles)
             obj.figureCloseCallback(gcbf,eventdata,handles);
@@ -1052,7 +1065,7 @@ classdef PAController < handle
         end
         
         % --------------------------------------------------------------------
-        %% Settings menu bar callbacks
+        %% Settings menubar callbacks
         %> @brief Sets padaco's view mode to either time series or results viewing.
         %> @param obj Instance of PAController
         %> @param viewMode A string with one of two values
@@ -1088,6 +1101,18 @@ classdef PAController < handle
             end
             
         end   
+                
+        % --------------------------------------------------------------------
+        %> @brief Menubar callback for running the batch tool.
+        %> @param obj Instance of PAController
+        %> @param hObject    handle to menu_viewmode_batch (see GCBO)
+        %> @param eventdata  reserved - to be defined in a future version of MATLAB
+        %> @param handles    structure with handles and user data (see GUIDATA)
+        % --------------------------------------------------------------------        
+        function menuViewmodeBatchCallback(obj,hObject,eventdata)           
+            PABatchTool();
+        end        
+        
         
         % Results viewing callback
         % --------------------------------------------------------------------
@@ -1104,401 +1129,8 @@ classdef PAController < handle
             
         end        
         
-        %% Batch mode callbacks        
-        
-        % --------------------------------------------------------------------
-        %> @brief Menubar callback for quitting the program.
-        %> Executes when user attempts to close padaco fig.
-        %> @param obj Instance of PAController
-        %> @param hObject    handle to menu_file_quit (see GCBO)
-        %> @param eventdata  reserved - to be defined in a future version of MATLAB
-        %> @note See startBatchProcessCallback for actual batch processing
-        %> steps.
-        % --------------------------------------------------------------------        
-        function menuViewmodeBatchCallback(obj,hObject,eventdata)           
-            batchFig = batchTool();
-            batchHandles = guidata(batchFig);
-            
-            set(batchHandles.button_getSourcePath,'callback',{@obj.getSourceDirectoryCallback,batchHandles.text_sourcePath,batchHandles.text_filesFound});  
-            set(batchHandles.button_getOutputPath,'callback',{@obj.getOutputDirectoryCallback,batchHandles.text_outputPath});
-            
-            set(batchHandles.text_outputPath,'string',obj.batch.outputDirectory);
-            set(batchHandles.check_usageState,'value',obj.batch.classifyUsageState);
-            set(batchHandles.check_activityPatterns,'value',obj.batch.describeActivity);
-            set(batchHandles.check_inactivityPatterns,'value',obj.batch.describeInactivity);
-            set(batchHandles.check_sleepPatterns,'value',obj.batch.describeSleep);
-            % images
-            set(batchHandles.check_save2img,'value',obj.batch.images.save2img);
-            % alignment
-            set(batchHandles.check_saveAlignments,'value',obj.batch.alignment.save);
-          
-            set(batchHandles.button_go,'callback',@obj.startBatchProcessCallback);
-            
-            obj.calculateFilesFound(batchHandles.text_sourcePath,batchHandles.text_filesFound);
-            
 
-            imgFmt = obj.batch.images.format;
-            imageFormats = {'JPEG','PNG'};
-            imgSelection = find(strcmpi(imageFormats,imgFmt));
-            if(isempty(imgSelection))
-                imgSelection = 1;
-            end
-            set(batchHandles.menu_imageFormat,'string',imageFormats,'value',imgSelection);
-            
-            featureFcns = fieldnames(PAData.getFeatureDescriptionStruct());
-            featureDesc = PAData.getExtractorDescriptions();       
-            
-            featureFcns = [featureFcns; {featureFcns}]; % = {featureFcns{:},featureFcns}';
-            featureLabels = [featureDesc; 'All'];
-            featureDesc = [featureDesc; {featureDesc}];
-            
-            featureLabel = obj.batch.featureLabel;
-            featureSelection = find(strcmpi(featureLabels,featureLabel));
-            if(isempty(featureSelection))
-                featureSelection =1;
-            end
-            data.featureFunctions = featureFcns;
-            data.featureDescriptions = featureDesc;
-            set(batchHandles.menu_featureFcn,'string',featureLabels,'value',featureSelection,'userdata',data);
-
-        end        
-        
-        % --------------------------------------------------------------------
-        %> @brief Batch figure button callback for getting a directory of
-        %> actigraph files to process.
-        %> Executes when user attempts to close padaco fig.
-        %> @param obj Instance of PAController
-        %> @param hObject    handle to buttont (see GCBO)
-        %> @param eventdata  reserved - to be defined in a future version of MATLAB
-        %> @param text_sourcePathH Text graphic handle for placing the path
-        %> selected on the GUI display
-        %> @param text_filesFoundH Text graphic handle to place the number
-        %> of actigraph files found in the source directory.        
-        % --------------------------------------------------------------------        
-        function getSourceDirectoryCallback(obj,hObject,eventdata,text_sourcePathH,text_filesFoundH)
-        % --------------------------------------------------------------------
-            displayMessage = 'Select the directory containing .raw or count actigraphy files';
-            initPath = get(text_sourcePathH,'string');
-            tmpSrcDirectory = uigetfulldir(initPath,displayMessage);
-            if(~isempty(tmpSrcDirectory))
-                %assign the settings directory variable
-                obj.batch.sourceDirectory = tmpSrcDirectory;
-                obj.calculateFilesFound(text_sourcePathH,text_filesFoundH);
-            end
-        end
-        
-        % --------------------------------------------------------------------
-        %> @brief Determines the number of actigraph files located in the
-        %> specified source path and updates the GUI's count display.
-        %> @param obj Instance of PAController
-        %> @param text_sourcePath_h Text graphic handle for placing the path
-        %> selected on the GUI display
-        %> @param text_filesFound_h Text graphic handle to place the number
-        %> of actigraph files found in the source directory.        
-        % --------------------------------------------------------------------        
-        function calculateFilesFound(obj,text_sourcePath_h,text_filesFound_h)
-        % --------------------------------------------------------------------
-           %update the source path edit field with the source directory
-           handles = guidata(text_sourcePath_h);
-           set(text_sourcePath_h,'string',obj.batch.sourceDirectory);
-           %get the file count and update the file count text field. 
-           rawFileCount = numel(getFilenamesi(obj.batch.sourceDirectory,'.raw'));
-           csvFileCount = numel(getFilenamesi(obj.batch.sourceDirectory,'.csv'));
-           msg = '';
-           if(rawFileCount==0 && csvFileCount==0)
-               msg = '0 files found.';
-               set(handles.button_go,'enable','off');
-            
-           else
-              if(rawFileCount>0)
-                  msg = sprintf('%u .raw file(s) found.\n',rawFileCount);
-              end
-              if(csvFileCount>0)
-                  msg = sprintf('%s%u .csv file(s) found.',msg,csvFileCount);
-              end
-              set(handles.button_go,'enable','on');
-           end
-           set(text_filesFound_h,'string',msg);
-        end
-        
-        
-        % --------------------------------------------------------------------
-        %> @brief Batch figure button callback for getting a directory to
-        %> save processed output files to.
-        %> Executes when user attempts to close padaco fig.
-        %> @param obj Instance of PAController
-        %> @param hObject    handle to buttont (see GCBO)
-        %> @param eventdata  reserved - to be defined in a future version of MATLAB
-        %> @param textH Text graphic handle for placing the output path
-        %> selected on the GUI display
-        % --------------------------------------------------------------------        
-        function getOutputDirectoryCallback(obj,hObject,eventdata,textH)
-            displayMessage = 'Select the output directory to place processed results.';
-            initPath = get(textH,'string');
-            tmpOutputDirectory = uigetfulldir(initPath,displayMessage);
-            if(~isempty(tmpOutputDirectory))
-                %assign the settings directory variable
-                obj.batch.outputDirectory = tmpOutputDirectory;
-                set(textH,'string',tmpOutputDirectory);
-            end
-        end
-        
-        % --------------------------------------------------------------------        
-        %> @brief Callback that starts a batch process based on batch gui
-        %> paramters.
-        %> @param obj Instance of PAController
-        %> @param hObject MATLAB graphic handle of the callback object
-        %> @param eventdata reserved by MATLAB, not used.
-        % --------------------------------------------------------------------        
-        function startBatchProcessCallback(obj,hObject,eventdata)
-                        
-            dateMap.Sun = 0;
-            dateMap.Mon = 1;
-            dateMap.Tue = 2;
-            dateMap.Wed = 3;
-            dateMap.Thu = 4;
-            dateMap.Fri = 5;
-            dateMap.Sat = 6;
-            
-            % initialize batch processing file management
-            [filenames, fullFilenames] = getFilenamesi(obj.batch.sourceDirectory,'.csv');
-            failedFiles = {};
-            fileCount = numel(fullFilenames);
-            fileCountStr = num2str(fileCount);
-            
-            % Get batch processing settings from the GUI     
-            handles = guidata(hObject);
-            obj.batch.images.save2img = get(handles.check_save2img,'value');
-            obj.batch.alignment.save = get(handles.check_saveAlignments,'value');
-            obj.batch.classifyUsageState = get(handles.check_usageState,'value');
-            obj.batch.describeActivity = get(handles.check_activityPatterns,'value');
-            obj.batch.describeInactivity = get(handles.check_inactivityPatterns,'value');
-            obj.batch.describeSleep = get(handles.check_sleepPatterns,'value');
-            
-            accelType = 'count';
-            
-            % get feature settings
-            % determine which feature to process
-            userdata = get(handles.menu_featureFcn,'userdata');
-            featureSelectionIndex = get(handles.menu_featureFcn,'value');
-            
-            allFeatureFcns = userdata.featureFunctions;
-            allFeatureDescriptions = userdata.featureDescriptions;
-            allFeatureLabels = get(handles.menu_featureFcn,'string');
-            obj.batch.featureLabel = allFeatureLabels{featureSelectionIndex};
-            
-            featureDescriptions = allFeatureDescriptions{featureSelectionIndex};
-            featureFcns = allFeatureFcns{featureSelectionIndex};
-            if(~iscell(featureFcns))
-                featureFcns = {featureFcns};
-            end
-            
-            if(~iscell(featureDescriptions))
-                featureDescriptions = {featureDescriptions};
-            end
-            
-            
-            % determine frame aggreation size - size to calculate each
-            % feature from
-            allFrameDurationMinutes = get(handles.menu_frameDurationMinutes,'userdata');
-            frameDurationMinutes = allFrameDurationMinutes(get(handles.menu_frameDurationMinutes,'value'));
-            obj.batch.frameDurationMinutes = frameDurationMinutes;
-            
-            % configure image output settings
-            image_settings =[];
-            if(obj.batch.images.save2img)
-                image_selection = get(handles.menu_imageFormat,'string');
-            
-                % Tuck this away for future use and updated settings.
-                image_settings.format = image_selection{get(handles.menu_imageFormat,'value')};                
-                obj.batch.images.format = image_settings.format;
-                
-                %put images in subdirectory based on detection method
-                images_pathnames =   strcat(fullfile(obj.batch.outputDirectory,'images'),filesep,featureFcns);
-            end  
-            
-            
-            if(obj.batch.alignment.save)
-                % features are grouped for all studies into one file per
-                % signal, place groupings into feature function directories
-
-                features_pathnames =   strcat(fullfile(obj.batch.outputDirectory,'features'),filesep,featureFcns);
-                obj.batch.alignment.elapsedStartHours = 0; %when to start the first measurement
-                obj.batch.alignment.intervalLengthHours = 24;  %duration of each interval (in hours) once started
-                                
-                % setup developer friendly variable names
-                elapsedStartHour  = obj.batch.alignment.elapsedStartHours;
-                intervalDurationHours = obj.batch.alignment.intervalLengthHours;
-                maxNumIntervals = 24/intervalDurationHours*7;  %set maximum to a week 
-                %obj.batch.alignment.singalName = 'X';
-            
-                signalNames = strcat('accel.',accelType,'.',{'x','y','z','vecMag'})';
-                %signalNames = {strcat('accel.',obj.accelObj.accelType,'.','x')};
-                
-                startDateVec = [0 0 0 elapsedStartHour 0 0];
-                stopDateVec = startDateVec + [0 0 0 intervalDurationHours -frameDurationMinutes 0]; %-frameDurMin to prevent looping into the start of the next inteval.
-                frameInterval = [0 0 0 0 frameDurationMinutes 0];
-                timeAxis = datenum(startDateVec):datenum(frameInterval):datenum(stopDateVec);
-                timeAxisStr = datestr(timeAxis,'HH:MM');
-            end
-            
-            % Setup output folders
-            for fn=1:numel(featureFcns)
-                
-                
-                if(obj.batch.images.save2img)
-                    %put images in subdirectory based on detection method
-                    images_pathname = images_pathnames{fn};
-                    if(~isdir(images_pathname))
-                        mkdir(images_pathname);
-                    end
-                end
-                
-                % Prep save alignment files.
-                if(obj.batch.alignment.save)
-                    featureFcn = featureFcns{fn};
-                    features_pathname = features_pathnames{fn};
-                    if(~isdir(features_pathname))
-                        mkdir(features_pathname);
-                    end
-                    
-                    for s=1:numel(signalNames)
-                        signalName = signalNames{s};
-                        
-                        featureFilename = fullfile(features_pathname,strcat('features.',featureFcn,'.',signalName,'.txt'));
-                        fid = fopen(featureFilename,'w');
-                        fprintf(fid,'# Feature:\t%s\n',featureDescriptions{fn});
-                        
-                        
-                        fprintf(fid,'# Length:\t%u\n',size(timeAxisStr,1));
-                        
-                        fprintf(fid,'# Start Datenum\tStart Day');
-                        for t=1:size(timeAxisStr,1)
-                            fprintf(fid,'\t%s',timeAxisStr(t,:));
-                        end
-                        
-                        fprintf(fid,'\n');
-                        fclose(fid);
-                    end
-                end            
-            end            
-           
-            % setup timers
-            pctDone = 0;
-            pctDelta = 1/numel(fullFilenames);
-            waitH = waitbar(pctDone,filenames{1});
-            startTime = now;
-            startClock = clock;
-            % batch process
-            for f=1:numel(fullFilenames)
-                %                 waitbar(pctDone,waitH,filenames{f});
-                ticStart = tic;
-                %for each featureFcnArray item as featureFcn                
-                try 
-                    fprintf('Processing %s\n',filenames{f});
-                    curData = PAData(fullFilenames{f});%,obj.SETTINGS.DATA
-                    
-                    setFrameDurMin = curData.setFrameDurationMinutes(frameDurationMinutes);
-                    if(frameDurationMinutes~=setFrameDurMin)
-                        fprintf('There was an error in setting the frame duration.\n');
-                    else
-                        
-                        [~,filename,~] = fileparts(curData.getFilename());
-                        if(obj.batch.classifyUsageState)
-                            curData.classifyUsageState();
-                            saveFilename = fullfile(obj.batch.outputDirectory,strcat(filename,'.usage.txt'));
-                            curData.saveToFile('usageState',saveFilename);
-                        end
-                        if(obj.batch.describeActivity)
-                            curData.describeActivity('activity');
-                            saveFilename = fullfile(obj.batch.outputDirectory,strcat(filename,'.activity.txt'));
-                            curData.saveToFile('activity',saveFilename);
-                        end
-                        if(obj.batch.describeInactivity)
-                            curData.describeActivity('inactivity');
-                            saveFilename = fullfile(obj.batch.outputDirectory,strcat(filename,'.inactivity.txt'));
-                            curData.saveToFile('inactivity',saveFilename);
-                        end
-                        if(obj.batch.describeSleep)
-                            curData.describeActivity('sleep');
-                            saveFilename = fullfile(obj.batch.outputDirectory,strcat(filename,'.sleep.txt'));
-                            curData.saveToFile('sleep',saveFilename);
-                        end
-                        
-                        for fn=1:numel(featureFcns)
-                            featureFcn = featureFcns{fn};
-                            % Should I save results as a picture?
-                            if(obj.batch.images.save2img)
-                                images_pathname = images_pathnames{fn};
-                                img_filename = fullfile(images_pathname,strcat(filename,'.',featureFcn,'.',lower(obj.batch.images.format)));
-                                % draw the secondary axes image.
-                                obj.save2image(curData,featureFcn,img_filename);
-                            end
-                            
-                            if(obj.batch.alignment.save)
-                                features_pathname = features_pathnames{fn};                                
-                                for s=1:numel(signalNames)
-                                    signalName = signalNames{s};
-                                    featureFilename = fullfile(features_pathname,strcat('features.',featureFcn,'.',signalName,'.txt'));
-                                    curData.extractFeature(signalName,featureFcn);
-                                    [alignedVec, alignedStartDateVecs] = curData.getAlignedFeatureVecs(featureFcn,signalName,elapsedStartHour, intervalDurationHours);
-                                    numIntervals = size(alignedVec,1);
-                                    if(numIntervals>maxNumIntervals)                                        
-                                        alignedVec = alignedVec(1:maxNumIntervals,:);
-                                        alignedStartDateVecs = alignedStartDateVecs(1:maxNumIntervals, :);
-                                        numIntervals = maxNumIntervals;
-                                    end
-                                    alignedStartDaysOfWeek = datestr(alignedStartDateVecs,'ddd');
-                                    alignedStartNumericDaysOfWeek = nan(numIntervals,1);
-                                    for a=1:numIntervals
-                                        alignedStartNumericDaysOfWeek(a)=dateMap.(alignedStartDaysOfWeek(a,:));
-                                    end
-                                    startDatenums = datenum(alignedStartDateVecs);
-                                    result = [startDatenums,alignedStartNumericDaysOfWeek,alignedVec];
-                                    save(featureFilename,'result','-ascii','-tabs','-append');
-                                end
-                                
-                            end
-                        end
-                    end
-                    
-                catch me
-                    showME(me);
-                    failedFiles{end+1} = filenames{f};
-                    fprintf('\t%s\tFAILED.\n',fullFilenames{f});
-                end  
-                
-                num_files_completed = f;
-                pctDone = pctDone+pctDelta;
-                
-                elapsed_dur_sec = toc(ticStart);
-                fprintf('File %d of %d (%0.2f%%) Completed in %0.2f seconds\n',num_files_completed,fileCount,pctDone,elapsed_dur_sec);
-                elapsed_dur_total_sec = etime(clock,startClock);
-                avg_dur_sec = elapsed_dur_total_sec/num_files_completed;
-                remaining_dur_sec = avg_dur_sec*(fileCount-num_files_completed);
-                est_str = sprintf('%01ihrs %01imin %01isec',floor(mod(remaining_dur_sec/3600,24)),floor(mod(remaining_dur_sec/60,60)),floor(mod(remaining_dur_sec,60)));
-                
-                msg = {['Processing ',filenames{f}, ' (file ',num2str(f) ,' of ',fileCountStr,')'],...
-                    ['Elapsed Time: ',datestr(now-startTime,'HH:MM:SS')],...
-                    ['Time Remaining: ',est_str]};
-                fprintf('%s\n',msg{2});
-                if(ishandle(waitH))
-                    waitbar(pctDone,waitH,char(msg));
-                else
-                    %                     waitHandle = findall(0,'tag','waitbarHTag');
-                end                
-            end
-            
-            waitbar(pctDone,waitH,'Finished!');
-            obj.resultsPathname = obj.batch.outputDirectory;
-            if(~isempty(failedFiles))
-                fprintf('\n\n%u Files Failed:\n',numel(failedFiles));
-                for f=1:numel(failedFiles)
-                    fprintf('\t%s\tFAILED.\n',failedFiles{f});
-                end
-            end
-        end
-           
+       
             
         % --------------------------------------------------------------------
         %> @brief Creates a temporary figure and axes, draws an overlay
@@ -2441,24 +2073,11 @@ classdef PAController < handle
             featureFcns = fieldnames(featureStruct);
             pStruct.featureFcn = featureFcns{1};
             pStruct.signalTagLine = tagLines{1};
+
+            pStruct.batch = PABatchTool.getDefaultParameters();
+            
             mPath = fileparts(mfilename('fullpath'));
-            pStruct.batch.sourceDirectory = mPath;
-            pStruct.batch.outputDirectory = mPath;
-            pStruct.batch.alignment.save = 1;
-            pStruct.batch.alignment.elapsedStartHours = 0; %when to start the first measurement
-            pStruct.batch.alignment.intervalLengthHours = 24;  %duration of each interval (in hours) once started
-            pStruct.batch.frameDurationMinutes = 15;
-            pStruct.batch.images.save2img = 0;
-            pStruct.batch.images.format = 'jpeg';
-            pStruct.batch.featureLabel = 'All';
-            checkFields = {'classifyUsageState';
-                'describeActivity';
-                'describeInactivity';
-                'describeSleep';};
-            for f=1:numel(checkFields)
-                pStruct.batch.(checkFields{f}) = 0;
-            end
-            pStruct.screenshotPathname = mPath;            
+            pStruct.screenshotPathname = mPath;
             pStruct.viewMode = 'timeseries';
             pStruct.resultsPathname = pStruct.batch.outputDirectory;
         end        
