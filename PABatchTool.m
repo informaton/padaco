@@ -4,6 +4,13 @@
 % ======================================================================
 classdef PABatchTool < handle
    
+    events
+        BatchToolStarting;
+        BatchToolRunning;
+        BatchToolComplete;
+        BatchToolClosing;
+    end
+    
     properties(Access=private) 
         %> Struct with the following fields:
         %> - @c sourceDirectory Directory of Actigraph files that will be batch processed
@@ -24,28 +31,28 @@ classdef PABatchTool < handle
                 this.settings = this.getDefaultParameters();
             end
                         
-            batchFig = batchTool();
+            batchFig = batchTool('visible','off');
             batchHandles = guidata(batchFig);
             
-            set(batchHandles.button_getSourcePath,'callback',{@obj.getSourceDirectoryCallback,batchHandles.text_sourcePath,batchHandles.text_filesFound});  
-            set(batchHandles.button_getOutputPath,'callback',{@obj.getOutputDirectoryCallback,batchHandles.text_outputPath});
+            set(batchHandles.button_getSourcePath,'callback',{@this.getSourceDirectoryCallback,batchHandles.text_sourcePath,batchHandles.text_filesFound});  
+            set(batchHandles.button_getOutputPath,'callback',{@this.getOutputDirectoryCallback,batchHandles.text_outputPath});
             
-            set(batchHandles.text_outputPath,'string',obj.settings.outputDirectory);
-            set(batchHandles.check_usageState,'value',obj.settings.classifyUsageState);
-            set(batchHandles.check_activityPatterns,'value',obj.settings.describeActivity);
-            set(batchHandles.check_inactivityPatterns,'value',obj.settings.describeInactivity);
-            set(batchHandles.check_sleepPatterns,'value',obj.settings.describeSleep);
+            set(batchHandles.text_outputPath,'string',this.settings.outputDirectory);
+            set(batchHandles.check_usageState,'value',this.settings.classifyUsageState);
+            set(batchHandles.check_activityPatterns,'value',this.settings.describeActivity);
+            set(batchHandles.check_inactivityPatterns,'value',this.settings.describeInactivity);
+            set(batchHandles.check_sleepPatterns,'value',this.settings.describeSleep);
             % images
-            set(batchHandles.check_save2img,'value',obj.settings.images.save2img);
+            set(batchHandles.check_save2img,'value',this.settings.images.save2img);
             % alignment
-            set(batchHandles.check_saveAlignments,'value',obj.settings.alignment.save);
+            set(batchHandles.check_saveAlignments,'value',this.settings.alignment.save);
           
-            set(batchHandles.button_go,'callback',@obj.startBatchProcessCallback);
+            set(batchHandles.button_go,'callback',@this.startBatchProcessCallback);
             
-            obj.calculateFilesFound(batchHandles.text_sourcePath,batchHandles.text_filesFound);
+            this.calculateFilesFound(batchHandles.text_sourcePath,batchHandles.text_filesFound);
             
 
-            imgFmt = obj.settings.images.format;
+            imgFmt = this.settings.images.format;
             imageFormats = {'JPEG','PNG'};
             imgSelection = find(strcmpi(imageFormats,imgFmt));
             if(isempty(imgSelection))
@@ -60,7 +67,7 @@ classdef PABatchTool < handle
             featureLabels = [featureDesc; 'All'];
             featureDesc = [featureDesc; {featureDesc}];
             
-            featureLabel = obj.settings.featureLabel;
+            featureLabel = this.settings.featureLabel;
             featureSelection = find(strcmpi(featureLabels,featureLabel));
             if(isempty(featureSelection))
                 featureSelection =1;
@@ -69,6 +76,8 @@ classdef PABatchTool < handle
             data.featureDescriptions = featureDesc;
             set(batchHandles.menu_featureFcn,'string',featureLabels,'value',featureSelection,'userdata',data);
 
+            % Make visible
+            set(batchFig,'visible','on');
         end
             
             
@@ -79,7 +88,6 @@ classdef PABatchTool < handle
         % --------------------------------------------------------------------
         %> @brief Batch figure button callback for getting a directory of
         %> actigraph files to process.
-        %> Executes when user attempts to close padaco fig.
         %> @param obj Instance of PAController
         %> @param hObject    handle to buttont (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
@@ -138,7 +146,6 @@ classdef PABatchTool < handle
         % --------------------------------------------------------------------
         %> @brief Batch figure button callback for getting a directory to
         %> save processed output files to.
-        %> Executes when user attempts to close padaco fig.
         %> @param obj Instance of PAController
         %> @param hObject    handle to buttont (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
@@ -187,6 +194,8 @@ classdef PABatchTool < handle
             obj.settings.describeActivity = get(handles.check_activityPatterns,'value');
             obj.settings.describeInactivity = get(handles.check_inactivityPatterns,'value');
             obj.settings.describeSleep = get(handles.check_sleepPatterns,'value');
+            
+            obj.notify('BatchToolStarting',BatchToolEventData(obj.settings));
             
             accelType = 'count';
             

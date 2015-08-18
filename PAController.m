@@ -1110,9 +1110,13 @@ classdef PAController < handle
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------        
         function menuViewmodeBatchCallback(obj,hObject,eventdata)           
-            PABatchTool();
+            batchTool = PABatchTool(obj.batch);
+            batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
         end        
         
+        function updateBatchToolSettingsCallback(obj,batchTool,eventData)
+            obj.batch = eventData.settings;
+        end
         
         % Results viewing callback
         % --------------------------------------------------------------------
