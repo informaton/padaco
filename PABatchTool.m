@@ -194,7 +194,7 @@ classdef PABatchTool < handle
             obj.settings.describeInactivity = get(handles.check_inactivityPatterns,'value');
             obj.settings.describeSleep = get(handles.check_sleepPatterns,'value');
             
-            obj.notify('BatchToolStarting',BatchToolEventData(obj.settings));
+            obj.notify('BatchToolStarting',EventData_BatchTool(obj.settings));
             
             accelType = 'count';
             
@@ -446,7 +446,7 @@ classdef PABatchTool < handle
                 end                
             end
             
-            waitbar(pctDone,waitH,'Finished!');
+            waitbar(1,waitH,'Finished!');
             obj.resultsPathname = obj.settings.outputDirectory;
             if(~isempty(failedFiles))
                 fprintf('\n\n%u Files Failed:\n',numel(failedFiles));
