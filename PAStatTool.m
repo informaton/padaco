@@ -176,8 +176,9 @@ classdef PAStatTool < handle
             inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
 
             if(exist(inputFilename,'file')) 
-                if(isempty(this.originalFeatureStruct))
-                    this.originalFeatureStruct = this.loadAlignedFeatures(inputFilename);
+                loadFile = isempty(this.originalFeatureStruct) || ~strcmpi(inputFilename,this.originalFeatureStruct.filename);                    
+                if(loadFile)
+                    this.originalFeatureStruct = this.loadAlignedFeatures(inputFilename);                    
                     [pSettings.startTimeSelection, pSettings.stopTimeSelection] = this.setStartTimes(this.originalFeatureStruct.startTimes);
                 end
                 this.featureStruct = this.originalFeatureStruct;
@@ -1235,6 +1236,7 @@ classdef PAStatTool < handle
         %> of features file produced by padaco's batch processing mode.
         %> @retval featureStruct A structure of aligned features obtained
         %> from filename.  Fields include:
+        %> - @c inputFilename The source filename data was loaded from.        
         %> - @c shapes
         %> - @c startTimes
         %> - @c startDaysOfWeek
@@ -1246,6 +1248,7 @@ classdef PAStatTool < handle
         %     filename='/Volumes/SeaG 1TB/sampleData/output/features/mean/features.mean.accel.count.vecMag.txt';
         % ======================================================================
         function featureStruct = loadAlignedFeatures(filename)
+            featureStruct.filename = filename;
             
             [~,fileN, ~] = fileparts(filename);
             [~, remain] = strtok(fileN,'.');
@@ -1371,8 +1374,9 @@ classdef PAStatTool < handle
         %> - @c weekdayTags
         % ======================================================================
         function baseSettings = getBaseSettings()
-            baseSettings.featureDescriptions = {'Mean','Mode','RMS','Std Dev','Sum','Variance'};
-            baseSettings.featureTypes = {'mean','mode','rms','std','sum','var'};
+            featureDescriptionStruct = PAData.getFeatureDescriptionStruct();
+            baseSettings.featureDescriptions = struct2cell(featureDescriptionStruct);
+            baseSettings.featureTypes = fieldnames(featureDescriptionStruct);
             baseSettings.signalTypes = {'x','y','z','vecMag'};
             baseSettings.signalDescriptions = {'X','Y','Z','Vector Magnitude'};
             

@@ -394,6 +394,12 @@ classdef PAController < handle
             % feature extractor
             extractorMethodDescriptions = PAData.getExtractorDescriptions(); 
             extractorStruct = PAData.getFeatureDescriptionStruct(); 
+            
+            
+            if(isfield(extractorStruct,'usagestate'))
+                extractorStruct = rmfield(extractorStruct,'usagestate');
+            end
+            
             extractorMethodFcns = fieldnames(extractorStruct);
             set(obj.VIEW.menuhandle.displayFeature,'string',extractorMethodDescriptions,'userdata',extractorMethodFcns,'value',1);
             

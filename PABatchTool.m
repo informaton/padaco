@@ -51,7 +51,6 @@ classdef PABatchTool < handle
             
             this.calculateFilesFound(batchHandles.text_sourcePath,batchHandles.text_filesFound);
             
-
             imgFmt = this.settings.images.format;
             imageFormats = {'JPEG','PNG'};
             imgSelection = find(strcmpi(imageFormats,imgFmt));
@@ -240,11 +239,16 @@ classdef PABatchTool < handle
             end  
             
             
-            if(obj.settings.alignment.save)
+                           
+
+            if(obj.settings.alignment.save || obj.settings.classifyUsageState)
                 % features are grouped for all studies into one file per
                 % signal, place groupings into feature function directories
 
                 features_pathnames =   strcat(fullfile(obj.settings.outputDirectory,'features'),filesep,featureFcns);
+                classification_pathname =   fullfile(obj.settings.outputDirectory,'classifications');
+                
+
                 obj.settings.alignment.elapsedStartHours = 0; %when to start the first measurement
                 obj.settings.alignment.intervalLengthHours = 24;  %duration of each interval (in hours) once started
                                 
@@ -274,6 +278,20 @@ classdef PABatchTool < handle
                     if(~isdir(images_pathname))
                         mkdir(images_pathname);
                     end
+                end                
+                
+                % Prep classifications alignment file
+                if(obj.settings.classifyUsageState)
+                    usageStateFilename = fullfile(classification_pathname,strcat('usageStates.count.vecMag.txt'));
+                    fid = fopen(usageStateFilename,'w');
+                    fprintf(fid,'# Feature:\tUsage state (Based on vecMag count)\n');                    
+                    fprintf(fid,'# Length:\t%u\n',size(timeAxisStr,1));                    
+                    fprintf(fid,'# Start Datenum\tStart Day');
+                    for t=1:size(timeAxisStr,1)
+                        fprintf(fid,'\t%s',timeAxisStr(t,:));
+                    end                    
+                    fprintf(fid,'\n');
+                    fclose(fid);
                 end
                 
                 % Prep save alignment files.
@@ -290,7 +308,6 @@ classdef PABatchTool < handle
                         featureFilename = fullfile(features_pathname,strcat('features.',featureFcn,'.',signalName,'.txt'));
                         fid = fopen(featureFilename,'w');
                         fprintf(fid,'# Feature:\t%s\n',featureDescriptions{fn});
-                        
                         
                         fprintf(fid,'# Length:\t%u\n',size(timeAxisStr,1));
                         
@@ -327,8 +344,26 @@ classdef PABatchTool < handle
                         
                         [~,filename,~] = fileparts(curData.getFilename());
                         if(obj.settings.classifyUsageState)
-                            [usageVec, usageState, startStopDateNums] = curData.classifyUsageState();
-                            saveFilename = fullfile(obj.settings.outputDirectory,strcat(filename,'.usage.txt'));
+%                             [usageVec, usageState, startStopDateNums] = curData.classifyUsageState();                            
+                            
+                            [alignedVec, alignedStartDateVecs] = curData.getAlignedUsageStates(elapsedStartHour, intervalDurationHours);
+%                             [alignedVec, alignedStartDateVecs] = curData.getAlignedFeatureVecs(featureFcn,signalName,elapsedStartHour, intervalDurationHours);
+
+                            numIntervals = size(alignedVec,1);
+                            if(numIntervals>maxNumIntervals)
+                                alignedVec = alignedVec(1:maxNumIntervals,:);
+                                alignedStartDateVecs = alignedStartDateVecs(1:maxNumIntervals, :);
+                                numIntervals = maxNumIntervals;
+                            end
+                            alignedStartDaysOfWeek = datestr(alignedStartDateVecs,'ddd');
+                            alignedStartNumericDaysOfWeek = nan(numIntervals,1);
+                            for a=1:numIntervals
+                                alignedStartNumericDaysOfWeek(a)=dateMap.(alignedStartDaysOfWeek(a,:));
+                            end
+                            startDatenums = datenum(alignedStartDateVecs);
+                            result = [startDatenums,alignedStartNumericDaysOfWeek,alignedVec];
+                            save(usageStateFilename,'result','-ascii','-tabs','-append');
+                            
                             curData.saveToFile('usageState',saveFilename);
                         end
                         if(obj.settings.describeActivity)
@@ -419,10 +454,7 @@ classdef PABatchTool < handle
                     fprintf('\t%s\tFAILED.\n',failedFiles{f});
                 end
             end
-        end
-                   
-        
-        
+        end        
     end
     
     methods(Static)
