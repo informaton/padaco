@@ -1776,16 +1776,17 @@ toc
            [startStopDateNums, sortIndex] = sortrows([nonwearStartStopDateNums;wearStartStopDateNums]);  
            usageState = usageState(sortIndex);
            
+           tagStruct = this.getActivityTags();
+          
            %usageVec(awakeVsAsleepVec) = 20;
            %usageVec(wearVec) = 10;   %        This is covered
-           usageVec(activeVec) = 30;  %None!
-           usageVec(inactiveVec) = 25;
-           usageVec(~awakeVsAsleepVec) = 20; 
-           usageVec(sleepVec) = 15;   %Sleep period
-           usageVec(remSleepVec) = 10;  %REM sleep
-           usageVec(nonwearVec) = 5;
-           usageVec(studyOverVec) = 0;
-           
+           usageVec(activeVec) = tagStruct.ACTIVE;%30;  %None!
+           usageVec(inactiveVec) = tagStruct.INACTIVE;%25;
+           usageVec(~awakeVsAsleepVec) = tagStruct.NAP;%20; 
+           usageVec(sleepVec) = tagStruct.NREM;%15;   %Sleep period
+           usageVec(remSleepVec) = tagStruct.REMS;%10;  %REM sleep
+           usageVec(nonwearVec) = tagStruct.NONWEAR;%5;
+           usageVec(studyOverVec) = tagStruct.STUDYOVER;%0;
            
        end
        
@@ -3384,7 +3385,16 @@ toc
            end;
        end
        
-       
+      
+       function tagStruct = getActivityTags()
+           tagStruct.ACTIVE = 35;  
+           tagStruct.INACTIVE = 25;
+           tagStruct.NAP  = 20; 
+           tagStruct.NREM =  15;  
+           tagStruct.REMS = 10;
+           tagStruct.NONWEAR = 5;
+           tagStruct.STUDYOVER = 0; 
+       end
    end
 end
 

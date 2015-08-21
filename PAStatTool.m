@@ -27,6 +27,11 @@ classdef PAStatTool < handle
         %> manipulated 
         featureStruct;
         
+        %> structure containing Usage Activity feature output by padaco's batch tool.
+        %> This is used to obtain removal indices when loading data (i.e.
+        %> non-wear/study over state)
+        usageStateStruct;
+        
         %> struct of handles that PAStatTool interacts with.  See
         %> initHandles()
         handles; 
@@ -175,13 +180,23 @@ classdef PAStatTool < handle
             pSettings = this.getPlotSettings();
             inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
 
+
             if(exist(inputFilename,'file')) 
-                loadFile = isempty(this.originalFeatureStruct) || ~strcmpi(inputFilename,this.originalFeatureStruct.filename);                    
-                if(loadFile)
+                
+                if(isempty(this.usageStateStruct))
+                    usageFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,'usagestate','count','vecMag');
+                    if(exist(usageFilename,'file'))
+                        this.usageStateStruct= this.loadAlignedFeatures(usageFilename);
+                    end
+                end
+                
+                loadFileRequired = isempty(this.originalFeatureStruct) || ~strcmpi(inputFilename,this.originalFeatureStruct.filename);                    
+                if(loadFileRequired)
                     this.originalFeatureStruct = this.loadAlignedFeatures(inputFilename);                    
                     [pSettings.startTimeSelection, pSettings.stopTimeSelection] = this.setStartTimes(this.originalFeatureStruct.startTimes);
                 end
-                this.featureStruct = this.originalFeatureStruct;
+                
+                this.featureStruct = this.getValidFeatureStruct(this.originalFeatureStruct,this.usageStateStruct);
                 
                 startTimeSelection = pSettings.startTimeSelection;
                 stopTimeSelection = pSettings.stopTimeSelection - 1;
@@ -1229,6 +1244,25 @@ classdef PAStatTool < handle
     
     methods (Static)
         
+        function featureStruct = getValidFeatureStruct(originalFeatureStruct,usageStateStruct)
+            featureStruct = originalFeatureStruct;
+            
+            if(isempty(usageStateStruct) || isempty(originalFeatureStruct))
+%                 featureStruct = originalFeatureStruct;
+            else
+               tagStruct = PAData.getActivityTags();
+               nonWearRows = any(usageStateStruct.shapes<=tagStruct.NONWEAR,2);
+               if(any(nonWearRows))
+                   featureStruct.startDatenums(nonWearRows,:)=[];
+                   featureStruct.startDaysOfWeek(nonWearRows,:)=[];
+                   featureStruct.shapes(nonWearRows,:)=[];
+                   
+               else
+%                    featureStruct = originalFeatureStruct;
+               end
+            end
+        end
+                
         % ======================================================================
         %> @brief Loads and aligns features from a padaco batch process
         %> results output file.
