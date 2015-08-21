@@ -196,8 +196,8 @@ classdef PAStatTool < handle
                     [pSettings.startTimeSelection, pSettings.stopTimeSelection] = this.setStartTimes(this.originalFeatureStruct.startTimes);
                 end
                 
-                this.featureStruct = this.getValidFeatureStruct(this.originalFeatureStruct,this.usageStateStruct);
-                
+                tmpFeatureStruct = this.originalFeatureStruct;
+                tmpUsageStateStruct = this.usageStateStruct;
                 startTimeSelection = pSettings.startTimeSelection;
                 stopTimeSelection = pSettings.stopTimeSelection - 1;
                 if(stopTimeSelection<1)
@@ -206,16 +206,26 @@ classdef PAStatTool < handle
                 elseif(stopTimeSelection== startTimeSelection)
                     warndlg('Not going to load only 1 feature; just do a mean ...');
                 elseif(startTimeSelection < stopTimeSelection)
-                    this.featureStruct.startTimes = this.featureStruct.startTimes(startTimeSelection:stopTimeSelection);
-                    this.featureStruct.shapes = this.featureStruct.shapes(:,startTimeSelection:stopTimeSelection);      
-                    this.featureStruct.totalCount = numel(this.featureStruct.startTimes);
+                    tmpFeatureStruct.startTimes = tmpFeatureStruct.startTimes(startTimeSelection:stopTimeSelection);
+                    tmpFeatureStruct.shapes = tmpFeatureStruct.shapes(:,startTimeSelection:stopTimeSelection);      
+                    tmpFeatureStruct.totalCount = numel(tmpFeatureStruct.startTimes);
+                
+                    tmpUsageStruct.startTimes = tmpUsageStruct.startTimes(startTimeSelection:stopTimeSelection);
+                    tmpUsageStruct.shapes = tmpUsageStruct.shapes(:,startTimeSelection:stopTimeSelection);      
+                    tmpUsageStruct.totalCount = numel(tmpUsageStruct.startTimes);
                 elseif(stopTimeSelection < startTimeSelection)
-                    this.featureStruct.startTimes = [this.featureStruct.startTimes{stopTimeSelection:end},this.featureStruct.startTimes{1:startTimeSelection}];
-                    this.featureStruct.shapes = [this.featureStruct.shapes(:,stopTimeSelection:end),this.featureStruct.shapes(:,1:startTimeSelection)];
-                    this.featureStruct.totalCount = numel(this.featureStruct.startTimes);
+                    tmpFeatureStruct.startTimes = [tmpFeatureStruct.startTimes{stopTimeSelection:end},tmpFeatureStruct.startTimes{1:startTimeSelection}];
+                    tmpFeatureStruct.shapes = [tmpFeatureStruct.shapes(:,stopTimeSelection:end),tmpFeatureStruct.shapes(:,1:startTimeSelection)];
+                    tmpFeatureStruct.totalCount = numel(tmpFeatureStruct.startTimes);
+                
+                    tmpUsageStruct.startTimes = [tmpUsageStruct.startTimes{stopTimeSelection:end},tmpUsageStruct.startTimes{1:startTimeSelection}];
+                    tmpUsageStruct.shapes = [tmpUsageStruct.shapes(:,stopTimeSelection:end),tmpUsageStruct.shapes(:,1:startTimeSelection)];
+                    tmpUsageStruct.totalCount = numel(tmpUsageStruct.startTimes);
                 else
                     warndlg('Something unexpected happened');
                 end
+                
+                this.featureStruct = this.discardNonWearFeatures(tmpFeatureStruct,tmpUsageStateStruct);
                 
                 loadFeatures = this.featureStruct.shapes;
 
@@ -1244,10 +1254,10 @@ classdef PAStatTool < handle
     
     methods (Static)
         
-        function featureStruct = getValidFeatureStruct(originalFeatureStruct,usageStateStruct)
-            featureStruct = originalFeatureStruct;
-            
-            if(isempty(usageStateStruct) || isempty(originalFeatureStruct))
+        function featureStruct = discardNonWearFeatures(featureStructIn,usageStateStruct)
+            %         function featureStruct = getValidFeatureStruct(originalFeatureStruct,usageStateStruct)
+            featureStruct = featureStructIn;            
+            if(isempty(usageStateStruct) || isempty(featureStructIn))
 %                 featureStruct = originalFeatureStruct;
             else
                tagStruct = PAData.getActivityTags();
