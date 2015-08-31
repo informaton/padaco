@@ -184,7 +184,8 @@ classdef PAStatTool < handle
             if(exist(inputFilename,'file')) 
                 
                 if(isempty(this.usageStateStruct))
-                    usageFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,'usagestate','count','vecMag');
+                    usageFeature = 'usagestate';
+                    usageFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,usageFeature,usageFeature,'count','vecMag');
                     if(exist(usageFilename,'file'))
                         this.usageStateStruct= this.loadAlignedFeatures(usageFilename);
                     end
@@ -214,14 +215,16 @@ classdef PAStatTool < handle
                     tmpUsageStateStruct.startTimes = tmpUsageStateStruct.startTimes(startTimeSelection:stopTimeSelection);
                     tmpUsageStateStruct.shapes = tmpUsageStateStruct.shapes(:,startTimeSelection:stopTimeSelection);      
                     tmpUsageStateStruct.totalCount = numel(tmpUsageStateStruct.startTimes);
-                    
+                
+                % For example:  22:00 to 04:00 is ~ stopTimeSelection = 22 and
+                % startTimeSelection = 81
                 elseif(stopTimeSelection < startTimeSelection)
-                    tmpFeatureStruct.startTimes = [tmpFeatureStruct.startTimes{stopTimeSelection:end},tmpFeatureStruct.startTimes{1:startTimeSelection}];
-                    tmpFeatureStruct.shapes = [tmpFeatureStruct.shapes(:,stopTimeSelection:end),tmpFeatureStruct.shapes(:,1:startTimeSelection)];
+                    tmpFeatureStruct.startTimes = [tmpFeatureStruct.startTimes(startTimeSelection:end),tmpFeatureStruct.startTimes(1:stopTimeSelection)];
+                    tmpFeatureStruct.shapes = [tmpFeatureStruct.shapes(:,startTimeSelection:end),tmpFeatureStruct.shapes(:,1:stopTimeSelection)];
                     tmpFeatureStruct.totalCount = numel(tmpFeatureStruct.startTimes);
                 
-                    tmpUsageStateStruct.startTimes = [tmpUsageStateStruct.startTimes{stopTimeSelection:end},tmpUsageStateStruct.startTimes{1:startTimeSelection}];
-                    tmpUsageStateStruct.shapes = [tmpUsageStateStruct.shapes(:,stopTimeSelection:end),tmpUsageStateStruct.shapes(:,1:startTimeSelection)];
+                    tmpUsageStateStruct.startTimes = [tmpUsageStateStruct.startTimes(startTimeSelection:end),tmpUsageStateStruct.startTimes(1:stopTimeSelection)];
+                    tmpUsageStateStruct.shapes = [tmpUsageStateStruct.shapes(:,startTimeSelection:end),tmpUsageStateStruct.shapes(:,1:stopTimeSelection)];
                     tmpUsageStateStruct.totalCount = numel(tmpUsageStateStruct.startTimes);
                 else
                     warndlg('Something unexpected happened');
