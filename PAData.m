@@ -1776,7 +1776,7 @@ toc
            [startStopDateNums, sortIndex] = sortrows([nonwearStartStopDateNums;wearStartStopDateNums]);  
            usageState = usageState(sortIndex);
            
-           tagStruct = this.getActivityTags();
+           tagStruct = obj.getActivityTags();
           
            %usageVec(awakeVsAsleepVec) = 20;
            %usageVec(wearVec) = 10;   %        This is covered

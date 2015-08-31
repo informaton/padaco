@@ -205,22 +205,24 @@ classdef PAStatTool < handle
                     % will go 24 hours
                 elseif(stopTimeSelection== startTimeSelection)
                     warndlg('Not going to load only 1 feature; just do a mean ...');
+                    
                 elseif(startTimeSelection < stopTimeSelection)
                     tmpFeatureStruct.startTimes = tmpFeatureStruct.startTimes(startTimeSelection:stopTimeSelection);
                     tmpFeatureStruct.shapes = tmpFeatureStruct.shapes(:,startTimeSelection:stopTimeSelection);      
                     tmpFeatureStruct.totalCount = numel(tmpFeatureStruct.startTimes);
                 
-                    tmpUsageStruct.startTimes = tmpUsageStruct.startTimes(startTimeSelection:stopTimeSelection);
-                    tmpUsageStruct.shapes = tmpUsageStruct.shapes(:,startTimeSelection:stopTimeSelection);      
-                    tmpUsageStruct.totalCount = numel(tmpUsageStruct.startTimes);
+                    tmpUsageStateStruct.startTimes = tmpUsageStateStruct.startTimes(startTimeSelection:stopTimeSelection);
+                    tmpUsageStateStruct.shapes = tmpUsageStateStruct.shapes(:,startTimeSelection:stopTimeSelection);      
+                    tmpUsageStateStruct.totalCount = numel(tmpUsageStateStruct.startTimes);
+                    
                 elseif(stopTimeSelection < startTimeSelection)
                     tmpFeatureStruct.startTimes = [tmpFeatureStruct.startTimes{stopTimeSelection:end},tmpFeatureStruct.startTimes{1:startTimeSelection}];
                     tmpFeatureStruct.shapes = [tmpFeatureStruct.shapes(:,stopTimeSelection:end),tmpFeatureStruct.shapes(:,1:startTimeSelection)];
                     tmpFeatureStruct.totalCount = numel(tmpFeatureStruct.startTimes);
                 
-                    tmpUsageStruct.startTimes = [tmpUsageStruct.startTimes{stopTimeSelection:end},tmpUsageStruct.startTimes{1:startTimeSelection}];
-                    tmpUsageStruct.shapes = [tmpUsageStruct.shapes(:,stopTimeSelection:end),tmpUsageStruct.shapes(:,1:startTimeSelection)];
-                    tmpUsageStruct.totalCount = numel(tmpUsageStruct.startTimes);
+                    tmpUsageStateStruct.startTimes = [tmpUsageStateStruct.startTimes{stopTimeSelection:end},tmpUsageStateStruct.startTimes{1:startTimeSelection}];
+                    tmpUsageStateStruct.shapes = [tmpUsageStateStruct.shapes(:,stopTimeSelection:end),tmpUsageStateStruct.shapes(:,1:startTimeSelection)];
+                    tmpUsageStateStruct.totalCount = numel(tmpUsageStateStruct.startTimes);
                 else
                     warndlg('Something unexpected happened');
                 end
