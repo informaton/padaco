@@ -64,6 +64,7 @@ classdef PAStatTool < handle
     
     methods        
         
+        
         % ======================================================================
         %> @brief Constructor for PAStatTool
         %> @param padaco_fig_h Handle to figure to be instantiated with
@@ -124,6 +125,20 @@ classdef PAStatTool < handle
                 fprintf('%s does not exist!\n',resultsPathname); 
             end
         end
+        
+        % ======================================================================
+        %> @brief Get method for centroidObj instance variable.
+        %> @param this Instance of PAStatTool
+        %> @retval Instance of PACentroid or []
+        % ======================================================================
+        function centroidObj = getCentroidObj(this)
+            centroidObj = this.centroidObj;
+        end
+        
+        function centroidExists = hasCentroid(this)
+            centroidExists = ~isempty(this.centroidObj);
+        end
+        
         
         % ======================================================================
         %> @brief Get method for canPlot instance variable.

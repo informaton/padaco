@@ -351,14 +351,14 @@ classdef PAController < handle
             
             %% Tools
             % export
-            set(handles.menu_file_exportData,'callback',@obj.menu_file_exportData2workspace_callback);
-            
+            set(handles.menu_file_export,'callback',@obj.menu_file_exportMenu_callback);            
+            set(handles.menu_file_export_dataObj,'callback',@obj.menu_file_export_dataObj_callback);
+            set(handles.menu_file_export_centroidObj,'callback',@obj.menu_file_export_centroidObj_callback);
             
             %% View Modes            
             set(handles.menu_viewmode_timeseries,'callback',@obj.menuViewmodeTimeSeriesCallback);
             set(handles.menu_viewmode_batch,'callback',@obj.menuViewmodeBatchCallback);
-            set(handles.menu_viewmode_results,'callback',@obj.menuViewmodeResultsCallback);
-            
+            set(handles.menu_viewmode_results,'callback',@obj.menuViewmodeResultsCallback);            
                 
             % enable everything
             set([
@@ -1047,6 +1047,22 @@ classdef PAController < handle
         function menuFileQuitCallback(obj,hObject,eventdata,handles)
             obj.figureCloseCallback(gcbf,eventdata,handles);
         end
+        
+        %> @brief Call back for export menu option under menubar 'file'
+        %> option.
+        function menu_file_exportMenu_callback(this,hObject, eventdata)
+            handles = guidata(hObject); %this.VIEW.getFigHandle());
+            if(isempty(this.accelObj))
+                set(handles.menu_file_export_dataObj,'enable','off');
+            else
+                set(handles.menu_file_export_dataObj,'enable','on');
+            end
+            if(isempty(this.StatTool) || ~this.StatTool.hasCentroid())
+                set(handles.menu_file_export_centroidObj,'enable','off');
+            else
+                set(handles.menu_file_export_centroidObj,'enable','on');
+            end
+        end        
                 
         % --------------------------------------------------------------------
         %> @brief Menubar callback for exporting PAController's data object to the
@@ -1057,7 +1073,7 @@ classdef PAController < handle
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------        
-        function menu_file_exportData2workspace_callback(obj,hObject,~)
+        function menu_file_export_dataObj_callback(obj,hObject,~)
             dataObj = obj.accelObj;
             varName = 'dataObject';
             try
@@ -1069,6 +1085,30 @@ classdef PAController < handle
                 uiwait(msgbox('An error occurred while trying to export data object to a workspace variable.  See console for details.'));
             end
         end
+        
+        % --------------------------------------------------------------------
+        %> @brief Menubar callback for exporting PAController's data object to the
+        %> workspace.  This is useful for debugging and developing methods
+        %> ad hoc.
+        %> @param obj Instance of PAController
+        %> @param hObject    handle to menu_viewmode_batch (see GCBO)
+        %> @param eventdata  reserved - to be defined in a future version of MATLAB
+        %> @param handles    structure with handles and user data (see GUIDATA)
+        % --------------------------------------------------------------------        
+        function menu_file_export_centroidObj_callback(obj,hObject,~)
+            centroidObj = obj.StatTool.getCentroidObj();
+            varName = 'centroidObj';
+            try
+                assignin('base',varName,centroidObj);
+                uiwait(msgbox(sprintf('Centroid object was assigned to workspace variable %s',varName)));
+
+            catch me
+                showME(me);
+                uiwait(msgbox('An error occurred while trying to export the centroid object to a workspace variable.  See console for details.'));
+            end
+        end
+        
+                
         
         % --------------------------------------------------------------------
         %% Settings menubar callbacks
