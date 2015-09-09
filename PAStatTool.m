@@ -301,6 +301,7 @@ classdef PAStatTool < handle
                     removeZeroSums = false;
                     if(removeZeroSums)
                         this.featureStruct.features = loadFeatures(nzi,:);
+                        this.featureStruct.studyIDs(~nzi) = [];
                         this.featureStruct.startDatenums = this.featureStruct.startDatenums(nzi);
                         this.featureStruct.startDaysOfWeek = this.featureStruct.startDaysOfWeek(nzi);
                     else
@@ -1024,7 +1025,7 @@ classdef PAStatTool < handle
                 if(~isempty(daysOfInterest))
                     rowsOfInterest = ismember(this.featureStruct.startDaysOfWeek,daysOfInterest); 
                     % fieldsOfInterest = {'startDatenums','startDaysOfWeek','shapes','features'};
-                    fieldsOfInterest = {'startDaysOfWeek','features'};
+                    fieldsOfInterest = {'startDaysOfWeek','features','studyIDs'};
                     for f=1:numel(fieldsOfInterest)
                         fname = fieldsOfInterest{f};
                         this.featureStruct.(fname) = this.featureStruct.(fname)(rowsOfInterest,:);                        
@@ -1038,7 +1039,7 @@ classdef PAStatTool < handle
                 this.showCentroidControls();
                 
                 drawnow();
-                this.centroidObj = PACentroid(this.featureStruct.features,pSettings,this.handles.axes_primary,resultsTextH);
+                this.centroidObj = PACentroid(this.featureStruct.features,pSettings,this.handles.axes_primary,resultsTextH,this.featureStruct.studyIDs);
                 if(this.centroidObj.failedToConverge())
                     warndlg('Failed to converge');
                     this.centroidObj = [];
@@ -1286,7 +1287,7 @@ classdef PAStatTool < handle
                    featureStruct.startDatenums(nonWearRows,:)=[];
                    featureStruct.startDaysOfWeek(nonWearRows,:)=[];
                    featureStruct.shapes(nonWearRows,:)=[];
-                   
+                   featureStruct.studyIDs(nonWearRows)=[];                   
                else
 %                    featureStruct = originalFeatureStruct;
                end
@@ -1300,15 +1301,16 @@ classdef PAStatTool < handle
         %> of features file produced by padaco's batch processing mode.
         %> @retval featureStruct A structure of aligned features obtained
         %> from filename.  Fields include:
-        %> - @c inputFilename The source filename data was loaded from.        
-        %> - @c shapes
-        %> - @c startTimes
-        %> - @c startDaysOfWeek
-        %> - @c startDatenums
-        %> - @c totalCount
-        %> - @c signal
+        %> - @c filename The source filename data was loaded from.        
         %> - @c method
+        %> - @c signal
         %> - @c methodDescription
+        %> - @c totalCount
+        %> - @c startTimes
+        %> - @c studyIDs
+        %> - @c startDatenums
+        %> - @c startDaysOfWeek
+        %> - @c shapes
         %     filename='/Volumes/SeaG 1TB/sampleData/output/features/mean/features.mean.accel.count.vecMag.txt';
         % ======================================================================
         function featureStruct = loadAlignedFeatures(filename)
@@ -1333,9 +1335,11 @@ classdef PAStatTool < handle
             
             featureStruct.methodDescription = strrep(strrep(fgetl(fid),'# Feature:',''),char(9),'');
             featureStruct.totalCount = str2double(strrep(strrep(fgetl(fid),'# Length:',''),char(9),''));
-            
-            startTimes = strrep(fgetl(fid),sprintf('# Start Datenum\tStart Day'),'');
+            startTimes = fgetl(fid);  
+            % Not necessary to remove the other headers here.
+            % startTimes = strrep(fgetl(fid),sprintf('# Study_ID\tStart_Datenum\tStart_Day'),'');
             pattern = '\s+(\d+:\d+)+';
+            
             result = regexp(startTimes,pattern,'tokens');
             
             startTimes = cell(size(result));
@@ -1352,14 +1356,15 @@ classdef PAStatTool < handle
             %     urhere = ftell(fid);
             %     fseek(fid,urhere,'bof');
             
-            % +2 because of datenum and start date of the week that precede the
+            % +3 because of datenum and start date of the week that precede the
             % time stamps.
-            scanStr = repmat(' %f',1,numCols+2);
+            scanStr = repmat(' %f',1,numCols+3);
             
             C = textscan(fid,scanStr,'commentstyle','#','delimiter','\t');
-            featureStruct.startDatenums = cell2mat(C(:,1));
-            featureStruct.startDaysOfWeek = cell2mat(C(:,2));
-            featureStruct.shapes = cell2mat(C(:,3:end));
+            featureStruct.studyIDs = cell2mat(C(:,1));
+            featureStruct.startDatenums = cell2mat(C(:,2));
+            featureStruct.startDaysOfWeek = cell2mat(C(:,3));
+            featureStruct.shapes = cell2mat(C(:,4:end));
             fclose(fid);
         end
         
