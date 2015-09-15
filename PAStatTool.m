@@ -57,13 +57,18 @@ classdef PAStatTool < handle
         %> - @c membership [default]        
         centroidDistributionType;
         
+        %> @brief Struct with fields consisting of summary statistics for
+        %> field names contained in the subject info table of the goals
+        %> database.  Database must be developed and maintained externally
+        %> to Padaco.
+        globalProfile;
     end
     
     properties
     end
     
     methods        
-        
+
         
         % ======================================================================
         %> @brief Constructor for PAStatTool
@@ -136,7 +141,7 @@ classdef PAStatTool < handle
         end
         
         function centroidExists = hasCentroid(this)
-            centroidExists = ~isempty(this.centroidObj);
+            centroidExists = ~isempty(this.centroidObj) && isa(this.centroidObj,'PACentroid');
         end
         
         
@@ -656,6 +661,8 @@ classdef PAStatTool < handle
                         this.handles.contextmenu.performance = uimenu(contextmenu_secondaryAxes,'Label','Show adaptive separation performance progression','callback',{@this.centroidDistributionCallback,'performance'});
                         this.handles.contextmenu.weekday = uimenu(contextmenu_secondaryAxes,'Label','Show current centroid''s weekday distribution','callback',{@this.centroidDistributionCallback,'weekday'});
                         this.handles.contextmenu.membership = uimenu(contextmenu_secondaryAxes,'Label','Show membership distribution by centroid','callback',{@this.centroidDistributionCallback,'membership'});
+                        this.handles.contextmenu.centroidprofile = uimenu(contextmenu_secondaryAxes,'Label','Show current centroid profile','callback',{@this.centroidDistributionCallback,'centroidprofile'});
+                        this.handles.contextmenu.globalprofile = uimenu(contextmenu_secondaryAxes,'Label','Show global profile','callback',{@this.centroidDistributionCallback,'globalprofile'});
                         set(this.handles.axes_secondary,'uicontextmenu',contextmenu_secondaryAxes);                    
                     end
                 end                
@@ -685,10 +692,20 @@ classdef PAStatTool < handle
         end
         
         function contextmenu_secondaryAxesCallback(this,varargin)
-            set([this.handles.contextmenu.performance
-                this.handles.contextmenu.weekday
-                this.handles.contextmenu.membership],'checked','off');
-            set(this.handles.contextmenu.(this.centroidDistributionType),'checked','on');                
+            % This may be easier to maintain ... 
+            contextMenus = this.handles.contextmenu;
+            if(isfield(contextMenus,'nextPlot'))
+                contextMenus = rmfield(contextMenus,'nextPlot');
+            end
+            set(struct2array(contextMenus),'checked','off');
+            set(contextMenus.(this.centroidDistributionType),'checked','on');
+            
+            % Than this 
+            %             set([this.handles.contextmenu.performance
+            %                 this.handles.contextmenu.weekday
+            %                 this.handles.contextmenu.membership
+            %                 this.handles.contextmenu.profile],'checked','off');
+            %             set(this.handles.contextmenu.(this.centroidDistributionType),'checked','on');
         end               
         
         function centroidDistributionCallback(this,hObject,eventdata,selection)
@@ -1040,10 +1057,13 @@ classdef PAStatTool < handle
                 
                 drawnow();
                 this.centroidObj = PACentroid(this.featureStruct.features,pSettings,this.handles.axes_primary,resultsTextH,this.featureStruct.studyIDs);
+                
                 if(this.centroidObj.failedToConverge())
                     warndlg('Failed to converge');
                     this.centroidObj = [];
                 else
+                    this.updateGlobalProfile();
+                    
                     %                     fprintf(1,'pause(3)');
                     %                     pause(3);
                     %                     set(this.handles.text_results,'visible','off','string','');
@@ -1221,6 +1241,15 @@ classdef PAStatTool < handle
                         xlabel(distributionAxes,'Centroid');
                         xlim(distributionAxes,[0.25 numCentroids+.75]);
                         set(distributionAxes,'ygrid','on','ytickmode','auto','xtick',[]);
+                    case 'globalProfile'
+                        globalProfile = this.getGlobalProfile();
+                    case 'localVsGlobalProfile'
+                        globalProfile = this.getGlobalProfile();
+                        primaryKeys = coiStruct.memberIDs;
+                        coiProfile = this.getGroupProfile(primaryKeys);
+                    case 'profile'
+                        primaryKeys = coiStruct.memberIDs;            
+                        coiProfile = this.getGroupProfile(primaryKeys);
                     otherwise
                         warndlg(sprintf('Distribution type (%s) is unknonwn and or not supported',distributionType));                        
                 end
@@ -1228,6 +1257,8 @@ classdef PAStatTool < handle
             
             this.showMouseReady();
         end
+        
+
         
         % Refresh the user settings from current GUI configuration.
         % ======================================================================
@@ -1473,6 +1504,45 @@ classdef PAStatTool < handle
                 2
                 1];
         end
+        
+
+        %> @param Obtained from <PACentroid>.getCentroidOfInterest()
+        %> or <PACentroid>.getCovariateStruct() for all subjects.
+        function coiProfile = getGroupProfile(primaryKeys)
+            
+            db = CLASS_database_goals();
+            fieldsOfInterest = {'bmi_zscore';
+                'insulin'};
+            statOfInterest = 'AVG';
+            
+            [dataSummaryStruct, statStruct]=db.getSubjectInfoSummary(primaryKeys,fieldsOfInterest,statOfInterest);
+            coiProfile = dataSummaryStruct;
+
+        end      
+        
+        
                 
+    end
+    methods(Access=protected)
+       
+        function didUpdate = updateGlobalProfile(this)
+            
+            try
+                if(this.hasCentroid())
+                    
+                    % This gets the memberIDs attached to each centroid.
+                    % This gives us all 
+                    globalStruct = this.centroidObj.getCovariateStruct();
+                    this.globalProfile = this.getGroupProfile(globalStruct.memberIDs);
+                    didUpdate = true;
+                else
+                    didUpdate = false;
+                end
+
+            catch me
+                showME(me);
+                didUpdate = false;
+            end
+        end
     end
 end

@@ -258,11 +258,25 @@ classdef PACentroid < handle
         %> - @c numMembers - N, the number of load shapes clustered to the coi.
         % ======================================================================        
         function coi = getCentroidOfInterest(this)
+            % order is sorted from 1: most popular to numCentroids: least popular
             coi.sortOrder = this.coiSortOrder;
-            coi.index = this.centroidSortMap(coi.sortOrder);           
+            
+            % convert to match the index the centroid load shape corresponds to.
+            coi.index = this.centroidSortMap(coi.sortOrder);  
+            
+            % centroid shape for the centroid index.
             coi.shape = this.centroidShapes(coi.index,:);
+            
+            % member shapes which have that same index.  The
+            % load2CentroidMap row index corresponds to the member index,
+            % while the value at that row corresponds to the centroid
+            % index.  We want the rows with the centroid index:            
             coi.memberIndices = coi.index==this.load2centroidMap;
+            
+            % Now we can pull the member variables that were
+            % clustered to the centroid index of interest.
             coi.memberShapes = this.loadShapes(coi.memberIndices,:);
+            coi.memberIDs = this.loadShapeIDs(coi.memberIndices,:);
             coi.numMembers = size(coi.memberShapes,1);
         end
         
@@ -329,7 +343,7 @@ classdef PACentroid < handle
         %> model.  Fields include:
         %> - @c values NxM array of numeric values for M covariates for N subject
         %> keys.
-        %> - @c subjectIDs Nx1 array of unique keys corresponding to each row.
+        %> - @c memberIDs Nx1 array of unique keys corresponding to each row.
         %> - @c colnames 1xM cell string of names describing the covariate columns.
         function covariateStruct = getCovariateStruct(this)
             subjectIDs = unique(this.loadShapeIDs);
@@ -355,7 +369,7 @@ classdef PACentroid < handle
 
             colnames(end) = [];  %remove the last cell entry which will be empty.
             
-            covariateStruct.subjectIDs = subjectIDs;
+            covariateStruct.memberIDs = subjectIDs;
             covariateStruct.values = values;
             covariateStruct.colnames = colnames;
             

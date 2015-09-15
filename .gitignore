@@ -30,3 +30,7 @@ matlab_workspace.mat
 matlab.mat
 
 utility/lib
+
+model/model_summary.m
+
+model/table_summary.m
