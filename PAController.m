@@ -221,7 +221,7 @@ classdef PAController < handle
         function keyPressCallback(obj,hObject, eventdata)
             % key=double(get(hObject,'CurrentCharacter')); % compare the values to the list
             key=eventdata.Key;
-            handles = guidata(hObject);
+            %             handles = guidata(hObject);
             window = obj.getCurWindow();
             
             if(strcmp(key,'add'))
@@ -1800,7 +1800,7 @@ classdef PAController < handle
                 if(~isempty(this.StatTool))                   
                     this.StatTool.init();  %calls a plot refresh
                 else
-                    this.StatTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname,this.SETTINGS.StatTool);                    
+                    this.StatTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname,this.SETTINGS.StatTool);
                 end
 
                 success = this.StatTool.getCanPlot();                

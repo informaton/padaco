@@ -23,11 +23,12 @@ classdef CLASS_database_goals < CLASS_database
         end        
     end
     
+    
     methods
         
         function [dataSummaryStruct, statStruct, dataStruct] = getSubjectInfoSummary(this, primaryKeys, fieldNames, stat)
             
-            wherePrimaryKeysIn = makeWhereInString(primaryKeys,'numeric');
+            wherePrimaryKeysIn = this.makeWhereInString(primaryKeys,'numeric');
             if(nargin<3)
                 stat = [];
             end

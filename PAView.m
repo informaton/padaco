@@ -19,13 +19,12 @@ classdef PAView < handle
     properties
         %> for the patch handles when editing and dragging
         hg_group;   %may be unused?
-
         
         %>cell of string choices for the marking state (off, 'marking','general')
-        state_choices_cell; 
+        state_choices_cell;
+        
         %> figure handle that the class instance is associated with
         figurehandle;
-        
         
         %> @brief struct whose fields are axes handles.  Fields include:
         %> - @b primary handle to the main axes an instance of this class is associated with
@@ -34,8 +33,13 @@ classdef PAView < handle
         
         %> @brief struct whose fields are patch handles.  Fields include:
         %> - @c feature Patches representing the current feature method.
-        patchhandle;
-
+        patchhandle;        
+        
+        %         %> @brief Struct whose fields are table handles.  Fields include:
+        %         %> - @c centroidProfiles Table for showing descriptive nature of
+        %         %> the profiles.
+        % tableHandle;
+        
         %> @brief struct whose fields are structs with names of the axes and whose fields are property values for those axes.  Fields include:
         %> - @b primary handle to the main axes an instance of this class is associated with
         %> - @b secondary Window view of events (over view)
@@ -211,7 +215,7 @@ classdef PAView < handle
             obj.texthandle.frameDurationHours = handles.edit_frameSizeHours;            
             obj.texthandle.trimAmount = handles.edit_aggregate;
             
-            
+            %             obj.tablehandle.centroidProfiles = handles.table_profiles;
             obj.patchhandle.controls = handles.panel_timeseries;
             obj.patchhandle.features = handles.panel_features;
             obj.patchhandle.metaData = handles.panel_study;

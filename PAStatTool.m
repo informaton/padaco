@@ -62,9 +62,15 @@ classdef PAStatTool < handle
         %> database.  Database must be developed and maintained externally
         %> to Padaco.
         globalProfile;
+        
+        profileTableData;
     end
     
     properties
+        %> struct of fields to use when profiling/describing centroids.
+        %These are names of database fields extracted which are keyed on
+        %the subject id's that are members of the centroid of interest.
+        profileFields;
     end
     
     methods        
@@ -83,6 +89,14 @@ classdef PAStatTool < handle
                 widgetSettings = [];
             end
             
+            this.profileFields = {
+                'bmi_zscore';
+                'insulin'
+                };
+            
+            % variable names for the table
+            %             this.profileMetrics = {''};
+
             this.originalWidgetSettings = widgetSettings;
             this.originalFeatureStruct = [];
             this.canPlot = false;
@@ -90,12 +104,15 @@ classdef PAStatTool < handle
             this.imagesDirectory = [];
             this.figureH = padaco_fig_h;
             this.featureStruct = [];
+            
             this.initHandles();            
             this.initBase();
+            
             this.centroidDistributionType = 'performance';  %{'performance','membership','weekday'}
             
             this.featureInputFilePattern = ['%s',filesep,'%s',filesep,'features.%s.accel.%s.%s.txt'];
             this.featureInputFileFieldnames = {'inputPathname','displaySeletion','processType','curSignal'};       
+                       
             
             if(isdir(resultsPathname))
                 this.resultsDirectory = resultsPathname;
@@ -110,7 +127,7 @@ classdef PAStatTool < handle
                     this.imagesDirectory = imagesPath;
                 else
                     fprintf('Images pathname (%s) does not exist!\n',imagesPath);
-                end                
+                end
                 
                 this.initWidgets(widgetSettings);  %initializes previousstate.plotType on success
 
@@ -391,6 +408,7 @@ classdef PAStatTool < handle
                 fprintf('PAStatTool.m cannot plot (refreshPlot)\n');
             end
         end
+            
 
     end
     
@@ -675,6 +693,27 @@ classdef PAStatTool < handle
             this.previousState.normalizeValues = widgetSettings.normalizeValues;
             this.previousState.plotType = this.base.plotTypes{widgetSettings.plotTypeSelection};
             
+%             summaryStruct=this.getProfileFields();
+%             function cellStr = getProfile(this,structToSummary)
+%                 summaryStruct = summarizeStruct();
+%                 cellStr = {'n','mx','var','sem'};
+%             end
+            
+            % intialize the centroid profile table
+            %             profileColumnNames = {'n','mx','sem'};
+            profileColumnNames = {'n','mx','sem','n (global)','mx (global)','sem (global)'};
+            
+            %{'Mean (global)','Mean (centroid)','p'};
+            rowNames = this.profileFields;
+            %             columnNames = profileColumnNames;
+            
+            tableData = cell(numel(rowNames),numel(profileColumnNames));
+            this.profileTableData = tableData;  %array2table(tableData,'VariableNames',profileColumnNames,'RowNames',rowNames);                        
+            this.refreshProfileTableData();
+                        
+            set(this.handles.table_centroidProfiles,'rowName',rowNames,'columnName',profileColumnNames,'units','points','fontname','arial','fontsize',12,'fontunits','points','visible','on');
+            fitTable(this.handles.table_centroidProfiles);
+            
             % disable everything
             if(~this.canPlot)
                 set(findall(this.handles.panel_results,'enable','on'),'enable','off');                
@@ -744,7 +783,11 @@ classdef PAStatTool < handle
                 'push_nextCentroid'
                 'push_previousCentroid'
                 'text_resultsCentroid'
+                'table_centroidProfiles'
                 };
+            
+            
+        
             
             for f=1:numel(handlesOfInterest)
                 fname = handlesOfInterest{f};
@@ -1062,7 +1105,7 @@ classdef PAStatTool < handle
                     warndlg('Failed to converge');
                     this.centroidObj = [];
                 else
-                    this.updateGlobalProfile();
+                    this.refreshGlobalProfile();
                     
                     %                     fprintf(1,'pause(3)');
                     %                     pause(3);
@@ -1147,7 +1190,7 @@ classdef PAStatTool < handle
                 numLoadShapes = this.centroidObj.numLoadShapes();
                 
                 %% Show centroids on primary axes
-                coi = this.centroidObj.getCentroidOfInterest();
+                coiStruct = this.centroidObj.getCentroidOfInterest();
                 
                 %                 dailyDivisionTicks = 1:8:featureStruct.totalCount;
                 %                 xticks = dailyDivisionTicks;
@@ -1158,13 +1201,13 @@ classdef PAStatTool < handle
                 nextPlot = get(centroidAxes,'nextplot');                
                 if(centroidAndPlotSettings.showCentroidMembers)
                     hold(centroidAxes,'on');                    
-                    plot(centroidAxes,coi.memberShapes','-','linewidth',1,'color',[0.85 0.85 0.85]);
+                    plot(centroidAxes,coiStruct.memberShapes','-','linewidth',1,'color',[0.85 0.85 0.85]);
                     set(centroidAxes,'ygrid','on');
                 else
                     set(centroidAxes,'ygrid','off');                    
                 end                
                 set(centroidAxes,'ytickmode','auto','ylimmode','auto','yticklabelmode','auto');
-                plot(centroidAxes,coi.shape,'linewidth',2,'color',[0 0 0]);
+                plot(centroidAxes,coiStruct.shape,'linewidth',2,'color',[0 0 0]);
                 
                 set(centroidAxes,'nextplot',nextPlot);
                 
@@ -1174,7 +1217,7 @@ classdef PAStatTool < handle
                 end
                 xTickLabels = this.featureStruct.startTimes(xTicks);
                 
-                centroidTitle = sprintf('Centroid #%u (%s). Popularity %u of %u (membership count = %u of %u)',coi.index, this.featureStruct.method, numCentroids-coi.sortOrder+1,numCentroids, coi.numMembers, numLoadShapes);
+                centroidTitle = sprintf('Centroid #%u (%s). Popularity %u of %u (membership count = %u of %u)',coiStruct.index, this.featureStruct.method, numCentroids-coiStruct.sortOrder+1,numCentroids, coiStruct.numMembers, numLoadShapes);
                 title(centroidAxes,centroidTitle,'fontsize',14);
                 set(centroidAxes,'xlim',[1,this.featureStruct.totalCount],'xtick',xTicks,'xticklabel',xTickLabels);
                 
@@ -1194,7 +1237,7 @@ classdef PAStatTool < handle
                         daysofweekOrder = 1:7;
                         
                         % +1 to adjust startDaysOfWeek range from [0,6] to [1,7]
-                        coiDaysOfWeek = this.featureStruct.startDaysOfWeek(coi.memberIndices)+1;
+                        coiDaysOfWeek = this.featureStruct.startDaysOfWeek(coiStruct.memberIndices)+1;
                         coiDaysOfWeekCount = histc(coiDaysOfWeek,daysofweekOrder);
                         coiDaysOfWeekPct = coiDaysOfWeekCount/sum(coiDaysOfWeekCount(:));
                         bar(distributionAxes,coiDaysOfWeekPct);
@@ -1203,7 +1246,7 @@ classdef PAStatTool < handle
                             daysofweekStr{d} = sprintf('%s (n=%u)',daysofweekStr{d},coiDaysOfWeekCount(d));
                         end
                         
-                        title(distributionAxes,sprintf('Weekday distribution for Centroid #%u (membership count = %u)',coi.index,coi.numMembers),'fontsize',14);
+                        title(distributionAxes,sprintf('Weekday distribution for Centroid #%u (membership count = %u)',coiStruct.index,coiStruct.numMembers),'fontsize',14);
                         %ylabel(distributionAxes,sprintf('Load shape count'));
                         xlabel(distributionAxes,'Days of week');
                         xlim(distributionAxes,[daysofweekOrder(1)-0.75 daysofweekOrder(end)+0.75]);                        
@@ -1224,7 +1267,7 @@ classdef PAStatTool < handle
                             barH = bar(distributionAxes,y,barWidth);
                             defaultColor = [0 0 9/16];
                             faceVertexCData = repmat(defaultColor,numCentroids,1);
-                            faceVertexCData(coi.sortOrder,:) = highlightColor;
+                            faceVertexCData(coiStruct.sortOrder,:) = highlightColor;
                             patchH = get(barH,'children');
                             if(numCentroids>100)
                                 %  set(patchH,'edgecolor',[0.4 0.4 0.4]);
@@ -1233,7 +1276,7 @@ classdef PAStatTool < handle
                             set(patchH,'facevertexcdata',faceVertexCData);
                         else
                             bar(distributionAxes,y,barWidth);
-                            patch(repmat(x(coi.sortOrder),1,4)+0.5*barWidth*[-1 -1 1 1],1*[y(coi.sortOrder) 0 0 y(coi.sortOrder)],highlightColor,'parent',distributionAxes,'facecolor',highlightColor,'edgecolor',highlightColor);
+                            patch(repmat(x(coiStruct.sortOrder),1,4)+0.5*barWidth*[-1 -1 1 1],1*[y(coiStruct.sortOrder) 0 0 y(coiStruct.sortOrder)],highlightColor,'parent',distributionAxes,'facecolor',highlightColor,'edgecolor',highlightColor);
                         end
                         
                         title(distributionAxes,sprintf('Load shape count per centroid (Total centroid count: %u\tTotal load shape count: %u)',this.centroidObj.numCentroids(), this.centroidObj.numLoadShapes()),'fontsize',14);
@@ -1241,18 +1284,21 @@ classdef PAStatTool < handle
                         xlabel(distributionAxes,'Centroid');
                         xlim(distributionAxes,[0.25 numCentroids+.75]);
                         set(distributionAxes,'ygrid','on','ytickmode','auto','xtick',[]);
-                    case 'globalProfile'
+                    case 'globalprofile'
                         globalProfile = this.getGlobalProfile();
                     case 'localVsGlobalProfile'
                         globalProfile = this.getGlobalProfile();
                         primaryKeys = coiStruct.memberIDs;
-                        coiProfile = this.getGroupProfile(primaryKeys);
-                    case 'profile'
+                        coiProfile = this.getProfileCell(primaryKeys);
+                    case 'centroidprofile'
                         primaryKeys = coiStruct.memberIDs;            
-                        coiProfile = this.getGroupProfile(primaryKeys);
+                        coiProfile = this.getProfileCell(primaryKeys);
                     otherwise
-                        warndlg(sprintf('Distribution type (%s) is unknonwn and or not supported',distributionType));                        
+                        warndlg(sprintf('Distribution type (%s) is unknonwn and or not supported',this.centroidDistributionType));                        
                 end
+                
+                this.refreshCOIProfile();
+                
             end   
             
             this.showMouseReady();
@@ -1295,14 +1341,66 @@ classdef PAStatTool < handle
 
 %             userSettings.centroidStartTime = getSelectedMenuString(this.handles.menu_centroidStartTime);
 %             userSettings.centroidStopTime = getSelectedMenuString(this.handles.menu_centroidStopTime);
-            
 
             userSettings.weekdayTag = this.base.weekdayTags{userSettings.weekdaySelection};
             userSettings.centroidDurationSelection = get(this.handles.menu_duration,'value');
             userSettings.centroidDurationHours = this.base.centroidHourlyDurations(userSettings.centroidDurationSelection);
         end
+        
+        function didRefresh = refreshProfileTableData(this)
+            set(this.handles.table_centroidProfiles,'data',this.profileTableData);
+            didRefresh = true;
+        end
+        
+        function didRefresh = refreshCOIProfile(this)
+            try
+                if(this.hasCentroid())
+                
+                    % This gets the memberIDs attached to each centroid.
+                    % This gives us all 
+                    coiStruct = this.centroidObj.getCentroidOfInterest();
+                    this.globalProfile = this.getProfileCell(coiStruct.memberIDs,this.profileFields);
+                    
+                    % place the global profile at the end.
+                    this.profileTableData(:,1:size(this.globalProfile,2)) = this.globalProfile;  
+                    this.refreshProfileTableData();
+                    didRefresh = true;                    
+                else
+                    didRefresh = false;
+                end
+            catch me
+                showME(me);
+                didRefresh = false;
+            end            
+        end
+        
+        function didRefresh = refreshGlobalProfile(this)
+            
+            try
+                if(this.hasCentroid())
+                    
+                    % This gets the memberIDs attached to each centroid.
+                    % This gives us all 
+                    globalStruct = this.centroidObj.getCovariateStruct();
+                    this.globalProfile = this.getProfileCell(globalStruct.memberIDs,this.profileFields);
+                    
+                    % place the global profile at the end.
+                    this.profileTableData(:,end-size(this.globalProfile,2)+1:end) = this.globalProfile;  
+                    this.refreshProfileTableData();
+                    didRefresh = true;
+                    
+                    
+                else
+                    didRefresh = false;
+                end
 
-    end
+            catch me
+                showME(me);
+                didRefresh = false;
+            end
+        end
+                 
+    end    
     
     methods (Static)
         
@@ -1508,41 +1606,43 @@ classdef PAStatTool < handle
 
         %> @param Obtained from <PACentroid>.getCentroidOfInterest()
         %> or <PACentroid>.getCovariateStruct() for all subjects.
-        function coiProfile = getGroupProfile(primaryKeys)
+        %> @param Primary ID's to extract from the database.
+        %> @param Field names to extract from the database.
+        function [coiProfile, dataSummaryStruct] = getProfileCell(primaryKeys,fieldsOfInterest)
             
-            db = CLASS_database_goals();
-            fieldsOfInterest = {'bmi_zscore';
-                'insulin'};
-            statOfInterest = 'AVG';
-            
-            [dataSummaryStruct, statStruct]=db.getSubjectInfoSummary(primaryKeys,fieldsOfInterest,statOfInterest);
-            coiProfile = dataSummaryStruct;
-
-        end      
+            db = CLASS_database_goals();            
+            if(nargin<2)
+                fieldsOfInterest = {'bmi_zscore';
+                    'insulin'};
+            end            
+            statOfInterest = 'AVG';            
+            [dataSummaryStruct, ~]=db.getSubjectInfoSummary(primaryKeys,fieldsOfInterest,statOfInterest);
+            coiProfile = PAStatTool.profile2cell(dataSummaryStruct);
+        end 
         
         
-                
-    end
-    methods(Access=protected)
-       
-        function didUpdate = updateGlobalProfile(this)
-            
-            try
-                if(this.hasCentroid())
-                    
-                    % This gets the memberIDs attached to each centroid.
-                    % This gives us all 
-                    globalStruct = this.centroidObj.getCovariateStruct();
-                    this.globalProfile = this.getGroupProfile(globalStruct.memberIDs);
-                    didUpdate = true;
-                else
-                    didUpdate = false;
-                end
-
-            catch me
-                showME(me);
-                didUpdate = false;
+        %> @brief Profile cell is output as follows  
+        %         'n'
+        %         'n_above'
+        %         'n_below'
+        %         'mx'
+        %         'var'
+        %         'sem'
+        %         'string'
+        function profileCell = profile2cell(profileStruct)
+            rowNames = fieldnames(profileStruct);
+            numRows = numel(rowNames);
+            colNames = fieldnames(profileStruct.(rowNames{1}));
+            numCols = numel(colNames);
+            profileCell = cell(numRows,numCols);
+            for row = 1:numRows
+                profileCell(row,:) = struct2cell(profileStruct.(rowNames{row}))';
             end
+            
+            indicesOfInterest = [1,4,6];  %n, mx, sem
+            profileCell = profileCell(:,indicesOfInterest);
         end
     end
+    
+
 end
