@@ -679,8 +679,8 @@ classdef PAStatTool < handle
                         this.handles.contextmenu.performance = uimenu(contextmenu_secondaryAxes,'Label','Show adaptive separation performance progression','callback',{@this.centroidDistributionCallback,'performance'});
                         this.handles.contextmenu.weekday = uimenu(contextmenu_secondaryAxes,'Label','Show current centroid''s weekday distribution','callback',{@this.centroidDistributionCallback,'weekday'});
                         this.handles.contextmenu.membership = uimenu(contextmenu_secondaryAxes,'Label','Show membership distribution by centroid','callback',{@this.centroidDistributionCallback,'membership'});
-                        this.handles.contextmenu.centroidprofile = uimenu(contextmenu_secondaryAxes,'Label','Show current centroid profile','callback',{@this.centroidDistributionCallback,'centroidprofile'});
-                        this.handles.contextmenu.globalprofile = uimenu(contextmenu_secondaryAxes,'Label','Show global profile','callback',{@this.centroidDistributionCallback,'globalprofile'});
+%                         this.handles.contextmenu.centroidprofile = uimenu(contextmenu_secondaryAxes,'Label','Show current centroid profile','callback',{@this.centroidDistributionCallback,'centroidprofile'});
+%                         this.handles.contextmenu.globalprofile = uimenu(contextmenu_secondaryAxes,'Label','Show global profile','callback',{@this.centroidDistributionCallback,'globalprofile'});
                         set(this.handles.axes_secondary,'uicontextmenu',contextmenu_secondaryAxes);                    
                     end
                 end                
@@ -779,7 +779,7 @@ classdef PAStatTool < handle
                 'push_refreshCentroids'
                 'panel_plotCentroid'
                 'panel_results'
-                'panel_controlCentroid'
+                'panel_coiControls'
                 'push_nextCentroid'
                 'push_previousCentroid'
                 'text_resultsCentroid'
@@ -1135,17 +1135,17 @@ classdef PAStatTool < handle
         %> two axes.
         %> @param Instance of PAStatTool
         function hideCentroidControls(this)
-            set(this.handles.panel_controlCentroid,'visible','off'); 
+            set(this.handles.panel_coiControls,'visible','off'); 
             % add a context menu now to primary axes
             set(this.handles.axes_primary,'uicontextmenu',[]);
         end
         
         function showCentroidControls(this)
-            set(this.handles.panel_controlCentroid,'visible','on');
+            set(this.handles.panel_coiControls,'visible','on');
         end
         
         function enableCentroidControls(this)
-            set(findall(this.handles.panel_controlCentroid,'enable','off'),'enable','on');  
+            set(findall(this.handles.panel_coiControls,'enable','off'),'enable','on');  
             % add a context menu now to primary axes
             contextmenu_primaryAxes = uicontextmenu();
             nextPlotmenu = uimenu(contextmenu_primaryAxes,'Label','Next plot','callback',@this.primaryAxesNextPlotContextmenuCallback);
@@ -1157,7 +1157,7 @@ classdef PAStatTool < handle
         end
         
         function disableCentroidControls(this)
-            set(findall(this.handles.panel_controlCentroid,'enable','on'),'enable','off');              
+            set(findall(this.handles.panel_coiControls,'enable','on'),'enable','off');              
             set(this.handles.text_resultsCentroid,'enable','on');
             % add a context menu now to primary axes           
             set(this.handles.axes_primary,'uicontextmenu',[]);
@@ -1284,15 +1284,15 @@ classdef PAStatTool < handle
                         xlabel(distributionAxes,'Centroid');
                         xlim(distributionAxes,[0.25 numCentroids+.75]);
                         set(distributionAxes,'ygrid','on','ytickmode','auto','xtick',[]);
-                    case 'globalprofile'
-                        globalProfile = this.getGlobalProfile();
-                    case 'localVsGlobalProfile'
-                        globalProfile = this.getGlobalProfile();
-                        primaryKeys = coiStruct.memberIDs;
-                        coiProfile = this.getProfileCell(primaryKeys);
-                    case 'centroidprofile'
-                        primaryKeys = coiStruct.memberIDs;            
-                        coiProfile = this.getProfileCell(primaryKeys);
+                        %                     case 'globalprofile'
+                        %                         globalProfile = this.getGlobalProfile();
+                        %                     case 'localVsGlobalProfile'
+                        %                         globalProfile = this.getGlobalProfile();
+                        %                         primaryKeys = coiStruct.memberIDs;
+                        %                         coiProfile = this.getProfileCell(primaryKeys);
+                        %                     case 'centroidprofile'
+                        %                         primaryKeys = coiStruct.memberIDs;
+                        %                         coiProfile = this.getProfileCell(primaryKeys);
                     otherwise
                         warndlg(sprintf('Distribution type (%s) is unknonwn and or not supported',this.centroidDistributionType));                        
                 end

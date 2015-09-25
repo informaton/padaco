@@ -26,7 +26,7 @@ function varargout = padaco(varargin)
 
 % Edit the above text to modify the response to help padaco
 
-% Last Modified by GUIDE v2.5 08-Sep-2015 11:04:18
+% Last Modified by GUIDE v2.5 25-Sep-2015 12:09:13
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -196,6 +196,15 @@ end
 function menu_centroidStopTime_CreateFcn(hObject, eventdata, handles)
 
 % Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+function edit_coiStatus_CreateFcn(hObject, eventdata, handles)
+
+% Hint: edit controls usually have a white background on Windows.
 %       See ISPC and COMPUTER.
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
