@@ -195,7 +195,7 @@ classdef PABatchTool < handle
             obj.settings.describeInactivity = get(handles.check_inactivityPatterns,'value');
             obj.settings.describeSleep = get(handles.check_sleepPatterns,'value');
             
-            obj.notify('BatchToolStarting',BatchToolEventData(obj.settings));
+            obj.notify('BatchToolStarting',EventData_BatchTool(obj.settings));
             
             accelType = 'count';
             

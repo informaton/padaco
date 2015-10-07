@@ -1630,7 +1630,14 @@ toc
        %> @param obj Instance of PAData.
        %> @retval usageVec A vector of length obj.dateTimeNum whose values
        %> represent the usage category at each sample instance specified by
-       %> dateTimeNum.
+       %> @b dateTimeNum.
+       %> - c usageVec(activeVec) = 30 
+       %> - c usageVec(inactiveVec) = 25
+       %> - c usageVec(~awakeVsAsleepVec) = 20 
+       %> - c usageVec(sleepVec) = 15  sleep period (could be a nap)
+       %> - c usageVec(remSleepVec) = 10  REM sleep
+       %> - c usageVec(nonwearVec) = 5  Non-wear
+       %> - c usageVec(studyOverVec) = 0  Non-wear, study over.
        %> @retval usageState A three column matrix identifying usage state
        %> and duration.  Column 1 is the usage state, column 2 and column 3 are
        %> the states start and stop times (datenums).       
@@ -1644,6 +1651,17 @@ toc
        % ======================================================================
        function [usageVec, usageState, startStopDateNums] = classifyUsageState(obj)
            % activity determined from vector magnitude signal
+
+           UNKNOWN = -1;
+           STUDYOVER=0;          
+           NONWEAR = 5;
+           WEAR = 10;
+           REMS = 10;           
+           NREMS = 15;
+           NAPPING = 20;
+           INACTIVE = 25;
+           ACTIVE = 30;
+           
            countActivity = obj.accel.count.vecMag;
             
            longClassificationMinimumDurationOfMinutes = 15;%a 1/4 hour filter?
@@ -1658,22 +1676,25 @@ toc
            shortRunningActivitySum = obj.movingSummer(countActivity,shortFilterLength);
            toc;
            
-           usageVec = zeros(size(obj.dateTimeNum));
+%            usageVec = zeros(size(obj.dateTimeNum));
+           usageVec = repmat(UNKNOWN,(size(obj.dateTimeNum)));
            
-           awakeVsAsleepCountsPerSecondCutoff = 1;
-           activeVsInactiveCountsPerSecondCutoff = 10;
-           onbodyVsOffBodyCountsPerMinuteCutoff = 1;
+           awakeVsAsleepCountsPerSecondCutoff = 1;  % exceeding the cutoff means you are awake
+           activeVsInactiveCountsPerSecondCutoff = 10; % exceeding the cutoff indicates active
+           onbodyVsOffBodyCountsPerMinuteCutoff = 1; % exceeding the cutoff indicates on body (wear)
+           
            % This is good for determining where the study has ended... using a 15 minute duration minimum
            % (essentially 15 counts allowed per hundred samples.)
            offBodyThreshold = longClassificationMinimumDurationOfMinutes*onbodyVsOffBodyCountsPerMinuteCutoff;
+           
+           
            longActiveThreshold = longClassificationMinimumDurationOfMinutes*(activeVsInactiveCountsPerSecondCutoff*60);
            
            
-           awakeVsAsleepVec = longRunningActivitySum>awakeVsAsleepCountsPerSecondCutoff;
-           activeVec = longRunningActivitySum>longActiveThreshold;
-           inactiveVec = awakeVsAsleepVec&~activeVec;
-           sleepVec = ~awakeVsAsleepVec;
-           longNoActivityVec = longRunningActivitySum<offBodyThreshold;
+           awakeVsAsleepVec = longRunningActivitySum>awakeVsAsleepCountsPerSecondCutoff; % 1 indicates Awake
+           activeVec = longRunningActivitySum>longActiveThreshold; % 1 indicates active
+           inactiveVec = awakeVsAsleepVec&~activeVec; %awake, but not active
+           sleepVec = ~awakeVsAsleepVec; % not awake
            
            sleepPeriodParams.merge_within_samples = 3600*2*obj.getSampleRate();
            sleepPeriodParams.min_dur_samples = 3600*4*obj.getSampleRate();
@@ -1686,6 +1707,10 @@ toc
            remSleepPeriodParams.merge_within_samples = 60*5*obj.getSampleRate();  %merge within 5 minutes
            remSleepPeriodParams.min_dur_samples = 60*20*obj.getSampleRate();   %require minimum of 20 minutes
            remSleepVec = obj.reprocessEventVector(sleepVec&shortNoActivityVec,remSleepPeriodParams.min_dur_samples,remSleepPeriodParams.merge_within_samples);
+
+
+           % Check for nonwear
+           longNoActivityVec = longRunningActivitySum<offBodyThreshold;
            candidate_nonwear_events= obj.thresholdcrossings(longNoActivityVec,0);
            
            params.merge_within_sec = 3600*4;
@@ -1743,13 +1768,13 @@ toc
            nonwearStartStopDateNums = [obj.dateTimeNum(nonwear_events(:,1)),obj.dateTimeNum(nonwear_events(:,2))];
            %durationOff = nonwear(:,2)-nonwear(:,1);
            %durationOffInHours = (nonwear(:,2)-nonwear(:,1))/3600;
-           nonwearState = repmat(5,size(nonwear_events,1),1);
+           nonwearState = repmat(NONWEAR,size(nonwear_events,1),1);
 
            %            wearVec = runningActivitySum>=offBodyThreshold;
            wearVec = ~nonwearVec;
            wear = obj.thresholdcrossings(wearVec,0);
            wearStartStopDateNums = [obj.dateTimeNum(wear(:,1)),obj.dateTimeNum(wear(:,2))];
-           wearState = repmat(10,size(wear,1),1);
+           wearState = repmat(WEAR,size(wear,1),1);
 
            usageState = [nonwearState;wearState];
            [startStopDateNums, sortIndex] = sortrows([nonwearStartStopDateNums;wearStartStopDateNums]);  
@@ -1757,15 +1782,16 @@ toc
            
            %usageVec(awakeVsAsleepVec) = 20;
            %usageVec(wearVec) = 10;   %        This is covered
-           usageVec(activeVec) = 30;  %None!
-           usageVec(inactiveVec) = 25;
-           usageVec(~awakeVsAsleepVec) = 20; 
-           usageVec(sleepVec) = 15;   %Sleep period
-           usageVec(remSleepVec) = 10;  %REM sleep
-           usageVec(nonwearVec) = 5;
-           usageVec(studyOverVec) = 0;
-           
-           
+           usageVec(activeVec) = ACTIVE;  %None!
+           usageVec(inactiveVec) = INACTIVE;
+           usageVec(~awakeVsAsleepVec) = NAPPING;   % Not awake, but may be too short to enter REM or NREMS.
+           usageVec(sleepVec) = NREMS;   %Sleep period
+           usageVec(remSleepVec) = REMS;  %REM sleep
+           usageVec(nonwearVec) = NONWEAR;
+           usageVec(studyOverVec) = STUDYOVER;
+           % -1 uncategorized
+                     
+
        end
        
        
@@ -2382,7 +2408,7 @@ toc
        % Analysis 
        
        % =================================================================
-       %> @brief Removes periods of activity that are too short and goups
+       %> @brief Removes periods of activity that are too short and groups
        %> nearby activity groups together.
        %> @param logicalVec Initial vector which has 1's where an event or
        %> activity is occurring at that sample.  
