@@ -108,8 +108,12 @@ classdef PAData < handle
        %> @brief
        bins;
        
-       %> @brief Vector magnitude signal at frame rate.
+       %> @brief Selected signal (e.g. count vector magnitude) at frame rate.
        frames;
+       
+       %> @brief Mode of usage state vector (i.e. taken from getUsageActivity) for current frame rate.
+       usageFrames;
+       
        
        %> @brief Number of frames that the time series data can be aggregated
        %> into.  It is calculated as the ceiling of the study's duration in
@@ -1465,8 +1469,6 @@ toc
                    fprintf(1,'Unknown method (%s)\n',method);
            end
        end
-
-       
        
        % ======================================================================
        %> @brief Extracts features from the identified signal
@@ -1483,7 +1485,8 @@ toc
        %> - c sum
        %> - c var
        %> - c std
-       %> - c mode       
+       %> - c mode   
+       %> - c usagestate
        % ======================================================================
        function obj = extractFeature(obj,signalTagLine,method)
            if(nargin<3 || isempty(method))
@@ -1494,6 +1497,8 @@ toc
            end
            
            currentNumFrames = obj.getFrameCount();
+           
+           % recalculate based on a change in frame size ...
            if(currentNumFrames~=obj.numFrames)
                [frameDurMinutes, frameDurHours ] = obj.getFrameDuration();
                frameDurSeconds = frameDurMinutes*60+frameDurHours*60*60;
@@ -1501,6 +1506,15 @@ toc
                frameableSamples = obj.numFrames*frameDurSeconds*obj.getSampleRate();
                data = obj.getStruct('all');
                data = eval(['data.',signalTagLine]);
+               
+               % Not efficient to calculate usageFrames each time if it is
+               % not requested, but it avoids having to program a variety
+               % of case statements for when a non 'all' or 'usagestate' was selected the
+               % frist time, etc.
+               %                if(any(strcmpi(method,{'all','usagestate'})))
+                   [usageVec, ~,~] = classifyUsageState(obj);
+                   obj.usageFrames =  reshape(usageVec(1:frameableSamples),[],obj.numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
+               %                end
                obj.frames =  reshape(data(1:frameableSamples),[],obj.numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
                
                obj.features = [];
@@ -1521,6 +1535,9 @@ toc
                % or equivalently :
                % obj.startDatenums = obj.dateTimeNum(1:size(obj.frames,1):frameableSamples);
                % obj.stopDatenums = obj.dateTimeNum(size(obj.frames,1):size(obj.frames,1):frameableSamples+size(obj.frames,1));
+           
+           else            
+               % otherwise just use the original           
            end
            
            %frames are stored in consecutive columns.
@@ -1535,6 +1552,8 @@ toc
                    obj.features.var = var(data)';
                    obj.features.std = std(data)';
                    obj.features.mode = mode(data)';
+                   obj.features.usagestate = mode(obj.usageFrames)';                   
+                   
                    %                    obj.features.count = obj.getCount(data)';
                case 'rms'
                    obj.features.rms = sqrt(mean(data.^2))';
@@ -1550,6 +1569,8 @@ toc
                    obj.features.std = std(data)';
                case 'mode'
                    obj.features.mode = mode(data)';
+               case 'usagestate'
+                   obj.features.usagestate = mode(obj.usageFrames)';
                otherwise
                    fprintf(1,'Unknown method (%s)\n',method);
            end
@@ -1622,7 +1643,7 @@ toc
            end
            
        end
-       
+
        
        % ======================================================================
        %> @brief Categorizes the study's usage state.
@@ -1780,18 +1801,30 @@ toc
            [startStopDateNums, sortIndex] = sortrows([nonwearStartStopDateNums;wearStartStopDateNums]);  
            usageState = usageState(sortIndex);
            
+           tagStruct = obj.getActivityTags();
+          
            %usageVec(awakeVsAsleepVec) = 20;
            %usageVec(wearVec) = 10;   %        This is covered
-           usageVec(activeVec) = ACTIVE;  %None!
-           usageVec(inactiveVec) = INACTIVE;
-           usageVec(~awakeVsAsleepVec) = NAPPING;   % Not awake, but may be too short to enter REM or NREMS.
-           usageVec(sleepVec) = NREMS;   %Sleep period
-           usageVec(remSleepVec) = REMS;  %REM sleep
-           usageVec(nonwearVec) = NONWEAR;
-           usageVec(studyOverVec) = STUDYOVER;
-           % -1 uncategorized
-                     
-
+           % <<<<<<< HEAD
+           %            usageVec(activeVec) = ACTIVE;  %None!
+           %            usageVec(inactiveVec) = INACTIVE;
+           %            usageVec(~awakeVsAsleepVec) = NAPPING;   % Not awake, but may be too short to enter REM or NREMS.
+           %            usageVec(sleepVec) = NREMS;   %Sleep period
+           %            usageVec(remSleepVec) = REMS;  %REM sleep
+           %            usageVec(nonwearVec) = NONWEAR;
+           %            usageVec(studyOverVec) = STUDYOVER;
+           %            % -1 uncategorized
+           %
+           %
+           % =======
+           usageVec(activeVec) = tagStruct.ACTIVE;%30;  %None!
+           usageVec(inactiveVec) = tagStruct.INACTIVE;%25;
+           usageVec(~awakeVsAsleepVec) = tagStruct.NAP;%20; 
+           usageVec(sleepVec) = tagStruct.NREM;%15;   %Sleep period
+           usageVec(remSleepVec) = tagStruct.REMS;%10;  %REM sleep
+           usageVec(nonwearVec) = tagStruct.NONWEAR;%5;
+           usageVec(studyOverVec) = tagStruct.STUDYOVER;%0;
+           
        end
        
        
@@ -3263,6 +3296,8 @@ toc
            featureStruct.sum = 'sum';           
            featureStruct.var = 'Variance';
            featureStruct.mode = 'Mode';
+           featureStruct.usagestate = 'Activity Categories';
+           
            %            featureStruct.count = 'Count';
        end
        
@@ -3387,7 +3422,16 @@ toc
            end;
        end
        
-       
+      
+       function tagStruct = getActivityTags()
+           tagStruct.ACTIVE = 35;  
+           tagStruct.INACTIVE = 25;
+           tagStruct.NAP  = 20; 
+           tagStruct.NREM =  15;  
+           tagStruct.REMS = 10;
+           tagStruct.NONWEAR = 5;
+           tagStruct.STUDYOVER = 0; 
+       end
    end
 end
 

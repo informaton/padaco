@@ -1,8 +1,8 @@
-%a wrapper for matlab's uigetfile - this one returns the fullfilename; not
-%as a path and a filename, or empty if the user cancels or it does not
-%exist.
-%> function fullfilename = uigetfullfile(filter_cell,display_message,file,multiselect_option)
-%> xmlfilename = uigetfullfile({'*.xml','Cohort structure file (*.xml)'},'Select cohort information structure file');
+%> @brief Wrapper for matlab's uigetfile.  
+%> @retval Full filename (string) of selected file or empty if the user cancels or the file does not exist.
+%> @note This is different from uigetfile which returns a path and a filename separately.
+% @note Use function fullfilename = uigetfullfile(filter_cell,display_message,file,multiselect_option)
+%> @note Example:  xmlfilename = uigetfullfile({'*.xml','Cohort structure file (*.xml)'},'Select cohort information structure file');
 %> See uigetfile
 function fullfilename = uigetfullfile(filter_cell,display_message,multiselect_option,file)
 if(nargin<4 || isempty(file))

@@ -27,6 +27,11 @@ classdef PAStatTool < handle
         %> manipulated 
         featureStruct;
         
+        %> structure containing Usage Activity feature output by padaco's batch tool.
+        %> This is used to obtain removal indices when loading data (i.e.
+        %> non-wear/study over state)
+        usageStateStruct;
+        
         %> struct of handles that PAStatTool interacts with.  See
         %> initHandles()
         handles; 
@@ -58,6 +63,7 @@ classdef PAStatTool < handle
     end
     
     methods        
+        
         
         % ======================================================================
         %> @brief Constructor for PAStatTool
@@ -121,6 +127,20 @@ classdef PAStatTool < handle
         end
         
         % ======================================================================
+        %> @brief Get method for centroidObj instance variable.
+        %> @param this Instance of PAStatTool
+        %> @retval Instance of PACentroid or []
+        % ======================================================================
+        function centroidObj = getCentroidObj(this)
+            centroidObj = this.centroidObj;
+        end
+        
+        function centroidExists = hasCentroid(this)
+            centroidExists = ~isempty(this.centroidObj);
+        end
+        
+        
+        % ======================================================================
         %> @brief Get method for canPlot instance variable.
         %> @param this Instance of PAStatTool
         %> @retval canPlot Boolean (true if results are loaded and displayable).
@@ -175,13 +195,25 @@ classdef PAStatTool < handle
             pSettings = this.getPlotSettings();
             inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
 
+
             if(exist(inputFilename,'file')) 
-                if(isempty(this.originalFeatureStruct))
-                    this.originalFeatureStruct = this.loadAlignedFeatures(inputFilename);
+                
+                if(isempty(this.usageStateStruct))
+                    usageFeature = 'usagestate';
+                    usageFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,usageFeature,usageFeature,'count','vecMag');
+                    if(exist(usageFilename,'file'))
+                        this.usageStateStruct= this.loadAlignedFeatures(usageFilename);
+                    end
+                end
+                
+                loadFileRequired = isempty(this.originalFeatureStruct) || ~strcmpi(inputFilename,this.originalFeatureStruct.filename);                    
+                if(loadFileRequired)
+                    this.originalFeatureStruct = this.loadAlignedFeatures(inputFilename);                    
                     [pSettings.startTimeSelection, pSettings.stopTimeSelection] = this.setStartTimes(this.originalFeatureStruct.startTimes);
                 end
-                this.featureStruct = this.originalFeatureStruct;
                 
+                tmpFeatureStruct = this.originalFeatureStruct;
+                tmpUsageStateStruct = this.usageStateStruct;
                 startTimeSelection = pSettings.startTimeSelection;
                 stopTimeSelection = pSettings.stopTimeSelection - 1;
                 if(stopTimeSelection<1)
@@ -189,17 +221,31 @@ classdef PAStatTool < handle
                     % will go 24 hours
                 elseif(stopTimeSelection== startTimeSelection)
                     warndlg('Not going to load only 1 feature; just do a mean ...');
+                    
                 elseif(startTimeSelection < stopTimeSelection)
-                    this.featureStruct.startTimes = this.featureStruct.startTimes(startTimeSelection:stopTimeSelection);
-                    this.featureStruct.shapes = this.featureStruct.shapes(:,startTimeSelection:stopTimeSelection);      
-                    this.featureStruct.totalCount = numel(this.featureStruct.startTimes);
+                    tmpFeatureStruct.startTimes = tmpFeatureStruct.startTimes(startTimeSelection:stopTimeSelection);
+                    tmpFeatureStruct.shapes = tmpFeatureStruct.shapes(:,startTimeSelection:stopTimeSelection);      
+                    tmpFeatureStruct.totalCount = numel(tmpFeatureStruct.startTimes);
+                
+                    tmpUsageStateStruct.startTimes = tmpUsageStateStruct.startTimes(startTimeSelection:stopTimeSelection);
+                    tmpUsageStateStruct.shapes = tmpUsageStateStruct.shapes(:,startTimeSelection:stopTimeSelection);      
+                    tmpUsageStateStruct.totalCount = numel(tmpUsageStateStruct.startTimes);
+                
+                % For example:  22:00 to 04:00 is ~ stopTimeSelection = 22 and
+                % startTimeSelection = 81
                 elseif(stopTimeSelection < startTimeSelection)
-                    this.featureStruct.startTimes = [this.featureStruct.startTimes{stopTimeSelection:end},this.featureStruct.startTimes{1:startTimeSelection}];
-                    this.featureStruct.shapes = [this.featureStruct.shapes(:,stopTimeSelection:end),this.featureStruct.shapes(:,1:startTimeSelection)];
-                    this.featureStruct.totalCount = numel(this.featureStruct.startTimes);
+                    tmpFeatureStruct.startTimes = [tmpFeatureStruct.startTimes(startTimeSelection:end),tmpFeatureStruct.startTimes(1:stopTimeSelection)];
+                    tmpFeatureStruct.shapes = [tmpFeatureStruct.shapes(:,startTimeSelection:end),tmpFeatureStruct.shapes(:,1:stopTimeSelection)];
+                    tmpFeatureStruct.totalCount = numel(tmpFeatureStruct.startTimes);
+                
+                    tmpUsageStateStruct.startTimes = [tmpUsageStateStruct.startTimes(startTimeSelection:end),tmpUsageStateStruct.startTimes(1:stopTimeSelection)];
+                    tmpUsageStateStruct.shapes = [tmpUsageStateStruct.shapes(:,startTimeSelection:end),tmpUsageStateStruct.shapes(:,1:stopTimeSelection)];
+                    tmpUsageStateStruct.totalCount = numel(tmpUsageStateStruct.startTimes);
                 else
                     warndlg('Something unexpected happened');
                 end
+                
+                this.featureStruct = this.discardNonWearFeatures(tmpFeatureStruct,tmpUsageStateStruct);
                 
                 loadFeatures = this.featureStruct.shapes;
 
@@ -1228,6 +1274,25 @@ classdef PAStatTool < handle
     
     methods (Static)
         
+        function featureStruct = discardNonWearFeatures(featureStructIn,usageStateStruct)
+            %         function featureStruct = getValidFeatureStruct(originalFeatureStruct,usageStateStruct)
+            featureStruct = featureStructIn;            
+            if(isempty(usageStateStruct) || isempty(featureStructIn))
+%                 featureStruct = originalFeatureStruct;
+            else
+               tagStruct = PAData.getActivityTags();
+               nonWearRows = any(usageStateStruct.shapes<=tagStruct.NONWEAR,2);
+               if(any(nonWearRows))
+                   featureStruct.startDatenums(nonWearRows,:)=[];
+                   featureStruct.startDaysOfWeek(nonWearRows,:)=[];
+                   featureStruct.shapes(nonWearRows,:)=[];
+                   
+               else
+%                    featureStruct = originalFeatureStruct;
+               end
+            end
+        end
+                
         % ======================================================================
         %> @brief Loads and aligns features from a padaco batch process
         %> results output file.
@@ -1235,6 +1300,7 @@ classdef PAStatTool < handle
         %> of features file produced by padaco's batch processing mode.
         %> @retval featureStruct A structure of aligned features obtained
         %> from filename.  Fields include:
+        %> - @c inputFilename The source filename data was loaded from.        
         %> - @c shapes
         %> - @c startTimes
         %> - @c startDaysOfWeek
@@ -1246,6 +1312,7 @@ classdef PAStatTool < handle
         %     filename='/Volumes/SeaG 1TB/sampleData/output/features/mean/features.mean.accel.count.vecMag.txt';
         % ======================================================================
         function featureStruct = loadAlignedFeatures(filename)
+            featureStruct.filename = filename;
             
             [~,fileN, ~] = fileparts(filename);
             [~, remain] = strtok(fileN,'.');
@@ -1371,8 +1438,9 @@ classdef PAStatTool < handle
         %> - @c weekdayTags
         % ======================================================================
         function baseSettings = getBaseSettings()
-            baseSettings.featureDescriptions = {'Mean','Mode','RMS','Std Dev','Sum','Variance'};
-            baseSettings.featureTypes = {'mean','mode','rms','std','sum','var'};
+            featureDescriptionStruct = PAData.getFeatureDescriptionStruct();
+            baseSettings.featureDescriptions = struct2cell(featureDescriptionStruct);
+            baseSettings.featureTypes = fieldnames(featureDescriptionStruct);
             baseSettings.signalTypes = {'x','y','z','vecMag'};
             baseSettings.signalDescriptions = {'X','Y','Z','Vector Magnitude'};
             

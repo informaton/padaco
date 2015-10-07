@@ -176,7 +176,7 @@ classdef PAView < handle
             set(handles.panel_results,'position',[timeSeriesPanelPos(1),newResultsPanelY,resultsPanelPos(3:4)]);
             
             metaDataHandles = [handles.panel_study;get(handles.panel_study,'children')];
-            set(metaDataHandles,'backgroundcolor',[0.95,0.95,0.95],'visible','off');
+            set(metaDataHandles,'backgroundcolor',[0.94,0.94,0.94],'visible','off');
             
             whiteHandles = [handles.text_aggregate
                 handles.text_frameSizeMinutes
@@ -193,10 +193,11 @@ classdef PAView < handle
                 handles.panel_plotSignal
                 handles.panel_plotData
                 handles.panel_plotCentroid];
-            set(whiteHandles,'backgroundcolor',[0.95,0.95,0.95]);
+            set(whiteHandles,'backgroundcolor',[0.94,0.94,0.94]);
 %             set(findobj(whiteHandles,'-property','shadowcolor'),'shadowcolor',[0 0 0],'highlightcolor',[0 0 0]);
             
             set([handles.panel_centroidSettings
+                handles.panel_centroid_timeFrame
                 handles.text_min_clusters
                 handles.text_threshold
                 handles.text_duration],'backgroundColor',[1 1 1]);
