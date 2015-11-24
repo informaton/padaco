@@ -517,7 +517,7 @@ classdef PAView < handle
             axesProps.primary.plotboxaspectratiomode='auto';
             axesProps.primary.fontSize = 14;            
             axesProps.primary.units = 'normalized'; %normalized allows it to resize automatically
-            if verLessThan('matlab','8.4.0')
+            if verLessThan('matlab','7.14')
                 axesProps.primary.drawmode = 'normal'; %fast does not allow alpha blending...
             else
                 axesProps.primary.sortmethod = 'childorder'; %fast does not allow alpha blending...
