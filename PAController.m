@@ -1160,7 +1160,7 @@ classdef PAController < handle
             batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
         end        
         
-        function updateBatchToolSettingsCallback(obj,batchTool,eventData)
+        function updateBatchToolSettingsCallback(obj,batchToolObj,eventData)
             obj.batch = eventData.settings;
         end
         
