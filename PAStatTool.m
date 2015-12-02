@@ -44,6 +44,7 @@ classdef PAStatTool < handle
         %> @brief Struct to keep track of settings from previous plot type
         %> selections to make transitioning back and forth between cluster
         %> plotting and others easier to stomach.  Fields include:
+        %> - @c sortValues The value of the check_sortvalues widget
         %> - @c normalizeValues The value of the check_normalizevalues widget
         %> - @c plotType The tag of the current plot type 
         %> - @c colorMap - colormap of figure;
@@ -246,7 +247,6 @@ classdef PAStatTool < handle
                 end
                 
                 this.featureStruct = this.discardNonWearFeatures(tmpFeatureStruct,tmpUsageStateStruct);
-                
                 loadFeatures = this.featureStruct.shapes;
 
                 if(pSettings.centroidDurationHours~=24)
@@ -273,13 +273,17 @@ classdef PAStatTool < handle
                 
                 end
                 
+                if(pSettings.sortValues)
+                    loadFeatures = sort(loadFeatures,2,'descend');  %sort rows from high to low
+                end
+                
+                
                 if(pSettings.trimResults)
                     pctValues = prctile(loadFeatures,pSettings.trimToPercent);
                     pctValuesMat = repmat(pctValues,size(loadFeatures,1),1);
                     adjustInd = loadFeatures>pctValuesMat;
                     
                 end
-                
                 
                 % floor below
                 if(pSettings.cullResults)
@@ -289,9 +293,15 @@ classdef PAStatTool < handle
                     %                     culledInd = loadFeatures<pctValuesMat;
                 end
                 
+                                
+                % Trim values to a maximum ceiling
                 if(pSettings.trimResults)
                     loadFeatures(adjustInd) = pctValuesMat(adjustInd);                    
                 end
+                
+                
+                % Set values below a certain range to 0.  Not good for
+                % classification rules.
                 if(pSettings.cullResults)
                     loadFeatures(culledInd) = 0;                    
                 end
@@ -460,6 +470,9 @@ classdef PAStatTool < handle
         %> @param this Instance of PAStatTool
         % ======================================================================
         function switchFromClustering(this)
+            this.previousState.sortValues = get(this.handles.check_sortvalues,'value');            
+            set(this.handles.check_sortvalues,'value',0,'enable','off');            
+            
             set(this.handles.check_normalizevalues,'value',this.previousState.normalizeValues,'enable','on');
             
             this.hideCentroidControls();
@@ -475,8 +488,10 @@ classdef PAStatTool < handle
         %> @param this Instance of PAStatTool
         % ======================================================================
         function switch2clustering(this)
+            set(this.handles.check_sortvalues,'value',this.previousState.sortValues,'enable','on');
+
             
-            this.previousState.normalizeValues = get(this.handles.check_normalizevalues,'value');
+            this.previousState.normalizeValues = get(this.handles.check_normalizevalues,'value');           
             set(this.handles.check_normalizevalues,'value',1,'enable','off');
             set(this.handles.axes_primary,'ydir','normal');  %sometimes this gets changed by the heatmap displays which have the time shown in reverse on the y-axis
             
@@ -537,7 +552,8 @@ classdef PAStatTool < handle
             this.hideCentroidControls();
             
             this.canPlot = false;    %changes to true if we find data that can be processed in featuresPathname
-            set([this.handles.check_normalizevalues
+            set([this.handles.check_sortvalues                
+                this.handles.check_normalizevalues
                 this.handles.menu_feature
                 this.handles.menu_signalsource
                 this.handles.menu_plottype
@@ -580,6 +596,8 @@ classdef PAStatTool < handle
                         set(this.handles.check_trim,'min',0,'max',1,'value',widgetSettings.trimResults);
                         set(this.handles.check_cull,'min',0,'max',1,'value',widgetSettings.cullResults);
                         set(this.handles.check_showCentroidMembers,'min',0,'max',1,'value',widgetSettings.showCentroidMembers);
+                        
+                        set(this.handles.check_sortvalues,'min',0,'max',1,'value',widgetSettings.sortValues);                        
                         set(this.handles.check_normalizevalues,'min',0,'max',1,'value',widgetSettings.normalizeValues);
                         
                         % This should be updated to parse the actual output feature
@@ -604,7 +622,9 @@ classdef PAStatTool < handle
                         set(this.handles.edit_centroidThreshold,'string',num2str(widgetSettings.clusterThreshold)); 
                         
                         %% set callbacks
-                        set([this.handles.check_normalizevalues;                            
+                        set([
+                            this.handles.check_sortvalues;
+                            this.handles.check_normalizevalues;                            
                             this.handles.menu_feature;                            
                             this.handles.menu_signalsource],'callback',@this.refreshPlot);                        
                         set(this.handles.menu_plottype,'callback',@this.plotSelectionChange);
@@ -664,6 +684,7 @@ classdef PAStatTool < handle
             % can be shown or not.  
             
             % Previous state initialization - set to current state.
+            this.previousState.sortValues = widgetSettings.sortValues;
             this.previousState.normalizeValues = widgetSettings.normalizeValues;
             this.previousState.plotType = this.base.plotTypes{widgetSettings.plotTypeSelection};
             
@@ -702,7 +723,9 @@ classdef PAStatTool < handle
         % ======================================================================
         function initHandles(this)
             tmpHandles = guidata(this.figureH);
-            handlesOfInterest = {'check_normalizevalues'
+            handlesOfInterest = {
+                'check_sortvalues'    
+                'check_normalizevalues'
                 'menu_feature'
                 'menu_signalsource'
                 'menu_plottype'
@@ -1240,6 +1263,7 @@ classdef PAStatTool < handle
             userSettings.baseFeatureSelection = get(this.handles.menu_feature,'value');
             userSettings.signalSelection = get(this.handles.menu_signalsource,'value');
             userSettings.plotTypeSelection = get(this.handles.menu_plottype,'value');
+            userSettings.sortValues = get(this.handles.check_sortvalues,'value');  %return 0 for unchecked, 1 for checked            
             userSettings.normalizeValues = get(this.handles.check_normalizevalues,'value');  %return 0 for unchecked, 1 for checked
             
             userSettings.processType = this.base.processedTypes{userSettings.processedTypeSelection};
@@ -1387,6 +1411,7 @@ classdef PAStatTool < handle
         %> @retval Struct of default paramters.  Fields include
         %> - @c trimResults
         %> - @c cullResults
+        %> - @c sortValues
         %> - @c normalizeValues
         %> - @c processedTypeSelection
         %> - @c baseFeatureSelection
@@ -1405,6 +1430,7 @@ classdef PAStatTool < handle
         function paramStruct = getDefaultParameters()
             paramStruct.trimResults = 0;
             paramStruct.cullResults = 0;
+            paramStruct.sortValues = 0;            
             paramStruct.normalizeValues = 0;            
             paramStruct.processedTypeSelection = 1;
             paramStruct.baseFeatureSelection = 1;

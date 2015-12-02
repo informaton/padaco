@@ -68,6 +68,8 @@ classdef PAView < handle
         menuhandle;
         
         %> @brief Struct of check box handles.  Fields include
+        %> - @c sortResults - check to presort values from high to low for
+        %> each profile vector
         %> - @c normalizeResults - check to show normalized results.
         %> - @c trimResults - check to trim outlier results.  
         checkhandle;
@@ -226,6 +228,7 @@ classdef PAView < handle
             obj.menuhandle.resultType = handles.menu_plottype;
             
             obj.checkhandle.normalizeResults = handles.check_normalizevalues;
+            obj.checkhandle.sortResults = handles.check_sortvalues;
             obj.checkhandle.trimResults = handles.check_trim;
             
 %             obj.timeseries.menuhandle = obj.menuhandle;

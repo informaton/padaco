@@ -461,7 +461,13 @@ classdef PAController < handle
             set(handles.button_go,'callback',@obj.button_goCallback);
             
             % Configure stats panel callbacks ...
-            set([handles.check_normalizevalues,handles.menu_feature,handles.menu_signalsource,handles.menu_plottype],'callback',@refreshResultsPlot);
+            % - this is now handed in the PAStatTool.m class
+            %             set([handles.check_sortvalues;
+            %                 handles.check_normalizevalues;
+            %                 handles.menu_feature;
+            %                 handles.menu_signalsource;
+            %                 handles.menu_plottype],'callback',@refreshResultsPlot);
+            
 
         end
         
