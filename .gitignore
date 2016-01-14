@@ -30,3 +30,5 @@ matlab_workspace.mat
 matlab.mat
 
 utility/lib
+
+*.prj
