@@ -537,7 +537,7 @@ classdef PAStatTool < handle
 
         % ======================================================================
         %> @brief Initialize gui handles using input parameter or default
-        %> parameters
+        %> parameters.  Initalizes callbacks where applicable.
         %> @param this Instance of PAStatTool
         %> @param widgetSettings GUI setting parameters (optional).  If
         %> this is not included or is empty, then the default parameters are
@@ -568,7 +568,9 @@ classdef PAStatTool < handle
                 this.handles.check_trim
                 this.handles.edit_trimToPercent
                 this.handles.check_cull
-                this.handles.edit_cullToValue],'callback',[],'enable','off');
+                this.handles.edit_cullToValue],'units','points',...
+                'callback',[],...
+                'enable','off');
 
             if(isdir(featuresPathname))
                 % find allowed features which are in our base parameter and
@@ -659,6 +661,29 @@ classdef PAStatTool < handle
                         set(this.handles.push_refreshCentroids,'callback',@this.refreshCentroidsAndPlot);
                         set(this.handles.push_previousCentroid,'callback',@this.showPreviousCentroid);
                         set(this.handles.push_nextCentroid,'callback',@this.showNextCentroid);
+                        
+                        set(this.handles.push_nextCentroid,'units','pixels');
+                        set(this.handles.push_previousCentroid,'units','pixels');
+                        
+                        pos = get(this.handles.push_nextCentroid,'position');
+                        set(this.handles.push_nextCentroid,'position',pos.*[1 -1 1 1]);
+                        pos = get(this.handles.push_previousCentroid,'position');
+                        set(this.handles.push_previousCentroid,'position',pos.*[1 -1 1 1]);
+                        
+                        %                         bgColor = get(this.handles.panel_controlCentroid,'Backgroundcolor');
+                        bgColor = get(this.handles.push_nextCentroid,'backgroundcolor');
+                        
+                        %                     bgColor = [0.94,0.94,0.94];
+                        nextImg = imread('./icons/arrow-right_16px.png','png','backgroundcolor',bgColor);
+                        previousImg = fliplr(nextImg);
+                        
+                        set(this.handles.push_nextCentroid,'cdata',nextImg,'string',[]);
+                        set(this.handles.push_previousCentroid,'cdata',previousImg,'string',[]);
+                        
+                        
+                        set(this.handles.push_nextCentroid,'units','points');
+                        set(this.handles.push_previousCentroid,'units','points');
+                        
                         
                         set([this.handles.menu_weekdays
                             this.handles.menu_centroidStartTime
