@@ -140,7 +140,6 @@ classdef PAStatTool < handle
             centroidExists = ~isempty(this.centroidObj);
         end
         
-        
         % ======================================================================
         %> @brief Get method for canPlot instance variable.
         %> @param this Instance of PAStatTool
@@ -195,7 +194,6 @@ classdef PAStatTool < handle
             
             pSettings = this.getPlotSettings();
             inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
-
 
             if(exist(inputFilename,'file')) 
                 
@@ -281,8 +279,7 @@ classdef PAStatTool < handle
                 if(pSettings.trimResults)
                     pctValues = prctile(loadFeatures,pSettings.trimToPercent);
                     pctValuesMat = repmat(pctValues,size(loadFeatures,1),1);
-                    adjustInd = loadFeatures>pctValuesMat;
-                    
+                    adjustInd = loadFeatures>pctValuesMat;                 
                 end
                 
                 % floor below
@@ -292,14 +289,12 @@ classdef PAStatTool < handle
                     %                     pctValuesMat = repmat(pctValues,size(loadFeatures,1),1);
                     %                     culledInd = loadFeatures<pctValuesMat;
                 end
-                
                                 
                 % Trim values to a maximum ceiling
                 if(pSettings.trimResults)
                     loadFeatures(adjustInd) = pctValuesMat(adjustInd);                    
                 end
-                
-                
+                 
                 % Set values below a certain range to 0.  Not good for
                 % classification rules.
                 if(pSettings.cullResults)
@@ -350,7 +345,6 @@ classdef PAStatTool < handle
             ylabel(this.handles.axes_primary,'');
             xlabel(this.handles.axes_primary,'');
             
-            
             title(this.handles.axes_secondary,'');
             ylabel(this.handles.axes_secondary,'');
             xlabel(this.handles.axes_secondary,'');
@@ -359,6 +353,33 @@ classdef PAStatTool < handle
 
         end
         
+        % ======================================================================
+        %> @brief Clears the primary axes.
+        %> @param this Instance of PAStatTool
+        % ======================================================================        
+        function clearPrimaryAxes(this)
+            if(~isempty(intersect(get(this.handles.axes_primary,'nextplot'),{'replacechildren','replace'})))
+                cla(this.handles.axes_primary);
+            end                
+            title(this.handles.axes_primary,'');
+            ylabel(this.handles.axes_primary,'');
+            xlabel(this.handles.axes_primary,'');
+        end
+           
+     
+        % ======================================================================
+        %> @brief Clears the secondary axes.
+        %> @param this Instance of PAStatTool
+        % ======================================================================        
+        function clearSecondaryAxes(this)
+            cla(this.handles.axes_secondary);
+            title(this.handles.axes_secondary,'');
+            ylabel(this.handles.axes_secondary,'');
+            xlabel(this.handles.axes_secondary,'');
+            set(this.handles.axes_secondary,'xgrid','off','ygrid','off','xtick',[],'ytick',[]);
+
+        end
+                   
         % ======================================================================
         %> @brief Updates the plot according to gui settings.  The method
         %> is assigned as the callback function to most of the gui widgets,
@@ -1040,7 +1061,7 @@ classdef PAStatTool < handle
         %> failed.
         % ======================================================================
         function refreshCentroidsAndPlot(this,varargin)
-            this.clearPlots();
+            this.clearPrimaryAxes();
             this.showBusy();
             pSettings= this.getPlotSettings();
             this.centroidObj = [];            
@@ -1155,7 +1176,8 @@ classdef PAStatTool < handle
         %> display of centroid data.
         % ======================================================================
         function plotCentroids(this,centroidAndPlotSettings)
-            this.clearPlots();
+            this.clearPrimaryAxes();
+%            this.clearPlots();
             this.showMouseBusy();
 
             
@@ -1201,7 +1223,9 @@ classdef PAStatTool < handle
                 end
                 xTickLabels = this.featureStruct.startTimes(xTicks);
                 
-                centroidTitle = sprintf('Centroid #%u (%s). Popularity %u of %u (membership count = %u of %u)',coi.index, this.featureStruct.method, numCentroids-coi.sortOrder+1,numCentroids, coi.numMembers, numLoadShapes);
+                pctMembership =  coi.numMembers/numLoadShapes*100;
+                centroidTitle = sprintf('Centroid #%u (%s). Popularity %u of %u. Membership count: %u of %u (%0.2f%%)',coi.index,...
+                    this.featureStruct.method, numCentroids-coi.sortOrder+1,numCentroids, coi.numMembers, numLoadShapes, pctMembership);
                 title(centroidAxes,centroidTitle,'fontsize',14);
                 set(centroidAxes,'xlim',[1,this.featureStruct.totalCount],'xtick',xTicks,'xticklabel',xTickLabels);
                 
@@ -1263,7 +1287,7 @@ classdef PAStatTool < handle
                             patch(repmat(x(coi.sortOrder),1,4)+0.5*barWidth*[-1 -1 1 1],1*[y(coi.sortOrder) 0 0 y(coi.sortOrder)],highlightColor,'parent',distributionAxes,'facecolor',highlightColor,'edgecolor',highlightColor);
                         end
                         
-                        title(distributionAxes,sprintf('Load shape count per centroid (Total centroid count: %u\tTotal load shape count: %u)',this.centroidObj.numCentroids(), this.centroidObj.numLoadShapes()),'fontsize',14);
+                        title(distributionAxes,sprintf('Centroid vs Load shape count. Centroids: %u Load shapes: %u',this.centroidObj.numCentroids(), this.centroidObj.numLoadShapes()),'fontsize',14);
                         %ylabel(distributionAxes,sprintf('Load shape count'));
                         xlabel(distributionAxes,'Centroid');
                         xlim(distributionAxes,[0.25 numCentroids+.75]);
