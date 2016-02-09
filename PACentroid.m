@@ -201,6 +201,7 @@ classdef PACentroid < handle
             this.coiSortOrder = [];
         end
         
+        
         function increaseCOISortOrder(this)
             if(this.coiSortOrder<this.numCentroids())
                 this.coiSortOrder=this.coiSortOrder+1;
