@@ -555,6 +555,20 @@ classdef PAStatTool < handle
             end
         end
         
+        % ======================================================================
+        %> @brief Window key press callback for centroid view changes
+        %> @param this Instance of PAStatTool
+        %> @param figH Handle to the callback figure
+        %> @param eventdata Struct of key press parameters.  Fields include
+        % ======================================================================
+        function centroidHistogramButtonDownFcn(this,histogramH,eventdata)
+            xHit = eventdata.IntersectionPoint(1);
+            xStartStop = [histogramH.XData(:)-histogramH.BarWidth/2, histogramH.XData(:)+histogramH.BarWidth/2];
+            selectedBarIndex = find( xStartStop(:,1)<xHit & xStartStop(:,2)>xHit ,1);
+            this.centroidObj.setCOISortOrder(selectedBarIndex);
+            this.plotCentroids();
+         
+        end        
 
         % ======================================================================
         %> @brief Initialize gui handles using input parameter or default
@@ -1270,7 +1284,7 @@ classdef PAStatTool < handle
                         x = 1:numel(y);
 
                         highlightColor = [0.75 0.75 0];                        
-                        oldVersion = false;
+                        oldVersion = verLessThan('matlab','7.14');
                         if(oldVersion)
                             barH = bar(distributionAxes,y,barWidth);
                             defaultColor = [0 0 9/16];
@@ -1283,8 +1297,8 @@ classdef PAStatTool < handle
                             end
                             set(patchH,'facevertexcdata',faceVertexCData);
                         else
-                            bar(distributionAxes,y,barWidth);
-                            patch(repmat(x(coi.sortOrder),1,4)+0.5*barWidth*[-1 -1 1 1],1*[y(coi.sortOrder) 0 0 y(coi.sortOrder)],highlightColor,'parent',distributionAxes,'facecolor',highlightColor,'edgecolor',highlightColor);
+                            barH = bar(distributionAxes,y,barWidth,'buttonDownFcn',@this.centroidHistogramButtonDownFcn);
+                            pH = patch(repmat(x(coi.sortOrder),1,4)+0.5*barWidth*[-1 -1 1 1],1*[y(coi.sortOrder) 0 0 y(coi.sortOrder)],highlightColor,'parent',distributionAxes,'facecolor',highlightColor,'edgecolor',highlightColor,'buttonDownFcn',@this.centroidHistogramButtonDownFcn);
                         end
                         
                         title(distributionAxes,sprintf('Centroid vs Load shape count. Centroids: %u Load shapes: %u',this.centroidObj.numCentroids(), this.centroidObj.numLoadShapes()),'fontsize',14);
