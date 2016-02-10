@@ -194,6 +194,7 @@ classdef PAView < handle
                 handles.panel_plotType
                 handles.panel_plotSignal
                 handles.panel_plotData
+                handles.panel_centroidPrimaryAxesControls
                 handles.panel_plotCentroid];
             set(whiteHandles,'backgroundcolor',[0.94,0.94,0.94]);
 %             set(findobj(whiteHandles,'-property','shadowcolor'),'shadowcolor',[0 0 0],'highlightcolor',[0 0 0]);
