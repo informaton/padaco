@@ -1,6 +1,6 @@
 % ======================================================================
 %> @file PAStatTool.cpp
-%> @brief PAStatTool serves as Padaco's batch results analsysis controller 
+%> @brief PAStatTool serves as Padaco's batch results analsysis controller
 % ======================================================================
 classdef PAStatTool < handle
    
@@ -57,7 +57,6 @@ classdef PAStatTool < handle
         %> - @c weekday
         %> - @c membership [default]        
         centroidDistributionType;
-        
     end
     
     properties
@@ -88,7 +87,7 @@ classdef PAStatTool < handle
             this.featureStruct = [];
             this.initHandles();            
             this.initBase();
-            this.centroidDistributionType = 'performance';  %{'performance','membership','weekday'}
+            this.centroidDistributionType = widgetSettings.centroidDistributionType;  % {'performance','membership','weekday'}
             
             this.featureInputFilePattern = ['%s',filesep,'%s',filesep,'features.%s.accel.%s.%s.txt'];
             this.featureInputFileFieldnames = {'inputPathname','displaySeletion','processType','curSignal'};       
@@ -106,8 +105,8 @@ classdef PAStatTool < handle
                     this.imagesDirectory = imagesPath;
                 else
                     fprintf('Images pathname (%s) does not exist!\n',imagesPath);
-                end                
-                
+                end
+
                 this.initWidgets(widgetSettings);  %initializes previousstate.plotType on success
 
                 plotType = this.base.plotTypes{get(this.handles.menu_plottype,'value')};
@@ -121,7 +120,6 @@ classdef PAStatTool < handle
                             this.switchFromClustering();
                     end
                 end
-
             else
                 fprintf('%s does not exist!\n',resultsPathname); 
             end
@@ -268,7 +266,6 @@ classdef PAStatTool < handle
                     %  durationHoursPerFeature = 24/this.featureStruct.totalCount;
                     % featuresPerHour = this.featureStruct.totalCount/24;
                     % featuresPerCentroid = hoursPerCentroid*featuresPerHour;
-                
                 end
                 
                 if(pSettings.sortValues)
@@ -339,18 +336,17 @@ classdef PAStatTool < handle
         function clearPlots(this)
             if(~isempty(intersect(get(this.handles.axes_primary,'nextplot'),{'replacechildren','replace'})))
                 cla(this.handles.axes_primary);
-                cla(this.handles.axes_secondary);
-            end                
-            title(this.handles.axes_primary,'');
-            ylabel(this.handles.axes_primary,'');
-            xlabel(this.handles.axes_primary,'');
+                title(this.handles.axes_primary,'');
+                ylabel(this.handles.axes_primary,'');
+                xlabel(this.handles.axes_primary,'');
+            end
             
+            cla(this.handles.axes_secondary);
             title(this.handles.axes_secondary,'');
             ylabel(this.handles.axes_secondary,'');
             xlabel(this.handles.axes_secondary,'');
             set([this.handles.axes_primary
                 this.handles.axes_secondary],'xgrid','off','ygrid','off','xtick',[],'ytick',[]);
-
         end
         
         % ======================================================================
@@ -359,13 +355,27 @@ classdef PAStatTool < handle
         % ======================================================================        
         function clearPrimaryAxes(this)
             if(~isempty(intersect(get(this.handles.axes_primary,'nextplot'),{'replacechildren','replace'})))
-                cla(this.handles.axes_primary);
+                currentChildren = get(this.handles.axes_primary,'children');
+                %                 set(currentChildren,'visible','off');
+                currentYLimMode = get(this.handles.axes_primary,'ylimmode');
+                currentXLimMode = get(this.handles.axes_primary,'xlimmode');
+                currentNextPlot = get(this.handles.axes_primary,'nextplot');
+                
+                set(this.handles.axes_primary,'xlimmode','manual');
+                set(this.handles.axes_primary,'ylimmode','manual');
+                set(this.handles.axes_primary,'nextplot','replacechildren');
+                
+                
+                delete(currentChildren);
+                title(this.handles.axes_primary,'');
+                ylabel(this.handles.axes_primary,'');
+                xlabel(this.handles.axes_primary,'');
+                
+                set(this.handles.axes_primary,'ylimmode',currentYLimMode);
+                set(this.handles.axes_primary,'xlimmode',currentXLimMode);                
+                set(this.handles.axes_primary,'nextplot',currentNextPlot);
             end                
-            title(this.handles.axes_primary,'');
-            ylabel(this.handles.axes_primary,'');
-            xlabel(this.handles.axes_primary,'');
         end
-           
      
         % ======================================================================
         %> @brief Clears the secondary axes.
@@ -377,7 +387,6 @@ classdef PAStatTool < handle
             ylabel(this.handles.axes_secondary,'');
             xlabel(this.handles.axes_secondary,'');
             set(this.handles.axes_secondary,'xgrid','off','ygrid','off','xtick',[],'ytick',[]);
-
         end
                    
         % ======================================================================
@@ -493,9 +502,7 @@ classdef PAStatTool < handle
         function switchFromClustering(this)
             this.previousState.sortValues = get(this.handles.check_sortvalues,'value');            
             set(this.handles.check_sortvalues,'value',0,'enable','off');            
-            
             set(this.handles.check_normalizevalues,'value',this.previousState.normalizeValues,'enable','on');
-            
             this.hideCentroidControls();
             
             set(findall(this.handles.panel_plotCentroid,'enable','on'),'enable','off');            %  set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','off');
@@ -563,12 +570,12 @@ classdef PAStatTool < handle
         % ======================================================================
         function centroidHistogramButtonDownFcn(this,histogramH,eventdata)
             xHit = eventdata.IntersectionPoint(1);
-            xStartStop = [histogramH.XData(:)-histogramH.BarWidth/2, histogramH.XData(:)+histogramH.BarWidth/2];
+            barWidth = 1;  % histogramH.BarWidth is 0.8 by default, but leaves 0.2 of ambiguity between adjancent bars.
+            xStartStop = [histogramH.XData(:)-barWidth/2, histogramH.XData(:)+barWidth/2];
             selectedBarIndex = find( xStartStop(:,1)<xHit & xStartStop(:,2)>xHit ,1);
             this.centroidObj.setCOISortOrder(selectedBarIndex);
-            this.plotCentroids();
-         
-        end        
+            this.plotCentroids();         
+        end
 
         % ======================================================================
         %> @brief Initialize gui handles using input parameter or default
@@ -582,10 +589,10 @@ classdef PAStatTool < handle
             if(nargin<2 || isempty(widgetSettings))
                 widgetSettings = this.getDefaultParameters();                
             end
-            
+
             featuresPathname = this.featuresDirectory;
             this.hideCentroidControls();
-            
+
             this.canPlot = false;    %changes to true if we find data that can be processed in featuresPathname
             set([this.handles.check_sortvalues                
                 this.handles.check_normalizevalues
@@ -618,7 +625,6 @@ classdef PAStatTool < handle
                         % clear results text
                         set(this.handles.text_resultsCentroid,'string',[]);
                         
-                        
                         % Enable everything and then shut things down as needed. 
                         set(findall(this.handles.panels_sansCentroids,'enable','off'),'enable','on');
                         this.canPlot = true;
@@ -641,7 +647,6 @@ classdef PAStatTool < handle
                         % directories for signal type (count) or raw and the signal
                         % source (vecMag, x, y, z)
                         set(this.handles.menu_signalsource,'string',this.base.signalDescriptions,'userdata',this.base.signalTypes,'value',widgetSettings.signalSelection);
-                        
                         set(this.handles.menu_plottype,'userdata',this.base.plotTypes,'string',this.base.plotTypeDescriptions,'value',widgetSettings.plotTypeSelection);
                         
                         % Centroid widgets
@@ -653,7 +658,6 @@ classdef PAStatTool < handle
                         %                         set(this.handles.menu_centroidStartTime,'userdata',startStopTimesInDay(1:end-1),'string',hoursInDayStr(1:end-1,:),'value',widgetSettings.startTimeSelection);
                         %                         set(this.handles.menu_centroidStopTime,'userdata',startStopTimesInDay(2:end),'string',hoursInDayStr(2:end,:),'value',widgetSettings.stopTimeSelection);
                         
-                
                         set(this.handles.menu_duration,'string',this.base.centroidDurationDescriptions,'value',widgetSettings.centroidDurationSelection);
                         set(this.handles.edit_centroidMinimum,'string',num2str(widgetSettings.minClusters));
                         set(this.handles.edit_centroidThreshold,'string',num2str(widgetSettings.clusterThreshold)); 
@@ -705,20 +709,29 @@ classdef PAStatTool < handle
                         pos = get(this.handles.push_previousCentroid,'position');
                         set(this.handles.push_previousCentroid,'position',pos.*[1 -1 1 1]);
                         
-                        %                         bgColor = get(this.handles.panel_controlCentroid,'Backgroundcolor');
+                        %                         pos = get(this.handles.check_autoScaleYAxes,'position');
+                        %                         set(this.handles.check_autoScaleYAxes,'position',pos.*[1 -1 1 1]);
+                        %                         pos = get(this.handles.check_holdPlots,'position');
+                        %                         set(this.handles.check_holdPlots,'position',pos.*[1 -1 1 1]);
+                        %
+                        % bgColor = get(this.handles.panel_controlCentroid,'Backgroundcolor');
                         bgColor = get(this.handles.push_nextCentroid,'backgroundcolor');
                         
-                        %                     bgColor = [0.94,0.94,0.94];
+                        % bgColor = [0.94,0.94,0.94];
                         nextImg = imread('./icons/arrow-right_16px.png','png','backgroundcolor',bgColor);
                         previousImg = fliplr(nextImg);
                         
                         set(this.handles.push_nextCentroid,'cdata',nextImg,'string',[]);
                         set(this.handles.push_previousCentroid,'cdata',previousImg,'string',[]);
                         
-                        
                         set(this.handles.push_nextCentroid,'units','points');
                         set(this.handles.push_previousCentroid,'units','points');
+
+                        set(this.handles.check_autoScaleYAxes,'value',strcmpi(widgetSettings.primaryAxis_yLimMode,'auto'),'callback',@this.checkAutoScaleYAxesCallback);
+                        set(this.handles.check_holdPlots,'value',strcmpi(widgetSettings.primaryAxis_nextPlot,'add'),'callback',@this.checkHoldPlotsCallback);
                         
+                        userSettings.primaryAxis_yLimMode = get(this.handles.axes_primary,'ylimmode');
+                        userSettings.primaryAxis_nextPlot = get(this.handles.axes_primary,'nextplot');
                         
                         set([this.handles.menu_weekdays
                             this.handles.menu_centroidStartTime
@@ -727,15 +740,14 @@ classdef PAStatTool < handle
                             this.handles.edit_centroidThreshold
                             this.handles.menu_duration
                             ],'callback',@this.enableCentroidRecalculation);
-                        %'h = guidata(gcbf), set(h.push_refreshCentroids,''enable'',''on'');');
                         
                         
-                        % add a context menu now to secondary axes                        
+                        % add a context menu now to secondary axes
                         contextmenu_secondaryAxes = uicontextmenu('callback',@this.contextmenu_secondaryAxesCallback);
                         this.handles.contextmenu.performance = uimenu(contextmenu_secondaryAxes,'Label','Show adaptive separation performance progression','callback',{@this.centroidDistributionCallback,'performance'});
                         this.handles.contextmenu.weekday = uimenu(contextmenu_secondaryAxes,'Label','Show current centroid''s weekday distribution','callback',{@this.centroidDistributionCallback,'weekday'});
                         this.handles.contextmenu.membership = uimenu(contextmenu_secondaryAxes,'Label','Show membership distribution by centroid','callback',{@this.centroidDistributionCallback,'membership'});
-                        set(this.handles.axes_secondary,'uicontextmenu',contextmenu_secondaryAxes);                    
+                        set(this.handles.axes_secondary,'uicontextmenu',contextmenu_secondaryAxes);
                     end
                 end                
             end
@@ -750,19 +762,68 @@ classdef PAStatTool < handle
             
             % disable everything
             if(~this.canPlot)
-                set(findall(this.handles.panel_results,'enable','on'),'enable','off');                
+                set(findall(this.handles.panel_results,'enable','on'),'enable','off');
                 this.hideCentroidControls();
             end
         end
+        
+        
 
-        function primaryAxesNextPlotContextmenuCallback(this,hObject,~)
+        function primaryAxesScalingContextmenuCallback(this,hObject,~)
             set(get(hObject,'children'),'checked','off');            
+            set(this.handles.contextmenu.axesYLimMode.(get(this.handles.axes_primary,'ylimmode')),'checked','on');
+        end
+        
+        function primaryAxesScalingCallback(this,hObject,~,yScalingMode)
+            set(this.handles.axes_primary,'ylimmode',yScalingMode,...
+            'ytickmode',yScalingMode,...
+            'yticklabelmode',yScalingMode);
+            if(strcmpi(yScalingMode,'auto'))
+                this.plotCentroids();
+            else
+                if(strcmpi(get(this.handles.axes_primary,'nextplot'),'replace'))
+                    set(this.handles.axes_primary,'nextplot','replaceChildren');
+                end
+            end
+        end
+        
+        function primaryAxesNextPlotContextmenuCallback(this,hObject,~)
+            set(get(hObject,'children'),'checked','off');
             set(this.handles.contextmenu.nextPlot.(get(this.handles.axes_primary,'nextplot')),'checked','on');
         end
         
         function primaryAxesNextPlotCallback(this,hObject,~,nextPlot)
             set(this.handles.axes_primary,'nextplot',nextPlot);
         end
+        
+        function checkHoldPlotsCallback(this,hObject,eventData)
+            if(get(hObject,'value'))
+                nextPlot = 'add';
+            else
+                nextPlot = 'replaceChildren';
+            end
+            set(this.handles.axes_primary,'nextplot',nextPlot);
+        end
+        
+        function checkAutoScaleYAxesCallback(this,hObject,eventData)
+            if(get(hObject,'value'))
+                yScalingMode = 'auto';
+            else
+                yScalingMode = 'manual';
+            end
+            
+            set(this.handles.axes_primary,'ylimmode',yScalingMode,...
+                'ytickmode',yScalingMode,...
+                'yticklabelmode',yScalingMode);
+            if(strcmpi(yScalingMode,'auto'))
+                this.plotCentroids();
+            else
+                if(strcmpi(get(this.handles.axes_primary,'nextplot'),'replace'))
+                    set(this.handles.axes_primary,'nextplot','replaceChildren');
+                end
+            end
+        end
+        
         
         function contextmenu_secondaryAxesCallback(this,varargin)
             set([this.handles.contextmenu.performance
@@ -806,9 +867,13 @@ classdef PAStatTool < handle
                 'panel_plotCentroid'
                 'panel_results'
                 'panel_controlCentroid'
+                'panel_centroidPrimaryAxesControls'
                 'push_nextCentroid'
                 'push_previousCentroid'
                 'text_resultsCentroid'
+                'panel_centroidPrimaryAxesControls'
+                'check_holdPlots'
+                'check_autoScaleYAxes'
                 };
             
             for f=1:numel(handlesOfInterest)
@@ -816,9 +881,10 @@ classdef PAStatTool < handle
                 this.handles.(fname) = tmpHandles.(fname);
             end
             this.handles.panels_sansCentroids = [
-                tmpHandles.panel_plotType;
-                tmpHandles.panel_plotSignal;
-                tmpHandles.panel_plotData];
+                    tmpHandles.panel_plotType;
+                    tmpHandles.panel_plotSignal;
+                    tmpHandles.panel_plotData
+                ];
         end
         
         % ======================================================================
@@ -829,7 +895,6 @@ classdef PAStatTool < handle
             this.base = this.getBaseSettings();
         end
         
-
         % ======================================================================
         %> @brief Display a selection of results organized by day of the
         %> week.
@@ -845,8 +910,17 @@ classdef PAStatTool < handle
             features = this.featureStruct.features;
             divisionsPerDay = size(features,2);
             
+            % Set this here to auto perchance it is not with our centroid
+            % option.
+            if(~strcmpi(plotOptions.primaryAxis_yLimMode,'auto'))
+                set(axesHandle,'ylimmode','auto');
+            end
+            
+            if(~strcmpi(plotOptions.primaryAxis_nextPlot,'replace'))
+                set(axesHandle,'nextplot','replace');
+            end
+            
             switch(plotOptions.plotType)
-                
                 case 'dailyaverage'
                     imageMap = nan(7,1);
                     for dayofweek=0:6
@@ -954,9 +1028,7 @@ classdef PAStatTool < handle
                 xlimits = xlimits+[-1,1]*0.75;
             end
             set(axesHandle,'xtick',weekdayticks,'xticklabel',daysofweekStr,'xlim',xlimits);
-
         end
-
 
         % ======================================================================
         %> @brief Callback for trim percent change edit box
@@ -1091,8 +1163,7 @@ classdef PAStatTool < handle
                 % to Friday)
                 % - @c weekends Returns data recored on the weekend
                 % (Saturday-Sunday)                
-                switch(pSettings.weekdayTag)
-                    
+                switch(pSettings.weekdayTag)                    
                     case 'weekdays'
                         daysOfInterest = 1:5;
                     case 'weekends'
@@ -1112,12 +1183,14 @@ classdef PAStatTool < handle
                         fname = fieldsOfInterest{f};
                         this.featureStruct.(fname) = this.featureStruct.(fname)(rowsOfInterest,:);                        
                     end                    
-                end                
+                end
+                
                 resultsTextH = this.handles.text_resultsCentroid;
-                set(this.handles.axes_primary,'color',[1 1 1],'xlimmode','auto','ylimmode','auto','xtickmode','auto','ytickmode','auto','xticklabelmode','auto','yticklabelmode','auto','xminortick','off','yminortick','off');
+                set(this.handles.axes_primary,'color',[1 1 1],'xlimmode','auto','ylimmode',pSettings.primaryAxis_yLimMode,'xtickmode','auto',...
+                    'ytickmode','auto','xticklabelmode','auto','yticklabelmode','auto','xminortick','off','yminortick','off');
                 set(resultsTextH,'visible','on','foregroundcolor',[0.1 0.1 0.1],'string','');
                
-% %                 set(this.handles.text_primaryAxes,'backgroundcolor',[0 0 0],'foregroundcolor',[1 1 0],'visible','on');
+                % % set(this.handles.text_primaryAxes,'backgroundcolor',[0 0 0],'foregroundcolor',[1 1 0],'visible','on');
                 this.showCentroidControls();
                 
                 drawnow();
@@ -1155,27 +1228,39 @@ classdef PAStatTool < handle
         %> @param Instance of PAStatTool
         function hideCentroidControls(this)
             set(this.handles.panel_controlCentroid,'visible','off'); 
-            % add a context menu now to primary axes
+            set(this.handles.panel_centroidPrimaryAxesControls,'visible','off'); 
+            
+            % remove anycontext menu on the primary axes
             set(this.handles.axes_primary,'uicontextmenu',[]);
         end
         
+        
         function showCentroidControls(this)
             set(this.handles.panel_controlCentroid,'visible','on');
+            set(this.handles.panel_centroidPrimaryAxesControls,'visible','on');
         end
         
+        
         function enableCentroidControls(this)
+            set(findall(this.handles.panel_centroidPrimaryAxesControls,'enable','off'),'enable','on');  
+            
             set(findall(this.handles.panel_controlCentroid,'enable','off'),'enable','on');  
             % add a context menu now to primary axes
             contextmenu_primaryAxes = uicontextmenu();
+            axesScalingMenu = uimenu(contextmenu_primaryAxes,'Label','y-Axis scaling','callback',@this.primaryAxesScalingContextmenuCallback);
+            this.handles.contextmenu.axesYLimMode.auto = uimenu(axesScalingMenu,'Label','Auto','callback',{@this.primaryAxesScalingCallback,'auto'});
+            this.handles.contextmenu.axesYLimMode.manual = uimenu(axesScalingMenu,'Label','Manual','callback',{@this.primaryAxesScalingCallback,'manual'});
+            
             nextPlotmenu = uimenu(contextmenu_primaryAxes,'Label','Next plot','callback',@this.primaryAxesNextPlotContextmenuCallback);
-%             this.handles.contextmenu.nextPlot.replace = uimenu(nextPlotmenu,'Label','Replace','callback',{@this.primaryAxesNextPlotCallback,'replace'});
             this.handles.contextmenu.nextPlot.add = uimenu(nextPlotmenu,'Label','Add','callback',{@this.primaryAxesNextPlotCallback,'add'});
-            %                         this.handles.contextmenu.nextPlot.new = uimenu(nextPlotmenu,'Label','New','callback',{@this.primaryAxesNextPlotCallback,'new'});
+            this.handles.contextmenu.nextPlot.replace = uimenu(nextPlotmenu,'Label','Replace','callback',{@this.primaryAxesNextPlotCallback,'replace'});
             this.handles.contextmenu.nextPlot.replacechildren = uimenu(nextPlotmenu,'Label','Replace children','callback',{@this.primaryAxesNextPlotCallback,'replacechildren'});
             set(this.handles.axes_primary,'uicontextmenu',contextmenu_primaryAxes);            
         end
         
         function disableCentroidControls(this)
+            set(findall(this.handles.panel_centroidPrimaryAxesControls,'enable','on'),'enable','off');              
+
             set(findall(this.handles.panel_controlCentroid,'enable','on'),'enable','off');              
             set(this.handles.text_resultsCentroid,'enable','on');
             % add a context menu now to primary axes           
@@ -1193,7 +1278,6 @@ classdef PAStatTool < handle
             this.clearPrimaryAxes();
 %            this.clearPlots();
             this.showMouseBusy();
-
             
             if(isempty(this.centroidObj)|| this.centroidObj.failedToConverge())
                % clear everything and give a warning that the centroid is empty
@@ -1204,7 +1288,6 @@ classdef PAStatTool < handle
                 end
                 distributionAxes = this.handles.axes_secondary;
                 centroidAxes = this.handles.axes_primary;
-                
                 
                 numCentroids = this.centroidObj.numCentroids();
                 numLoadShapes = this.centroidObj.numLoadShapes();
@@ -1218,16 +1301,24 @@ classdef PAStatTool < handle
                 %                 xtickLabels = featureStruct.startTimes(1:8:end);
                 %                 daysofweekStr = xtickLabels;
                 
-                nextPlot = get(centroidAxes,'nextplot');                
+                nextPlot = get(centroidAxes,'nextplot');
+                
                 if(centroidAndPlotSettings.showCentroidMembers)
                     hold(centroidAxes,'on');                    
                     plot(centroidAxes,coi.memberShapes','-','linewidth',1,'color',[0.85 0.85 0.85]);
                     set(centroidAxes,'ygrid','on');
                 else
                     set(centroidAxes,'ygrid','off');                    
-                end                
-                set(centroidAxes,'ytickmode','auto','ylimmode','auto','yticklabelmode','auto');
-                plot(centroidAxes,coi.shape,'linewidth',2,'color',[0 0 0]);
+                end 
+                
+                yLimMode = centroidAndPlotSettings.primaryAxis_yLimMode;
+                set(centroidAxes,'ytickmode',yLimMode,...
+                    'ylimmode',yLimMode,...
+                    'yticklabelmode',yLimMode);
+                
+                % This changes my axes limit mode if nextplot is set to
+                % 'replace' instead of 'replacechildren'
+                plot(centroidAxes,coi.shape,'linewidth',2,'color',[0 0 0]);                
                 
                 set(centroidAxes,'nextplot',nextPlot);
                 
@@ -1235,6 +1326,7 @@ classdef PAStatTool < handle
                 if(xTicks(end)~=this.featureStruct.totalCount)
                     xTicks(end+1)=this.featureStruct.totalCount;
                 end
+                
                 xTickLabels = this.featureStruct.startTimes(xTicks);
                 
                 pctMembership =  coi.numMembers/numLoadShapes*100;
@@ -1348,15 +1440,18 @@ classdef PAStatTool < handle
             userSettings.startTimeSelection = get(this.handles.menu_centroidStartTime,'value');
             userSettings.stopTimeSelection = get(this.handles.menu_centroidStopTime,'value');
 
-%             userSettings.centroidStartTime = getSelectedMenuString(this.handles.menu_centroidStartTime);
-%             userSettings.centroidStopTime = getSelectedMenuString(this.handles.menu_centroidStopTime);
-            
+            % Plot settings
+            userSettings.primaryAxis_yLimMode = get(this.handles.axes_primary,'ylimmode');
+            userSettings.primaryAxis_nextPlot = get(this.handles.axes_primary,'nextplot');
+            %             userSettings.centroidStartTime = getSelectedMenuString(this.handles.menu_centroidStartTime);
+            %             userSettings.centroidStopTime = getSelectedMenuString(this.handles.menu_centroidStopTime);
 
             userSettings.weekdayTag = this.base.weekdayTags{userSettings.weekdaySelection};
             userSettings.centroidDurationSelection = get(this.handles.menu_duration,'value');
             userSettings.centroidDurationHours = this.base.centroidHourlyDurations(userSettings.centroidDurationSelection);
+            
+            userSettings.centroidDistributionType = this.centroidDistributionType;
         end
-
     end
     
     methods (Static)
@@ -1509,6 +1604,11 @@ classdef PAStatTool < handle
             paramStruct.stopTimeSelection = 1;
             
             paramStruct.centroidDurationSelection = 1;
+                        
+            paramStruct.primaryAxis_yLimMode = 'auto';
+            paramStruct.primaryAxis_nextPlot = 'replace';
+            
+            paramStruct.centroidDistributionType = 'membership';  %{'performance','membership','weekday'}
         end
         
         % ======================================================================
@@ -1556,7 +1656,6 @@ classdef PAStatTool < handle
                 3
                 2
                 1];
-        end
-                
+        end                
     end
 end
