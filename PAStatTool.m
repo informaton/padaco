@@ -573,8 +573,27 @@ classdef PAStatTool < handle
             barWidth = 1;  % histogramH.BarWidth is 0.8 by default, but leaves 0.2 of ambiguity between adjancent bars.
             xStartStop = [histogramH.XData(:)-barWidth/2, histogramH.XData(:)+barWidth/2];
             selectedBarIndex = find( xStartStop(:,1)<xHit & xStartStop(:,2)>xHit ,1);
-            this.centroidObj.setCOISortOrder(selectedBarIndex);
+            if(strcmpi(get(this.figureH,'selectiontype'),'normal'))
+                this.centroidObj.setCOISortOrder(selectedBarIndex);
+            else
+                this.centroidObj.toggleCOISortOrder(selectedBarIndex);                
+            end
             this.plotCentroids();         
+        end
+        
+        % =================================================================
+        %> @brief Window key press callback for centroid view changes
+        %> @param this Instance of PAStatTool
+        %> @param figH Handle to the callback figure
+        %> @param eventdata Struct of key press parameters.  Fields include
+        % =================================================================
+        function centroidHistogramPatchButtonDownFcn(this,hObject,eventData,coiSortOrder)
+            if(strcmpi(get(this.figureH,'selectiontype'),'normal'))
+                this.centroidObj.setCOISortOrder(coiSortOrder);
+            else
+                this.centroidObj.toggleCOISortOrder(coiSortOrder);
+            end
+            this.plotCentroids();
         end
 
         % ======================================================================
@@ -1267,6 +1286,8 @@ classdef PAStatTool < handle
             set(this.handles.axes_primary,'uicontextmenu',[]);
         end
         
+        
+        
         % ======================================================================
         %> @brief Displays most recent centroid data according to gui
         %> setttings.
@@ -1293,32 +1314,39 @@ classdef PAStatTool < handle
                 numLoadShapes = this.centroidObj.numLoadShapes();
                 
                 %% Show centroids on primary axes
-                coi = this.centroidObj.getCentroidOfInterest();
-                
+%                 coi = this.centroidObj.getCentroidOfInterest();
+                cois = this.centroidObj.getCentroidsOfInterest();
                 %                 dailyDivisionTicks = 1:8:featureStruct.totalCount;
                 %                 xticks = dailyDivisionTicks;
                 %                 weekdayticks = xticks;
                 %                 xtickLabels = featureStruct.startTimes(1:8:end);
                 %                 daysofweekStr = xtickLabels;
                 
+                numCOIs = numel(cois);
                 nextPlot = get(centroidAxes,'nextplot');
-                
-                if(centroidAndPlotSettings.showCentroidMembers)
-                    hold(centroidAxes,'on');                    
-                    plot(centroidAxes,coi.memberShapes','-','linewidth',1,'color',[0.85 0.85 0.85]);
-                    set(centroidAxes,'ygrid','on');
-                else
-                    set(centroidAxes,'ygrid','off');                    
-                end 
                 
                 yLimMode = centroidAndPlotSettings.primaryAxis_yLimMode;
                 set(centroidAxes,'ytickmode',yLimMode,...
                     'ylimmode',yLimMode,...
                     'yticklabelmode',yLimMode);
                 
-                % This changes my axes limit mode if nextplot is set to
-                % 'replace' instead of 'replacechildren'
-                plot(centroidAxes,coi.shape,'linewidth',2,'color',[0 0 0]);                
+                if(centroidAndPlotSettings.showCentroidMembers || numCOIs>1)
+                    hold(centroidAxes,'on');
+                    set(centroidAxes,'ygrid','on');
+                else
+                    set(centroidAxes,'ygrid','off');
+                end
+                
+                
+                for c=1:numCOIs
+                    coi = cois{c};                    
+                    if(centroidAndPlotSettings.showCentroidMembers)
+                        plot(centroidAxes,coi.memberShapes','-','linewidth',1,'color',[0.85 0.85 0.85]);
+                    end
+                    % This changes my axes limit mode if nextplot is set to
+                    % 'replace' instead of 'replacechildren'
+                    plot(centroidAxes,coi.shape,'linewidth',2,'color',[0 0 0]);
+                end
                 
                 set(centroidAxes,'nextplot',nextPlot);
                 
@@ -1326,9 +1354,8 @@ classdef PAStatTool < handle
                 if(xTicks(end)~=this.featureStruct.totalCount)
                     xTicks(end+1)=this.featureStruct.totalCount;
                 end
-                
-                xTickLabels = this.featureStruct.startTimes(xTicks);
-                
+                coi = cois{1};
+                xTickLabels = this.featureStruct.startTimes(xTicks);                
                 pctMembership =  coi.numMembers/numLoadShapes*100;
                 centroidTitle = sprintf('Centroid #%u (%s). Popularity %u of %u. Membership count: %u of %u (%0.2f%%)',coi.index,...
                     this.featureStruct.method, numCentroids-coi.sortOrder+1,numCentroids, coi.numMembers, numLoadShapes, pctMembership);
@@ -1376,21 +1403,29 @@ classdef PAStatTool < handle
                         x = 1:numel(y);
 
                         highlightColor = [0.75 0.75 0];                        
+                        
+                        barH = bar(distributionAxes,y,barWidth,'buttonDownFcn',@this.centroidHistogramButtonDownFcn);
+                        
                         oldVersion = verLessThan('matlab','7.14');
                         if(oldVersion)
-                            barH = bar(distributionAxes,y,barWidth);
+                            %barH = bar(distributionAxes,y,barWidth);
                             defaultColor = [0 0 9/16];
                             faceVertexCData = repmat(defaultColor,numCentroids,1);
-                            faceVertexCData(coi.sortOrder,:) = highlightColor;
-                            patchH = get(barH,'children');
-                            if(numCentroids>100)
-                                %  set(patchH,'edgecolor',[0.4 0.4 0.4]);
-                                set(patchH,'edgecolor','none');
+                        end
+                        
+                        for c=1:numCOIs
+                            coi = cois{c};
+                            if(oldVersion)
+                                faceVertexCData(coi.sortOrder,:) = highlightColor;
+                                patchH = get(barH,'children');
+                                if(numCentroids>100)
+                                    %  set(patchH,'edgecolor',[0.4 0.4 0.4]);
+                                    set(patchH,'edgecolor','none','buttonDownFcn',{@this.centroidHistogramPatchButtonDownFcn,coi.sortOrder});
+                                end
+                                set(patchH,'facevertexcdata',faceVertexCData);
+                            else
+                                pH = patch(repmat(x(coi.sortOrder),1,4)+0.5*barWidth*[-1 -1 1 1],1*[y(coi.sortOrder) 0 0 y(coi.sortOrder)],highlightColor,'parent',distributionAxes,'facecolor',highlightColor,'edgecolor',highlightColor,'buttonDownFcn',{@this.centroidHistogramPatchButtonDownFcn,coi.sortOrder});
                             end
-                            set(patchH,'facevertexcdata',faceVertexCData);
-                        else
-                            barH = bar(distributionAxes,y,barWidth,'buttonDownFcn',@this.centroidHistogramButtonDownFcn);
-                            pH = patch(repmat(x(coi.sortOrder),1,4)+0.5*barWidth*[-1 -1 1 1],1*[y(coi.sortOrder) 0 0 y(coi.sortOrder)],highlightColor,'parent',distributionAxes,'facecolor',highlightColor,'edgecolor',highlightColor,'buttonDownFcn',@this.centroidHistogramButtonDownFcn);
                         end
                         
                         title(distributionAxes,sprintf('Centroid vs Load shape count. Centroids: %u Load shapes: %u',this.centroidObj.numCentroids(), this.centroidObj.numLoadShapes()),'fontsize',14);
