@@ -600,7 +600,11 @@ classdef PAStatTool < handle
             barWidth = 1;  % histogramH.BarWidth is 0.8 by default, but leaves 0.2 of ambiguity between adjancent bars.
             xStartStop = [histogramH.XData(:)-barWidth/2, histogramH.XData(:)+barWidth/2];
             selectedBarIndex = find( xStartStop(:,1)<xHit & xStartStop(:,2)>xHit ,1);
-            if(strcmpi(get(this.figureH,'selectiontype'),'normal'))
+            
+            
+            holdOn = get(this.handles.check_holdPlots,'value');
+
+            if(~holdOn && strcmpi(get(this.figureH,'selectiontype'),'normal'))
                 this.centroidObj.setCOISortOrder(selectedBarIndex);
             else
                 this.centroidObj.toggleCOISortOrder(selectedBarIndex);                
@@ -615,7 +619,9 @@ classdef PAStatTool < handle
         %> @param eventdata Struct of key press parameters.  Fields include
         % =================================================================
         function centroidHistogramPatchButtonDownFcn(this,hObject,eventData,coiSortOrder)
-            if(strcmpi(get(this.figureH,'selectiontype'),'normal'))
+            holdOn = get(this.handles.check_holdPlots,'value');
+
+            if(~holdOn && strcmpi(get(this.figureH,'selectiontype'),'normal'))
                 this.centroidObj.setCOISortOrder(coiSortOrder);
             else
                 this.centroidObj.toggleCOISortOrder(coiSortOrder);
@@ -848,7 +854,6 @@ classdef PAStatTool < handle
             end
         end
         
-        
 
         function primaryAxesScalingContextmenuCallback(this,hObject,~)
             set(get(hObject,'children'),'checked','off');            
@@ -860,30 +865,15 @@ classdef PAStatTool < handle
             'ytickmode',yScalingMode,...
             'yticklabelmode',yScalingMode);
             if(strcmpi(yScalingMode,'auto'))
+                set(this.handles.check_autoScaleYAxes,'value',1);
+                checkHoldPlotsCallback
                 this.plotCentroids();
             else
+                set(this.handles.check_autoScaleYAxes,'value',0);
                 if(strcmpi(get(this.handles.axes_primary,'nextplot'),'replace'))
                     set(this.handles.axes_primary,'nextplot','replaceChildren');
                 end
             end
-        end
-        
-        function primaryAxesNextPlotContextmenuCallback(this,hObject,~)
-            set(get(hObject,'children'),'checked','off');
-            set(this.handles.contextmenu.nextPlot.(get(this.handles.axes_primary,'nextplot')),'checked','on');
-        end
-        
-        function primaryAxesNextPlotCallback(this,hObject,~,nextPlot)
-            set(this.handles.axes_primary,'nextplot',nextPlot);
-        end
-        
-        function checkHoldPlotsCallback(this,hObject,eventData)
-            if(get(hObject,'value'))
-                nextPlot = 'add';
-            else
-                nextPlot = 'replaceChildren';
-            end
-            set(this.handles.axes_primary,'nextplot',nextPlot);
         end
         
         function checkAutoScaleYAxesCallback(this,hObject,eventData)
@@ -903,8 +893,33 @@ classdef PAStatTool < handle
                     set(this.handles.axes_primary,'nextplot','replaceChildren');
                 end
             end
+        end        
+        
+        function primaryAxesNextPlotContextmenuCallback(this,hObject,~)
+            set(get(hObject,'children'),'checked','off');
+            set(this.handles.contextmenu.nextPlot.(get(this.handles.axes_primary,'nextplot')),'checked','on');
         end
         
+        function primaryAxesNextPlotCallback(this,hObject,~,nextPlot)
+            if(strcmpi(nextPlot,'add'))
+                set(this.handles.check_holdPlots,'value',1);
+            else
+                set(this.handles.check_holdPlots,'value',0);                
+            end
+
+            set(this.handles.axes_primary,'nextplot',nextPlot);
+        end
+        
+        function checkHoldPlotsCallback(this,hObject,eventData)
+            if(get(hObject,'value'))
+                nextPlot = 'add';
+            else
+                nextPlot = 'replaceChildren';
+            end
+            set(this.handles.axes_primary,'nextplot',nextPlot);
+        end
+        
+
         
         function contextmenu_secondaryAxesCallback(this,varargin)
             % This may be easier to maintain ... 
@@ -1195,8 +1210,15 @@ classdef PAStatTool < handle
         %> @param Variable number of arguments required by MATLAB gui callbacks
         % ======================================================================
         function showNextCentroid(this,varargin)
+
             if(~isempty(this.centroidObj))
-                this.centroidObj.increaseCOISortOrder();
+                holdOn = get(this.handles.check_holdPlots,'value');
+                if(holdOn)
+                    this.centroidObj.toggleOnNextCOI();
+                else
+                    this.centroidObj.increaseCOISortOrder();
+                    
+                end
                 this.plotCentroids();
             end
         end
@@ -1208,7 +1230,12 @@ classdef PAStatTool < handle
         % ======================================================================
         function showPreviousCentroid(this,varargin)
             if(~isempty(this.centroidObj))
-                this.centroidObj.decreaseCOISortOrder();
+                holdOn = get(this.handles.check_holdPlots,'value');
+                if(holdOn)
+                    this.centroidObj.toggleOnPreviousCOI();
+                else                
+                    this.centroidObj.decreaseCOISortOrder();
+                end
                 this.plotCentroids();
             end
         end
@@ -1482,6 +1509,8 @@ classdef PAStatTool < handle
                 
                 if(numCOIs>1)
                     legend(centroidAxes,centroidHandles,legendStrings,'box','on','fontsize',12);
+                else
+                    legend(centroidAxes,'off');
                 end
                 %%  Show distribution on secondary axes
                 switch(this.centroidDistributionType)

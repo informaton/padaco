@@ -215,6 +215,35 @@ classdef PACentroid < handle
             this.coiToggleOrder = [];
         end
                 
+        function didChange = toggleOnNextCOI(this)
+            didChange = this.toggleOnCOISortOrder(this.coiSortOrder+1);            
+        end
+        
+        function didChange = toggleOnPreviousCOI(this)
+            didChange = this.toggleOnCOISortOrder(this.coiSortOrder-1);
+        end
+        
+        %> @brief This sets the given index into coiToggleOrder to true
+        %> and also sets the coiSortOrder value to the given index.  This
+        %> performs similarly to setCOISortOrder, but here the
+        %> coiToggleOrder is not reset (i.e. all toggles turned off).
+        %> @param this Instance of PACentroid
+        %> @param sortOrder
+        %> @retval didChange A boolean response
+        %> - @b True if the coiToggleOrder(sortOrder) was set to true
+        %> and coiSortOrder was set equal to sortOrder
+        %> - @b False otherwise
+        function didChange = toggleOnCOISortOrder(this, sortOrder)
+            sortOrder = round(sortOrder);
+            if(sortOrder<=this.numCentroids() && sortOrder>0)
+                this.coiSortOrder = sortOrder;
+                this.coiToggleOrder(sortOrder) = true;
+                didChange = true;
+            else
+                didChange = false;
+            end
+        end
+        
         function didChange = increaseCOISortOrder(this)
             didChange = this.setCOISortOrder(this.coiSortOrder+1);
         end
@@ -238,6 +267,9 @@ classdef PACentroid < handle
         function toggleCOISortOrder(this, toggleSortIndex)
             if(toggleSortIndex>0 && toggleSortIndex<=this.numCentroids())
                 this.coiToggleOrder(toggleSortIndex) = ~this.coiToggleOrder(toggleSortIndex);
+                if(this.coiToggleOrder(toggleSortIndex))
+                    this.coiSortOrder = toggleSortIndex;
+                end
             end
         end
         
@@ -316,9 +348,7 @@ classdef PACentroid < handle
         %> struct.
         function cois = getCentroidsOfInterest(this)
             numCOIs = this.getCentroidsOfInterestCount();
-            if(numCOIs==0)
-                cois = {};
-            elseif(numCOIs == 1)
+            if(numCOIs<=1)
                 cois = {this.getCentroidOfInterest()};
             else
                 cois = cell(numCOIs,1);
