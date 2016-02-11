@@ -1,14 +1,13 @@
 % Model:  Logistic regression analysis for GOALS data via geeqbox.
 % Type:   Arguments
 % Description:  Uses subjectinfo_t table from goals_db database.
-
 %> @brief Calculates logisitic or linear models and outputs the odds ratios
 %> for covariates (independent variables) on the dependent variable.
 %> @param Struct with fields defining dependent variables to use in the
 %> model.  Fields include:
 %> - @c values NxM array of numeric values for M covariates for N subject
 %> keys.
-%> - @c subjectID Nx1 array of unique keys corresponding to each row.
+%> - @c subjectIDs Nx1 array of unique keys corresponding to each row.
 %> - @c colnames 1xM cell string of names describing the covariate columns.
 %> @note If names is not included then the default variable names 'var 1'
 %> will be used for column 1 values, 'var 2' for column 2 values, etc.
@@ -21,15 +20,19 @@
 %> formatted select query option (e.g. '(bmi>=2)').
 %> @param Cell array of column names from subjectinfo_t to use as
 %> covariates.  These are in addition to those listed in covariateMatrix.
-%> @note 
+%> Use 'all' for all available covariates listed in the database.
+%> @note Example gee_model(centroidObj.getCovariateStruct(),'bmi_zscore',{'age'; '(sex=1) as male'});
+%> @note gee_model(centroidObj.getCovariateStruct(),'bmi_zscore');
+%> @note gee_model(centroidObj.getCovariateStruct(),'bmiz+','all');
+
 function gee_model(covariateStruct,dependentVariableName,covariateFieldNames)
 
 if(nargin<1)
     
     gee_model_simple();
-elseif(isstruct(covariateStruct) && hasfield(covariateStruct,'values') && hasfield(covariateStruct,'subjectID'))
+elseif(isstruct(covariateStruct) && isfield(covariateStruct,'values') && isfield(covariateStruct,'subjectIDs'))
     
-    if(~hasfield(covariateStruct,'colnames'))
+    if(~isfield(covariateStruct,'colnames'))
         covariateStruct.colnames = strsplit(sprintf('Var %u\n',1:size(covariateStruct.values,2)),'\n');
         covariateStruct.colnames(end) = [];  %remove the last cell entry which will be empty.        
     end
@@ -62,8 +65,11 @@ elseif(isstruct(covariateStruct) && hasfield(covariateStruct,'values') && hasfie
         'bp_sys_pct'
         'bp_dia_pct'};
         
-    if(nargin<3)
+    if(nargin==3 && strcmpi(covariateFieldNames,'all'))
         covariateFieldNames = availableCovariates;
+    end
+    if(nargin<3)
+        covariateFieldNames = [];
     elseif(nargin<2)
     
         % Identify phenotype - dependent variable.
@@ -83,8 +89,8 @@ elseif(isstruct(covariateStruct) && hasfield(covariateStruct,'values') && hasfie
             groupName = 'BMI Z-score(+)';
             phenotype_sql = ' bmi_zscore>=2';
             control_sql = ' bmi_zscore<2 ';
-            covariates_sql =     'age, (sex=1) AS male';
             logitModel = true;            
+            covariates = covariateFieldNames;
         otherwise            
             % linear modeling...
             matchInd = strcmpi(dependentVariableName,covariateFieldNames);
@@ -93,72 +99,86 @@ elseif(isstruct(covariateStruct) && hasfield(covariateStruct,'values') && hasfie
                 groupName = dependentVariableName;
                 covariates = covariateFieldNames;
                 covariates(matchInd) = [];  %Kick it out of the covariates.                
-                %             covariates_sql = cell2mat(strcat(',',covariates)');
-                %             covariates_sql(1) = [];               
-                covariates_sql = cell2mat(strcat(covariates,',')');
-                covariates_sql(end)=[];
+
                 logitModel = false;
-                
-                
                 %             covariates_sql = makeSelectKeysString(covariates);
                 
             else
                 fprintf('This case %s is not handled\n',dependentVariableName);
                 unhandledPhenotype = true;
+                %                 throw(MException('Unhandled','Bad input'));
             end
-    end
-    
-    % Time field is the what we use assume our repeated observations are
-    % correlated by.
-    timeField = 'visitnum'; % {'age','visitnum'};    
-    
-    % Place additional requirements here to filter subjects
-    % [Default] is to take subjects from first visit only.
-    visitNumber = 1;
-    subjectTableName = 'subjectinfo_t';
-    subjectID = 'kidid';
-    
-    if(logitModel)
-        minimumRequirementsQuery = sprintf('SELECT %s AS subjectID FROM %s WHERE visitnum=%u AND ((%s) OR (%s))',subjectID,subjectTableName,visitNumber,phenotype_sql,control_sql);
-    else
-        minimumRequirementsQuery = sprintf('SELECT %s AS subjectID FROM %s WHERE visitnum=%u AND ((%s) IS NOT NULL)',subjectID,subjectTableName,visitNumber,phenotype_sql);
+            
     end
     
     if(~unhandledPhenotype)
+        
+        if(isempty(covariates))
+            covariates_sql = '';
+        else
+            covariates_sql = cell2mat(strcat(',',covariates)');
+        end
+                
+        
+        % Time field is the what we use assume our repeated observations are
+        % correlated by.
+        timeField = 'visitnum'; % {'age','visitnum'};
+        
+        % Place additional requirements here to filter subjects
+        % [Default] is to take subjects from first visit only.
+        visitNumber = 1;
+        subjectTableName = 'subjectinfo_t';
+        subjectID = 'kidid';
+        
+        if(logitModel)
+            minimumRequirementsQuery = sprintf('SELECT %s AS subjectID FROM %s WHERE visitnum=%u AND ((%s) OR (%s))',subjectID,subjectTableName,visitNumber,phenotype_sql,control_sql);
+        else
+            minimumRequirementsQuery = sprintf('SELECT %s AS subjectID FROM %s WHERE visitnum=%u AND ((%s) IS NOT NULL)',subjectID,subjectTableName,visitNumber,phenotype_sql);
+        end
+    
         
         % Require that we have at least X days of recording for our subjects.
         qSubjects = mym(minimumRequirementsQuery);
         subjectIDInStr = makeWhereInString(qSubjects.subjectID,'numeric');
         
         % Establish my queries based on subjects meeting minimum requirements
-        % for the model.
-        modelQuery = sprintf('SELECT %s AS subjectID, %s AS dependentVariable,  %s AS timeVariable, %s FROM %s WHERE visitnum=%u AND %s IN %s ORDER BY %s',subjectID,phenotype_sql, timeField, covariates_sql, subjectTableName,visitNumber,subjectID,subjectIDInStr,subjectID);
+        % for the model.  No ',' after timeVariable because sometimes we do
+        % not include covariates from the database.
+        modelQuery = sprintf('SELECT %s AS subjectID, %s AS dependentVariable,  %s AS timeVariable %s FROM %s WHERE visitnum=%u AND %s IN %s ORDER BY %s',subjectID,phenotype_sql, timeField, covariates_sql, subjectTableName,visitNumber,subjectID,subjectIDInStr,subjectID);
         
         % Get the phenotype/dependent variable, and other parts.
         qModel = mym(modelQuery);
         
+        
+
+        
+        [uniqueIDs,~,id] = unique(qModel.subjectID); %get the unique, numeric identifiers for each patid which is a cell array of chars
+        
+        [intersectingIDs,indA,indB]=intersect(uniqueIDs,covariateStruct.subjectIDs); 
+        
         % phenotype
-        Y = qModel.dependentVariable;
+        Y = qModel.dependentVariable(indA);
         n1 = sum(Y==1);
         n0 = sum(Y==0);
         n = numel(Y);
+        id = id(indA);
         
         % Verify counts are correct - sanity check
         fprintf(1,'%s:\tCase (n=%u) vs Control (n=%u)\n',groupName,n1,n0);
         
         % repeated measure correlate
-        time = qModel.timeVariable;
+        time = qModel.timeVariable(indA);
+        
+        
+        externalCovariateValues = covariateStruct.values(indB,:);
         
         % shrink to covariates only (i.e. predictors)
         independentVariables = rmfield(qModel,{'timeVariable','subjectID','dependentVariable'});
 
-        
-        [uniqueIDs,~,id] = unique(qModel.subjectID); %get the unique, numeric identifiers for each patid which is a cell array of chars
-        
-        [~,~,indB]=intersect(uniqueIDs,covariateStruct.subjectID,'stable'); %'stable' to not change the order of uniqueIDs
-        
-        externalCovariateValues = covariateStruct.values(indB,:);
         databaseCovariateValues = cell2mat(struct2cell(independentVariables)');
+        if(~isempty(databaseCovariateValues))
+            databaseCovariateValues = databaseCovariateValues(indA,:);
+        end
         
         
         %     % patid - do a trick here
@@ -176,7 +196,7 @@ elseif(isstruct(covariateStruct) && hasfield(covariateStruct,'values') && hasfie
         % Just hard codet this to 'on' now.
         % glmfit_const = 'on';
         
-        covariateNames = [covariateStruct.colnames;fieldnames(independentVariables);'const']';
+        covariateNames = [covariateStruct.colnames(:);fieldnames(independentVariables);'const']';
 
         % Not using anymore
         % numCovariates = numel(covariateNames); % or size(X,2);
@@ -192,7 +212,7 @@ elseif(isstruct(covariateStruct) && hasfield(covariateStruct,'values') && hasfie
             if(logitModel)
                 [BetaAll, alpha, results] = gee(dataSet(:,1),dataSet(:,2),dataSet(:,3), dataSet(:,4:end),'b','markov',covariateNames);%,geeCovariates);
             else
-                [BetaAll, alpha, results] = qls(dataSet(:,1),dataSet(:,2),dataSet(:,3),dataSet(:,4:end),'n','markov',covariateNames);
+                [BetaAll, alpha, results] = gee(dataSet(:,1),dataSet(:,2),dataSet(:,3),dataSet(:,4:end),'n','markov',covariateNames);
             end
             %         [BetaAll, alpha, results] = geeSilent(dataSet(:,1),dataSet(:,2),dataSet(:,3), dataSet(:,4:end),'b','markov');%,geeCovariates);
         catch me

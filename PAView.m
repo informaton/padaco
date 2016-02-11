@@ -19,13 +19,12 @@ classdef PAView < handle
     properties
         %> for the patch handles when editing and dragging
         hg_group;   %may be unused?
-
         
         %>cell of string choices for the marking state (off, 'marking','general')
-        state_choices_cell; 
+        state_choices_cell;
+        
         %> figure handle that the class instance is associated with
         figurehandle;
-        
         
         %> @brief struct whose fields are axes handles.  Fields include:
         %> - @b primary handle to the main axes an instance of this class is associated with
@@ -34,8 +33,13 @@ classdef PAView < handle
         
         %> @brief struct whose fields are patch handles.  Fields include:
         %> - @c feature Patches representing the current feature method.
-        patchhandle;
-
+        patchhandle;        
+        
+        %         %> @brief Struct whose fields are table handles.  Fields include:
+        %         %> - @c centroidProfiles Table for showing descriptive nature of
+        %         %> the profiles.
+        % tableHandle;
+        
         %> @brief struct whose fields are structs with names of the axes and whose fields are property values for those axes.  Fields include:
         %> - @b primary handle to the main axes an instance of this class is associated with
         %> - @b secondary Window view of events (over view)
@@ -177,6 +181,23 @@ classdef PAView < handle
             newResultsPanelY = sum(timeSeriesPanelPos([2,4]))-resultsPanelPos(4);
             set(handles.panel_results,'position',[timeSeriesPanelPos(1),newResultsPanelY,resultsPanelPos(3:4)]);
             
+
+            % Line up panel_controlCentroid with panel_epochControls
+            epochControlsPos = get(handles.panel_epochControls,'position');
+            coiControlsPos = get(handles.panel_controlCentroid,'position');
+            coiControlsPos(2) = sum(epochControlsPos([2,4]))-coiControlsPos(4);  % This is y_ = y^ + h^ - h_
+            set(handles.panel_controlCentroid,'position',coiControlsPos);
+            
+            
+            
+            % Line up panel_centroidPrimaryAxesControls with panel_epochControls
+            priAxesControlsPos = get(handles.panel_centroidPrimaryAxesControls,'position');
+            priAxesControlsPos(2) = sum(epochControlsPos([2,4]))-priAxesControlsPos(4);  % This is y_ = y^ + h^ - h_
+            set(handles.panel_centroidPrimaryAxesControls,'position',priAxesControlsPos);
+            
+            
+            
+            
             metaDataHandles = [handles.panel_study;get(handles.panel_study,'children')];
             set(metaDataHandles,'backgroundcolor',[0.94,0.94,0.94],'visible','off');
             
@@ -214,7 +235,7 @@ classdef PAView < handle
             obj.texthandle.frameDurationHours = handles.edit_frameSizeHours;            
             obj.texthandle.trimAmount = handles.edit_aggregate;
             
-            
+            %             obj.tablehandle.centroidProfiles = handles.table_profiles;
             obj.patchhandle.controls = handles.panel_timeseries;
             obj.patchhandle.features = handles.panel_features;
             obj.patchhandle.metaData = handles.panel_study;
@@ -505,7 +526,7 @@ classdef PAView < handle
             axesProps.primary.plotboxaspectratiomode='auto';
             axesProps.primary.fontSize = 14;            
             axesProps.primary.units = 'normalized'; %normalized allows it to resize automatically
-            if verLessThan('matlab','8.4.0')
+            if verLessThan('matlab','7.14')
                 axesProps.primary.drawmode = 'normal'; %fast does not allow alpha blending...
             else
                 axesProps.primary.sortmethod = 'childorder'; %fast does not allow alpha blending...
@@ -588,6 +609,7 @@ classdef PAView < handle
             resultPanels = [
                             handles.panel_results;
                             handles.panel_controlCentroid;
+                            handles.panel_epochControls
                            ];
 
             timeseriesPanels = [handles.panel_timeseries;
@@ -647,9 +669,15 @@ classdef PAView < handle
             handles = guidata(obj.getFigHandle());
             
             
+%             resultPanels = [
+%                 handles.panel_results;
+%                 ];
+            
             resultPanels = [
                 handles.panel_results;
+                handles.panel_controlCentroid;
                 ];
+            
                        
             timeseriesPanels = [
                 handles.panel_timeseries;
@@ -657,10 +685,9 @@ classdef PAView < handle
                 handles.panel_epochControls];
             
             if(strcmpi(viewMode,'timeseries'))
-                set(handles.panel_controlCentroid,'visible','off');
 
-                set(timeseriesPanels,'visible','on');
                 set(resultPanels,'visible','off');
+                set(timeseriesPanels,'visible','on');
                 
                 set(handles.menu_viewmode_timeseries,'checked','on');
                 set(handles.menu_viewmode_results,'checked','off');
@@ -678,7 +705,8 @@ classdef PAView < handle
                     set(findall(resultPanels,'enable','on'),'enable','off');
                 end
 
-                set(resultPanels,'visible','on');                
+                set(resultPanels,'visible','on');
+                
                 set(handles.menu_viewmode_timeseries,'checked','off');
                 set(handles.menu_viewmode_results,'checked','on');
             else

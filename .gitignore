@@ -32,3 +32,6 @@ matlab.mat
 utility/lib
 
 *.prj
+
+model/model_summary.m
+model/table_summary.m

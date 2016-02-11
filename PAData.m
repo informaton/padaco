@@ -66,6 +66,11 @@ classdef PAData < handle
        visible;
        yDelta;
        
+       
+       %> @brief Identifier (string) for the file data that was loaded.
+       %> @note See getStudyIDFromBasename()
+       studyID;
+       
    end
    
    properties (Access = private)
@@ -403,7 +408,26 @@ classdef PAData < handle
            binCount = floor(obj.durationSec/60/obj.getAggregateDuration());        
        end
        
-       
+       %> @brief Returns studyID instance variable.
+       %> @param Instance of PAData
+       %> @param Optional output format for the study id.  Can be 
+       %> - 'string'
+       %> - 'numeric'
+       %> @retval Study ID that identifies the data (i.e. what or who it is
+       %> attributed to).
+       function studyID = getStudyID(obj,outputType)
+           studyID = obj.studyID;
+           if(~isempty(studyID) && nargin>1)
+               if(strcmpi(outputType,'string') && isnumeric(studyID))
+                   studyID = num2str(studyID);
+               elseif(strcmpi(outputType,'numeric') && ischar(studyID))
+                   studyID = str2double(studyID);
+               else
+                   fprintf(1,'Warning:  Unknown outut format passed to getStudyID()\n');
+               end
+           end
+       end
+                   
        % --------------------------------------------------------------------
        %> @brief Set the frame duration (in minutes) instance variable.
        %> @param obj Instance of PAData
@@ -973,6 +997,8 @@ classdef PAData < handle
            % Have one file version for counts...           
            if(exist(fullfilename,'file'))
                [pathName, baseName, ext] = fileparts(fullfilename);
+               obj.studyID = obj.getStudyIDFromBasename(baseName);
+
                if(strcmpi(ext,'.gt3x'))
                    didLoad = obj.loadGT3XFile(fullfilename);
                else
@@ -3476,6 +3502,15 @@ toc
            end;
        end
        
+       %> @brief Parses the input file's basename (i.e. sans folder and extension)
+       %> for the study id.  This will vary according from site to site as
+       %> there is little standardization for file naming.
+       %> @param  File basename (i.e. sans path and file extension).
+       %> @retval Study ID
+       function studyID = getStudyIDFromBasename(baseName)
+           % Appropriate for GOALS output
+           studyID = baseName(1:6);
+       end
       
        function tagStruct = getActivityTags()
            tagStruct.ACTIVE = 35;  
@@ -3486,6 +3521,8 @@ toc
            tagStruct.NONWEAR = 5;
            tagStruct.STUDYOVER = 0; 
        end
+       
+       
    end
 end
 

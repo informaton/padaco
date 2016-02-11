@@ -12,6 +12,7 @@ classdef CLASS_database_goals < CLASS_database
     
     properties
         tableNames;
+        primaryKeys;
     end
     
     methods(Static, Access=private)
@@ -22,7 +23,31 @@ classdef CLASS_database_goals < CLASS_database
         end        
     end
     
+    
     methods
+        
+        function [dataSummaryStruct, statStruct, dataStruct] = getSubjectInfoSummary(this, primaryKeys, fieldNames, stat)
+            
+            wherePrimaryKeysIn = this.makeWhereInString(primaryKeys,'numeric');
+            if(nargin<3)
+                stat = [];
+            end
+            
+            
+            
+            % This calculates summary stats directly within MySQL server
+            selectStatFieldsStr = this.cellstr2statcsv(fieldNames,stat);
+            sqlStatStr = sprintf('SELECT %s FROM %s WHERE %s in %s',selectStatFieldsStr,this.tableNames.subjectInfo,this.primaryKeys.subjectInfo, wherePrimaryKeysIn);
+            statStruct = this.query(sqlStatStr);
+            
+            
+            % This calculates summary stats directly within MySQL server
+            selectFieldsStr  = this.cellstr2csv(fieldNames);
+            sqlStr = sprintf('SELECT %s FROM %s WHERE %s in %s',selectFieldsStr,this.tableNames.subjectInfo,this.primaryKeys.subjectInfo, wherePrimaryKeysIn);
+            dataStruct = this.query(sqlStr);
+            dataSummaryStruct = summarizeStruct(dataStruct);
+            
+        end
         
         %> @brief Class constructor.
         %> @retval obj Instance of CLASS_WSC_database.
@@ -30,6 +55,7 @@ classdef CLASS_database_goals < CLASS_database
             this.dbStruct = this.getDBStruct();
             this.tableNames.studyInfo = 'studyinfo_t';
             this.tableNames.subjectInfo = 'subjectinfo_t';
+            this.primaryKeys.subjectInfo = 'kidid';  % Note:  subjectInfo table actually has two primary keys; not a problem for now because study num is always 1.
         end
 
         % ======== ABSTRACT implementations for database_goals =========
