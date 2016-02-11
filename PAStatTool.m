@@ -196,11 +196,11 @@ classdef PAStatTool < handle
                 startTimeSelection = this.originalWidgetSettings.startTimeSelection;
                 if(startTimeSelection>numel(startTimeCellStr) || stopTimeSelection>numel(startTimeCellStr))
                     startTimeSelection = 1;
-                    stopTimeSelection = 1;                
+                    stopTimeSelection = numel(startTimeCellStr);                
                 end
             else
                 startTimeSelection = 1;
-                stopTimeSelection = 1;
+                stopTimeSelection = numel(startTimeCellStr);
             end
             set(this.handles.menu_centroidStartTime,'string',startTimeCellStr,'value',startTimeSelection);
             set(this.handles.menu_centroidStopTime,'string',startTimeCellStr,'value',stopTimeSelection);
