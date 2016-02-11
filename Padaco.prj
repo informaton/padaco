@@ -1,0 +1,160 @@
+<deployment-project plugin="plugin.ezdeploy" plugin-version="1.0">
+  <configuration build-checksum="2789421368" file="/Users/unknown/git/padaco/Padaco.prj" location="/Users/unknown/git/padaco" name="Padaco" preferred-package-location="/Users/unknown/code/Padaco/for_redistribution" preferred-package-type="package.type.app" target="target.ezdeploy.standalone" target-name="MATLAB Compiler for Standalone Applications">
+    <param.appname>Padaco</param.appname>
+    <param.icon />
+    <param.icons />
+    <param.version>1.0</param.version>
+    <param.authnamewatermark>Hyatt Moore IV</param.authnamewatermark>
+    <param.email>hyattmoore@gmail.com</param.email>
+    <param.company>Informaton</param.company>
+    <param.summary>Interpreting state-of-the-art accelerometer monitoring of physical activity and sleep to reduce obesity and improve children's health.</param.summary>
+    <param.description>Padaco is a data visualization and processing toolbox for analyzing data collected from Actigraph's GT3X+ wearable device.  Padaco is distributed under a common-creatives attribution license \url{http://www.gnu.org/licenses}.  Attribution may be directed to Hyatt Moore IV at Stanford University.</param.description>
+    <param.screenshot />
+    <param.guid />
+    <param.installpath.string>Padaco</param.installpath.string>
+    <param.installpath.combo>option.installpath.systemwideapp</param.installpath.combo>
+    <param.logo />
+    <param.install.notes />
+    <param.intermediate>/Users/unknown/code/Padaco/testing</param.intermediate>
+    <param.files.only>/Users/unknown/code/Padaco/for_redistribution_files_only</param.files.only>
+    <param.output>/Users/unknown/code/Padaco/for_redistribution</param.output>
+    <param.enable.clean.build>false</param.enable.clean.build>
+    <param.user.defined.mcr.options />
+    <param.embed.ctf>true</param.embed.ctf>
+    <param.server.ctf>/Users/unknown/code/Padaco/testing/.ctf</param.server.ctf>
+    <param.server.readme>/Users/unknown/code/Padaco/testing/readme.txt</param.server.readme>
+    <param.target.type>subtarget.standalone</param.target.type>
+    <param.support.packages />
+    <param.required.mcr.products>
+      <item>35000</item>
+      <item>35001</item>
+    </param.required.mcr.products>
+    <param.web.mcr>true</param.web.mcr>
+    <param.package.mcr>false</param.package.mcr>
+    <param.no.mcr>false</param.no.mcr>
+    <param.web.mcr.name>MyAppInstaller_web</param.web.mcr.name>
+    <param.package.mcr.name>MyAppInstaller_mcr</param.package.mcr.name>
+    <param.no.mcr.name>MyAppInstaller_app</param.no.mcr.name>
+    <param.windows.command.prompt>true</param.windows.command.prompt>
+    <param.create.log>false</param.create.log>
+    <param.log.file />
+    <unset>
+      <param.icon />
+      <param.icons />
+      <param.version />
+      <param.screenshot />
+      <param.guid />
+      <param.installpath.combo />
+      <param.logo />
+      <param.install.notes />
+      <param.enable.clean.build />
+      <param.user.defined.mcr.options />
+      <param.embed.ctf />
+      <param.server.ctf />
+      <param.server.readme />
+      <param.target.type />
+      <param.support.packages />
+      <param.web.mcr />
+      <param.package.mcr />
+      <param.no.mcr />
+      <param.web.mcr.name />
+      <param.package.mcr.name />
+      <param.no.mcr.name />
+      <param.windows.command.prompt />
+      <param.create.log />
+      <param.log.file />
+    </unset>
+    <fileset.main>
+      <file>${PROJECT_ROOT}/padaco.m</file>
+    </fileset.main>
+    <fileset.resources>
+      <file>/Users/unknown/git/MLPTestBench/utility/killall.m</file>
+      <file>/Users/unknown/git/MLPTestBench/utility/minmax.m</file>
+      <file>${PROJECT_ROOT}/EventData_BatchTool.m</file>
+      <file>${PROJECT_ROOT}/PABatchTool.m</file>
+      <file>${PROJECT_ROOT}/PACentroid.m</file>
+      <file>${PROJECT_ROOT}/PAController.m</file>
+      <file>${PROJECT_ROOT}/PAData.m</file>
+      <file>${PROJECT_ROOT}/PASettings.m</file>
+      <file>${PROJECT_ROOT}/PAStatTool.m</file>
+      <file>${PROJECT_ROOT}/PAView.m</file>
+      <file>${PROJECT_ROOT}/batchTool.fig</file>
+      <file>${PROJECT_ROOT}/batchTool.m</file>
+      <file>${PROJECT_ROOT}/padaco.fig</file>
+      <file>${PROJECT_ROOT}/padaco.m</file>
+      <file>${PROJECT_ROOT}/resetDlg.m</file>
+      <file>${PROJECT_ROOT}/restart.m</file>
+      <file>${PROJECT_ROOT}/utility/cells2cell.m</file>
+      <file>${PROJECT_ROOT}/utility/cells2mat.m</file>
+      <file>${PROJECT_ROOT}/utility/dissolve.m</file>
+      <file>${PROJECT_ROOT}/utility/getFilenamesi.m</file>
+      <file>${PROJECT_ROOT}/utility/getPathnames.m</file>
+      <file>${PROJECT_ROOT}/utility/pa_randperm.m</file>
+      <file>${PROJECT_ROOT}/utility/screencap.m</file>
+      <file>${PROJECT_ROOT}/utility/showME.m</file>
+      <file>${PROJECT_ROOT}/utility/struct2array.m</file>
+      <file>${PROJECT_ROOT}/utility/uigetfulldir.m</file>
+      <file>${PROJECT_ROOT}/utility/uigetfullfile.m</file>
+      <file>/users/unknown/git/padaco/EventData_BatchTool.m</file>
+      <file>/users/unknown/git/padaco/PABatchTool.m</file>
+      <file>/users/unknown/git/padaco/PACentroid.m</file>
+      <file>/users/unknown/git/padaco/PAController.m</file>
+      <file>/users/unknown/git/padaco/PAData.m</file>
+      <file>/users/unknown/git/padaco/PASettings.m</file>
+      <file>/users/unknown/git/padaco/PAStatTool.m</file>
+      <file>/users/unknown/git/padaco/PAView.m</file>
+      <file>/users/unknown/git/padaco/batchTool.fig</file>
+      <file>/users/unknown/git/padaco/batchTool.m</file>
+      <file>/users/unknown/git/padaco/padaco.fig</file>
+      <file>/users/unknown/git/padaco/padaco.m</file>
+      <file>/users/unknown/git/padaco/resetDlg.m</file>
+      <file>/users/unknown/git/padaco/restart.m</file>
+    </fileset.resources>
+    <fileset.package />
+    <build-deliverables>
+      <file location="/Users/unknown/code/Padaco/testing" name="readme.txt" optional="true">/Users/unknown/code/Padaco/testing/readme.txt</file>
+      <file location="/Users/unknown/code/Padaco/testing" name="Padaco.app" optional="false">/Users/unknown/code/Padaco/testing/Padaco.app</file>
+      <file location="/Users/unknown/code/Padaco/testing" name="run_Padaco.sh" optional="false">/Users/unknown/code/Padaco/testing/run_Padaco.sh</file>
+      <file location="/Users/unknown/code/Padaco/testing" name="splash.png" optional="false">/Users/unknown/code/Padaco/testing/splash.png</file>
+    </build-deliverables>
+    <workflow />
+    <matlab>
+      <root>/Users/unknown/code/MATLAB_R2014b.app</root>
+      <toolboxes>
+        <toolbox name="fixedpoint" />
+        <toolbox name="embeddedcoder" />
+        <toolbox name="matlabcoder" />
+      </toolboxes>
+      <toolbox>
+        <fixedpoint>
+          <enabled>true</enabled>
+        </fixedpoint>
+      </toolbox>
+      <toolbox>
+        <embeddedcoder>
+          <enabled>true</enabled>
+        </embeddedcoder>
+      </toolbox>
+      <toolbox>
+        <matlabcoder>
+          <enabled>true</enabled>
+        </matlabcoder>
+      </toolbox>
+    </matlab>
+    <platform>
+      <unix>true</unix>
+      <mac>true</mac>
+      <windows>false</windows>
+      <win2k>false</win2k>
+      <winxp>false</winxp>
+      <vista>false</vista>
+      <linux>false</linux>
+      <solaris>false</solaris>
+      <osver>10.10.5</osver>
+      <os32>false</os32>
+      <os64>true</os64>
+      <arch>maci64</arch>
+      <matlab>true</matlab>
+    </platform>
+  </configuration>
+</deployment-project>

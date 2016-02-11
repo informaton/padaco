@@ -286,7 +286,7 @@ classdef PABatchTool < handle
                     fid = fopen(usageStateFilename,'w');
                     fprintf(fid,'# Feature:\tUsage state (Based on vecMag count)\n');                    
                     fprintf(fid,'# Length:\t%u\n',size(timeAxisStr,1));                    
-                    fprintf(fid,'# Start Datenum\tStart Day');
+                    fprintf(fid,'# Study_ID\tStart_Datenum\tStart_Day');
                     for t=1:size(timeAxisStr,1)
                         fprintf(fid,'\t%s',timeAxisStr(t,:));
                     end                    
@@ -310,8 +310,8 @@ classdef PABatchTool < handle
                         fprintf(fid,'# Feature:\t%s\n',featureDescriptions{fn});
                         
                         fprintf(fid,'# Length:\t%u\n',size(timeAxisStr,1));
-                        
-                        fprintf(fid,'# Start Datenum\tStart Day');
+                                          
+                        fprintf(fid,'# Study_ID\tStart_Datenum\tStart_Day');
                         for t=1:size(timeAxisStr,1)
                             fprintf(fid,'\t%s',timeAxisStr(t,:));
                         end
@@ -343,44 +343,48 @@ classdef PABatchTool < handle
                     else
                         
                         [~,filename,~] = fileparts(curData.getFilename());
-                        if(obj.settings.classifyUsageState)
-%                             [usageVec, usageState, startStopDateNums] = curData.classifyUsageState();                            
-                            
-                            [alignedVec, alignedStartDateVecs] = curData.getAlignedUsageStates(elapsedStartHour, intervalDurationHours);
-%                             [alignedVec, alignedStartDateVecs] = curData.getAlignedFeatureVecs(featureFcn,signalName,elapsedStartHour, intervalDurationHours);
-
-                            numIntervals = size(alignedVec,1);
-                            if(numIntervals>maxNumIntervals)
-                                alignedVec = alignedVec(1:maxNumIntervals,:);
-                                alignedStartDateVecs = alignedStartDateVecs(1:maxNumIntervals, :);
-                                numIntervals = maxNumIntervals;
-                            end
-                            alignedStartDaysOfWeek = datestr(alignedStartDateVecs,'ddd');
-                            alignedStartNumericDaysOfWeek = nan(numIntervals,1);
-                            for a=1:numIntervals
-                                alignedStartNumericDaysOfWeek(a)=dateMap.(alignedStartDaysOfWeek(a,:));
-                            end
-                            startDatenums = datenum(alignedStartDateVecs);
-                            result = [startDatenums,alignedStartNumericDaysOfWeek,alignedVec];
-                            save(usageStateFilename,'result','-ascii','-tabs','-append');
-                            
-                            curData.saveToFile('usageState',saveFilename);
-                        end
-                        if(obj.settings.describeActivity)
-                            curData.describeActivity('activity');
-                            saveFilename = fullfile(obj.settings.outputDirectory,strcat(filename,'.activity.txt'));
-                            curData.saveToFile('activity',saveFilename);
-                        end
-                        if(obj.settings.describeInactivity)
-                            curData.describeActivity('inactivity');
-                            saveFilename = fullfile(obj.settings.outputDirectory,strcat(filename,'.inactivity.txt'));
-                            curData.saveToFile('inactivity',saveFilename);
-                        end
-                        if(obj.settings.describeSleep)
-                            curData.describeActivity('sleep');
-                            saveFilename = fullfile(obj.settings.outputDirectory,strcat(filename,'.sleep.txt'));
-                            curData.saveToFile('sleep',saveFilename);
-                        end
+                        
+                                                
+                        % Non functional - just shell code -  Commented out on 9/8/2015
+                        %
+                        %                         if(obj.settings.classifyUsageState)
+                        % %                             [usageVec, usageState, startStopDateNums] = curData.classifyUsageState();
+                        %
+                        %                             [alignedVec, alignedStartDateVecs] = curData.getAlignedUsageStates(elapsedStartHour, intervalDurationHours);
+                        % %                             [alignedVec, alignedStartDateVecs] = curData.getAlignedFeatureVecs(featureFcn,signalName,elapsedStartHour, intervalDurationHours);
+                        %
+                        %                             numIntervals = size(alignedVec,1);
+                        %                             if(numIntervals>maxNumIntervals)
+                        %                                 alignedVec = alignedVec(1:maxNumIntervals,:);
+                        %                                 alignedStartDateVecs = alignedStartDateVecs(1:maxNumIntervals, :);
+                        %                                 numIntervals = maxNumIntervals;
+                        %                             end
+                        %                             alignedStartDaysOfWeek = datestr(alignedStartDateVecs,'ddd');
+                        %                             alignedStartNumericDaysOfWeek = nan(numIntervals,1);
+                        %                             for a=1:numIntervals
+                        %                                 alignedStartNumericDaysOfWeek(a)=dateMap.(alignedStartDaysOfWeek(a,:));
+                        %                             end
+                        %                             startDatenums = datenum(alignedStartDateVecs);
+                        %                             result = [startDatenums,alignedStartNumericDaysOfWeek,alignedVec];
+                        %                             save(usageStateFilename,'result','-ascii','-tabs','-append');
+                        %
+                        %                             %                             curData.saveToFile('usageState',saveFilename);
+                        %                         end
+                        %                         if(obj.settings.describeActivity)
+                        %                             curData.describeActivity('activity');
+                        %                             saveFilename = fullfile(obj.settings.outputDirectory,strcat(filename,'.activity.txt'));
+                        %                             curData.saveToFile('activity',saveFilename);
+                        %                         end
+                        %                         if(obj.settings.describeInactivity)
+                        %                             curData.describeActivity('inactivity');
+                        %                             saveFilename = fullfile(obj.settings.outputDirectory,strcat(filename,'.inactivity.txt'));
+                        %                             curData.saveToFile('inactivity',saveFilename);
+                        %                         end
+                        %                         if(obj.settings.describeSleep)
+                        %                             curData.describeActivity('sleep');
+                        %                             saveFilename = fullfile(obj.settings.outputDirectory,strcat(filename,'.sleep.txt'));
+                        %                             curData.saveToFile('sleep',saveFilename);
+                        %                         end
                         
                         for fn=1:numel(featureFcns)
                             featureFcn = featureFcns{fn};
@@ -411,10 +415,10 @@ classdef PABatchTool < handle
                                         alignedStartNumericDaysOfWeek(a)=dateMap.(alignedStartDaysOfWeek(a,:));
                                     end
                                     startDatenums = datenum(alignedStartDateVecs);
-                                    result = [startDatenums,alignedStartNumericDaysOfWeek,alignedVec];
+                                    studyIDs = repmat(curData.getStudyID('numeric'),numIntervals,1);
+                                    result = [studyIDs,startDatenums,alignedStartNumericDaysOfWeek,alignedVec];                                    
                                     save(featureFilename,'result','-ascii','-tabs','-append');
-                                end
-                                
+                                end                                
                             end
                         end
                     end
@@ -447,7 +451,7 @@ classdef PABatchTool < handle
             end
             
             waitbar(1,waitH,'Finished!');
-            obj.resultsPathname = obj.settings.outputDirectory;
+            %             obj.resultsPathname = obj.settings.outputDirectory;
             if(~isempty(failedFiles))
                 fprintf('\n\n%u Files Failed:\n',numel(failedFiles));
                 for f=1:numel(failedFiles)

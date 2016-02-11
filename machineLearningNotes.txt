@@ -1,0 +1,98 @@
+Use the output from 
+CONTROLLER.resultsPathname	/Users/unknown/Data/GOALS/output/output_8_19_2015
+
+
+Then, click <- and -> arrows to get what you want.
+
+
+Here's how this branch works differently:
+
+padaco.fig handles:
+    panel_coiControls
+        edit_coiStatus
+    panel_centroidProfiles
+        tabel_centroidProfiles
+
+PA_StatTool.m
+    function didRefresh = refreshProfileTableData(this)
+    function didRefresh = refreshCOIProfile(this)
+    function didRefresh = refreshGlobalProfile(this)
+  Static:
+    ? function featureStruct = discardNonWearFeatures(featureStructIn,usageStateStruct) ?
+    function [coiProfile, dataSummaryStruct] = getProfileCell(primaryKeys,fieldsOfInterest)
+    function profileCell = profile2cell(profileStruct)
+./
+CLASS_database.m
+EventData_BatchTool - eventData class
+deriveCounts.m
+extractLoadShapeFeatures
+
+./utility/
+    CLASS_database_goals.m
+    pa_randperm
+./utility/lib/
+    libmysqlsclient libraries and plug ins.
+
+Model/
+    model_summary.m
+    table_summary.m
+    gee_model.m
+    mym.m
+
+Utility/
+
+CLASS_database_goals.m
+cells2cell.m
+cells2mat.m
+dissolve.m
+fitTable.m
+getFilenamesi.m
+getPathnames.m
+getSelectedMenuString.m
+getSelectedMenuUserData.m
+lib
+libmysqlclient.18.dylib
+pa_randperm.m
+screencap.m
+showME.m
+struct2array.m
+uigetfulldir.m
+uigetfullfile.m
+
+Files:
+
+CLASS_database.m
+EventData_BatchTool.m
+LICENSE
+PABatchTool.m
+PACentroid.m
+PACentroid.m~
+PAController.m
+PAData.m
+PASettings.m
+PAStatTool.m
+PAStatTool.m~
+PAView.m
+Padaco.prj
+README.md
+_padaco.parameters.txt
+archive
+batchTool.fig
+batchTool.m
+batch_results.txt
+deriveCounts.m
+extractLoadShapeFeatures.m
+go2padaco.m
+huh
+libmysqlclient.18.dylib
+machineLearningNotes.txt
+matlab.mat
+matlab_workspace.mat
+mergeCentroids.m
+model
+output
+padaco.fig
+padaco.m
+resetDlg.m
+restart.m
+utility

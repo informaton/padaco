@@ -16,6 +16,8 @@ classdef PACentroid < handle
         %> dimensionality)
         loadShapes;
         
+        loadShapeIDs;
+        
         %> Nx1 vector of centroid index for loadShape profile associated with its row.
         load2centroidMap;
         
@@ -90,18 +92,23 @@ classdef PACentroid < handle
         %> are made to measuring clustering separation and performance.
         %> @param Optional text handle to send status updates to via set(textHandle,'string',statusString) type calls.
         %> Status updates are sent to the command window by default.
+        %> @param Optional Nx1 cell string with load shape source
+        %> identifiers (e.g. which participant they came from).
         %> @retval Instance of PACentroid on success.  Empty matrix on
         %> failure.
         % ======================================================================        
-        function this = PACentroid(loadShapes,settings,axesOrLineH,textHandle)            
+        function this = PACentroid(loadShapes,settings,axesOrLineH,textHandle,loadShapeIDs)    
             
             this.init();
-            if(nargin<4)
-                textHandle = [];
-                if(nargin<3)
-                    axesOrLineH = [];
-                    if(nargin<2)
-                        settings = [];
+            if(nargin<5)
+                loadShapeIDs = [];
+                if(nargin<4)
+                    textHandle = [];
+                    if(nargin<3)
+                        axesOrLineH = [];
+                        if(nargin<2)
+                            settings = [];
+                        end
                     end
                 end
             end
@@ -149,6 +156,7 @@ classdef PACentroid < handle
             
             this.settings.maxClusters = maxClusters;
             this.loadShapes = loadShapes;
+            this.loadShapeIDs = loadShapeIDs;
             
             this.calculateCentroids();  
         end
@@ -267,11 +275,25 @@ classdef PACentroid < handle
                 sortOrder = this.coiSortOrder;
             end
             
+            % order is sorted from 1: most popular to numCentroids: least popular
             coi.sortOrder = sortOrder;
+            
+            % convert to match the index the centroid load shape corresponds to.
             coi.index = this.centroidSortMap(coi.sortOrder);           
+            
+            % centroid shape for the centroid index.
             coi.shape = this.centroidShapes(coi.index,:);
+            
+            % member shapes which have that same index.  The
+            % load2CentroidMap row index corresponds to the member index,
+            % while the value at that row corresponds to the centroid
+            % index.  We want the rows with the centroid index:            
             coi.memberIndices = coi.index==this.load2centroidMap;
+            
+            % Now we can pull the member variables that were
+            % clustered to the centroid index of interest.
             coi.memberShapes = this.loadShapes(coi.memberIndices,:);
+            coi.memberIDs = this.loadShapeIDs(coi.memberIndices,:);
             coi.numMembers = size(coi.memberShapes,1);
         end
         
@@ -360,6 +382,45 @@ classdef PACentroid < handle
             fprintf(1,'To be finished');
             wcss = [];
         end
+        
+        %> @brief Returns struct useful for logisitic or linear regression modelling.
+        %> @param Instance of PACentroid.
+        %> @retval Struct with fields defining dependent variables to use in the
+        %> model.  Fields include:
+        %> - @c values NxM array of numeric values for M covariates for N subject
+        %> keys.
+        %> - @c memberIDs Nx1 array of unique keys corresponding to each row.
+        %> - @c colnames 1xM cell string of names describing the covariate columns.
+        function covariateStruct = getCovariateStruct(this)
+            subjectIDs = unique(this.loadShapeIDs);
+            numSubjects = numel(subjectIDs);
+            
+            values = zeros(numSubjects,this.numCentroids);
+            
+            for row=1:numSubjects
+                try
+                    curSubject = subjectIDs(row);
+                    centroidsForSubject = this.load2centroidMap(this.loadShapeIDs==curSubject);
+                    for c=1:numel(centroidsForSubject)
+                        coi = centroidsForSubject(c);
+                        values(row,coi) = values(row,coi)+1;
+                    end
+                catch me
+                    showME(me);
+                    rethrow(me);
+                end
+            end
+            
+            colnames = regexp(sprintf('Centroid #%u\n',1:this.numCentroids),'\n','split');            
+
+            colnames(end) = [];  %remove the last cell entry which will be empty.
+            
+            covariateStruct.memberIDs = subjectIDs;
+            covariateStruct.values = values;
+            covariateStruct.colnames = colnames;
+            
+        end
+        
     end
 
     methods(Static, Access=private)
@@ -410,7 +471,7 @@ classdef PACentroid < handle
             X = [];
             Y = [];
             idx = [];
-            centroids = [];
+            %             centroids = [];
             
             % argument checking and validation ....
             if(nargin<5)
