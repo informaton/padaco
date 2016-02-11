@@ -1324,6 +1324,10 @@ classdef PAStatTool < handle
                 
                 numCOIs = numel(cois);
                 nextPlot = get(centroidAxes,'nextplot');
+                coiColors = 'kbgrycm';
+                coiStyles = repmat('-:',size(coiColors));
+                coiColors = [coiColors, fliplr(coiColors)];
+                maxColorStyles = numel(coiColors);
                 
                 yLimMode = centroidAndPlotSettings.primaryAxis_yLimMode;
                 set(centroidAxes,'ytickmode',yLimMode,...
@@ -1337,31 +1341,49 @@ classdef PAStatTool < handle
                     set(centroidAxes,'ygrid','off');
                 end
                 
+                % Prep the x-axis.  This should probably be done elsewhere
+                % as it will not change when going from one centroid to the
+                % next, but only (though not necessarily) when refreshing centroids.
+                xTicks = 1:8:this.featureStruct.totalCount;
+                if(xTicks(end)~=this.featureStruct.totalCount)
+                    xTicks(end+1)=this.featureStruct.totalCount;
+                end
+                xTickLabels = this.featureStruct.startTimes(xTicks);                
+                set(centroidAxes,'xlim',[1,this.featureStruct.totalCount],'xtick',xTicks,'xticklabel',xTickLabels);
+
                 
+                legendStrings = cell(numCOIs,1);
+                centroidHandles = nan(numCOIs,1);
                 for c=1:numCOIs
                     coi = cois{c};                    
                     if(centroidAndPlotSettings.showCentroidMembers)
                         plot(centroidAxes,coi.memberShapes','-','linewidth',1,'color',[0.85 0.85 0.85]);
                     end
+                    
+                    pctMembership =  coi.numMembers/numLoadShapes*100;
+                    legendStrings{c} = sprintf('Centroid %u (#%u: %0.2f%%)',coi.index,...
+                        numCentroids-coi.sortOrder+1, pctMembership);
+                    
                     % This changes my axes limit mode if nextplot is set to
                     % 'replace' instead of 'replacechildren'
-                    plot(centroidAxes,coi.shape,'linewidth',2,'color',[0 0 0]);
+                    colorStyleIndex = mod(c-1,maxColorStyles)+1;  %b/c MATLAB is one based, and 'mod' is not.
+                    centroidHandles(c) = plot(centroidAxes,coi.shape,'linewidth',2,'linestyle',coiStyles(colorStyleIndex),'color',coiColors(colorStyleIndex)); %[0 0 0]);
+                    % 'displayname',legendStrings{c};
+
                 end
+                
+                coi = cois{end};
+                pctMembership =  coi.numMembers/numLoadShapes*100;                
                 
                 set(centroidAxes,'nextplot',nextPlot);
                 
-                xTicks = 1:8:this.featureStruct.totalCount;
-                if(xTicks(end)~=this.featureStruct.totalCount)
-                    xTicks(end+1)=this.featureStruct.totalCount;
-                end
-                coi = cois{1};
-                xTickLabels = this.featureStruct.startTimes(xTicks);                
-                pctMembership =  coi.numMembers/numLoadShapes*100;
                 centroidTitle = sprintf('Centroid #%u (%s). Popularity %u of %u. Membership count: %u of %u (%0.2f%%)',coi.index,...
                     this.featureStruct.method, numCentroids-coi.sortOrder+1,numCentroids, coi.numMembers, numLoadShapes, pctMembership);
                 title(centroidAxes,centroidTitle,'fontsize',14);
-                set(centroidAxes,'xlim',[1,this.featureStruct.totalCount],'xtick',xTicks,'xticklabel',xTickLabels);
                 
+                if(numCOIs>1)
+                    legend(centroidAxes,centroidHandles,legendStrings,'box','on','fontsize',12);
+                end
                 %%  Show distribution on secondary axes
                 switch(this.centroidDistributionType)
                     
