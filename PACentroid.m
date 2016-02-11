@@ -43,6 +43,12 @@ classdef PACentroid < handle
         %> while a value of C refers to the centroid with the most members (as seen in histogram)
         coiSortOrder;  
         
+        %> logical sort order index for the centroids of interest (cois)
+        %> identified for analysis and possible comparison.  It is 
+        %> initialized to the coiSortOrder's index being true, and the
+        %> remaining indices being false.
+        coiToggleOrder;
+
         %> A line handle for updating clustering performace.  Default is
         %> -1, which means that clustering performance is not displayed.
         %> This value is initialized in the constructor based on input
@@ -60,9 +66,8 @@ classdef PACentroid < handle
         
         %> struct with X, Y data, and last statusStr calculated during
         %> adaptive k means.
-        performanceProgression;  
+        performanceProgression;
     end
-
             
     methods        
         % ======================================================================
@@ -199,30 +204,34 @@ classdef PACentroid < handle
             this.loadShapes = [];
             this.sortIndices = [];
             this.coiSortOrder = [];
+            this.coiToggleOrder = [];
+        end
+                
+        function didChange = increaseCOISortOrder(this)
+            didChange = this.setCOISortOrder(this.coiSortOrder+1);
         end
         
-        
-        function increaseCOISortOrder(this)
-            if(this.coiSortOrder<this.numCentroids())
-                this.coiSortOrder=this.coiSortOrder+1;
-            end
-        end
-        
-        function decreaseCOISortOrder(this)
-            if(this.coiSortOrder>1)
-                this.coiSortOrder = this.coiSortOrder-1;
-            end
+        function didChange = decreaseCOISortOrder(this)
+            didChange = this.setCOISortOrder(this.coiSortOrder-1);
         end
         
         function didChange = setCOISortOrder(this, sortOrder)
             sortOrder = round(sortOrder);
             if(sortOrder<=this.numCentroids() && sortOrder>0)
                 this.coiSortOrder = sortOrder;
+                this.coiToggleOrder(:) = false;
+                this.coiToggleOrder(sortOrder) = true;
                 didChange = true;
             else
                 didChange = false;
             end
-        end        
+        end  
+        
+        function toggleCOISortOrder(this, toggleSortIndex)
+            if(toggleSortIndex>0 && toggleSortIndex<=this.numCentroids())
+                this.coiToggleOrder(toggleSortIndex) = ~this.coiToggleOrder(toggleSortIndex);
+            end
+        end
         
         function performance = getClusteringPerformance(this)
             performance = this.performanceMeasure;
@@ -232,6 +241,9 @@ classdef PACentroid < handle
         %> @brief Returns a descriptive struct for the centroid of interest (coi) 
         %> which is determined by the member variable coiSortOrder.
         %> @param Instance of PACentroid
+        %> @param sortOrder Optional index to use to obtain a centroid of
+        %> interest according to the given sort order ; default is to use the
+        %> value of this.coiSortOrder.
         %> @retval Structure for centroid of interest.  Fields include
         %> - @c sortOrder The sort order of coi.  If all centroids are placed in
         %> a line numbering from 1 to the number of centroids in increasing order of
@@ -250,8 +262,12 @@ classdef PACentroid < handle
         %> - @c memberShapes - NxM array of load shapes clustered to the coi.
         %> - @c numMembers - N, the number of load shapes clustered to the coi.
         % ======================================================================        
-        function coi = getCentroidOfInterest(this)
-            coi.sortOrder = this.coiSortOrder;
+        function coi = getCentroidOfInterest(this, sortOrder)
+            if(nargin<2 || isempty(sortOrder) || sortOrder<0 || sortOrder>this.numCentroids())
+                sortOrder = this.coiSortOrder;
+            end
+            
+            coi.sortOrder = sortOrder;
             coi.index = this.centroidSortMap(coi.sortOrder);           
             coi.shape = this.centroidShapes(coi.index,:);
             coi.memberIndices = coi.index==this.load2centroidMap;
@@ -259,6 +275,37 @@ classdef PACentroid < handle
             coi.numMembers = size(coi.memberShapes,1);
         end
         
+        %> @brief Returns the number of centroids that are currently of
+        %> interest, based on the number of positive indices flagged in
+        %> coiToggleOrder.
+        %> @param this Instance of PACentroid.
+        %> @retval numCOIs Number of centroids currently of interest: value
+        %> is in the range [1, this.numCentroids].
+        function numCOIs = getCentroidsOfInterestCount(this)
+            numCOIs = sum(this.coiToggleOrder);
+        end
+        
+        %> @brief Returns the number of centroids that are currently of
+        %> interest, based on the number of positive indices flagged in
+        %> coiToggleOrder.
+        %> @param this Instance of PACentroid.
+        %> @retval cois Cell of centroid of interest structs.  See
+        %> getCentroidOfInterest for description of centroid of interest
+        %> struct.
+        function cois = getCentroidsOfInterest(this)
+            numCOIs = this.getCentroidsOfInterestCount();
+            if(numCOIs==0)
+                cois = {};
+            elseif(numCOIs == 1)
+                cois = {this.getCentroidOfInterest()};
+            else
+                cois = cell(numCOIs,1);
+                coiSortOrders = find(this.coiToggleOrder);
+                for c=1:numel(coiSortOrders)
+                    cois{c} = this.getCentroidOfInterest(coiSortOrders(c));
+                end
+            end
+        end
         
         % ======================================================================
         %> @brief Clusters input load shapes by centroid using adaptive
@@ -288,23 +335,22 @@ classdef PACentroid < handle
             [this.load2centroidMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression] = this.adaptiveKmeans(inputLoadShapes,inputSettings, useDefaultRandomizerSeed,this.performanceAxesHandle,this.statusTextHandle);
             if(~isempty(this.centroidShapes))                
                 [this.histogram, this.centroidSortMap] = this.calculateAndSortDistribution(this.load2centroidMap);%  was -->       calculateAndSortDistribution(this.load2centroidMap);
-                this.coiSortOrder = this.numCentroids();
+                if(~this.setCOISortOrder(this.numCentroids()))
+                    fprintf(1,'Warning - could not set the centroid of interest sort order to %u\n',this.numCentroids);
+                end
             else
                 fprintf('Clustering failed!  No clusters found!\n');
                 this.init();     
             end
         end
         
-        
         function h= plotPerformance(this, axesH)
             X = this.performanceProgression.X;
             Y = this.performanceProgression.Y;
             h=this.plot(axesH,X,Y);
             set(axesH,'xlim',[min(X)-0.5,max(X)+0.5],'ylimmode','auto','ygrid','on','ytickmode','auto','xtickmode','auto','xticklabelmode','auto','yticklabelmode','auto');
-
             title(axesH,this.performanceProgression.statusStr,'fontsize',14);
-        end       
-                     
+        end          
 
         %> @brief Calculates within-cluster sum of squares (WCSS); a metric of cluster tightness.  
         %> @note This measure is not helpful when clusters are not well separated (see @c getCalinskiHarabaszIndex).
@@ -313,10 +359,7 @@ classdef PACentroid < handle
         function wcss = getWCSS(varargin)
             fprintf(1,'To be finished');
             wcss = [];
-            
         end
-
-        
     end
 
     methods(Static, Access=private)
