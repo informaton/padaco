@@ -22,7 +22,7 @@ function varargout = analysis(varargin)
 
 % Edit the above text to modify the response to help analysis
 
-% Last Modified by GUIDE v2.5 11-Feb-2016 10:29:20
+% Last Modified by GUIDE v2.5 11-Feb-2016 14:18:33
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -71,3 +71,12 @@ function varargout = analysis_OutputFcn(hObject, eventdata, handles)
 
 % Get default command line output from handles structure
 varargout{1} = handles.output;
+
+
+function menu_ySelection_CreateFcn(hObject, eventdata, handles)
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end

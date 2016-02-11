@@ -8,7 +8,11 @@ classdef PAStatTool < handle
         resultsDirectory;
         featuresDirectory;
         imagesDirectory;
-        %> handle of parent figure
+        
+        %> handle of scatter plot figure.
+        scatterPlotFigureH;
+        
+        %> handle of the main parent figure
         figureH;
         featureInputFilePattern;
         featureInputFileFieldnames;
@@ -106,6 +110,8 @@ classdef PAStatTool < handle
             this.figureH = padaco_fig_h;
             this.featureStruct = [];
             
+            this.initScatterPlotFigure();
+            
             this.initHandles();            
             this.initBase();
             this.centroidDistributionType = widgetSettings.centroidDistributionType;  % {'performance','membership','weekday'}
@@ -192,6 +198,9 @@ classdef PAStatTool < handle
         function [startTimeSelection, stopTimeSelection ] = setStartTimes(this,startTimeCellStr)
             if(~isempty(this.originalWidgetSettings))
                 stopTimeSelection = this.originalWidgetSettings.stopTimeSelection;
+                if(stopTimeSelection<=0)
+                    stopTimeSelection = numel(startTimeCellStr);
+                end
                 startTimeSelection = this.originalWidgetSettings.startTimeSelection;
                 if(startTimeSelection>numel(startTimeCellStr) || stopTimeSelection>numel(startTimeCellStr))
                     startTimeSelection = 1;
@@ -941,14 +950,37 @@ classdef PAStatTool < handle
         function centroidDistributionCallback(this,hObject,eventdata,selection)
             this.centroidDistributionType = selection;
             this.plotCentroids();
+        end            
+      
+        % only extract the handles we are interested in using for the stat tool.
+        % ======================================================================
+        %> @brief
+        %> @param this Instance of PAStatTool
+        % ======================================================================
+        function initScatterPlotFigure(this)
+            this.scatterPlotFigureH = analysis('visible','off');
         end
-        
         % only extract the handles we are interested in using for the stat tool.
         % ======================================================================
         %> @brief
         %> @param this Instance of PAStatTool
         % ======================================================================
         function initHandles(this)
+            
+            % get handles of interest from our analysis figure
+            tmpAnalysisHandles = guidata(this.scatterPlotFigureH);
+            analysisHandlesOfInterest = {
+                'axes_scatterplot'
+                'table_centroidProfiles'
+                'menu_ySelection'
+                };
+                          
+            for f=1:numel(analysisHandlesOfInterest)
+                fname = analysisHandlesOfInterest{f};
+                this.handles.(fname) = tmpAnalysisHandles.(fname);
+            end
+        
+            % get handles of interest from the main/primary figure.
             tmpHandles = guidata(this.figureH);
             handlesOfInterest = {
                 'check_sortvalues'    
@@ -1862,7 +1894,7 @@ classdef PAStatTool < handle
             paramStruct.clusterThreshold = 1.5;
             paramStruct.weekdaySelection = 1;
             paramStruct.startTimeSelection = 1;
-            paramStruct.stopTimeSelection = 1;
+            paramStruct.stopTimeSelection = -1;
             
             paramStruct.centroidDurationSelection = 1;
                         
@@ -1904,7 +1936,7 @@ classdef PAStatTool < handle
             baseSettings.weekdayTags = {'all','weekdays','weekends'};
             
             baseSettings.startTimeSelection = 1;
-            baseSettings.stopTimeSelection = 1;
+            baseSettings.stopTimeSelection = -1;
             
 
             baseSettings.centroidDurationDescriptions = {'1 day','12 hours','6 hours','4 hours','3 hours','2 hours','1 hour'};
