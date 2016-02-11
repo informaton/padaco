@@ -195,14 +195,16 @@ classdef PAStatTool < handle
                 startTimeSelection = this.originalWidgetSettings.startTimeSelection;
                 if(startTimeSelection>numel(startTimeCellStr) || stopTimeSelection>numel(startTimeCellStr))
                     startTimeSelection = 1;
-                    stopTimeSelection = 1;                
+                    stopTimeSelection = numel(startTimeCellStr);                
                 end
             else
                 startTimeSelection = 1;
-                stopTimeSelection = 1;
+                stopTimeSelection = numel(startTimeCellStr);
             end
+            
+            stopTimeCellStr = circshift(startTimeCellStr(:),-1);
             set(this.handles.menu_centroidStartTime,'string',startTimeCellStr,'value',startTimeSelection);
-            set(this.handles.menu_centroidStopTime,'string',startTimeCellStr,'value',stopTimeSelection);
+            set(this.handles.menu_centroidStopTime,'string',stopTimeCellStr,'value',stopTimeSelection);
         end
         
         % ======================================================================
@@ -235,11 +237,11 @@ classdef PAStatTool < handle
                 tmpFeatureStruct = this.originalFeatureStruct;
                 tmpUsageStateStruct = this.usageStateStruct;
                 startTimeSelection = pSettings.startTimeSelection;
-                stopTimeSelection = pSettings.stopTimeSelection - 1;
-                if(stopTimeSelection<1)
+                stopTimeSelection = pSettings.stopTimeSelection ;
+%                 if(stopTimeSelection<1)
                     % Do nothing; this means, that we started at rayday and
                     % will go 24 hours
-                elseif(stopTimeSelection== startTimeSelection)
+                if(stopTimeSelection== startTimeSelection)
                     warndlg('Not going to load only 1 feature; just do a mean ...');
                     
                 elseif(startTimeSelection < stopTimeSelection)
@@ -425,7 +427,7 @@ classdef PAStatTool < handle
             if(this.canPlot)
                 
                 pSettings = this.getPlotSettings();
-                
+              
                 switch(pSettings.plotType)
                     case 'centroids'
                         this.plotCentroids(pSettings);
@@ -747,16 +749,27 @@ classdef PAStatTool < handle
                         
                         set(this.handles.push_nextCentroid,'units','pixels');
                         set(this.handles.push_previousCentroid,'units','pixels');
-                        
+                        drawnow();
+                        % Correct arrow positions - they seem to shift in
+                        % MATLAB R2014b from their guide set position.
                         pos = get(this.handles.push_nextCentroid,'position');
                         set(this.handles.push_nextCentroid,'position',pos.*[1 -1 1 1]);
                         pos = get(this.handles.push_previousCentroid,'position');
                         set(this.handles.push_previousCentroid,'position',pos.*[1 -1 1 1]);
                         
-                        %                         pos = get(this.handles.check_autoScaleYAxes,'position');
-                        %                         set(this.handles.check_autoScaleYAxes,'position',pos.*[1 -1 1 1]);
-                        %                         pos = get(this.handles.check_holdPlots,'position');
-                        %                         set(this.handles.check_holdPlots,'position',pos.*[1 -1 1 1]);
+                        % Correct primary axes control widgets - they seem to shift in
+                        % MATLAB R2014b from their guide set position.
+%                         parentH = get(this.handles.check_autoScaleYAxes,'parent');  %both widgets share the same parent panel here.
+%                         parentPos = get(parentH,'position');
+                        pos = get(this.handles.check_autoScaleYAxes,'position');
+                        pos(2) = 0; %parentPos(4)/2-pos(4)/2; % get the lower position that results in the widget being placed in the center of the panel.
+                        set(this.handles.check_autoScaleYAxes,'position',pos);
+                        
+                        pos = get(this.handles.check_holdPlots,'position');
+                        pos(2) = 0; %parentPos(4)/2-pos(4)/2; % get the lower position that results in the widget being placed in the center of the panel.
+                        set(this.handles.check_holdPlots,'position',pos);
+                        
+                        drawnow();
                         %
                         % bgColor = get(this.handles.panel_controlCentroid,'Backgroundcolor');
                         bgColor = get(this.handles.push_nextCentroid,'backgroundcolor');
@@ -821,9 +834,12 @@ classdef PAStatTool < handle
             tableData = cell(numel(rowNames),numel(profileColumnNames));
             this.profileTableData = tableData;  %array2table(tableData,'VariableNames',profileColumnNames,'RowNames',rowNames);                        
             this.refreshProfileTableData();
-                        
-            set(this.handles.table_centroidProfiles,'rowName',rowNames,'columnName',profileColumnNames,'units','points','fontname','arial','fontsize',12,'fontunits','points','visible','on');
-            fitTable(this.handles.table_centroidProfiles);
+                      
+            
+            curStack = dbstack;
+            fprintf(1,'Skipping centroid profile table initialization on line %u of %s\n',curStack(1).line,curStack(1).file);
+            %             set(this.handles.table_centroidProfiles,'rowName',rowNames,'columnName',profileColumnNames,'units','points','fontname','arial','fontsize',12,'fontunits','points','visible','on');
+            % fitTable(this.handles.table_centroidProfiles);
             
             % disable everything
             if(~this.canPlot)
@@ -946,12 +962,11 @@ classdef PAStatTool < handle
                 'push_nextCentroid'
                 'push_previousCentroid'
                 'text_resultsCentroid'
-                'panel_centroidPrimaryAxesControls'
                 'check_holdPlots'
                 'check_autoScaleYAxes'
 
-                'text_resultsCentroid'
-                'table_centroidProfiles'
+%                 'text_resultsCentroid'
+%                 'table_centroidProfiles'
                 };
             
             
@@ -1268,9 +1283,10 @@ classdef PAStatTool < handle
                 
                 resultsTextH = this.handles.text_resultsCentroid;
                 set(this.handles.axes_primary,'color',[1 1 1],'xlimmode','auto','ylimmode',pSettings.primaryAxis_yLimMode,'xtickmode','auto',...
-                    'ytickmode','auto','xticklabelmode','auto','yticklabelmode','auto','xminortick','off','yminortick','off');
+                    'ytickmode',pSettings.primaryAxis_yLimMode,'xticklabelmode','auto','yticklabelmode',pSettings.primaryAxis_yLimMode,'xminortick','off','yminortick','off');
                 set(resultsTextH,'visible','on','foregroundcolor',[0.1 0.1 0.1],'string','');
                
+
                 % % set(this.handles.text_primaryAxes,'backgroundcolor',[0 0 0],'foregroundcolor',[1 1 0],'visible','on');
                 this.showCentroidControls();
                 
@@ -1293,9 +1309,25 @@ classdef PAStatTool < handle
                 warndlg(sprintf('Could not find the input file required (%s)!',inputFilename));
             end
             
+            
+            % Prep the x-axis here since it will not change when going from one centroid to the
+            % next, but only (though not necessarily) when refreshing centroids.
+            xTicks = 1:8:this.featureStruct.totalCount;
+            
+            % This is nice to place a final tick matching the end time on
+            % the graph, but it sometimes gets too busy and the tick
+            % separation distance is non-linear which can be an eye soar.
+            %             if(xTicks(end)~=this.featureStruct.totalCount)
+            %                 xTicks(end+1)=this.featureStruct.totalCount;
+            %             end
+            
+            xTickLabels = this.featureStruct.startTimes(xTicks);
+            set(this.handles.axes_primary,'xlim',[1,this.featureStruct.totalCount],'xtick',xTicks,'xticklabel',xTickLabels);
+            
             if(~isempty(this.centroidObj))
                 defaultBackgroundColor = get(0,'FactoryuicontrolBackgroundColor');
                 set(this.handles.push_refreshCentroids,'enable','off','backgroundcolor',defaultBackgroundColor);
+                
                 this.plotCentroids(pSettings); 
                 this.enableCentroidControls();
             else
@@ -1380,11 +1412,6 @@ classdef PAStatTool < handle
                 %% Show centroids on primary axes
 %                 coi = this.centroidObj.getCentroidOfInterest();
                 cois = this.centroidObj.getCentroidsOfInterest();
-                %                 dailyDivisionTicks = 1:8:featureStruct.totalCount;
-                %                 xticks = dailyDivisionTicks;
-                %                 weekdayticks = xticks;
-                %                 xtickLabels = featureStruct.startTimes(1:8:end);
-                %                 daysofweekStr = xtickLabels;
                 
                 numCOIs = numel(cois);
                 nextPlot = get(centroidAxes,'nextplot');
@@ -1402,20 +1429,27 @@ classdef PAStatTool < handle
                     hold(centroidAxes,'on');
                     set(centroidAxes,'ygrid','on');
                 else
-                    set(centroidAxes,'ygrid','off');
+                    set(centroidAxes,'ygrid','off','nextplot','replacechildren');
                 end
 
                 
-                % Prep the x-axis.  This should probably be done elsewhere
-                % as it will not change when going from one centroid to the
-                % next, but only (though not necessarily) when refreshing centroids.
-                xTicks = 1:8:this.featureStruct.totalCount;
-                if(xTicks(end)~=this.featureStruct.totalCount)
-                    xTicks(end+1)=this.featureStruct.totalCount;
-                end
-                xTickLabels = this.featureStruct.startTimes(xTicks);                
-                set(centroidAxes,'xlim',[1,this.featureStruct.totalCount],'xtick',xTicks,'xticklabel',xTickLabels);
+                %                 % Prep the x-axis.  This should probably be done elsewhere
+                %                 % as it will not change when going from one centroid to the
+                %                 % next, but only (though not necessarily) when refreshing centroids.
+                %                 xTicks = 1:8:this.featureStruct.totalCount;
+                %                 if(xTicks(end)~=this.featureStruct.totalCount)
+                %                     xTicks(end+1)=this.featureStruct.totalCount;
+                %                 end
+                %                 xTickLabels = this.featureStruct.startTimes(xTicks);
+                %                 set(centroidAxes,'xlim',[1,this.featureStruct.totalCount],'xtick',xTicks,'xticklabel',xTickLabels);
 
+
+                %                 dailyDivisionTicks = 1:8:featureStruct.totalCount;
+                %                 xticks = dailyDivisionTicks;
+                %                 weekdayticks = xticks;
+                %                 xtickLabels = featureStruct.startTimes(1:8:end);
+                %                 daysofweekStr = xtickLabels;                
+                
                 legendStrings = cell(numCOIs,1);
                 centroidHandles = nan(numCOIs,1);
                 for c=1:numCOIs
@@ -1592,7 +1626,9 @@ classdef PAStatTool < handle
 
         
         function didRefresh = refreshProfileTableData(this)
-            set(this.handles.table_centroidProfiles,'data',this.profileTableData);
+            curStack = dbstack;
+            fprintf(1,'Skipping %s on line %u of %s\n',curStack(1).name,curStack(1).line,curStack(1).file);
+%             set(this.handles.table_centroidProfiles,'data',this.profileTableData);
             didRefresh = true;
         end
         
