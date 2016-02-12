@@ -877,6 +877,7 @@ classdef PAStatTool < handle
             set(this.handles.menu_ySelection,'string',this.profileFields,'value',widgetSettings.profileFieldSelection,'callback',@this.profileFieldSelectionChangeCallback);
 
             set(this.handles.push_dumpTable,'string','Dump Table','callback',@this.dumpTableResultsCallback);
+            set(this.handles.text_analysisTitle,'string','','fontsize',12);
             
             tableData = cell(numel(rowNames),numel(profileColumnNames));
             this.profileTableData = tableData;  %array2table(tableData,'VariableNames',profileColumnNames,'RowNames',rowNames);                        
@@ -884,6 +885,7 @@ classdef PAStatTool < handle
                       
             set(this.handles.axes_scatterplot,'box','on');
             ylabel(this.handles.axes_scatterplot,this.profileFields{widgetSettings.profileFieldSelection},'interpreter','none');
+            xlabel(this.handles.axes_scatterplot,'Centroid');
             
             %             curStack = dbstack;
             %             fprintf(1,'Skipping centroid profile table initialization on line %u of %s\n',curStack(1).line,curStack(1).file);
@@ -1037,6 +1039,7 @@ classdef PAStatTool < handle
                 'table_centroidProfiles'
                 'menu_ySelection'
                 'push_dumpTable'
+                'text_analysisTitle'
                 };
                           
             for f=1:numel(analysisHandlesOfInterest)
@@ -1603,6 +1606,9 @@ classdef PAStatTool < handle
                     this.featureStruct.method, numCentroids-coi.sortOrder+1,numCentroids, coi.numMembers, numLoadShapes, pctMembership);
 
                 title(centroidAxes,centroidTitle,'fontsize',14);
+                set(this.handles.text_analysisTitle,'string',centroidTitle);
+                %                 title(this.handles.axes_scatterplot,centroidTitle,'fontsize',12);
+                
                 
                 if(numCOIs>1)
                     legend(centroidAxes,centroidHandles,legendStrings,'box','on','fontsize',12);
@@ -1686,7 +1692,7 @@ classdef PAStatTool < handle
                         %                     case 'localVsGlobalProfile'
                         %                         globalProfile = this.getGlobalProfile();
                         %                         primaryKeys = coiStruct.memberIDs;
-                        %                         coiProfile = this.getProfileCell(primaryKeys);
+                        %                         ` = this.getProfileCell(primaryKeys);
                         %                     case 'centroidprofile'
                         %                         primaryKeys = coiStruct.memberIDs;
                         %                         coiProfile = this.getProfileCell(primaryKeys);
@@ -1769,7 +1775,7 @@ classdef PAStatTool < handle
                     % This gives us all 
                     coiStruct = this.centroidObj.getCentroidOfInterest();
                     this.globalProfile = this.getProfileCell(coiStruct.memberIDs,this.profileFields);
-                    
+                                        
                     % place the global profile at the end.
                     this.profileTableData(:,1:size(this.globalProfile,2)) = this.globalProfile;  
                     this.refreshProfileTableData();
@@ -1796,6 +1802,7 @@ classdef PAStatTool < handle
                     % place the global profile at the end.
                     this.profileTableData(:,end-size(this.globalProfile,2)+1:end) = this.globalProfile;  
                     this.refreshProfileTableData();
+                    xlim(this.handles.axes_scatterplot,[0 numel(globalStruct.colnames)+1]);
                     didRefresh = true;
                     
                     
