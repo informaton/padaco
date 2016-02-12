@@ -158,6 +158,8 @@ classdef PAController < handle
             obj.saveParameters(); %requires SETTINGS variable
             obj.SETTINGS = [];
             
+            obj.StatTool.delete();
+            
         end        
         
         function saveParameters(obj)

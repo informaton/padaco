@@ -609,7 +609,8 @@ classdef PAView < handle
             resultPanels = [
                             handles.panel_results;
                             handles.panel_controlCentroid;
-                            handles.panel_epochControls
+                            handles.panel_centroidPrimaryAxesControls
+                            handles.panel_epochControls;
                            ];
 
             timeseriesPanels = [handles.panel_timeseries;
@@ -676,6 +677,7 @@ classdef PAView < handle
             resultPanels = [
                 handles.panel_results;
                 handles.panel_controlCentroid;
+                handles.panel_centroidPrimaryAxesControls;
                 ];
             
                        

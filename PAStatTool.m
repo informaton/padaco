@@ -10,7 +10,7 @@ classdef PAStatTool < handle
         imagesDirectory;
         
         %> handle of scatter plot figure.
-        scatterPlotFigureH;
+        analysisFigureH;
         
         %> handle of the main parent figure
         figureH;
@@ -153,6 +153,18 @@ classdef PAStatTool < handle
                 fprintf('%s does not exist!\n',resultsPathname); 
             end
         end
+
+        %> @brief Overload delete method to ensure we get rid of the
+        %> analysis figure
+        function delete(this)
+            if(ishandle(this.analysisFigureH))
+                delete(this.analysisFigureH)
+            end
+            
+            % call the parent/superclass method
+            delete@handle(this);
+        end 
+      
         
         % ======================================================================
         %> @brief Get method for centroidObj instance variable.
@@ -544,6 +556,8 @@ classdef PAStatTool < handle
             set(findall(this.handles.panel_plotCentroid,'enable','on'),'enable','off');            %  set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','off');
             set(this.handles.axes_secondary,'visible','off');
             set(this.figureH,'WindowKeyPressFcn',[]);
+            set(this.analysisFigureH,'visible','off');
+
             this.refreshPlot();
         end    
         
@@ -552,9 +566,7 @@ classdef PAStatTool < handle
         %> @param this Instance of PAStatTool
         % ======================================================================
         function switch2clustering(this)
-            set(this.handles.check_sortvalues,'value',this.previousState.sortValues,'enable','on');
-
-            
+            set(this.handles.check_sortvalues,'value',this.previousState.sortValues,'enable','on');            
             this.previousState.normalizeValues = get(this.handles.check_normalizevalues,'value');           
             set(this.handles.check_normalizevalues,'value',1,'enable','off');
             set(this.handles.axes_primary,'ydir','normal');  %sometimes this gets changed by the heatmap displays which have the time shown in reverse on the y-axis
@@ -574,6 +586,10 @@ classdef PAStatTool < handle
                 
                 set(this.handles.axes_secondary,'visible','on','color',[1 1 1]);
                 set(this.figureH,'WindowKeyPressFcn',@this.keyPressFcn);
+                
+                if(this.shouldShowAnalysisFigure())
+                    set(this.analysisFigureH,'visible','on');
+                end
             end
         end
         
@@ -784,6 +800,10 @@ classdef PAStatTool < handle
                         pos(2) = 0; %parentPos(4)/2-pos(4)/2; % get the lower position that results in the widget being placed in the center of the panel.
                         set(this.handles.check_holdPlots,'position',pos);
                         
+                        pos = get(this.handles.check_showAnalysisFigure,'position');
+                        pos(2) = 0; %parentPos(4)/2-pos(4)/2; % get the lower position that results in the widget being placed in the center of the panel.
+                        set(this.handles.check_showAnalysisFigure,'position',pos)
+                        
                         drawnow();
                         %
                         % bgColor = get(this.handles.panel_controlCentroid,'Backgroundcolor');
@@ -801,9 +821,7 @@ classdef PAStatTool < handle
 
                         set(this.handles.check_autoScaleYAxes,'value',strcmpi(widgetSettings.primaryAxis_yLimMode,'auto'),'callback',@this.checkAutoScaleYAxesCallback);
                         set(this.handles.check_holdPlots,'value',strcmpi(widgetSettings.primaryAxis_nextPlot,'add'),'callback',@this.checkHoldPlotsCallback);
-                        
-                        userSettings.primaryAxis_yLimMode = get(this.handles.axes_primary,'ylimmode');
-                        userSettings.primaryAxis_nextPlot = get(this.handles.axes_primary,'nextplot');
+                        set(this.handles.check_showAnalysisFigure,'value',widgetSettings.showAnalysisFigure,'callback',@this.checkShowAnalysisFigureCallback);
                         
                         set([this.handles.menu_weekdays
                             this.handles.menu_centroidStartTime
@@ -832,29 +850,26 @@ classdef PAStatTool < handle
             this.previousState.normalizeValues = widgetSettings.normalizeValues;
             this.previousState.plotType = this.base.plotTypes{widgetSettings.plotTypeSelection};
             
-%             summaryStruct=this.getProfileFields();
-%             function cellStr = getProfile(this,structToSummary)
-%                 summaryStruct = summarizeStruct();
-%                 cellStr = {'n','mx','var','sem'};
-%             end
+            
+            % Profile Summary
             
             % intialize the centroid profile table
-            %             profileColumnNames = {'n','mx','sem'};
-            profileColumnNames = {'n','mx','sem','n (global)','mx (global)','sem (global)'};
-            
+            profileColumnNames = {'n','mx','sem','n (global)','mx (global)','sem (global)'};            
             %{'Mean (global)','Mean (centroid)','p'};
             rowNames = this.profileFields;
-            %             columnNames = profileColumnNames;
-            
+            if(widgetSettings.profileFieldSelection>numel(this.profileFields))
+                widgetSettings.profileFieldSelection = 1;
+            end
+            set(this.handles.menu_ySelection,'string',this.profileFields,'value',widgetSettings.profileFieldSelection,'callback',@this.profileFieldSelectionChangeCallback);
             tableData = cell(numel(rowNames),numel(profileColumnNames));
             this.profileTableData = tableData;  %array2table(tableData,'VariableNames',profileColumnNames,'RowNames',rowNames);                        
             this.refreshProfileTableData();
                       
             
-            curStack = dbstack;
-            fprintf(1,'Skipping centroid profile table initialization on line %u of %s\n',curStack(1).line,curStack(1).file);
-            %             set(this.handles.table_centroidProfiles,'rowName',rowNames,'columnName',profileColumnNames,'units','points','fontname','arial','fontsize',12,'fontunits','points','visible','on');
-            % fitTable(this.handles.table_centroidProfiles);
+            %             curStack = dbstack;
+            %             fprintf(1,'Skipping centroid profile table initialization on line %u of %s\n',curStack(1).line,curStack(1).file);
+            set(this.handles.table_centroidProfiles,'rowName',rowNames,'columnName',profileColumnNames,'units','points','fontname','arial','fontsize',12,'fontunits','points','visible','on');
+            fitTable(this.handles.table_centroidProfiles);
             
             % disable everything
             if(~this.canPlot)
@@ -863,6 +878,27 @@ classdef PAStatTool < handle
             end
         end
         
+        function profileFieldSelectionChangeCallback(this,hObject,eventData)
+            
+        end
+        
+        function shouldShow = shouldShowAnalysisFigure(this)
+            shouldShow = get(this.handles.check_showAnalysisFigure,'value');
+        end
+        
+        % Should probably move to event listeners here pretty soon.
+        function hideAnalysisFigure(this,varargin)
+            set(this.handles.check_showAnalysisFigure,'value',0);
+            this.checkShowAnalysisFigureCallback(varargin(:));
+        end
+        
+        function checkShowAnalysisFigureCallback(this, hObject, eventData)    
+            if(this.shouldShowAnalysisFigure())
+                set(this.analysisFigureH,'visible','on');
+            else
+                set(this.analysisFigureH,'visible','off');                
+            end
+        end
 
         function primaryAxesScalingContextmenuCallback(this,hObject,~)
             set(get(hObject,'children'),'checked','off');            
@@ -958,7 +994,8 @@ classdef PAStatTool < handle
         %> @param this Instance of PAStatTool
         % ======================================================================
         function initScatterPlotFigure(this)
-            this.scatterPlotFigureH = analysis('visible','off');
+            this.analysisFigureH = analysis('visible','off');
+            set(this.analysisFigureH,'CloseRequestFcn',@this.hideAnalysisFigure);
         end
         % only extract the handles we are interested in using for the stat tool.
         % ======================================================================
@@ -968,7 +1005,7 @@ classdef PAStatTool < handle
         function initHandles(this)
             
             % get handles of interest from our analysis figure
-            tmpAnalysisHandles = guidata(this.scatterPlotFigureH);
+            tmpAnalysisHandles = guidata(this.analysisFigureH);
             analysisHandlesOfInterest = {
                 'axes_scatterplot'
                 'table_centroidProfiles'
@@ -1011,6 +1048,7 @@ classdef PAStatTool < handle
                 'text_resultsCentroid'
                 'check_holdPlots'
                 'check_autoScaleYAxes'
+                'check_showAnalysisFigure'
 
 %                 'text_resultsCentroid'
 %                 'table_centroidProfiles'
@@ -1675,6 +1713,8 @@ classdef PAStatTool < handle
             % Plot settings
             userSettings.primaryAxis_yLimMode = get(this.handles.axes_primary,'ylimmode');
             userSettings.primaryAxis_nextPlot = get(this.handles.axes_primary,'nextplot');
+            userSettings.showAnalysisFigure = get(this.handles.check_showAnalysisFigure,'value');
+            
             %             userSettings.centroidStartTime = getSelectedMenuString(this.handles.menu_centroidStartTime);
             %             userSettings.centroidStopTime = getSelectedMenuString(this.handles.menu_centroidStopTime);
 
@@ -1687,9 +1727,9 @@ classdef PAStatTool < handle
 
         
         function didRefresh = refreshProfileTableData(this)
-            curStack = dbstack;
-            fprintf(1,'Skipping %s on line %u of %s\n',curStack(1).name,curStack(1).line,curStack(1).file);
-%             set(this.handles.table_centroidProfiles,'data',this.profileTableData);
+            %             curStack = dbstack;
+            %             fprintf(1,'Skipping %s on line %u of %s\n',curStack(1).name,curStack(1).line,curStack(1).file);
+            set(this.handles.table_centroidProfiles,'data',this.profileTableData);
             didRefresh = true;
         end
         
@@ -1740,8 +1780,12 @@ classdef PAStatTool < handle
                 didRefresh = false;
             end
         end
+        
+       
                  
-    end    
+    end
+    
+    
     
     methods (Static)
         
@@ -1900,8 +1944,10 @@ classdef PAStatTool < handle
                         
             paramStruct.primaryAxis_yLimMode = 'auto';
             paramStruct.primaryAxis_nextPlot = 'replace';
-            
+            paramStruct.showAnalysisFigure = 0; % do not display the other figure at first
             paramStruct.centroidDistributionType = 'membership';  %{'performance','membership','weekday'}
+            
+            paramStruct.profileFieldSelection = 1;
         end
         
         % ======================================================================
@@ -1935,10 +1981,6 @@ classdef PAStatTool < handle
             baseSettings.weekdayDescriptions = {'All days','Monday-Friday','Weekend'};            
             baseSettings.weekdayTags = {'all','weekdays','weekends'};
             
-            baseSettings.startTimeSelection = 1;
-            baseSettings.stopTimeSelection = -1;
-            
-
             baseSettings.centroidDurationDescriptions = {'1 day','12 hours','6 hours','4 hours','3 hours','2 hours','1 hour'};
             baseSettings.centroidDurationDescriptions = {'24 hours','12 hours','6 hours','4 hours','3 hours','2 hours','1 hour'};
 
@@ -1961,8 +2003,9 @@ classdef PAStatTool < handle
             
             db = CLASS_database_goals();            
             if(nargin<2)
-                fieldsOfInterest = {'bmi_zscore';
-                    'insulin'};
+                fieldsOfInterest = db.getColumnNames('subjectInfo_t');
+%                 fieldsOfInterest = {'bmi_zscore';
+%                     'insulin'};
             end            
             statOfInterest = 'AVG';            
             [dataSummaryStruct, ~]=db.getSubjectInfoSummary(primaryKeys,fieldsOfInterest,statOfInterest);
