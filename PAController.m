@@ -157,8 +157,9 @@ classdef PAController < handle
             obj.SETTINGS.CONTROLLER = obj.getSaveParameters();
             obj.saveParameters(); %requires SETTINGS variable
             obj.SETTINGS = [];
-            
-            obj.StatTool.delete();
+            if(~isempty(obj.StatTool))
+                obj.StatTool.delete();
+            end
             
         end        
         
@@ -210,6 +211,7 @@ classdef PAController < handle
                 delete(hObject);
             catch ME
                 showME(ME);
+                pause;
                 killall;
             end
         end

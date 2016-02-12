@@ -9,6 +9,7 @@ classdef PAStatTool < handle
         featuresDirectory;
         imagesDirectory;
         
+        databaseObj;
         %> handle of scatter plot figure.
         analysisFigureH;
         
@@ -94,10 +95,21 @@ classdef PAStatTool < handle
                 widgetSettings = [];
             end
             
-            this.profileFields = {
-                'bmi_zscore';
-                'insulin'
-                };
+            try
+                this.databaseObj = CLASS_database_goals();                
+                this.profileFields = this.databaseObj.getColumnNames('subjectInfo_t');
+
+            catch me
+                showME(me);
+                this.databaseObj = [];
+                this.profileFields = {
+                    'bmi_zscore';
+                    'insulin'
+                    };
+                
+                
+            end
+
             
             % variable names for the table
             %             this.profileMetrics = {''};
@@ -505,8 +517,7 @@ classdef PAStatTool < handle
         function showMouseReady(this)
             set(this.figureH,'pointer','arrow');
             drawnow();
-        end
-                
+        end     
         
         % --------------------------------------------------------------------
         %> @brief Shows ready status: enables all non centroid panels and mouse becomes the default arrow pointer.
@@ -519,7 +530,6 @@ classdef PAStatTool < handle
             %             set(this.handles.panel_results,'enable','on');
             drawnow();
         end
-        
                 
         % ======================================================================
         %> @brief Plot dropdown selection menu callback.
@@ -542,6 +552,9 @@ classdef PAStatTool < handle
             end
             this.previousState.plotType = plotType;
         end
+        
+        
+        
         
         % ======================================================================
         %> @brief Configure gui handles for non centroid/clusting viewing
@@ -833,7 +846,7 @@ classdef PAStatTool < handle
                         
                         
                         % add a context menu now to secondary axes
-                        contextmenu_secondaryAxes = uicontextmenu('callback',@this.contextmenu_secondaryAxesCallback);
+                        contextmenu_secondaryAxes = uicontextmenu('callback',@this.contextmenu_secondaryAxesCallback,'parent',this.figureH);
                         this.handles.contextmenu.performance = uimenu(contextmenu_secondaryAxes,'Label','Show adaptive separation performance progression','callback',{@this.centroidDistributionCallback,'performance'});
                         this.handles.contextmenu.weekday = uimenu(contextmenu_secondaryAxes,'Label','Show current centroid''s weekday distribution','callback',{@this.centroidDistributionCallback,'weekday'});
                         this.handles.contextmenu.membership = uimenu(contextmenu_secondaryAxes,'Label','Show membership distribution by centroid','callback',{@this.centroidDistributionCallback,'membership'});
@@ -1459,7 +1472,7 @@ classdef PAStatTool < handle
             
             set(findall(this.handles.panel_controlCentroid,'enable','off'),'enable','on');  
             % add a context menu now to primary axes
-            contextmenu_primaryAxes = uicontextmenu();
+            contextmenu_primaryAxes = uicontextmenu('parent',this.figureH);
             axesScalingMenu = uimenu(contextmenu_primaryAxes,'Label','y-Axis scaling','callback',@this.primaryAxesScalingContextmenuCallback);
             this.handles.contextmenu.axesYLimMode.auto = uimenu(axesScalingMenu,'Label','Auto','callback',{@this.primaryAxesScalingCallback,'auto'});
             this.handles.contextmenu.axesYLimMode.manual = uimenu(axesScalingMenu,'Label','Manual','callback',{@this.primaryAxesScalingCallback,'manual'});
@@ -1715,6 +1728,7 @@ classdef PAStatTool < handle
             userSettings.primaryAxis_nextPlot = get(this.handles.axes_primary,'nextplot');
             userSettings.showAnalysisFigure = get(this.handles.check_showAnalysisFigure,'value');
             
+            userSettings.profileFieldSelection = get(this.handles.menu_ySelection,'value');
             %             userSettings.centroidStartTime = getSelectedMenuString(this.handles.menu_centroidStartTime);
             %             userSettings.centroidStopTime = getSelectedMenuString(this.handles.menu_centroidStopTime);
 
@@ -1780,6 +1794,23 @@ classdef PAStatTool < handle
                 didRefresh = false;
             end
         end
+        
+     %> @param Obtained from <PACentroid>.getCentroidOfInterest()
+        %> or <PACentroid>.getCovariateStruct() for all subjects.
+        %> @param Primary ID's to extract from the database.
+        %> @param Field names to extract from the database.
+        function [coiProfile, dataSummaryStruct] = getProfileCell(this,primaryKeys,fieldsOfInterest)
+            
+            if(nargin<2)
+                fieldsOfInterest = this.databaseObj.getColumnNames('subjectInfo_t');
+                %                 fieldsOfInterest = {'bmi_zscore';
+                %                     'insulin'};
+            end
+            statOfInterest = 'AVG';
+            [dataSummaryStruct, ~]=this.databaseObj.getSubjectInfoSummary(primaryKeys,fieldsOfInterest,statOfInterest);
+            coiProfile = PAStatTool.profile2cell(dataSummaryStruct);
+        end
+        
         
        
                  
@@ -1993,25 +2024,6 @@ classdef PAStatTool < handle
                 1];
 
         end
-        
-
-        %> @param Obtained from <PACentroid>.getCentroidOfInterest()
-        %> or <PACentroid>.getCovariateStruct() for all subjects.
-        %> @param Primary ID's to extract from the database.
-        %> @param Field names to extract from the database.
-        function [coiProfile, dataSummaryStruct] = getProfileCell(primaryKeys,fieldsOfInterest)
-            
-            db = CLASS_database_goals();            
-            if(nargin<2)
-                fieldsOfInterest = db.getColumnNames('subjectInfo_t');
-%                 fieldsOfInterest = {'bmi_zscore';
-%                     'insulin'};
-            end            
-            statOfInterest = 'AVG';            
-            [dataSummaryStruct, ~]=db.getSubjectInfoSummary(primaryKeys,fieldsOfInterest,statOfInterest);
-            coiProfile = PAStatTool.profile2cell(dataSummaryStruct);
-        end 
-        
         
         %> @brief Profile cell is output as follows  
         %         'n'
