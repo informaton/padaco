@@ -873,16 +873,22 @@ classdef PAStatTool < handle
             if(widgetSettings.profileFieldSelection>numel(this.profileFields))
                 widgetSettings.profileFieldSelection = 1;
             end
+            
             set(this.handles.menu_ySelection,'string',this.profileFields,'value',widgetSettings.profileFieldSelection,'callback',@this.profileFieldSelectionChangeCallback);
+
+            set(this.handles.push_dumpTable,'string','Dump Table','callback',@this.dumpTableResultsCallback);
+            
             tableData = cell(numel(rowNames),numel(profileColumnNames));
             this.profileTableData = tableData;  %array2table(tableData,'VariableNames',profileColumnNames,'RowNames',rowNames);                        
             this.refreshProfileTableData();
                       
+            set(this.handles.axes_scatterplot,'box','on');
+            ylabel(this.handles.axes_scatterplot,this.profileFields{widgetSettings.profileFieldSelection},'interpreter','none');
             
             %             curStack = dbstack;
             %             fprintf(1,'Skipping centroid profile table initialization on line %u of %s\n',curStack(1).line,curStack(1).file);
-            set(this.handles.table_centroidProfiles,'rowName',rowNames,'columnName',profileColumnNames,'units','points','fontname','arial','fontsize',12,'fontunits','points','visible','on');
-            fitTable(this.handles.table_centroidProfiles);
+            set(this.handles.table_centroidProfiles,'rowName',rowNames,'columnName',profileColumnNames,'units','points','fontname','arial','fontsize',12,'fontunits','pixels','visible','on');
+            fitTableWidth(this.handles.table_centroidProfiles);
             
             % disable everything
             if(~this.canPlot)
@@ -891,8 +897,15 @@ classdef PAStatTool < handle
             end
         end
         
-        function profileFieldSelectionChangeCallback(this,hObject,eventData)
+        function dumpTableResultsCallback(this, hObject,eventData)
+            tableData = get(this.handles.table_centroidProfiles,'data');
+            copy2workspace(tableData,'centroidProfilesTable');
             
+        end
+        
+        function profileFieldSelectionChangeCallback(this,hObject,eventData)
+            curSetting = getSelectedMenuString(hObject);
+            ylabel(this.handles.axes_scatterplot,curSetting);    
         end
         
         function shouldShow = shouldShowAnalysisFigure(this)
@@ -1023,6 +1036,7 @@ classdef PAStatTool < handle
                 'axes_scatterplot'
                 'table_centroidProfiles'
                 'menu_ySelection'
+                'push_dumpTable'
                 };
                           
             for f=1:numel(analysisHandlesOfInterest)
