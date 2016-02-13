@@ -37,6 +37,13 @@ classdef PACentroid < handle
         %> by their load shape count
         centroidSortMap;
         
+        %> Alias for centroidSortMap
+        coiIndex2SortOrder;
+        
+        %> map for going from sort order to coi index.
+        coiSortOrder2Index;
+        
+        
         %> The sort order index for the centroid of interest (coi) 
         %> identified for analysis.  It is 
         %> initialized to the most frequent centroid upon successful
@@ -183,7 +190,16 @@ classdef PACentroid < handle
         % ======================================================================
         function n = numCentroids(this)
             n = size(this.centroidShapes,1);
-        end        
+        end
+        
+        % ======================================================================
+        %> @brief Alias for numCentroids.
+        %> @param Instance of PACentroid        
+        %> @retval Number of centroids/clusters found.
+        % ======================================================================
+        function n = getNumCentroids(this)
+            n = this.numCentroids();
+        end
         
         % ======================================================================
         %> @brief Returns the number of load shapes clustered.
@@ -193,6 +209,15 @@ classdef PACentroid < handle
         function n = numLoadShapes(this)
             n = size(this.loadShapes,1);
         end        
+        
+        % ======================================================================
+        %> @brief Alias for numLoadShapes.
+        %> @param Instance of PACentroid        
+        %> @retval Number of load shapes clustered.
+        % ======================================================================
+        function n = getNumLoadShapes(this)
+            n = this.numLoadShapes();
+        end
         
         % ======================================================================
         %> @brief Initializes (sets to empty) member variables.  
@@ -277,6 +302,37 @@ classdef PACentroid < handle
             performance = this.performanceMeasure;
         end
                 
+        
+        %==================================================================
+        %> @brief Returns the index of centroid matching the current sort
+        %> order value (i.e. of member variable @c coiSortOrder) or of the
+        %> input sortOrder provided.
+        %> @param this Instance of PACentroid.
+        %> @param sortOrder (Optional) sort order for the centroid of interest to
+        %> retrive the index of.  If not provided, the value of member variable @c coiSortOrder is used.
+        %> @retval coiIndex The centroid index or tag. 
+        %> @note The coiIndex is the original index given to it during clustering.  
+        %> The sortOrder is the centroids rank in comparison to all
+        %> centroids found during clustering, with 1 being the least popular
+        %> and N (the number of centroids found) being the most popular.
+        %==================================================================
+        function coiIndex = getCOIIndex(this,sortOrder)
+            if(nargin<2 || isempty(sortOrder) || sortOrder<0 || sortOrder>this.numCentroids())
+                sortOrder = this.coiSortOrder;
+            end
+            % convert to match the index the centroid load shape corresponds to.
+            coiIndex = this.coiSortOrder2Index(sortOrder);           
+             
+        end
+        
+        function sortOrder = getCOISortOrder(this,coiIndex)
+            if(nargin<2 || isempty(coiIndex) || coiIndex<0 || coiIndex>this.numCentroids())
+                sortOrder = this.coiSortOrder;
+            else
+                sortOrder = this.coiIndex2SortOrder(coiIndex);
+            end
+        end
+        
         % ======================================================================
         %> @brief Returns a descriptive struct for the centroid of interest (coi) 
         %> which is determined by the member variable coiSortOrder.
@@ -387,6 +443,9 @@ classdef PACentroid < handle
             [this.load2centroidMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression] = this.adaptiveKmeans(inputLoadShapes,inputSettings, useDefaultRandomizerSeed,this.performanceAxesHandle,this.statusTextHandle);
             if(~isempty(this.centroidShapes))                
                 [this.histogram, this.centroidSortMap] = this.calculateAndSortDistribution(this.load2centroidMap);%  was -->       calculateAndSortDistribution(this.load2centroidMap);
+                this.coiIndex2SortOrder = this.centroidSortMap;
+                [~,this.coiSortOrder2Index] = sort(this.centroidSortMap,1,'ascend');
+
                 if(~this.setCOISortOrder(this.numCentroids()))
                     fprintf(1,'Warning - could not set the centroid of interest sort order to %u\n',this.numCentroids);
                 end
@@ -463,8 +522,9 @@ classdef PACentroid < handle
         %> @note This is the @c @b idx parameter returned from kmeans
         % @param number of centroids (i.e number of bins/edges to use when
         % calculating the distribution)
-        %> @retval
-        %> @retval        
+        %> @retval sortedCounts
+        %> @retval sortedIndices The sorted indices allow mapping from the
+        %> original order of the loadShapeMap to the index of its position in sorted order.
         % ======================================================================
         function [sortedCounts, sortedIndices] = calculateAndSortDistribution(loadShapeMap)
             centroidCounts = histc(loadShapeMap,1:max(loadShapeMap));
