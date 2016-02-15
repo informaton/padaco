@@ -646,9 +646,17 @@ classdef PAStatTool < handle
                 case 'leftarrow'
                     this.showPreviousCentroid(toggleOn);                        
                 case 'uparrow'
-                    %                     this.showNextCentroid(toggleOn);
+                    if(figH == this.analysisFigureH)
+                        this.decreaseProfileFieldSelection();
+                    elseif(figH == this.figureH)
+                        this.showNextCentroid(toggleOn);
+                    end
                 case 'downarrow'
-                    %                     this.showPreviousCentroid(toggleOn);
+                    if(figH == this.analysisFigureH)
+                        this.increaseProfileFieldSelection();
+                    elseif(figH == this.figureH)
+                        this.showPreviousCentroid(toggleOn);
+                    end
                 otherwise                
             end
         end
@@ -888,17 +896,17 @@ classdef PAStatTool < handle
             this.previousState.normalizeValues = widgetSettings.normalizeValues;
             this.previousState.plotType = this.base.plotTypes{widgetSettings.plotTypeSelection};
             
+            %% Analysis Figure
             % Profile Summary
-            this.initProfileTable();
+            this.initProfileTable(widgetSettings.profileFieldSelection);
                       
             % Initialize the scatter plot axes
-            this.initScatterPlotAxes(widgetSettings.profileFieldSelection);
+            this.initScatterPlotAxes();
             
-            %             curStack = dbstack;
-            %             fprintf(1,'Skipping centroid profile table initialization on line %u of %s\n',curStack(1).line,curStack(1).file);
-            set(this.handles.table_centroidProfiles,'rowName',rowNames,'columnName',profileColumnNames,'units','points','fontname','arial','fontsize',12,'fontunits','pixels','visible','on');
-            fitTableWidth(this.handles.table_centroidProfiles);
+            set(this.handles.push_dumpTable,'string','Dump Table','callback',@this.dumpTableResultsCallback);
+            set(this.handles.text_analysisTitle,'string','','fontsize',12);
             
+           
             % disable everything
             if(~this.canPlot)
                 set(findall(this.handles.panel_results,'enable','on'),'enable','off');
@@ -912,11 +920,54 @@ classdef PAStatTool < handle
             
         end
         
+
+        
+        function decreaseProfileFieldSelection(this)
+           curProfileFieldIndex = this.getProfileFieldIndex();
+           this.setProfileFieldIndex(curProfileFieldIndex-1);
+        end
+        
+        function increaseProfileFieldSelection(this)
+           curProfileFieldIndex = this.getProfileFieldIndex();
+           this.setProfileFieldIndex(curProfileFieldIndex+1);
+        end
+        
+        
+        %> @brief Software driven callback trigger for
+        %> profileFieldSelectionChangeCallback.  Used as a wrapper for
+        %> handling non-menu_ySelection menu changes to the profile field
+        %> index (e.g. using up or down arrow keys).
+        %> @param this Instance of PAStatTool
+        %> @param profileFieldIndex
+        function setProfileFieldIndex(this, profileFieldIndex)
+            selections = get(this.handles.menu_ySelection,'string');
+            if(iscell(selections) && profileFieldIndex > 0 && profileFieldIndex <= numel(selections))
+                set(this.handles.menu_ySelection,'value',profileFieldIndex);
+                this.profileFieldSelectionChangeCallback(this.handles.menu_ySelection,[]);
+            end
+        end
+
+        %> @brief Callback for the profile selection menu widget found in
+        %> the analysis figure.  Results in changing the scatter plot and 
+        %> highlighting the newly selected field of interest in the
+        %> centroid profile table.
+        %> @param this Instance of PAStatTool
+        %> @param hObject
+        %> @param eventData 
         function profileFieldSelectionChangeCallback(this,hObject,eventData)
-            curSetting = getSelectedMenuString(hObject);
-            ylabel(this.handles.axes_scatterplot,curSetting);    
+            [curSetting, curIndex] = getSelectedMenuString(hObject);
+            ylabel(this.handles.axes_scatterplot,curSetting);
+            
+            % highlight the newly selected field of interest in the
+            % centroid profile table.
+            userData = get(this.handles.table_centroidProfiles,'userdata');
+            backgroundColor = userData.defaultBackgroundColor;
+            backgroundColor(curIndex,:) = userData.rowOfInterestBackgroundColor;
+            set(this.handles.table_centroidProfiles,'backgroundColor',backgroundColor,'rowStriping','on');
+            
             this.refreshScatterPlot();
         end
+        
         
         function shouldShow = shouldShowAnalysisFigure(this)
             shouldShow = get(this.handles.check_showAnalysisFigure,'value');
@@ -1054,9 +1105,14 @@ classdef PAStatTool < handle
         end
         
         % ======================================================================
-        %>  @brief
+        %>  @brief Initializes the row table and menu_ySelection menu
+        %> handle which indicates the profile field selected by the user.
+        %> The row corresponding to the selected profile field is highlighed
+        %> by using a darker background color
         %> @param this Instance of PAStatTool
-        %> @param profileFieldSelection
+        %> @param profileFieldSelection Index of the profile field
+        %> currently selected.  If not entered, it is set to '1', the first
+        %> profile field available.
         % ======================================================================
         function initProfileTable(this, profileFieldSelection)
             % intialize the centroid profile table
@@ -1068,14 +1124,28 @@ classdef PAStatTool < handle
             end
             
             set(this.handles.menu_ySelection,'string',this.profileFields,'value',profileFieldSelection,'callback',@this.profileFieldSelectionChangeCallback);
+
+            numRows = numel(rowNames);
+            backgroundColor = repmat([1 1 1; 0.94 0.94 0.94],ceil(numRows/2),1); % possibly have one extra if numRows is odd.
+            backgroundColor = backgroundColor(1:numRows,:);  %make sure we only get as many rows as we actually have.
+            userData.defaultBackgroundColor = backgroundColor;
+            userData.rowOfInterestBackgroundColor = [0.5 0.5 0.5];
+            backgroundColor(profileFieldSelection,:) = userData.rowOfInterestBackgroundColor;
             
-            set(this.handles.push_dumpTable,'string','Dump Table','callback',@this.dumpTableResultsCallback);
-            set(this.handles.text_analysisTitle,'string','','fontsize',12);
             % legend(this.handles.axes_scatterPlot,'off');
-            
-            tableData = cell(numel(rowNames),numel(profileColumnNames));
+            tableData = cell(numRows,numel(profileColumnNames));
             this.profileTableData = tableData;  %array2table(tableData,'VariableNames',profileColumnNames,'RowNames',rowNames);
+            
+            %             curStack = dbstack;
+            %             fprintf(1,'Skipping centroid profile table initialization on line %u of %s\n',curStack(1).line,curStack(1).file);
+            set(this.handles.table_centroidProfiles,'rowName',rowNames,'columnName',profileColumnNames,...
+                'units','points','fontname','arial','fontsize',12,'fontunits','pixels','visible','on',...
+                'backgroundColor',backgroundColor,'rowStriping','on',...
+                'userdata',userData);
+                        
             this.refreshProfileTableData();
+                        
+            fitTableWidth(this.handles.table_centroidProfiles);
         end
 
         % ======================================================================
@@ -1872,7 +1942,6 @@ classdef PAStatTool < handle
         function didRefresh = refreshProfileTableData(this)
             %             curStack = dbstack;
             %             fprintf(1,'Skipping %s on line %u of %s\n',curStack(1).name,curStack(1).line,curStack(1).file);
-            
             set(this.handles.table_centroidProfiles,'data',this.profileTableData);
             didRefresh = true;
         end
