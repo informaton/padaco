@@ -662,10 +662,11 @@ classdef PAStatTool < handle
         end
         
         % ======================================================================
-        %> @brief Window key press callback for centroid view changes
+        %> @brief Mouse button callback when clicking on the centroid
+        %> distribution histogram.
         %> @param this Instance of PAStatTool
-        %> @param figH Handle to the callback figure
-        %> @param eventdata Struct of key press parameters.  Fields include
+        %> @param hObject Handle to the bar graph.
+        %> @param eventdata Struct of 'hit' even data.
         % ======================================================================
         function centroidHistogramButtonDownFcn(this,histogramH,eventdata)
             xHit = eventdata.IntersectionPoint(1);
@@ -684,12 +685,15 @@ classdef PAStatTool < handle
             this.plotCentroids();         
         end
         
-        % =================================================================
-        %> @brief Window key press callback for centroid view changes
+        
+        
+        % ======================================================================
+        %> @brief Mouse button callback when clicking a patch overlay of the centroid histogram.
         %> @param this Instance of PAStatTool
-        %> @param figH Handle to the callback figure
-        %> @param eventdata Struct of key press parameters.  Fields include
-        % =================================================================
+        %> @param hObject Handle to the patch overlay.
+        %> @param eventdata Struct of 'hit' even data.
+        %> @param coiSortOrder - Index of the patch being clicked on.
+        % ======================================================================
         function centroidHistogramPatchButtonDownFcn(this,hObject,eventData,coiSortOrder)
             holdOn = get(this.handles.check_holdPlots,'value');
 
@@ -701,6 +705,49 @@ classdef PAStatTool < handle
             this.plotCentroids();
         end
 
+        
+        % ======================================================================
+        %> @brief Mouse button callback when clicking on a scatter plot entry.
+        %> @param this Instance of PAStatTool
+        %> @param lineH Handle to the scatterplot line.
+        %> @param eventData Struct of 'hit' even data.
+        % ======================================================================
+        function scatterplotButtonDownFcn(this,lineH,eventData)
+            xHit = eventData.IntersectionPoint(1);
+            selectedSortOrder = round(xHit);
+            holdOn = get(this.handles.check_holdPlots,'value');
+
+            if(~holdOn && strcmpi(get(this.analysisFigureH,'selectiontype'),'normal'))
+                this.centroidObj.setCOISortOrder(selectedSortOrder);
+            else
+                this.centroidObj.toggleCOISortOrder(selectedSortOrder);                
+            end
+            this.plotCentroids();         
+        end
+        
+        
+        
+        % ======================================================================
+        %> @brief Mouse button callback when clicking on a highlighted member (coi) 
+        %> of the centroid-profile scatter plot.
+        %> @param this Instance of PAStatTool
+        %> @param lineH Handle to the scatterplot line.
+        %> @param eventData Struct of 'hit' even data.
+        % ======================================================================
+        function scatterPlotCOIButtonDownFcn(this,lineH,eventData)
+            xHit = eventData.IntersectionPoint(1);
+            coiSortOrder = round(xHit);
+            holdOn = get(this.handles.check_holdPlots,'value');
+            if(~holdOn && strcmpi(get(this.analysisFigureH,'selectiontype'),'normal'))
+                this.centroidObj.setCOISortOrder(coiSortOrder);
+            else
+                this.centroidObj.toggleCOISortOrder(coiSortOrder);
+            end
+            this.plotCentroids();
+        end
+
+        
+                
         % ======================================================================
         %> @brief Initialize gui handles using input parameter or default
         %> parameters.  Initalizes callbacks where applicable.
@@ -1155,8 +1202,8 @@ classdef PAStatTool < handle
         % ======================================================================
         function initScatterPlotAxes(this)
             set(this.handles.axes_scatterplot,'box','on');
-            this.handles.line_allScatterPlot=line('parent',this.handles.axes_scatterplot,'xdata',[],'ydata',[],'color','k','linestyle','none','marker','.');
-            this.handles.line_coiInScatterPlot=line('parent',this.handles.axes_scatterplot,'xdata',[],'ydata',[],'color','r','linestyle','none','markerFaceColor','g','marker','o','markersize',6);
+            this.handles.line_allScatterPlot = line('parent',this.handles.axes_scatterplot,'xdata',[],'ydata',[],'color','k','linestyle','none','marker','.','buttondownfcn',@this.scatterplotButtonDownFcn);
+            this.handles.line_coiInScatterPlot = line('parent',this.handles.axes_scatterplot,'xdata',[],'ydata',[],'color','r','linestyle','none','markerFaceColor','g','marker','o','markersize',6,'buttondownfcn',@this.scatterPlotCOIButtonDownFcn);
             [~,profileFieldName] = this.getProfileFieldIndex();
             ylabel(this.handles.axes_scatterplot,profileFieldName,'interpreter','none');
             xlabel(this.handles.axes_scatterplot,'Centroid popularity');
