@@ -516,7 +516,7 @@ classdef PAStatTool < handle
         %> @param this Instance of PAStatTool
         % ======================================================================
         function showBusy(this)
-            set(findall(this.handles.panels_sansCentroids,'enable','on'),'enable','off');             
+            set(findall(this.handles.panels_sansCentroids,'enable','on'),'enable','off');
             set(this.figureH,'pointer','watch');
             drawnow();
         end
@@ -1748,6 +1748,9 @@ classdef PAStatTool < handle
                 
                 legendStrings = cell(numCOIs,1);
                 centroidHandles = nan(numCOIs,1);
+                coiSortOrders = centroidHandles;
+                coiPctMemberships = coiSortOrders;
+                coiIndices = centroidHandles;
                 for c=1:numCOIs
                     coi = cois{c};                    
                     if(centroidAndPlotSettings.showCentroidMembers)
@@ -1758,6 +1761,10 @@ classdef PAStatTool < handle
                     legendStrings{c} = sprintf('Centroid %u (#%u: %0.2f%%)',coi.index,...
                         numCentroids-coi.sortOrder+1, pctMembership);
                     
+                    coiSortOrders(c) = coi.sortOrder;
+                    coiPctMemberships(c) =  coi.numMembers/numLoadShapes*100;
+                    coiIndices(c) = coi.index;
+                    
                     % This changes my axes limit mode if nextplot is set to
                     % 'replace' instead of 'replacechildren'
                     colorStyleIndex = mod(c-1,maxColorStyles)+1;  %b/c MATLAB is one based, and 'mod' is not.
@@ -1766,7 +1773,10 @@ classdef PAStatTool < handle
 
                 end
                 
-                coi = cois{end};
+                % The centroid of interest will change according to user 
+                % selection or interaction with the gui.  It is updated
+                % internally within centroidObj.  
+                coi = this.centroidObj.getCentroidOfInterest();
                 pctMembership =  coi.numMembers/numLoadShapes*100;                
                 
                 set(centroidAxes,'nextplot',nextPlot);
@@ -1774,22 +1784,23 @@ classdef PAStatTool < handle
                 centroidTitle = sprintf('Centroid #%u (%s). Popularity %u of %u. Membership count: %u of %u (%0.2f%%)',coi.index,...
                     this.featureStruct.method, numCentroids-coi.sortOrder+1,numCentroids, coi.numMembers, numLoadShapes, pctMembership);
                 
-                
                 title(centroidAxes,centroidTitle,'fontsize',14);
-                set(this.handles.text_analysisTitle,'string',centroidTitle);
-                
-                displayName = sprintf('Centroid #%u (%0.2f%%)',coi.index,pctMembership);
-                yData = get(this.handles.line_allScatterPlot,'ydata');
-                set(this.handles.line_coiInScatterPlot,'xdata',coi.sortOrder,'ydata',yData(coi.sortOrder),'displayName',displayName);
-                
-                %                 title(this.handles.axes_scatterplot,centroidTitle,'fontsize',12);
-                
                 
                 if(numCOIs>1)
                     legend(centroidAxes,centroidHandles,legendStrings,'box','on','fontsize',12);
                 else
                     legend(centroidAxes,'off');
                 end
+                
+                %% Analysis figure and scatter plot
+                %                 title(this.handles.axes_scatterplot,centroidTitle,'fontsize',12);
+                set(this.handles.text_analysisTitle,'string',centroidTitle);
+                
+                displayName = sprintf('Centroid #%u (%0.2f%%)\n',[coiIndices(:),coiPctMemberships(:)]');
+                displayName(end-1:end) = []; %remove trailing '\n'
+                yData = get(this.handles.line_allScatterPlot,'ydata');
+                set(this.handles.line_coiInScatterPlot,'xdata',coiSortOrders,'ydata',yData(coiSortOrders),'displayName',displayName);
+                
                 %%  Show distribution on secondary axes
                 switch(this.centroidDistributionType)
                     
