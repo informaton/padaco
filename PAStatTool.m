@@ -560,6 +560,7 @@ classdef PAStatTool < handle
         function plotSelectionChange(this, menuHandle, ~)
             this.clearPlots();
             plotType = this.base.plotTypes{get(menuHandle,'value')};
+            set(menuHandle,'tooltipstring',this.base.tooltipstring.(plotType));
             switch(plotType)
                 case 'centroids'
                     this.switch2clustering();
@@ -869,8 +870,8 @@ classdef PAStatTool < handle
                         % change callback which is called after initWidgets
                         % in the constructor.
                         set(this.handles.push_refreshCentroids,'callback',@this.refreshCentroidsAndPlot);
-                        set(this.handles.push_previousCentroid,'callback',@this.showPreviousCentroid);
-                        set(this.handles.push_nextCentroid,'callback',@this.showNextCentroid);
+                        set(this.handles.push_previousCentroid,'callback',@this.showPreviousCentroidCallback);
+                        set(this.handles.push_nextCentroid,'callback',@this.showNextCentroidCallback);
                         
                         set(this.handles.push_nextCentroid,'units','pixels');
                         set(this.handles.push_previousCentroid,'units','pixels');
@@ -1320,6 +1321,7 @@ classdef PAStatTool < handle
             end
             
             switch(plotOptions.plotType)
+                
                 case 'dailyaverage'
                     imageMap = nan(7,1);
                     for dayofweek=0:6
@@ -2301,6 +2303,20 @@ classdef PAStatTool < handle
             
             baseSettings.plotTypes = {'dailyaverage','dailytally','morningheatmap','heatmap','rolling','morningrolling','centroids'};
             baseSettings.plotTypeDescriptions = {'Average Daily Tallies','Total Daily Tallies','Heat map (early morning)','Heat map','Time series','Time series (morning)','Centroids'};
+            baseSettings.plotTypeToolTipStrings = {
+                sprintf('The daily average is calculated by taking the average feature sum per subject taken by day of the week.\n  The results should not be as biased by the number of subjects participating in any particular day.');
+                sprintf('The daily tally is calculated by summing together the feature sums of each subject taken by day of the week.\n  Days with more subjects have a much greater chance of having higher sums.');
+                sprintf('The morning heat map presents the average sum of early morning activity as color intensity instead of height on the y-axis.\n  It focuses on the early part of each day.');
+                sprintf('The heat map presents the average sum of daily activity\n as color intensity instead of height on the y-axis.');
+                sprintf('The rolling map shows the linear progression of the\n sum of subject activity by day of the week.');
+                sprintf('The early morning rolling map shows the linear progression\n of the sum of subject activity for the early part of each day of the week.');
+                sprintf('Centroids present the adaptive k-means centroids for the selected\n features and clustering parameters given in the controls below.');
+                };
+
+            for b=1:numel(baseSettings.plotTypes)
+                plotType = baseSettings.plotTypes{b};
+                baseSettings.tooltipstring.(plotType) = baseSettings.plotTypeToolTipStrings{b};
+            end
             
             baseSettings.processedTypes = {'count','raw'};            
             baseSettings.numShades = 1000;
