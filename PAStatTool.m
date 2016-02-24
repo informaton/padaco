@@ -1132,10 +1132,14 @@ classdef PAStatTool < handle
             % get the current profile's ('curProfileIndex' row) mean ('2' column) for all centrois
             % (':').
             x = 1:numCentroids;
-            y = this.allProfiles(curProfileFieldIndex, 2, :);
-            set(this.handles.line_allScatterPlot,'xdata',x,'ydata',y);
+            y = this.allProfiles(curProfileFieldIndex, 2, :);  % rows (1) = 
+                        % columns (2) = 
+                        % dimension (3) = centroid popularity (1 to most
+                        % popular index)
+                        
+            set(this.handles.line_allScatterPlot,'xdata',x(:),'ydata',y(:));
             set(this.handles.line_coiInScatterPlot,'xdata',sortOrder,'ydata',y(sortOrder));%,'displayName','blah');
-            legend(this.handles.axes_scatterplot,this.handles.line_coiInScatterPlot);
+            % legend(this.handles.axes_scatterplot,this.handles.line_coiInScatterPlot);
         end
         
         % only extract the handles we are interested in using for the stat tool.
@@ -1799,28 +1803,35 @@ classdef PAStatTool < handle
                 centroidHandles = nan(numCOIs,1);
                 coiSortOrders = centroidHandles;
                 coiPctMemberships = coiSortOrders;
-                coiIndices = centroidHandles;
+                %                 coiIndices = centroidHandles;
+                totalMembers = 0;
+                coiMemberIDs = [];
                 for c=1:numCOIs
                     coi = cois{c};                    
                     if(centroidAndPlotSettings.showCentroidMembers)
                         plot(centroidAxes,coi.memberShapes','-','linewidth',1,'color',[0.85 0.85 0.85]);
                     end
-                    
                     pctMembership =  coi.numMembers/numLoadShapes*100;
-                    legendStrings{c} = sprintf('Centroid %u (#%u: %0.2f%%)',coi.index,...
-                        numCentroids-coi.sortOrder+1, pctMembership);
+                    legendStrings{c} = sprintf('Centroid #%u (%0.2f%%)',coi.sortOrder, pctMembership);
                     
                     coiSortOrders(c) = coi.sortOrder;
                     coiPctMemberships(c) =  coi.numMembers/numLoadShapes*100;
-                    coiIndices(c) = coi.index;
+                    %                     coiIndices(c) = coi.index;
+                    coiMemberIDs = [coiMemberIDs;coi.memberIDs(:)];
+                    totalMembers = totalMembers+coi.numMembers;  %total load shape counts
+
                     
                     % This changes my axes limit mode if nextplot is set to
                     % 'replace' instead of 'replacechildren'
                     colorStyleIndex = mod(c-1,maxColorStyles)+1;  %b/c MATLAB is one based, and 'mod' is not.
                     centroidHandles(c) = plot(centroidAxes,coi.shape,'linewidth',2,'linestyle',coiStyles(colorStyleIndex),'color',coiColors(colorStyleIndex)); %[0 0 0]);
                     % 'displayname',legendStrings{c};
-
                 end
+                
+                %want to figure out unique individuals that may be
+                %contributing to a particular load shape.
+                uniqueMemberIDs = unique(coiMemberIDs);
+                numUniqueMemberIDs = numel(uniqueMemberIDs);
                 
                 % The centroid of interest will change according to user 
                 % selection or interaction with the gui.  It is updated
@@ -1830,22 +1841,29 @@ classdef PAStatTool < handle
                 
                 set(centroidAxes,'nextplot',nextPlot);
                 
-                centroidTitle = sprintf('Centroid #%u (%s). Popularity %u of %u. Membership count: %u of %u (%0.2f%%)',coi.index,...
-                    this.featureStruct.method, numCentroids-coi.sortOrder+1,numCentroids, coi.numMembers, numLoadShapes, pctMembership);
-                
-                title(centroidAxes,centroidTitle,'fontsize',14);
-                
+                totalMemberIDsCount = this.centroidObj.getUniqueLoadShapeIDsCount();
+                pctOfTotalMemberIDs = numUniqueMemberIDs/totalMemberIDsCount*100;
                 if(numCOIs>1)
+                    coiSortOrdersString = num2str(coiSortOrders(:)','%d,');
+                    coiSortOrdersString(end)=[]; %remove trailing ','
                     legend(centroidAxes,centroidHandles,legendStrings,'box','on','fontsize',12);
+                    centroidTitle = sprintf('Centroids #{%s}. Loadshapes: %u of %u (%0.2f%%).  Individuals: %u of %u (%0.2f%%)',coiSortOrdersString,...
+                        totalMembers, numLoadShapes, sum(coiPctMemberships), numUniqueMemberIDs,totalMemberIDsCount, pctOfTotalMemberIDs);
+                                    
                 else
                     legend(centroidAxes,'off');
+                    centroidTitle = sprintf('Centroid #%u (%s). Popularity %u of %u. Loadshapes: %u of %u (%0.2f%%).  Individuals: %u of %u (%0.2f%%)',coi.sortOrder,...
+                        this.featureStruct.method, numCentroids-coi.sortOrder+1,numCentroids, coi.numMembers, numLoadShapes, pctMembership, numUniqueMemberIDs, totalMemberIDsCount, pctOfTotalMemberIDs);                    
                 end
+                
+                title(centroidAxes,centroidTitle,'fontsize',14,'interpreter','none');
+                                
                 
                 %% Analysis figure and scatter plot
                 %                 title(this.handles.axes_scatterplot,centroidTitle,'fontsize',12);
                 set(this.handles.text_analysisTitle,'string',centroidTitle);
                 
-                displayName = sprintf('Centroid #%u (%0.2f%%)\n',[coiIndices(:),coiPctMemberships(:)]');
+                displayName = sprintf('Centroid #%u (%0.2f%%)\n',[coiSortOrders(:),coiPctMemberships(:)]');
                 displayName(end-1:end) = []; %remove trailing '\n'
                 yData = get(this.handles.line_allScatterPlot,'ydata');
                 set(this.handles.line_coiInScatterPlot,'xdata',coiSortOrders,'ydata',yData(coiSortOrders),'displayName',displayName);
@@ -2020,7 +2038,8 @@ classdef PAStatTool < handle
                     coiStruct = this.centroidObj.getCentroidOfInterest();
                     this.coiProfile = this.getProfileCell(coiStruct.memberIDs,this.profileFields);
                                         
-                    % place the global profile at the end.
+                    % place the local profile at the beginning (first few
+                    % columns).
                     this.profileTableData(:,1:size(this.coiProfile,2)) = this.coiProfile;  
                     this.refreshProfileTableData();
                     didRefresh = true;                    
@@ -2068,8 +2087,12 @@ classdef PAStatTool < handle
                     % order, so a remapping of the coiIndex occurs in this
                     % loop with the call to getCOISortOrder(coiIndex).
                     for coiIndex=1:numCentroids
+                        coiMemberIDs = globalStruct.memberIDs(globalStruct.values(:,coiIndex)>0);  % pull out the members contributing to index of the current centroid of interest (coi)
+                        
                         sortOrder = this.centroidObj.getCOISortOrder(coiIndex);
-                        coiMemberIDs = globalStruct.memberIDs(globalStruct.values(:,sortOrder)>0);  % pull out the members contributing to the current centroid (coi)
+                        if(sortOrder==21)
+                           disp(sortOrder); 
+                        end
                         this.allProfiles(:,:,sortOrder) = cell2mat(this.getProfileCell(coiMemberIDs, this.profileFields));
                     end
                     
