@@ -1673,14 +1673,14 @@ classdef PAStatTool < handle
             
             % Prep the x-axis here since it will not change when going from one centroid to the
             % next, but only (though not necessarily) when refreshing centroids.
-            xTicks = 1:8:this.featureStruct.totalCount;
+            xTicks = 1:6:this.featureStruct.totalCount;
             
             % This is nice to place a final tick matching the end time on
             % the graph, but it sometimes gets too busy and the tick
             % separation distance is non-linear which can be an eye soar.
-            %             if(xTicks(end)~=this.featureStruct.totalCount)
-            %                 xTicks(end+1)=this.featureStruct.totalCount;
-            %             end
+%             if(xTicks(end)~=this.featureStruct.totalCount)
+%                 xTicks(end+1)=this.featureStruct.totalCount;
+%             end
             
             xTickLabels = this.featureStruct.startTimes(xTicks);
             set(this.handles.axes_primary,'xlim',[1,this.featureStruct.totalCount],'xtick',xTicks,'xticklabel',xTickLabels);
