@@ -1126,8 +1126,7 @@ classdef PAStatTool < handle
         
         function refreshScatterPlot(this)
             numCentroids = this.centroidObj.getNumCentroids();  %or numel(globalStruct.colnames).
-            %             coiIndex = this.centroidObj.getCOIIndex();
-            sortOrder = this.centroidObj.getCOISortOrder();
+            sortOrders = find( this.centroidObj.getCOIToggleOrder() );
             curProfileFieldIndex = this.getProfileFieldIndex();
             % get the current profile's ('curProfileIndex' row) mean ('2' column) for all centrois
             % (':').
@@ -1138,8 +1137,15 @@ classdef PAStatTool < handle
                         % popular index)
                         
             set(this.handles.line_allScatterPlot,'xdata',x(:),'ydata',y(:));
-            set(this.handles.line_coiInScatterPlot,'xdata',sortOrder,'ydata',y(sortOrder));%,'displayName','blah');
-            % legend(this.handles.axes_scatterplot,this.handles.line_coiInScatterPlot);
+            
+            % The sort order indices will not change on a refresh like
+            % this, but the y values at these indices will; so update them
+            % here.
+            %             coiSortOrders = get(this.handles.line_coiInScatterPlot,'xdata');
+            %             set(this.handles.line_coiInScatterPlot,'ydata',y(coiSortOrders));
+            
+            set(this.handles.line_coiInScatterPlot,'xdata',sortOrders,'ydata',y(sortOrders));%,'displayName','blah');
+            legend(this.handles.axes_scatterplot,this.handles.line_coiInScatterPlot,'location','southwest');
         end
         
         % only extract the handles we are interested in using for the stat tool.
@@ -1212,6 +1218,12 @@ classdef PAStatTool < handle
             [~,profileFieldName] = this.getProfileFieldIndex();
             ylabel(this.handles.axes_scatterplot,profileFieldName,'interpreter','none');
             xlabel(this.handles.axes_scatterplot,'Centroid popularity');
+            
+            
+            % add a context menu now to primary axes
+            contextmenu_ScatterPlotAxes = uicontextmenu('parent',this.analysisFigureH);
+            this.handles.contextmenu.toggleLegend = uimenu(contextmenu_ScatterPlotAxes,'Label','Toggle legend','callback',{@this.toggleLegendCallback,this.handles.axes_scatterplot});
+            set(this.handles.axes_scatterplot,'uicontextmenu',contextmenu_ScatterPlotAxes);  
         end
 
         % only extract the handles we are interested in using for the stat tool.
@@ -1699,6 +1711,9 @@ classdef PAStatTool < handle
             set(this.handles.axes_primary,'uicontextmenu',[]);
         end
         
+        function toggleLegendCallback(this, hObject,eventData, axesHandle)
+            legend(axesHandle,'toggle');
+        end
         
         function showCentroidControls(this)
             set(this.handles.panel_controlCentroid,'visible','on');

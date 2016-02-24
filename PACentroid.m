@@ -335,6 +335,10 @@ classdef PACentroid < handle
             end
         end
         
+        function toggleOrder = getCOIToggleOrder(this)
+            toggleOrder = this.coiToggleOrder;
+        end
+        
         % ======================================================================
         %> @brief Returns a descriptive struct for the centroid of interest (coi) 
         %> which is determined by the member variable coiSortOrder.
