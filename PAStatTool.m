@@ -347,7 +347,11 @@ classdef PAStatTool < handle
                 end
                 
                 if(pSettings.sortValues)
-                    loadFeatures = sort(loadFeatures,2,'descend');  %sort rows from high to low
+                    if(pSetttings.segmentValues)
+                        
+                    else
+                        loadFeatures = sort(loadFeatures,2,'descend');  %sort rows from high to low
+                    end
                 end
                 
                 
@@ -782,7 +786,8 @@ classdef PAStatTool < handle
                 this.handles.check_trim
                 this.handles.edit_trimToPercent
                 this.handles.check_cull
-                this.handles.edit_cullToValue],'units','points',...
+                this.handles.edit_cullToValue
+                this.handles.check_segment],'units','points',...
                 'callback',[],...
                 'enable','off');
 
@@ -808,6 +813,8 @@ classdef PAStatTool < handle
                         % This is good for a true false checkbox value
                         % Checked state has a value of 1
                         % Unchecked state has a value of 0
+                        
+                        set(this.handles.check_segment,'min',0,'max',1,'value',widgetSettings.segmentCentroidDistributions);
                         set(this.handles.check_trim,'min',0,'max',1,'value',widgetSettings.trimResults);
                         set(this.handles.check_cull,'min',0,'max',1,'value',widgetSettings.cullResults);
                         set(this.handles.check_showCentroidMembers,'min',0,'max',1,'value',widgetSettings.showCentroidMembers);
@@ -861,7 +868,9 @@ classdef PAStatTool < handle
                         end
                         set(this.handles.check_cull,'callback',@this.checkCullCallback);
                         set(this.handles.edit_cullToValue,'string',num2str(widgetSettings.cullToValue),'callback',@this.editCullToValueChange,'enable',enableState);
-
+                        set(this.handles.check_segment,'callback',@this.checkSegmentHistogramsCallback);
+                        
+                        
                         % Push buttons
                         % this should not normally be enabled if plotType
                         % is not centroids.  However, this will be
@@ -1270,6 +1279,7 @@ classdef PAStatTool < handle
                 'edit_trimToPercent'
                 'check_cull'
                 'edit_cullToValue'
+                'check_segment'
                 'check_showCentroidMembers'
                 'edit_centroidThreshold'
                 'edit_centroidMinimum'
@@ -1447,6 +1457,24 @@ classdef PAStatTool < handle
             set(axesHandle,'xtick',weekdayticks,'xticklabel',daysofweekStr,'xlim',xlimits);
         end
 
+        
+% ======================================================================
+        %> @brief Check button callback for segmenting centroid histogram 
+        %> distributions into intervals across the time period covered.
+        %> @param this Instance of PAStatTool
+        %> @param hObject Handle of the checkbutton that is calling back.
+        %> @param Variable number of arguments required by MATLAB gui callbacks
+        % ======================================================================
+        function checkSegmentHistogramsCallback(this,hObject,~)
+            %             if(get(hObject,'value'))
+            %                 enableState = 'on';
+            %             else
+            %                 enableState = 'off';
+            %             end
+
+            this.refreshPlot();
+        end
+        
         % ======================================================================
         %> @brief Callback for trim percent change edit box
         %> @param this Instance of PAStatTool
@@ -1509,6 +1537,8 @@ classdef PAStatTool < handle
             set(this.handles.edit_cullToValue,'enable',enableState);            
             this.refreshPlot();
         end
+        
+        
 
         % ======================================================================
         %> @brief Push button callback for displaying the next centroid.
@@ -1670,7 +1700,6 @@ classdef PAStatTool < handle
                 warndlg(sprintf('Could not find the input file required (%s)!',inputFilename));
             end
             
-            
             % Prep the x-axis here since it will not change when going from one centroid to the
             % next, but only (though not necessarily) when refreshing centroids.
             xTicks = 1:6:this.featureStruct.totalCount;
@@ -1719,7 +1748,6 @@ classdef PAStatTool < handle
             set(this.handles.panel_controlCentroid,'visible','on');
             set(this.handles.panel_centroidPrimaryAxesControls,'visible','on');
         end
-        
         
         function enableCentroidControls(this)
             set(findall(this.handles.panel_centroidPrimaryAxesControls,'enable','off'),'enable','on');  
@@ -1990,6 +2018,8 @@ classdef PAStatTool < handle
             userSettings.signalSelection = get(this.handles.menu_signalsource,'value');
             userSettings.plotTypeSelection = get(this.handles.menu_plottype,'value');
             userSettings.sortValues = get(this.handles.check_sortvalues,'value');  %return 0 for unchecked, 1 for checked            
+            userSettings.segmentCentroidDistributions = get(this.handles.check_segment,'value'); % returns 0 for unchecked, 1 for checked
+            userSettings.numSortedSegments = 6;
             userSettings.normalizeValues = get(this.handles.check_normalizevalues,'value');  %return 0 for unchecked, 1 for checked
             
             userSettings.processType = this.base.processedTypes{userSettings.processedTypeSelection};
@@ -2003,6 +2033,7 @@ classdef PAStatTool < handle
             userSettings.cullResults = get(this.handles.check_cull,'value'); % returns 0 for unchecked, 1 for checked            
             userSettings.cullToValue = str2double(get(this.handles.edit_cullToValue,'string'));
             
+                        
             userSettings.minClusters = str2double(get(this.handles.edit_centroidMinimum,'string'));
             userSettings.clusterThreshold = str2double(get(this.handles.edit_centroidThreshold,'string'));            
             
@@ -2292,7 +2323,9 @@ classdef PAStatTool < handle
         function paramStruct = getDefaultParameters()
             paramStruct.trimResults = 0;
             paramStruct.cullResults = 0;
-            paramStruct.sortValues = 0;            
+            paramStruct.sortValues = 0;
+            paramStruct.segmentCentroidDistributions = 0;
+            paramStruct.numSortedSegments = 6;
             paramStruct.normalizeValues = 0;            
             paramStruct.processedTypeSelection = 1;
             paramStruct.baseFeatureSelection = 1;
