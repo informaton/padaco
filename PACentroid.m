@@ -4,7 +4,23 @@
 %> processing.
 % ======================================================================
 classdef PACentroid < handle
-    
+    %> @brief The sort order can be difficult to understand.  First, the
+    %> adaptive k-means algorithm is applied and centroids are found.  The
+    %> centroids are labeled arbitrarily according to the index or position
+    %> in which they are discovered.  There 'popularity' is determined by the
+    %> number of member shapes a centroid has compared to other centroids.  
+    %> Centroids are ordered according to popularity from least to greatest
+    %> number of member shapes (most popular).  This is the sort order,
+    %> where 1 is the least popular and N (for N centroids found) is the
+    %> most popular.  A centroid of index or COI is any centroid that is of
+    %> interest to the user.  Users are typically presented with centroids
+    %> in order of their popularity as this provides more meaning than the
+    %> initial index given to the centroid during the adaptive k-means
+    %> processing.  To go from popularity 'p' (where p = 1 for least popular to p = N for most popular)
+    %> to the centroid's index use @c coiSortOrderToIndex(p).  
+    %> To determine the popularity of centroid at initial index c, use
+    %> coiIndex2SortOrder(c), where a value of 1 is least pouplar and a
+    %> value of N is most popular.
     properties(Access=private)
         %> Struct with cluster calculation settings.  Fields include
         %> - @c minClusters
@@ -470,9 +486,11 @@ classdef PACentroid < handle
             [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression] = this.adaptiveKmeans(inputLoadShapes,inputSettings, useDefaultRandomizerSeed,this.performanceAxesHandle,this.statusTextHandle);
             if(~isempty(this.centroidShapes))                
                 [this.histogram, this.centroidSortMap] = this.calculateAndSortDistribution(this.loadshapeIndex2centroidIndexMap);%  was -->       calculateAndSortDistribution(this.loadshapeIndex2centroidIndexMap);
-                this.coiIndex2SortOrder = this.centroidSortMap;
-                [~,this.coiSortOrder2Index] = sort(this.centroidSortMap,1,'ascend');
+                this.coiSortOrder2Index = this.centroidSortMap;
+                [~,this.coiIndex2SortOrder] = sort(this.centroidSortMap,1,'ascend');
 
+                %                 [a,b]=sort([1,23,5,6],'ascend');
+                %                 [c,d] = sort(b,'ascend');  %for testings
                 if(~this.setCOISortOrder(this.numCentroids()))
                     fprintf(1,'Warning - could not set the centroid of interest sort order to %u\n',this.numCentroids);
                 end
@@ -549,13 +567,21 @@ classdef PACentroid < handle
         %> @note This is the @c @b idx parameter returned from kmeans
         % @param number of centroids (i.e number of bins/edges to use when
         % calculating the distribution)
-        %> @retval sortedCounts
-        %> @retval sortedIndices The sorted indices allow mapping from the
-        %> original order of the loadShapeMap to the index of its position in sorted order.
+        %> @retval sortedCounts Cx1 vector where sourtedCounts(c) represents the number of
+        %> of loadshapes found at centroid 'c'.  
+        %> @retval sortedIndices Cx1 vector.  sortedIndices(c) is the
+        %> centroid index with loadshape count of sortedCounts(c) at index c.
+        %> It can be used to map the popularity of the original order of the loadShapeMap to the index of its position in sorted order.
         % ======================================================================
         function [sortedCounts, sortedIndices] = calculateAndSortDistribution(loadShapeMap)
             centroidCounts = histc(loadShapeMap,1:max(loadShapeMap));
-            [sortedCounts,sortedIndices] = sort(centroidCounts);
+            [sortedCounts,sortedIndices] = sort(centroidCounts,'ascend');
+            % sortedIndexToCentroidIndex = sortedIndices;
+            %   index of most popular centroid is
+            %               sortedIndexToCentroidIndex(end)
+            % index of least popular centroid is
+            %               sortedIndexToCentroidIndex(1)
+            % sortedCounts == centroidCounts(sortedIndices)
             %             this.histogram = sortedCounts;
             %             this.centroidSortMap = sortedIndices;
         end
