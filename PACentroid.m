@@ -17,9 +17,10 @@ classdef PACentroid < handle
         loadShapes;
         
         loadShapeIDs;
+        uniqueLoadShapeIDs;
         
         %> Nx1 vector of centroid index for loadShape profile associated with its row.
-        load2centroidMap;
+        loadshapeIndex2centroidIndexMap;
         
         %> CxM array of C centroids of size M.
         centroidShapes;
@@ -34,7 +35,7 @@ classdef PACentroid < handle
         
         %> Cx1 vector that maps load shapes' original cluster indices to
         %> the equivalent cluster index after clusters have been sorted
-        %> by their load shape count
+        %> by their load shape count.  Equivalen to coiIndex2SortOrder
         centroidSortMap;
         
         %> Alias for centroidSortMap
@@ -165,6 +166,7 @@ classdef PACentroid < handle
             this.loadShapes = loadShapes;
             this.loadShapeIDs = loadShapeIDs;
             
+            this.uniqueLoadShapeIDs = unique(loadShapeIDs);
             this.calculateCentroids();  
         end
         
@@ -231,7 +233,7 @@ classdef PACentroid < handle
         %> - coiSortOrder        
         % ======================================================================                
         function init(this)
-            this.load2centroidMap = [];
+            this.loadshapeIndex2centroidIndexMap = [];
             this.centroidShapes = [];
             this.histogram = [];
             this.loadShapes = [];
@@ -333,6 +335,10 @@ classdef PACentroid < handle
             end
         end
         
+        function toggleOrder = getCOIToggleOrder(this)
+            toggleOrder = this.coiToggleOrder;
+        end
+        
         % ======================================================================
         %> @brief Returns a descriptive struct for the centroid of interest (coi) 
         %> which is determined by the member variable coiSortOrder.
@@ -367,22 +373,43 @@ classdef PACentroid < handle
             coi.sortOrder = sortOrder;
             
             % convert to match the index the centroid load shape corresponds to.
-            coi.index = this.centroidSortMap(coi.sortOrder);           
+            coi.index = this.coiSortOrder2Index(coi.sortOrder);     
             
             % centroid shape for the centroid index.
             coi.shape = this.centroidShapes(coi.index,:);
             
             % member shapes which have that same index.  The
-            % load2CentroidMap row index corresponds to the member index,
+            % loadshapeIndex2centroidIndexMap row index corresponds to the member index,
             % while the value at that row corresponds to the centroid
             % index.  We want the rows with the centroid index:            
-            coi.memberIndices = coi.index==this.load2centroidMap;
+            coi.memberIndices = coi.index==this.loadshapeIndex2centroidIndexMap;
             
             % Now we can pull the member variables that were
             % clustered to the centroid index of interest.
             coi.memberShapes = this.loadShapes(coi.memberIndices,:);
             coi.memberIDs = this.loadShapeIDs(coi.memberIndices,:);
             coi.numMembers = size(coi.memberShapes,1);
+        end
+
+
+        
+        %> @brief Returns the loadshape IDs.  These are the identifiers number of centroids that are currently of
+        %> interest, based on the number of positive indices flagged in
+        %> coiToggleOrder.
+        %> @param this Instance of PACentroid.
+        %> @retval loadShapeIDs Parent identifier for each load shape.
+        %> Duplicate values in loadShapeIDs represent the same source (e.g. a
+        %> specific person).
+        function loadShapeIDs = getLoadShapeIDs(this)
+            loadShapeIDs = this.loadShapeIDs;
+        end
+                
+        function uniqueLoadShapeIDs = getUniqueLoadShapeIDs(this)
+            uniqueLoadShapeIDs = this.uniqueLoadShapeIDs;
+        end
+        
+        function uniqueCount = getUniqueLoadShapeIDsCount(this)
+            uniqueCount = numel(this.uniqueLoadShapeIDs);
         end
         
         %> @brief Returns the number of centroids that are currently of
@@ -440,9 +467,9 @@ classdef PACentroid < handle
             if(ishandle(this.statusTextHandle))
                set(this.statusTextHandle ,'string',{sprintf('Performaing adaptive K-means algorithm of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.thresholdScale)});                
             end            
-            [this.load2centroidMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression] = this.adaptiveKmeans(inputLoadShapes,inputSettings, useDefaultRandomizerSeed,this.performanceAxesHandle,this.statusTextHandle);
+            [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression] = this.adaptiveKmeans(inputLoadShapes,inputSettings, useDefaultRandomizerSeed,this.performanceAxesHandle,this.statusTextHandle);
             if(~isempty(this.centroidShapes))                
-                [this.histogram, this.centroidSortMap] = this.calculateAndSortDistribution(this.load2centroidMap);%  was -->       calculateAndSortDistribution(this.load2centroidMap);
+                [this.histogram, this.centroidSortMap] = this.calculateAndSortDistribution(this.loadshapeIndex2centroidIndexMap);%  was -->       calculateAndSortDistribution(this.loadshapeIndex2centroidIndexMap);
                 this.coiIndex2SortOrder = this.centroidSortMap;
                 [~,this.coiSortOrder2Index] = sort(this.centroidSortMap,1,'ascend');
 
@@ -476,12 +503,12 @@ classdef PACentroid < handle
         %> @param Instance of PACentroid.
         %> @retval Struct with fields defining dependent variables to use in the
         %> model.  Fields include:
-        %> - @c values NxM array of numeric values for M covariates for N subject
+        %> - @c values NxM array of counts for M centroids (the covariate index) for N subject
         %> keys.
         %> - @c memberIDs Nx1 array of unique keys corresponding to each row.
         %> - @c colnames 1xM cell string of names describing the covariate columns.
         function covariateStruct = getCovariateStruct(this)
-            subjectIDs = unique(this.loadShapeIDs);
+            subjectIDs = this.getUniqueLoadShapeIDs(); %    unique(this.loadShapeIDs);
             numSubjects = numel(subjectIDs);
             
             values = zeros(numSubjects,this.numCentroids);
@@ -489,7 +516,7 @@ classdef PACentroid < handle
             for row=1:numSubjects
                 try
                     curSubject = subjectIDs(row);
-                    centroidsForSubject = this.load2centroidMap(this.loadShapeIDs==curSubject);
+                    centroidsForSubject = this.loadshapeIndex2centroidIndexMap(this.loadShapeIDs==curSubject);
                     for c=1:numel(centroidsForSubject)
                         coi = centroidsForSubject(c);
                         values(row,coi) = values(row,coi)+1;
