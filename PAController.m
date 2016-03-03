@@ -386,13 +386,29 @@ classdef PAController < handle
                 handles.menu_help_faq
                 ],'enable','on');
 
-
+        end
+        
+        
+        % --------------------------------------------------------------------
+        %> @brief Callback to display help FAQ from the menubar help->faq menu.
+        %> @param obj Instance of PAController
+        %> @param hObject 
+        %> @param eventdata        
+        % --------------------------------------------------------------------
+        function menuHelpFAQCallback(obj,hObject,eventdata)
+            msg = sprintf('Help FAQ');
+            filename = fullfile(obj.SETTINGS.rootpathname,'html','Padaco_FAQ.html');
+            url = sprintf('file://%s',filename);
+            web(url,'-notoolbar');
+            %             web(url);
         end
         
         
         % --------------------------------------------------------------------
         %> @brief Assign figure's file->about menubar callback.
         %> @param obj Instance of PAController
+        %> @param hObject 
+        %> @param eventdata        
         % --------------------------------------------------------------------
         function menuFileAboutCallback(obj,hObject,eventdata)
             msg = sprintf(['Padaco version %0.2f\n',...
