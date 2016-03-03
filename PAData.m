@@ -79,7 +79,8 @@ classdef PAData < handle
        %> @brief Name of file containing accelerometer data that is loaded.
        filename;
 
-       %> Current window.  Current position in the raw data.  The first window is '1' (i.e. not zero because this is MATLAB programming)
+       %> Current window.  Current position in the raw data.
+       %> The first window is '1' (i.e. not zero because this is MATLAB programming)
        curWindow; 
        %> Number of samples contained in the data (accelRaw.x)
        durSamples;
@@ -137,14 +138,14 @@ classdef PAData < handle
        
        % ======================================================================
        %> @brief Constructor for PAData class.
-       %> @param fullFilenameOrPath Either (1) the full filename (i.e. with pathname) of accelerometer data to load.
-       %>        or (2) the path that contains raw accelerometer data
-       %>        stored in binary file(s) - Firmware versions 2.5 or 3.1
-       %>        only.  
+       %> @param fullFilenameOrPath Either
+       %> - (1) the full filename (i.e. with pathname) of accelerometer data to load.
+       %> - or (2) the path that contains raw accelerometer data stored in
+       %> binary file(s) - Firmware versions 2.5 or 3.1 only.
        %> @param pStruct Optional struct of parameters to use.  If it is not
        %> included then parameters from getDefaultParameters method are used.
        %> @retval Instance of PAData.
-       %fullFile = '~/Google Drive/work/Stanford - Pediatrics/sampledata/female child 1 second epoch.csv'
+       % fullFile = '~/Google Drive/work/Stanford - Pediatrics/sampledata/female child 1 second epoch.csv'
        % =================================================================
        function obj = PAData(fullFilenameOrPath,pStruct)
            obj.pathname =[];

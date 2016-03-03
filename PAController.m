@@ -7,6 +7,9 @@
 %> In the model, view, controller paradigm, this is the
 %> controller. 
 classdef PAController < handle
+    properties(Constant)
+        versionNum = 1.5;
+    end
     properties(Access=private)
         %> @brief Vector for keeping track of the feature handles that are
         %> displayed on the secondary axes field.
@@ -338,6 +341,11 @@ classdef PAController < handle
             handles = guidata(figH);
             
             %% file
+            % settings and about
+            set(handles.menu_file_about,'callback',@obj.menuFileAboutCallback);
+            set(handles.menu_file_settings,'callback',@obj.menuFileSettingsCallback);
+            
+            
             %  open
             set(handles.menu_file_open,'callback',@obj.menuFileOpenCallback);
             set(handles.menu_file_open_resultspath,'callback',@obj.menuFileOpenResultsPathCallback);
@@ -347,8 +355,6 @@ classdef PAController < handle
             set(handles.menu_file_screenshot_primaryAxes,'callback',{@obj.menuFileScreenshotCallback,'primaryAxes'});
             set(handles.menu_file_screenshot_secondaryAxes,'callback',{@obj.menuFileScreenshotCallback,'secondaryAxes'});
             
-            % settings
-            set(handles.menu_file_settings,'callback',@obj.menuFileSettingsCallback);
             
              %  quit - handled in main window.
             set(handles.menu_file_quit,'callback',{@obj.menuFileQuitCallback,guidata(figH)});
@@ -364,20 +370,49 @@ classdef PAController < handle
             set(handles.menu_viewmode_batch,'callback',@obj.menuViewmodeBatchCallback);
             set(handles.menu_viewmode_results,'callback',@obj.menuViewmodeResultsCallback);            
                 
+            
+            %% Help
+            set(handles.menu_help_faq,'callback',@obj.menuHelpFAQCallback);
+
             % enable everything
             set([
                 handles.menu_file
+                handles.menu_file_about
+                handles.menu_file_settings
                 handles.menu_file_open
                 handles.menu_file_quit
-                handles.menu_file_settings
                 handles.menu_viewmode
+                handles.menu_help
+                handles.menu_help_faq
                 ],'enable','on');
-            
+
 
         end
+        
+        
+        % --------------------------------------------------------------------
+        %> @brief Assign figure's file->about menubar callback.
+        %> @param obj Instance of PAController
+        % --------------------------------------------------------------------
+        function menuFileAboutCallback(obj,hObject,eventdata)
+            msg = sprintf(['Padaco version %0.2f\n',...
+                '\nSponsored by Stanford University\nin a collaborative effort between\nStanford Pediatric''s Solution Science Lab and\nCivil Engineering''s Sustainable Energy Lab.\n',... 
+                '\nSoftware license: To be decided',...
+                '\nCopyright Hyatt Moore IV (2014-2016)\n'
+                ],obj.versionNum);
+            msgbox(msg);
+        end
+        
 
-        %settingsName is a string specifying the settings to update:
-        %   
+        % --------------------------------------------------------------------
+        %> @brief Assign figure's menubar callbacks.
+        %> Called internally during class construction.
+        %> @param obj Instance of PAController
+        %> @param hObject 
+        %> @param eventdata
+        %> @param optionalSettingsName String specifying the settings to
+        %> update (optional)
+        % -------------------------------------------------------------------- 
         function menuFileSettingsCallback(obj,hObject,eventdata,optionalSettingsName)
             if(nargin<4)
                 optionalSettingsName = [];
