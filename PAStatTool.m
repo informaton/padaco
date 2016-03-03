@@ -347,9 +347,24 @@ classdef PAStatTool < handle
                 end
                 
                 if(pSettings.sortValues)
-                    loadFeatures = sort(loadFeatures,2,'descend');  %sort rows from high to low
+                    
+                    if(pSettings.segmentSortValues && pSettings.numSortedSegments>1)
+                        % 1. Reshape the loadFeatures by segments
+                        % 2. Sort the loadfeatures
+                        % 3. Resahpe the load features back to the original
+                        % way
+                        
+                        % Or make a for loop and sort along the way ...
+                        sections = round(linspace(0,size(loadFeatures,2),pSettings.numSortedSegments+1));  %Round to give integer indices
+                        for s=1:numel(sections)-1
+                            sectionInd = sections(s)+1:sections(s+1); % Create consecutive, non-overlapping sections of column indices.
+                            loadFeatures(:,sectionInd) = sort(loadFeatures(:,sectionInd),2,'descend');  %sort rows from high to low
+                        end
+                        
+                    else
+                        loadFeatures = sort(loadFeatures,2,'descend');  %sort rows from high to low
+                    end
                 end
-                
                 
                 if(pSettings.trimResults)
                     pctValues = prctile(loadFeatures,pSettings.trimToPercent);
@@ -782,7 +797,8 @@ classdef PAStatTool < handle
                 this.handles.check_trim
                 this.handles.edit_trimToPercent
                 this.handles.check_cull
-                this.handles.edit_cullToValue],'units','points',...
+                this.handles.edit_cullToValue
+                this.handles.check_segment],'units','points',...
                 'callback',[],...
                 'enable','off');
 
@@ -808,6 +824,8 @@ classdef PAStatTool < handle
                         % This is good for a true false checkbox value
                         % Checked state has a value of 1
                         % Unchecked state has a value of 0
+                        
+                        set(this.handles.check_segment,'min',0,'max',1,'value',widgetSettings.segmentSortValues);
                         set(this.handles.check_trim,'min',0,'max',1,'value',widgetSettings.trimResults);
                         set(this.handles.check_cull,'min',0,'max',1,'value',widgetSettings.cullResults);
                         set(this.handles.check_showCentroidMembers,'min',0,'max',1,'value',widgetSettings.showCentroidMembers);
@@ -861,7 +879,9 @@ classdef PAStatTool < handle
                         end
                         set(this.handles.check_cull,'callback',@this.checkCullCallback);
                         set(this.handles.edit_cullToValue,'string',num2str(widgetSettings.cullToValue),'callback',@this.editCullToValueChange,'enable',enableState);
-
+                        set(this.handles.check_segment,'callback',@this.checkSegmentHistogramsCallback);
+                        
+                        
                         % Push buttons
                         % this should not normally be enabled if plotType
                         % is not centroids.  However, this will be
@@ -928,9 +948,9 @@ classdef PAStatTool < handle
                         
                         % add a context menu now to secondary axes
                         contextmenu_secondaryAxes = uicontextmenu('callback',@this.contextmenu_secondaryAxesCallback,'parent',this.figureH);
-                        this.handles.contextmenu.performance = uimenu(contextmenu_secondaryAxes,'Label','Show adaptive separation performance progression','callback',{@this.centroidDistributionCallback,'performance'});
-                        this.handles.contextmenu.weekday = uimenu(contextmenu_secondaryAxes,'Label','Show current centroid''s weekday distribution','callback',{@this.centroidDistributionCallback,'weekday'});
-                        this.handles.contextmenu.membership = uimenu(contextmenu_secondaryAxes,'Label','Show membership distribution by centroid','callback',{@this.centroidDistributionCallback,'membership'});
+                        this.handles.contextmenu.secondaryAxes.performance = uimenu(contextmenu_secondaryAxes,'Label','Show adaptive separation performance progression','callback',{@this.centroidDistributionCallback,'performance'});
+                        this.handles.contextmenu.secondaryAxes.weekday = uimenu(contextmenu_secondaryAxes,'Label','Show current centroid''s weekday distribution','callback',{@this.centroidDistributionCallback,'weekday'});
+                        this.handles.contextmenu.secondaryAxes.membership = uimenu(contextmenu_secondaryAxes,'Label','Show membership distribution by centroid','callback',{@this.centroidDistributionCallback,'membership'});
                         set(this.handles.axes_secondary,'uicontextmenu',contextmenu_secondaryAxes);
                     end
                 end                
@@ -1103,7 +1123,7 @@ classdef PAStatTool < handle
         
         function contextmenu_secondaryAxesCallback(this,varargin)
             % This may be easier to maintain ... 
-            contextMenus = this.handles.contextmenu;
+            contextMenus = this.handles.contextmenu.secondaryAxes;
             if(isfield(contextMenus,'nextPlot'))
                 contextMenus = rmfield(contextMenus,'nextPlot');
             end
@@ -1270,6 +1290,7 @@ classdef PAStatTool < handle
                 'edit_trimToPercent'
                 'check_cull'
                 'edit_cullToValue'
+                'check_segment'
                 'check_showCentroidMembers'
                 'edit_centroidThreshold'
                 'edit_centroidMinimum'
@@ -1447,6 +1468,24 @@ classdef PAStatTool < handle
             set(axesHandle,'xtick',weekdayticks,'xticklabel',daysofweekStr,'xlim',xlimits);
         end
 
+        
+        % ======================================================================
+        %> @brief Check button callback for segmenting centroid histogram 
+        %> distributions into intervals across the time period covered.
+        %> @param this Instance of PAStatTool
+        %> @param hObject Handle of the checkbutton that is calling back.
+        %> @param Variable number of arguments required by MATLAB gui callbacks
+        % ======================================================================
+        function checkSegmentHistogramsCallback(this,hObject,~)
+            %             if(get(hObject,'value'))
+            %                 enableState = 'on';
+            %             else
+            %                 enableState = 'off';
+            %             end
+
+            this.refreshPlot();
+        end
+        
         % ======================================================================
         %> @brief Callback for trim percent change edit box
         %> @param this Instance of PAStatTool
@@ -1509,6 +1548,8 @@ classdef PAStatTool < handle
             set(this.handles.edit_cullToValue,'enable',enableState);            
             this.refreshPlot();
         end
+        
+        
 
         % ======================================================================
         %> @brief Push button callback for displaying the next centroid.
@@ -1670,7 +1711,6 @@ classdef PAStatTool < handle
                 warndlg(sprintf('Could not find the input file required (%s)!',inputFilename));
             end
             
-            
             % Prep the x-axis here since it will not change when going from one centroid to the
             % next, but only (though not necessarily) when refreshing centroids.
             xTicks = 1:6:this.featureStruct.totalCount;
@@ -1719,7 +1759,6 @@ classdef PAStatTool < handle
             set(this.handles.panel_controlCentroid,'visible','on');
             set(this.handles.panel_centroidPrimaryAxesControls,'visible','on');
         end
-        
         
         function enableCentroidControls(this)
             set(findall(this.handles.panel_centroidPrimaryAxesControls,'enable','off'),'enable','on');  
@@ -1864,13 +1903,11 @@ classdef PAStatTool < handle
                     legend(centroidAxes,centroidHandles,legendStrings,'box','on','fontsize',12);
                     centroidTitle = sprintf('Centroids #{%s}. Loadshapes: %u of %u (%0.2f%%).  Individuals: %u of %u (%0.2f%%)',coiSortOrdersString,...
                         totalMembers, numLoadShapes, sum(coiPctMemberships), numUniqueMemberIDs,totalMemberIDsCount, pctOfTotalMemberIDs);
-                                    
                 else
                     legend(centroidAxes,'off');
                     centroidTitle = sprintf('Centroid #%u (%s). Popularity %u of %u. Loadshapes: %u of %u (%0.2f%%).  Individuals: %u of %u (%0.2f%%)',coi.sortOrder,...
                         this.featureStruct.method, numCentroids-coi.sortOrder+1,numCentroids, coi.numMembers, numLoadShapes, pctMembership, numUniqueMemberIDs, totalMemberIDsCount, pctOfTotalMemberIDs);                    
-                end
-                
+                end                
                 title(centroidAxes,centroidTitle,'fontsize',14,'interpreter','none');
                                 
                 
@@ -1990,6 +2027,8 @@ classdef PAStatTool < handle
             userSettings.signalSelection = get(this.handles.menu_signalsource,'value');
             userSettings.plotTypeSelection = get(this.handles.menu_plottype,'value');
             userSettings.sortValues = get(this.handles.check_sortvalues,'value');  %return 0 for unchecked, 1 for checked            
+            userSettings.segmentSortValues = get(this.handles.check_segment,'value'); % returns 0 for unchecked, 1 for checked
+            userSettings.numSortedSegments = 6;
             userSettings.normalizeValues = get(this.handles.check_normalizevalues,'value');  %return 0 for unchecked, 1 for checked
             
             userSettings.processType = this.base.processedTypes{userSettings.processedTypeSelection};
@@ -2003,6 +2042,7 @@ classdef PAStatTool < handle
             userSettings.cullResults = get(this.handles.check_cull,'value'); % returns 0 for unchecked, 1 for checked            
             userSettings.cullToValue = str2double(get(this.handles.edit_cullToValue,'string'));
             
+                        
             userSettings.minClusters = str2double(get(this.handles.edit_centroidMinimum,'string'));
             userSettings.clusterThreshold = str2double(get(this.handles.edit_centroidThreshold,'string'));            
             
@@ -2292,7 +2332,9 @@ classdef PAStatTool < handle
         function paramStruct = getDefaultParameters()
             paramStruct.trimResults = 0;
             paramStruct.cullResults = 0;
-            paramStruct.sortValues = 0;            
+            paramStruct.sortValues = 0;
+            paramStruct.segmentSortValues = 0;
+            paramStruct.numSortedSegments = 6;
             paramStruct.normalizeValues = 0;            
             paramStruct.processedTypeSelection = 1;
             paramStruct.baseFeatureSelection = 1;

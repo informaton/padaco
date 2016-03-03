@@ -1,6 +1,8 @@
 % ======================================================================
 %> @file PABatchTool.cpp
-%> @brief PABatchTool serves as Padaco's batch processing controller 
+%> @brief PABatchTool serves as Padaco's batch processing controller.
+%> The class creates and controls the batch processing figure that is used
+%> to process a collection of Actigraph GT3X+ data files.
 % ======================================================================
 classdef PABatchTool < handle
    
@@ -24,6 +26,11 @@ classdef PABatchTool < handle
     
     methods
         
+        %> @brief Class constructor.
+        %> @param batchSettings Struct containing settings to use for the batch process (optional).  if
+        %> it is not inclded then the getDefaultParameters() method will be called to obtain default
+        %> values.
+        %> @retval  PABatchTool Instance of PABatchTool.
         function this = PABatchTool(batchSettings)
             if(nargin>0 && ~isempty(batchSettings))
                 this.settings = batchSettings;
@@ -81,9 +88,6 @@ classdef PABatchTool < handle
             
             
         % Callbacks
-        
-
-        
         % --------------------------------------------------------------------
         %> @brief Batch figure button callback for getting a directory of
         %> actigraph files to process.
@@ -468,7 +472,8 @@ classdef PABatchTool < handle
         %> fields
         %> - @c featureFcn
         %> - @c signalTagLine
-        function pStruct = getDefaultParameters()  
+        % ======================================================================
+        function pStruct = getDefaultParameters()
             mPath = fileparts(mfilename('fullpath'));
 
             pStruct.sourceDirectory = mPath;
