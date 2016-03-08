@@ -11,17 +11,18 @@ classdef PABatchTool < handle
         BatchToolRunning;
         BatchToolComplete;
         BatchToolClosing;
+        SwitchToResults;
     end
     
     properties(Access=private) 
         %> Struct with the following fields:
         %> - @c sourceDirectory Directory of Actigraph files that will be batch processed
         %> - @c outputDirectory Output directory for batch processing
-        %> - @c classifyUsageState
-        %> - @c describeActivity
-        %> - @c describeInactivity
-        %> - @c describeSleep
+        %> - @c classifyUsageState Describe activity, inactivity, non-wear
+        %> periods, and sleep state estimates.
         settings;
+        %> Handle to the figure we create.  
+        figureH;
     end
     
     methods
@@ -38,34 +39,28 @@ classdef PABatchTool < handle
                 this.settings = this.getDefaultParameters();
             end
                         
-            batchFig = batchTool('visible','off');
+            batchFig = batchTool('visible','off','name','');
             batchHandles = guidata(batchFig);
             
             set(batchHandles.button_getSourcePath,'callback',{@this.getSourceDirectoryCallback,batchHandles.text_sourcePath,batchHandles.text_filesFound});  
             set(batchHandles.button_getOutputPath,'callback',{@this.getOutputDirectoryCallback,batchHandles.text_outputPath});
             
             set(batchHandles.text_outputPath,'string',this.settings.outputDirectory);
-            set(batchHandles.check_usageState,'value',this.settings.classifyUsageState);
-            set(batchHandles.check_activityPatterns,'value',this.settings.describeActivity);
-            set(batchHandles.check_inactivityPatterns,'value',this.settings.describeInactivity);
-            set(batchHandles.check_sleepPatterns,'value',this.settings.describeSleep);
-            % images
-            set(batchHandles.check_save2img,'value',this.settings.images.save2img);
-            % alignment
-            set(batchHandles.check_saveAlignments,'value',this.settings.alignment.save);
-          
+            %             set(batchHandles.check_usageState,'value',this.settings.classifyUsageState);
+
+            
             set(batchHandles.button_go,'callback',@this.startBatchProcessCallback);
             
             this.calculateFilesFound(batchHandles.text_sourcePath,batchHandles.text_filesFound);
             
-            imgFmt = this.settings.images.format;
-            imageFormats = {'JPEG','PNG'};
-            imgSelection = find(strcmpi(imageFormats,imgFmt));
-            if(isempty(imgSelection))
-                imgSelection = 1;
-            end
-            set(batchHandles.menu_imageFormat,'string',imageFormats,'value',imgSelection);
-            
+            %             imgFmt = this.settings.images.format;
+            %             imageFormats = {'JPEG','PNG'};
+            %             imgSelection = find(strcmpi(imageFormats,imgFmt));
+            %             if(isempty(imgSelection))
+            %                 imgSelection = 1;
+            %             end
+            %             set(batchHandles.menu_imageFormat,'string',imageFormats,'value',imgSelection);
+            %
             featureFcns = fieldnames(PAData.getFeatureDescriptionStruct());
             featureDesc = PAData.getExtractorDescriptions();       
             
@@ -83,10 +78,17 @@ classdef PABatchTool < handle
             set(batchHandles.menu_featureFcn,'string',featureLabels,'value',featureSelection,'userdata',data);
 
             % Make visible
-            set(batchFig,'visible','on');
+            this.figureH = batchFig;
+            set(this.figureH,'visible','on','closerequestFcn',@this.close);
         end
             
-            
+        function close(this, varargin)
+            if(ishandle(this.figureH))
+                delete(this.figureH);
+            end
+            close@handle(this);
+        end
+        
         % Callbacks
         % --------------------------------------------------------------------
         %> @brief Batch figure button callback for getting a directory of
@@ -191,15 +193,8 @@ classdef PABatchTool < handle
             
             % Get batch processing settings from the GUI     
             handles = guidata(hObject);
-            obj.settings.images.save2img = get(handles.check_save2img,'value');
-            obj.settings.alignment.save = get(handles.check_saveAlignments,'value');
-            obj.settings.classifyUsageState = get(handles.check_usageState,'value');
-            obj.settings.describeActivity = get(handles.check_activityPatterns,'value');
-            obj.settings.describeInactivity = get(handles.check_inactivityPatterns,'value');
-            obj.settings.describeSleep = get(handles.check_sleepPatterns,'value');
             
             obj.notify('BatchToolStarting',EventData_BatchTool(obj.settings));
-            
             accelType = 'count';
             
             % get feature settings
@@ -227,109 +222,66 @@ classdef PABatchTool < handle
             % feature from
             allFrameDurationMinutes = get(handles.menu_frameDurationMinutes,'userdata');
             frameDurationMinutes = allFrameDurationMinutes(get(handles.menu_frameDurationMinutes,'value'));
-            obj.settings.frameDurationMinutes = frameDurationMinutes;
-            
-            % configure image output settings
-            image_settings =[];
-            if(obj.settings.images.save2img)
-                image_selection = get(handles.menu_imageFormat,'string');
-            
-                % Tuck this away for future use and updated settings.
-                image_settings.format = image_selection{get(handles.menu_imageFormat,'value')};                
-                obj.settings.images.format = image_settings.format;
-                
-                %put images in subdirectory based on detection method
-                images_pathnames =   strcat(fullfile(obj.settings.outputDirectory,'images'),filesep,featureFcns);
-            end  
-            
-            
-                           
+            obj.settings.frameDurationMinutes = frameDurationMinutes;                           
 
-            if(obj.settings.alignment.save || obj.settings.classifyUsageState)
-                % features are grouped for all studies into one file per
-                % signal, place groupings into feature function directories
-
-                features_pathnames =   strcat(fullfile(obj.settings.outputDirectory,'features'),filesep,featureFcns);
-                classification_pathname =   fullfile(obj.settings.outputDirectory,'classifications');
-                
-
-                obj.settings.alignment.elapsedStartHours = 0; %when to start the first measurement
-                obj.settings.alignment.intervalLengthHours = 24;  %duration of each interval (in hours) once started
-                                
-                % setup developer friendly variable names
-                elapsedStartHour  = obj.settings.alignment.elapsedStartHours;
-                intervalDurationHours = obj.settings.alignment.intervalLengthHours;
-                maxNumIntervals = 24/intervalDurationHours*7;  %set maximum to a week 
-                %obj.settings.alignment.singalName = 'X';
+            % features are grouped for all studies into one file per
+            % signal, place groupings into feature function directories
             
-                signalNames = strcat('accel.',accelType,'.',{'x','y','z','vecMag'})';
-                %signalNames = {strcat('accel.',obj.accelObj.accelType,'.','x')};
-                
-                startDateVec = [0 0 0 elapsedStartHour 0 0];
-                stopDateVec = startDateVec + [0 0 0 intervalDurationHours -frameDurationMinutes 0]; %-frameDurMin to prevent looping into the start of the next inteval.
-                frameInterval = [0 0 0 0 frameDurationMinutes 0];
-                timeAxis = datenum(startDateVec):datenum(frameInterval):datenum(stopDateVec);
-                timeAxisStr = datestr(timeAxis,'HH:MM');
-            end
+            features_pathnames =   strcat(fullfile(obj.settings.outputDirectory,'features'),filesep,featureFcns);
+            
+            
+            obj.settings.alignment.elapsedStartHours = 0; %when to start the first measurement
+            obj.settings.alignment.intervalLengthHours = 24;  %duration of each interval (in hours) once started
+            
+            % setup developer friendly variable names
+            elapsedStartHour  = obj.settings.alignment.elapsedStartHours;
+            intervalDurationHours = obj.settings.alignment.intervalLengthHours;
+            maxNumIntervals = 24/intervalDurationHours*7;  %set maximum to a week
+            %obj.settings.alignment.singalName = 'X';
+            
+            signalNames = strcat('accel.',accelType,'.',{'x','y','z','vecMag'})';
+            %signalNames = {strcat('accel.',obj.accelObj.accelType,'.','x')};
+            
+            startDateVec = [0 0 0 elapsedStartHour 0 0];
+            stopDateVec = startDateVec + [0 0 0 intervalDurationHours -frameDurationMinutes 0]; %-frameDurMin to prevent looping into the start of the next inteval.
+            frameInterval = [0 0 0 0 frameDurationMinutes 0];
+            timeAxis = datenum(startDateVec):datenum(frameInterval):datenum(stopDateVec);
+            timeAxisStr = datestr(timeAxis,'HH:MM');
             
             % Setup output folders
             for fn=1:numel(featureFcns)
                 
+                % Prep output alignment files.
+                featureFcn = featureFcns{fn};
+                features_pathname = features_pathnames{fn};
+                if(~isdir(features_pathname))
+                    mkdir(features_pathname);
+                end
                 
-                if(obj.settings.images.save2img)
-                    %put images in subdirectory based on detection method
-                    images_pathname = images_pathnames{fn};
-                    if(~isdir(images_pathname))
-                        mkdir(images_pathname);
-                    end
-                end                
-                
-                % Prep classifications alignment file
-                if(obj.settings.classifyUsageState)
-                    usageStateFilename = fullfile(classification_pathname,strcat('usageStates.count.vecMag.txt'));
-                    fid = fopen(usageStateFilename,'w');
-                    fprintf(fid,'# Feature:\tUsage state (Based on vecMag count)\n');                    
-                    fprintf(fid,'# Length:\t%u\n',size(timeAxisStr,1));                    
+                for s=1:numel(signalNames)
+                    signalName = signalNames{s};
+                    
+                    featureFilename = fullfile(features_pathname,strcat('features.',featureFcn,'.',signalName,'.txt'));
+                    fid = fopen(featureFilename,'w');
+                    fprintf(fid,'# Feature:\t%s\n',featureDescriptions{fn});
+                    
+                    fprintf(fid,'# Length:\t%u\n',size(timeAxisStr,1));
+                    
                     fprintf(fid,'# Study_ID\tStart_Datenum\tStart_Day');
                     for t=1:size(timeAxisStr,1)
                         fprintf(fid,'\t%s',timeAxisStr(t,:));
-                    end                    
-                    fprintf(fid,'\n');
-                    fclose(fid);
-                end
-                
-                % Prep save alignment files.
-                if(obj.settings.alignment.save)
-                    featureFcn = featureFcns{fn};
-                    features_pathname = features_pathnames{fn};
-                    if(~isdir(features_pathname))
-                        mkdir(features_pathname);
                     end
                     
-                    for s=1:numel(signalNames)
-                        signalName = signalNames{s};
-                        
-                        featureFilename = fullfile(features_pathname,strcat('features.',featureFcn,'.',signalName,'.txt'));
-                        fid = fopen(featureFilename,'w');
-                        fprintf(fid,'# Feature:\t%s\n',featureDescriptions{fn});
-                        
-                        fprintf(fid,'# Length:\t%u\n',size(timeAxisStr,1));
-                                          
-                        fprintf(fid,'# Study_ID\tStart_Datenum\tStart_Day');
-                        for t=1:size(timeAxisStr,1)
-                            fprintf(fid,'\t%s',timeAxisStr(t,:));
-                        end
-                        
-                        fprintf(fid,'\n');
-                        fclose(fid);
-                    end
+                    fprintf(fid,'\n');
+                    fclose(fid);
                 end            
-            end            
+            end
+            
            
             % setup timers
             pctDone = 0;
             pctDelta = 1/numel(fullFilenames);
-            waitH = waitbar(pctDone,filenames{1});
+            waitH = waitbar(pctDone,filenames{1},'name','Batch processing');
             startTime = now;
             startClock = clock;
             % batch process
@@ -348,82 +300,33 @@ classdef PABatchTool < handle
                         
                         [~,filename,~] = fileparts(curData.getFilename());
                         
-                                                
-                        % Non functional - just shell code -  Commented out on 9/8/2015
-                        %
-                        %                         if(obj.settings.classifyUsageState)
-                        % %                             [usageVec, usageState, startStopDateNums] = curData.classifyUsageState();
-                        %
-                        %                             [alignedVec, alignedStartDateVecs] = curData.getAlignedUsageStates(elapsedStartHour, intervalDurationHours);
-                        % %                             [alignedVec, alignedStartDateVecs] = curData.getAlignedFeatureVecs(featureFcn,signalName,elapsedStartHour, intervalDurationHours);
-                        %
-                        %                             numIntervals = size(alignedVec,1);
-                        %                             if(numIntervals>maxNumIntervals)
-                        %                                 alignedVec = alignedVec(1:maxNumIntervals,:);
-                        %                                 alignedStartDateVecs = alignedStartDateVecs(1:maxNumIntervals, :);
-                        %                                 numIntervals = maxNumIntervals;
-                        %                             end
-                        %                             alignedStartDaysOfWeek = datestr(alignedStartDateVecs,'ddd');
-                        %                             alignedStartNumericDaysOfWeek = nan(numIntervals,1);
-                        %                             for a=1:numIntervals
-                        %                                 alignedStartNumericDaysOfWeek(a)=dateMap.(alignedStartDaysOfWeek(a,:));
-                        %                             end
-                        %                             startDatenums = datenum(alignedStartDateVecs);
-                        %                             result = [startDatenums,alignedStartNumericDaysOfWeek,alignedVec];
-                        %                             save(usageStateFilename,'result','-ascii','-tabs','-append');
-                        %
-                        %                             %                             curData.saveToFile('usageState',saveFilename);
-                        %                         end
-                        %                         if(obj.settings.describeActivity)
-                        %                             curData.describeActivity('activity');
-                        %                             saveFilename = fullfile(obj.settings.outputDirectory,strcat(filename,'.activity.txt'));
-                        %                             curData.saveToFile('activity',saveFilename);
-                        %                         end
-                        %                         if(obj.settings.describeInactivity)
-                        %                             curData.describeActivity('inactivity');
-                        %                             saveFilename = fullfile(obj.settings.outputDirectory,strcat(filename,'.inactivity.txt'));
-                        %                             curData.saveToFile('inactivity',saveFilename);
-                        %                         end
-                        %                         if(obj.settings.describeSleep)
-                        %                             curData.describeActivity('sleep');
-                        %                             saveFilename = fullfile(obj.settings.outputDirectory,strcat(filename,'.sleep.txt'));
-                        %                             curData.saveToFile('sleep',saveFilename);
-                        %                         end
-                        
                         for fn=1:numel(featureFcns)
                             featureFcn = featureFcns{fn};
-                            % Should I save results as a picture?
-                            if(obj.settings.images.save2img)
-                                images_pathname = images_pathnames{fn};
-                                img_filename = fullfile(images_pathname,strcat(filename,'.',featureFcn,'.',lower(obj.settings.images.format)));
-                                % draw the secondary axes image.
-                                obj.save2image(curData,featureFcn,img_filename);
+                            
+                            
+                            features_pathname = features_pathnames{fn};
+                            for s=1:numel(signalNames)
+                                signalName = signalNames{s};
+                                featureFilename = fullfile(features_pathname,strcat('features.',featureFcn,'.',signalName,'.txt'));
+                                curData.extractFeature(signalName,featureFcn);
+                                [alignedVec, alignedStartDateVecs] = curData.getAlignedFeatureVecs(featureFcn,signalName,elapsedStartHour, intervalDurationHours);
+                                numIntervals = size(alignedVec,1);
+                                if(numIntervals>maxNumIntervals)
+                                    alignedVec = alignedVec(1:maxNumIntervals,:);
+                                    alignedStartDateVecs = alignedStartDateVecs(1:maxNumIntervals, :);
+                                    numIntervals = maxNumIntervals;
+                                end
+                                alignedStartDaysOfWeek = datestr(alignedStartDateVecs,'ddd');
+                                alignedStartNumericDaysOfWeek = nan(numIntervals,1);
+                                for a=1:numIntervals
+                                    alignedStartNumericDaysOfWeek(a)=dateMap.(alignedStartDaysOfWeek(a,:));
+                                end
+                                startDatenums = datenum(alignedStartDateVecs);
+                                studyIDs = repmat(curData.getStudyID('numeric'),numIntervals,1);
+                                result = [studyIDs,startDatenums,alignedStartNumericDaysOfWeek,alignedVec];
+                                save(featureFilename,'result','-ascii','-tabs','-append');
                             end
                             
-                            if(obj.settings.alignment.save)
-                                features_pathname = features_pathnames{fn};                                
-                                for s=1:numel(signalNames)
-                                    signalName = signalNames{s};
-                                    featureFilename = fullfile(features_pathname,strcat('features.',featureFcn,'.',signalName,'.txt'));
-                                    curData.extractFeature(signalName,featureFcn);
-                                    [alignedVec, alignedStartDateVecs] = curData.getAlignedFeatureVecs(featureFcn,signalName,elapsedStartHour, intervalDurationHours);
-                                    numIntervals = size(alignedVec,1);
-                                    if(numIntervals>maxNumIntervals)                                        
-                                        alignedVec = alignedVec(1:maxNumIntervals,:);
-                                        alignedStartDateVecs = alignedStartDateVecs(1:maxNumIntervals, :);
-                                        numIntervals = maxNumIntervals;
-                                    end
-                                    alignedStartDaysOfWeek = datestr(alignedStartDateVecs,'ddd');
-                                    alignedStartNumericDaysOfWeek = nan(numIntervals,1);
-                                    for a=1:numIntervals
-                                        alignedStartNumericDaysOfWeek(a)=dateMap.(alignedStartDaysOfWeek(a,:));
-                                    end
-                                    startDatenums = datenum(alignedStartDateVecs);
-                                    studyIDs = repmat(curData.getStudyID('numeric'),numIntervals,1);
-                                    result = [studyIDs,startDatenums,alignedStartNumericDaysOfWeek,alignedVec];                                    
-                                    save(featureFilename,'result','-ascii','-tabs','-append');
-                                end                                
-                            end
                         end
                     end
                     
@@ -448,20 +351,74 @@ classdef PABatchTool < handle
                     ['Time Remaining: ',est_str]};
                 fprintf('%s\n',msg{2});
                 if(ishandle(waitH))
+                    
                     waitbar(pctDone,waitH,char(msg));
                 else
                     %                     waitHandle = findall(0,'tag','waitbarHTag');
                 end                
             end
-            
-            waitbar(1,waitH,'Finished!');
-            %             obj.resultsPathname = obj.settings.outputDirectory;
-            if(~isempty(failedFiles))
-                fprintf('\n\n%u Files Failed:\n',numel(failedFiles));
-                for f=1:numel(failedFiles)
-                    fprintf('\t%s\tFAILED.\n',failedFiles{f});
+            elapsedTimeStr = datestr(now-startTime,'HH:MM:SS');
+            if(ishandle(waitH))
+                waitbar(1,waitH,'Finished!');
+                pause(1);
+                delete(waitH);
+                fileCount = numel(filenames);
+                failCount = numel(failedFiles);
+                
+
+                successCount = fileCount-failCount;
+                batchResultStr = sprintf(['Processed %u files in %s.\n',...
+                    '\tSuccess:\t%u\n',...
+                    '\tFail:\t%u\n\n'],fileCount,elapsedTimeStr,successCount,successCount,failCount);
+                
+                if(failCount>0)
+                    
+                    promptStr = sprintf('%s\nThe following files were not processed:\n',batchResultStr);
+                    fprintf(1,'\n\n%u Files Failed:\n',numel(failedFiles));
+                    for f=1:numel(failedFiles)
+                        fprintf('\t%s\tFAILED.\n',failedFiles{f});
+                    end
+                    
+                    skipped_filenames = failedFiles(:);
+                    [selections,clicked_ok]= listdlg('PromptString',message,'Name','Batch Completed',...
+                        'OKString','Copy to Clipboard','CancelString','Close','ListString',skipped_filenames);
+                    
+                    if(clicked_ok)
+                        %char(10) is newline
+                        skipped_files = [char(skipped_filenames(selections)),repmat(char(10),numel(selections),1)];
+                        skipped_files = skipped_files'; %filename length X number of files
+                        
+                        clipboard('copy',skipped_files(:)'); %make it a column (1 row) vector
+                        selectionMsg = [num2str(numel(selections)),' filenames copied to the clipboard.'];
+                        disp(selectionMsg);
+                        h = msgbox(selectionMsg);
+                        pause(1);
+                        if(ishandle(h))
+                            delete(h);
+                        end
+                    end;
+                else
+                    dlgName = 'Batch complete';
+                    buttonName = questdlg(batchResultStr,dlgName,'Show results','Return to batch tool');
+                    switch buttonName
+                        case 'Show results'
+                            % Close the batch mode
+                            
+                            % Set the results path to be that of the normal
+                            % settings path.  
+                            obj.notify('SwitchToResults',EventData_SwitchToResults);
+                            obj.close();
+                            % Go to the results view
+                        case 'Return to batch tool'
+                            % Default behavior is to return to the
+                            % settings.
+                            
+                    end
+
                 end
+                
             end
+            %             obj.resultsPathname = obj.settings.outputDirectory;
         end        
     end
     
@@ -478,21 +435,10 @@ classdef PABatchTool < handle
 
             pStruct.sourceDirectory = mPath;
             pStruct.outputDirectory = mPath;
-            pStruct.alignment.save = 1;
             pStruct.alignment.elapsedStartHours = 0; %when to start the first measurement
             pStruct.alignment.intervalLengthHours = 24;  %duration of each interval (in hours) once started
             pStruct.frameDurationMinutes = 15;
-            pStruct.images.save2img = 0;
-            pStruct.images.format = 'jpeg';
             pStruct.featureLabel = 'All';
-            checkFields = {'classifyUsageState';
-                'describeActivity';
-                'describeInactivity';
-                'describeSleep';};
-            for f=1:numel(checkFields)
-                pStruct.(checkFields{f}) = 0;
-            end
-
         end                
     end
 end

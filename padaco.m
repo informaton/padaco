@@ -65,6 +65,11 @@ initializeGUI(hObject);
 guidata(hObject, handles);
 
 mPathname = fileparts(mfilename('fullpath'));
+addpath(mPathname);
+subPaths = {'icons','utility','html'};
+for s=1:numel(subPaths)
+    addpath(fullfile(mPathname,subPaths{s}));
+end
 
 try
     parametersFile = '_padaco.parameters.txt';

@@ -22,7 +22,7 @@ function varargout = batchTool(varargin)
 
 % Edit the above text to modify the response to help batchTool
 
-% Last Modified by GUIDE v2.5 11-Nov-2014 10:59:07
+% Last Modified by GUIDE v2.5 08-Mar-2016 10:15:09
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -71,11 +71,3 @@ function varargout = batchTool_OutputFcn(hObject, eventdata, handles)
 
 % Get default command line output from handles structure
 varargout{1} = handles.output;
-
-
-function check_save2img_Callback(hObject, eventdata, handles)
-if(get(hObject,'value'))
-    set(handles.menu_imageFormat,'enable','on');
-else
-    set(handles.menu_imageFormat,'enable','off');
-end

@@ -1206,8 +1206,7 @@ classdef PAController < handle
             if(~isempty(obj.accelObj))
                 obj.initAccelDataView();
             end
-            
-        end   
+        end
                 
         % --------------------------------------------------------------------
         %> @brief Menubar callback for running the batch tool.
@@ -1215,14 +1214,19 @@ classdef PAController < handle
         %> @param hObject    handle to menu_viewmode_batch (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
-        % --------------------------------------------------------------------        
+        % --------------------------------------------------------------------
         function menuViewmodeBatchCallback(obj,hObject,eventdata)           
             batchTool = PABatchTool(obj.batch);
             batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
+            batchTool.addlistener('SwitchToResults',@obj.menuViewmodeResultsCallback);
         end        
         
         function updateBatchToolSettingsCallback(obj,batchToolObj,eventData)
             obj.batch = eventData.settings;
+            if(isdir(obj.batch.outputDirectory))
+                obj.resultsPathname = obj.batch.outputDirectory;
+            end
+            
         end
         
         % Results viewing callback
@@ -1237,7 +1241,6 @@ classdef PAController < handle
             if(obj.initResultsView())  
                 obj.VIEW.showReady('all');
             end
-            
         end        
         
 
