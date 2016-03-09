@@ -45,6 +45,11 @@ classdef CLASS_database_goals < CLASS_database
             selectFieldsStr  = this.cellstr2csv(fieldNames);
             sqlStr = sprintf('SELECT %s FROM %s WHERE %s in %s',selectFieldsStr,this.tableNames.subjectInfo,this.primaryKeys.subjectInfo, wherePrimaryKeysIn);
             dataStruct = this.query(sqlStr);
+            
+            if(isfield(dataStruct,'sex') && iscell(dataStruct.sex))
+                dataStruct.sex = str2double(dataStruct.sex);
+            end
+            
             dataSummaryStruct = summarizeStruct(dataStruct);
             
         end

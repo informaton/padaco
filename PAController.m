@@ -7,6 +7,9 @@
 %> In the model, view, controller paradigm, this is the
 %> controller. 
 classdef PAController < handle
+    properties(Constant)
+        versionNum = 1.5;
+    end
     properties(Access=private)
         %> @brief Vector for keeping track of the feature handles that are
         %> displayed on the secondary axes field.
@@ -34,6 +37,9 @@ classdef PAController < handle
         %> Instance of PAStatTool - results controller when in results view
         %> mode.
         StatTool;
+        
+        %> Figure handle to the main figure window
+        figureH;
         
         %> Linehandle in Padaco that is currently selected by the user.
         current_linehandle;
@@ -100,8 +106,8 @@ classdef PAController < handle
             obj.resultsPathname = obj.SETTINGS.CONTROLLER.resultsPathname;
             
             obj.accelTypeShown = [];
-            
-            if(ishandle(Padaco_fig_h))
+            obj.figureH = Padaco_fig_h;
+            if(ishandle(obj.figureH))
                 obj.featureHandles = [];
                 
                 % Create a VIEW class
@@ -113,13 +119,13 @@ classdef PAController < handle
                 
                 
                 % initialize the view here ...?
-                obj.VIEW = PAView(Padaco_fig_h,uiLinecontextmenu_handle,uiPrimaryAxescontextmenu_handle,featureLineContextMenuHandle);
+                obj.VIEW = PAView(obj.figureH,uiLinecontextmenu_handle,uiPrimaryAxescontextmenu_handle,featureLineContextMenuHandle);
 
                 obj.VIEW.showBusy([],'all');
                 
                 obj.initWidgets();
                 
-                set(Padaco_fig_h,'CloseRequestFcn',{@obj.figureCloseCallback,guidata(Padaco_fig_h)});
+                set(obj.figureH,'CloseRequestFcn',{@obj.figureCloseCallback,guidata(obj.figureH)});
 
                 %configure the menu bar callbacks.
                 obj.initMenubarCallbacks();
@@ -146,7 +152,6 @@ classdef PAController < handle
         function close(obj)
             if(~isempty(obj.accelObj))
                 obj.SETTINGS.DATA = obj.accelObj.getSaveParameters();
-               
             end
             
             % update the stat tool settings if it was used successfully.
@@ -157,6 +162,9 @@ classdef PAController < handle
             obj.SETTINGS.CONTROLLER = obj.getSaveParameters();
             obj.saveParameters(); %requires SETTINGS variable
             obj.SETTINGS = [];
+            if(~isempty(obj.StatTool))
+                obj.StatTool.delete();
+            end
             
         end        
         
@@ -208,6 +216,7 @@ classdef PAController < handle
                 delete(hObject);
             catch ME
                 showME(ME);
+                pause;
                 killall;
             end
         end
@@ -334,6 +343,11 @@ classdef PAController < handle
             handles = guidata(figH);
             
             %% file
+            % settings and about
+            set(handles.menu_file_about,'callback',@obj.menuFileAboutCallback);
+            set(handles.menu_file_settings,'callback',@obj.menuFileSettingsCallback);
+            
+            
             %  open
             set(handles.menu_file_open,'callback',@obj.menuFileOpenCallback);
             set(handles.menu_file_open_resultspath,'callback',@obj.menuFileOpenResultsPathCallback);
@@ -343,8 +357,6 @@ classdef PAController < handle
             set(handles.menu_file_screenshot_primaryAxes,'callback',{@obj.menuFileScreenshotCallback,'primaryAxes'});
             set(handles.menu_file_screenshot_secondaryAxes,'callback',{@obj.menuFileScreenshotCallback,'secondaryAxes'});
             
-            % settings
-            set(handles.menu_file_settings,'callback',@obj.menuFileSettingsCallback);
             
              %  quit - handled in main window.
             set(handles.menu_file_quit,'callback',{@obj.menuFileQuitCallback,guidata(figH)});
@@ -360,20 +372,65 @@ classdef PAController < handle
             set(handles.menu_viewmode_batch,'callback',@obj.menuViewmodeBatchCallback);
             set(handles.menu_viewmode_results,'callback',@obj.menuViewmodeResultsCallback);            
                 
+            
+            %% Help
+            set(handles.menu_help_faq,'callback',@obj.menuHelpFAQCallback);
+
             % enable everything
             set([
                 handles.menu_file
+                handles.menu_file_about
+                handles.menu_file_settings
                 handles.menu_file_open
                 handles.menu_file_quit
-                handles.menu_file_settings
                 handles.menu_viewmode
+                handles.menu_help
+                handles.menu_help_faq
                 ],'enable','on');
-            
 
         end
+        
+        
+        % --------------------------------------------------------------------
+        %> @brief Callback to display help FAQ from the menubar help->faq menu.
+        %> @param obj Instance of PAController
+        %> @param hObject 
+        %> @param eventdata        
+        % --------------------------------------------------------------------
+        function menuHelpFAQCallback(obj,hObject,eventdata)
+            msg = sprintf('Help FAQ');
+            filename = fullfile(obj.SETTINGS.rootpathname,'html','Padaco_FAQ.html');
+            url = sprintf('file://%s',filename);
+            web(url,'-notoolbar');
+            %             web(url);
+        end
+        
+        
+        % --------------------------------------------------------------------
+        %> @brief Assign figure's file->about menubar callback.
+        %> @param obj Instance of PAController
+        %> @param hObject 
+        %> @param eventdata        
+        % --------------------------------------------------------------------
+        function menuFileAboutCallback(obj,hObject,eventdata)
+            msg = sprintf(['Padaco version %0.2f\n',...
+                '\nSponsored by Stanford University\nin a collaborative effort between\nStanford Pediatric''s Solution Science Lab and\nCivil Engineering''s Sustainable Energy Lab.\n',... 
+                '\nSoftware license: To be decided',...
+                '\nCopyright Hyatt Moore IV (2014-2016)\n'
+                ],obj.versionNum);
+            msgbox(msg);
+        end
+        
 
-        %settingsName is a string specifying the settings to update:
-        %   
+        % --------------------------------------------------------------------
+        %> @brief Assign figure's menubar callbacks.
+        %> Called internally during class construction.
+        %> @param obj Instance of PAController
+        %> @param hObject 
+        %> @param eventdata
+        %> @param optionalSettingsName String specifying the settings to
+        %> update (optional)
+        % -------------------------------------------------------------------- 
         function menuFileSettingsCallback(obj,hObject,eventdata,optionalSettingsName)
             if(nargin<4)
                 optionalSettingsName = [];
@@ -461,7 +518,13 @@ classdef PAController < handle
             set(handles.button_go,'callback',@obj.button_goCallback);
             
             % Configure stats panel callbacks ...
-            set([handles.check_normalizevalues,handles.menu_feature,handles.menu_signalsource,handles.menu_plottype],'callback',@refreshResultsPlot);
+            % - this is now handed in the PAStatTool.m class
+            %             set([handles.check_sortvalues;
+            %                 handles.check_normalizevalues;
+            %                 handles.menu_feature;
+            %                 handles.menu_signalsource;
+            %                 handles.menu_plottype],'callback',@refreshResultsPlot);
+            
 
         end
         
@@ -932,7 +995,7 @@ classdef PAController < handle
         function menuFileOpenCallback(obj,hObject,eventdata)
             %DATA.pathname	/Volumes/SeaG 1TB/sampleData/csv
             %DATA.filename	700023t00c1.csv.csv
-            f=uigetfullfile({'*.csv;*.raw;*.bin','All (counts, raw accelerations)';'*.csv','Comma Separated Values';'*.bin','Raw Acceleration (binary format: firmwares 2.2.1, 2.5.0, and 3.1.0)';'*.raw','Raw Acceleration (comma separated values)'},'Select a file','off',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
+            f=uigetfullfile({'*.csv;*.raw;*.bin','All (counts, raw accelerations)';'*.csv','Comma Separated Values';'*.bin','Raw Acceleration (binary format: firmwares 2.2.1, 2.5.0, and 3.1.0)';'*.raw','Raw Acceleration (comma separated values)';'*.gt3x','Raw GT3X binary'},'Select a file','off',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
             try
                 if(~isempty(f))
                     if(~strcmpi(obj.viewMode,'timeseries'))
@@ -1140,13 +1203,12 @@ classdef PAController < handle
         %> @param hObject    handle to menu_file_quit (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         % --------------------------------------------------------------------        
-        function menuViewmodeTimeSeriesCallback(obj,hObject,eventdata)           
+        function menuViewmodeTimeSeriesCallback(obj,hObject,eventdata)
             obj.setViewMode('timeseries');
             if(~isempty(obj.accelObj))
                 obj.initAccelDataView();
             end
-            
-        end   
+        end
                 
         % --------------------------------------------------------------------
         %> @brief Menubar callback for running the batch tool.
@@ -1154,14 +1216,19 @@ classdef PAController < handle
         %> @param hObject    handle to menu_viewmode_batch (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
-        % --------------------------------------------------------------------        
+        % --------------------------------------------------------------------
         function menuViewmodeBatchCallback(obj,hObject,eventdata)           
             batchTool = PABatchTool(obj.batch);
             batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
+            batchTool.addlistener('SwitchToResults',@obj.menuViewmodeResultsCallback);
         end        
         
         function updateBatchToolSettingsCallback(obj,batchToolObj,eventData)
             obj.batch = eventData.settings;
+            if(isdir(obj.batch.outputDirectory))
+                obj.resultsPathname = obj.batch.outputDirectory;
+            end
+            
         end
         
         % Results viewing callback
@@ -1176,7 +1243,6 @@ classdef PAController < handle
             if(obj.initResultsView())  
                 obj.VIEW.showReady('all');
             end
-            
         end        
         
 
@@ -1395,7 +1461,7 @@ classdef PAController < handle
         % =================================================================
         function contextmenu_mainaxes_h = getPrimaryAxesContextmenuHandle(obj)
             %%% reference line contextmenu            
-            contextmenu_mainaxes_h = uicontextmenu('callback',@obj.contextmenu_primaryAxes_callback);
+            contextmenu_mainaxes_h = uicontextmenu('callback',@obj.contextmenu_primaryAxes_callback,'parent',obj.figureH);
             uimenu(contextmenu_mainaxes_h,'Label','Unhide','tag','unhide');            
         end
         
@@ -1458,7 +1524,7 @@ classdef PAController < handle
        % =================================================================
        function uicontextmenu_handle = getLineContextmenuHandle(obj)           
        % --------------------------------------------------------------------
-           uicontextmenu_handle = uicontextmenu('callback',@obj.contextmenu_line_callback);%,get(parentAxes,'parent'));
+           uicontextmenu_handle = uicontextmenu('callback',@obj.contextmenu_line_callback,'parent',obj.figureH);%,get(parentAxes,'parent'));
            uimenu(uicontextmenu_handle,'Label','Resize','separator','off','callback',@obj.contextmenu_line_resize_callback);
            uimenu(uicontextmenu_handle,'Label','Use Default Scale','separator','off','callback',@obj.contextmenu_line_defaultScale_callback,'tag','defaultScale');
            uimenu(uicontextmenu_handle,'Label','Move','separator','off','callback',@obj.contextmenu_line_move_callback);
@@ -1477,7 +1543,7 @@ classdef PAController < handle
        %> PAView classes.
        % =================================================================
        function uicontextmenu_handle = getFeatureLineContextmenuHandle(obj)           
-           uicontextmenu_handle = uicontextmenu();%,get(parentAxes,'parent'));
+           uicontextmenu_handle = uicontextmenu('parent',obj.figureH);%,get(parentAxes,'parent'));
            uimenu(uicontextmenu_handle,'Label','Copy to clipboard','separator','off','callback',@obj.contextmenu_line2clipboard_callback,'tag','copy_window2clipboard');
        end
        
@@ -1806,7 +1872,15 @@ classdef PAController < handle
                 success = this.StatTool.getCanPlot();                
             end
             disableFlag = ~success;
+            
             this.VIEW.initWidgets('results',disableFlag);
+            
+            %             if(disableFlag)
+            %                 this.StatTool.disable();
+            %             else
+            %                 this.StatTool.enable();
+            %             end
+            
             if(~success)
                 this.StatTool = [];
                 responseButton = questdlg('Results output pathname is either not set or was not found.  Would you like to choose one now?','Find results output path?');

@@ -72,6 +72,8 @@ classdef PAView < handle
         menuhandle;
         
         %> @brief Struct of check box handles.  Fields include
+        %> - @c sortResults - check to presort values from high to low for
+        %> each profile vector
         %> - @c normalizeResults - check to show normalized results.
         %> - @c trimResults - check to trim outlier results.  
         checkhandle;
@@ -143,10 +145,12 @@ classdef PAView < handle
                 obj.contextmenuhandle.signals = lineContextmenuHandle;
                 obj.contextmenuhandle.featureLine = featureLineContextmenuHandle;
                 
-                obj.createView();  
-                
-                
+                obj.createView(); 
                 obj.disableWidgets();
+                
+                set(obj.getFigHandle(),'visible','on');
+
+                
             else
                 obj = [];
             end
@@ -178,18 +182,23 @@ classdef PAView < handle
             resultsPanelPos = get(handles.panel_results,'position');
             newResultsPanelY = sum(timeSeriesPanelPos([2,4]))-resultsPanelPos(4);
             set(handles.panel_results,'position',[timeSeriesPanelPos(1),newResultsPanelY,resultsPanelPos(3:4)]);
-            
-            % Line up panel_centroidProfiles with panel_displayButtonGroup            
-            displayButtonGroupPos = get(handles.panel_displayButtonGroup,'position');
-            centroidProfilesPos = get(handles.panel_centroidProfiles,'position');
-            centroidProfilesPos(2) = sum(displayButtonGroupPos([2,4]))-centroidProfilesPos(4);  % This is y_ = y^ + h^ - h_
-            set(handles.panel_centroidProfiles,'position',centroidProfilesPos);
 
-            % Line up panel_coiControls with panel_epochControls
+
+            % Line up panel_controlCentroid with panel_epochControls
             epochControlsPos = get(handles.panel_epochControls,'position');
-            coiControlsPos = get(handles.panel_coiControls,'position');
+            coiControlsPos = get(handles.panel_controlCentroid,'position');
             coiControlsPos(2) = sum(epochControlsPos([2,4]))-coiControlsPos(4);  % This is y_ = y^ + h^ - h_
-            set(handles.panel_coiControls,'position',coiControlsPos);
+            set(handles.panel_controlCentroid,'position',coiControlsPos);
+            
+            
+            
+            % Line up panel_centroidPrimaryAxesControls with panel_epochControls
+            priAxesControlsPos = get(handles.panel_centroidPrimaryAxesControls,'position');
+            priAxesControlsPos(2) = sum(epochControlsPos([2,4]))-priAxesControlsPos(4);  % This is y_ = y^ + h^ - h_
+            set(handles.panel_centroidPrimaryAxesControls,'position',priAxesControlsPos);
+            
+
+            
             
             metaDataHandles = [handles.panel_study;get(handles.panel_study,'children')];
             set(metaDataHandles,'backgroundcolor',[0.94,0.94,0.94],'visible','off');
@@ -208,6 +217,7 @@ classdef PAView < handle
                 handles.panel_plotType
                 handles.panel_plotSignal
                 handles.panel_plotData
+                handles.panel_centroidPrimaryAxesControls
                 handles.panel_plotCentroid];
             set(whiteHandles,'backgroundcolor',[0.94,0.94,0.94]);
 %             set(findobj(whiteHandles,'-property','shadowcolor'),'shadowcolor',[0 0 0],'highlightcolor',[0 0 0]);
@@ -242,6 +252,7 @@ classdef PAView < handle
             obj.menuhandle.resultType = handles.menu_plottype;
             
             obj.checkhandle.normalizeResults = handles.check_normalizevalues;
+            obj.checkhandle.sortResults = handles.check_sortvalues;
             obj.checkhandle.trimResults = handles.check_trim;
             
 %             obj.timeseries.menuhandle = obj.menuhandle;
@@ -258,7 +269,6 @@ classdef PAView < handle
             obj.clearAxesHandles();
             obj.clearTextHandles(); 
             obj.clearWidgets();
-            
             
         end
         
@@ -599,8 +609,9 @@ classdef PAView < handle
 
             resultPanels = [
                             handles.panel_results;
-                            handles.panel_coiControls;
-                            handles.panel_epochControls
+                            handles.panel_controlCentroid;
+                            handles.panel_centroidPrimaryAxesControls
+                            handles.panel_epochControls;
                            ];
 
             timeseriesPanels = [handles.panel_timeseries;
@@ -666,8 +677,8 @@ classdef PAView < handle
             
             resultPanels = [
                 handles.panel_results;
-                handles.panel_coiControls;
-                handles.panel_centroidProfiles
+                handles.panel_controlCentroid;
+                handles.panel_centroidPrimaryAxesControls;
                 ];
             
                        
@@ -677,13 +688,12 @@ classdef PAView < handle
                 handles.panel_epochControls];
             
             if(strcmpi(viewMode,'timeseries'))
-%                 set([handles.panel_coiControls;
-%                     handles.panel_centroidProfiles],'visible','off');
 
                 set(resultPanels,'visible','off');
+                set(findall(resultPanels,'enable','on'),'enable','off');
 
+                
                 set(timeseriesPanels,'visible','on');
-%                 set(resultPanels,'visible','off');
                 
                 set(handles.menu_viewmode_timeseries,'checked','on');
                 set(handles.menu_viewmode_results,'checked','off');
@@ -701,11 +711,10 @@ classdef PAView < handle
                     set(findall(resultPanels,'enable','on'),'enable','off');
                 end
 
-                set(resultPanels,'visible','on');
-                
-                %                 set([handles.panel_coiControls;
-                %                     handles.panel_centroidProfiles],'visible','off');
-
+                % Handle the specific visibility in the PAStatTool ->
+                % which has more control
+                set(resultPanels(1),'visible','on');
+                set(resultPanels(2:3),'visible','off');
                 
                 set(handles.menu_viewmode_timeseries,'checked','off');
                 set(handles.menu_viewmode_results,'checked','on');

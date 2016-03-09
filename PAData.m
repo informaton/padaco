@@ -79,7 +79,8 @@ classdef PAData < handle
        %> @brief Name of file containing accelerometer data that is loaded.
        filename;
 
-       %> Current window.  Current position in the raw data.  The first window is '1' (i.e. not zero because this is MATLAB programming)
+       %> Current window.  Current position in the raw data.
+       %> The first window is '1' (i.e. not zero because this is MATLAB programming)
        curWindow; 
        %> Number of samples contained in the data (accelRaw.x)
        durSamples;
@@ -137,14 +138,14 @@ classdef PAData < handle
        
        % ======================================================================
        %> @brief Constructor for PAData class.
-       %> @param fullFilenameOrPath Either (1) the full filename (i.e. with pathname) of accelerometer data to load.
-       %>        or (2) the path that contains raw accelerometer data
-       %>        stored in binary file(s) - Firmware versions 2.5 or 3.1
-       %>        only.  
+       %> @param fullFilenameOrPath Either
+       %> - (1) the full filename (i.e. with pathname) of accelerometer data to load.
+       %> - or (2) the path that contains raw accelerometer data stored in
+       %> binary file(s) - Firmware versions 2.5 or 3.1 only.
        %> @param pStruct Optional struct of parameters to use.  If it is not
        %> included then parameters from getDefaultParameters method are used.
        %> @retval Instance of PAData.
-       %fullFile = '~/Google Drive/work/Stanford - Pediatrics/sampledata/female child 1 second epoch.csv'
+       % fullFile = '~/Google Drive/work/Stanford - Pediatrics/sampledata/female child 1 second epoch.csv'
        % =================================================================
        function obj = PAData(fullFilenameOrPath,pStruct)
            obj.pathname =[];
@@ -983,7 +984,7 @@ classdef PAData < handle
        %> is not included, or does not exist, then the instance variables pathname and filename
        %> are used to identify the file to load.
        % =================================================================
-       function loadFile(obj,fullfilename)
+       function didLoad = loadFile(obj,fullfilename)
        % Ensure that we have a negative number or some way of making sure
        % that we have sequential data (fill in all with Nan or -1 eg)
            
@@ -997,90 +998,98 @@ classdef PAData < handle
            % Have one file version for counts...           
            if(exist(fullfilename,'file'))
                [pathName, baseName, ext] = fileparts(fullfilename);
-               
                obj.studyID = obj.getStudyIDFromBasename(baseName);
-               
-               %Always load the count data first, just because it holds the
-               %lux and such
-               fullCountFilename = fullfile(pathName,strcat(baseName,'.csv'));
-               tic
-               obj.loadCountFile(fullCountFilename);
-               toc
-               obj.accelType = 'count'; % this is modified, below, to 'all' if a 
-                                        % a raw acceleration file (.csv or
-                                        % .bin) is being loaded, in which
-                                        % case the count data is replaced
-                                        % with the raw data.
-               
-               % For .raw files, load the count data first so that it can
-               % then be reshaped by the sampling rate found in .raw
-               if(strcmpi(ext,'.raw'))
-                   tic
-                   obj.loadRawCSVFile(fullfilename);
-                   toc
-                   obj.accelType = 'all';
-               elseif(strcmpi(ext,'.bin'))                   
-                   %determine firmware version
-                   infoFile = fullfile(pathName,strcat(baseName,'.info.txt'));
+
+               if(strcmpi(ext,'.gt3x'))
+                   didLoad = obj.loadGT3XFile(fullfilename);
+               else
+                   %Always load the count data first, just because it holds the
+                   %lux and such
+                   fullCountFilename = fullfile(pathName,strcat(baseName,'.csv'));
                    
-                   %load meta data from info.txt
-                   [infoStruct, firmwareVersion] = obj.parseInfoTxt(infoFile);
-                   
-                   
-                   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                   % Ensure firmware version is either 2.2.1, 2.5.0 or 3.1.0
-                   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                   if(strcmp(firmwareVersion,'2.5.0')||strcmp(firmwareVersion,'3.1.0') || strcmp(firmwareVersion,'2.2.1'))
-                       obj.setFullFilename(fullfilename);
-                       obj.sampleRate = str2double(infoStruct.Sample_Rate);
-                       
+                   if(exist(fullCountFilename,'file'))
+                       tic
+                       obj.loadCountFile(fullCountFilename);
+                       toc
+                       obj.accelType = 'count'; % this is modified, below, to 'all' if a
+                       % a raw acceleration file (.csv or
+                       % .bin) is being loaded, in which
+                       % case the count data is replaced
+                       % with the raw data.
+                   end
+                   % For .raw files, load the count data first so that it can
+                   % then be reshaped by the sampling rate found in .raw
+                   if(strcmpi(ext,'.raw'))
+                       tic
+                       didLoad = obj.loadRawCSVFile(fullfilename);
+                       toc
                        obj.accelType = 'all';
+                   elseif(strcmpi(ext,'.bin'))
+                       %determine firmware version
+                       %                        infoFile = fullfile(pathName,strcat(baseName,'.info.txt'));
+                       infoFile = fullfile(pathName,'info.txt');
+                       
+                       %load meta data from info.txt
+                       [infoStruct, firmwareVersion] = obj.parseInfoTxt(infoFile);
+                       
+                       %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                       % Ensure firmware version is either 2.2.1, 2.5.0 or 3.1.0
+                       %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                       if(strcmp(firmwareVersion,'2.5.0')||strcmp(firmwareVersion,'3.1.0') || strcmp(firmwareVersion,'2.2.1') || strcmp(firmwareVersion,'1.5.0'))
+                           obj.setFullFilename(fullfilename);
+                           obj.sampleRate = str2double(infoStruct.Sample_Rate);
                            
-                       % Version 2.5.0 firmware
-                       if(strcmp(firmwareVersion,'2.5.0'))
+                           obj.accelType = 'all';
                            
-                           unitsTimePerDay = 24*3600*10^7;
-                           matlabDateTimeOffset = 365+1+1;  %367, 365 days for the first year + 1 day for the first month + 1 day for the first day of the month
-                           %start, stop and delta date nums
-                           binStartDatenum = str2double(infoStruct.Start_Date)/unitsTimePerDay+matlabDateTimeOffset;
-                           countStartDatenum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
-                           
-                           if(binStartDatenum~=countStartDatenum)
-                               fprintf('There is a discrepancy between the start date-time in the count file and the binary file.  I''m not sure what is going to happen because of this.\n');
+                           didLoad = true;  % will be changed to false if none of the strcmp find a match
+                           % Version 2.5.0 firmware
+                           if(strcmp(firmwareVersion,'2.5.0'))
+                               
+                               unitsTimePerDay = 24*3600*10^7;
+                               matlabDateTimeOffset = 365+1+1;  %367, 365 days for the first year + 1 day for the first month + 1 day for the first day of the month
+                               %start, stop and delta date nums
+                               binStartDatenum = str2double(infoStruct.Start_Date)/unitsTimePerDay+matlabDateTimeOffset;
+                               countStartDatenum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
+                               
+                               if(binStartDatenum~=countStartDatenum)
+                                   fprintf('There is a discrepancy between the start date-time in the count file and the binary file.  I''m not sure what is going to happen because of this.\n');
+                               end
+                               
+                               
+                               obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
+                               
+                               obj.durationSec = floor(obj.durationSamples()/obj.sampleRate);
+                               
+                               binDatenumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
+                               binStopDatenum = datenum(binDatenumDelta*obj.durSamples)+binStartDatenum;
+                               synthDateVec = datevec(binStartDatenum:binDatenumDelta:binStopDatenum);
+                               synthDateVec(:,6) = round(synthDateVec(:,6)*1000)/1000;
+                               
+                               %This takes 2.0 seconds!
+                               obj.dateTimeNum = datenum(synthDateVec);
+                               
+                               % Version 3.1.0 firmware                                % Version 2.2.1 firmware
+
+                           elseif(strcmp(firmwareVersion,'3.1.0') || strcmp(firmwareVersion,'2.2.1') || strcmp(firmwareVersion,'1.5.0'))
+                               obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
+                           else
+                               didLoad = false;
                            end
                            
+                       else
+                           % for future firmware version loaders
+                           % Not 2.2.1, 2.5.0 or 3.1.0 - skip - cannot handle right now.
+                           fprintf(1,'Firmware version (%s) either not found or unrecognized in %s.\n',firmwareVersion,infoFile);
                            
-                           obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
-                           
-                           obj.durationSec = floor(obj.durationSamples()/obj.sampleRate);
-                           
-                           binDatenumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
-                           binStopDatenum = datenum(binDatenumDelta*obj.durSamples)+binStartDatenum;
-                           synthDateVec = datevec(binStartDatenum:binDatenumDelta:binStopDatenum);
-                           synthDateVec(:,6) = round(synthDateVec(:,6)*1000)/1000;
-                           
-                           %This takes 2.0 seconds!
-                           obj.dateTimeNum = datenum(synthDateVec);
-                          
-                           % Version 3.1.0 firmware
-                       elseif(strcmp(firmwareVersion,'3.1.0') || strcmp(firmwareVersion,'2.2.1'))  
-                           obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
-                           % Version 2.2.1 firmware
-                       elseif(strcmp(firmwareVersion,'2.2.1'))
-                           obj.loadRawActivityBinFile(fullfilename,firmwareVersion);                       
                        end
-                  
-                   else
-                       % for future firmware version loaders
-                       % Not 2.2.1, 2.5.0 or 3.1.0 - skip - cannot handle right now.
-                       fprintf(1,'Firmware version (%s) either not found or unrecognized in %s.\n',firmwareVersion,infoFile);
                        
+                   else  % if it was not .bin or .raw
+                       obj.accelType = 'count';
                    end
-                   
-               else
-                   obj.accelType = 'count';
                end
-           end           
+           else
+               didLoad = false;
+           end
        end
        
        % ======================================================================
@@ -1088,7 +1097,7 @@ classdef PAData < handle
        %> @param obj Instance of PAData.
        %> @param fullCountFilename The full (i.e. with path) filename to load. 
        % =================================================================
-       function loadCountFile(obj,fullCountFilename)           
+       function didLoad = loadCountFile(obj,fullCountFilename)           
            
            if(exist(fullCountFilename,'file'))
                fid = fopen(fullCountFilename,'r');
@@ -1197,15 +1206,19 @@ classdef PAData < handle
                            obj.durationSec = 0;
                        end                       
                        fclose(fid);
+                       didLoad = true;
                    catch me
                        showME(me);
                        fclose(fid);
+                       didLoad = false;
                    end
                else
                    fprintf('Warning - could not open %s for reading!\n',fullCountFilename);
+                   didLoad = false;
                end
            else
                fprintf('Warning - %s does not exist!\n',fullCountFilename);
+               didLoad = false;
            end           
        end       
        
@@ -1220,7 +1233,7 @@ classdef PAData < handle
        %> @param obj Instance of PAData.
        %> @param fullRawCSVFilename The full (i.e. with path) filename for raw data to load.
        % =================================================================
-       function loadRawCSVFile(obj,fullRawCSVFilename)
+       function didLoad = loadRawCSVFile(obj,fullRawCSVFilename)
            if(exist(fullRawCSVFilename,'file'))
                
                fid = fopen(fullRawCSVFilename,'r');
@@ -1330,18 +1343,23 @@ toc
                        fclose(fid);
                        
                        obj.resampleCountData();
+                       didLoad = true;
                        
                    catch me
                        showME(me);
                        fclose(fid);
+                       didLoad = false;
                    end
                else
                    fprintf('Warning - could not open %s for reading!\n',fullRawCSVFilename);
+                   didLoad = false;
                end
            else
                fprintf('Warning - %s does not exist!\n',fullRawCSVFilename);
+               didLoad = false;
            end
        end
+       
        
        
        % ======================================================================
@@ -1353,9 +1371,44 @@ toc
        %> @note Currently, only two firmware versions are supported:
        %> - 2.5.0
        %> - 3.1.0
+       function didLoad = loadGT3XFile(obj, fullFilename)
+           
+           if(exist(fullFilename,'file'))
+               [pathName, baseName, ext] = fileparts(fullFilename);
+               tmpDir = fullfile(pathName,baseName);
+               if(~strcmpi(ext,'.gt3x'))
+                   fprintf('Warning: Expecting the extension ''.gt3x'', but found ''%s'' instead\n',ext);
+               end
+               if(exist(tmpDir,'dir'))
+                   SUCCESS =  true;
+               else
+                   [SUCCESS,MESSAGE,~] = mkdir(tmpDir);
+               end
+               
+               if(~SUCCESS)
+                   fprintf('Unable to make a temporary folder (%s) to extract the file %s.%s\n.  The following error was generated by the O/S:\t%s\n',tmpDir, baseName, ext,MESSAGE);
+                   didLoad = false;
+               else
+                   unzip(fullFilename, tmpDir);
+                   didLoad = obj.loadPathOfRawBinary(tmpDir);                   
+               end
+           else
+               didLoad = false;
+           end           
+       end
+       
+       % ======================================================================
+       %> @brief Loads an accelerometer's raw data from binary files stored
+       %> in the path name given.
+       %> @param obj Instance of PAData.
+       %> @param pathWithRawBinaryFiles Name of the path (a string) that
+       %> contains raw acceleromater data stored in one or more binary files.
+       %> @note Currently, only two firmware versions are supported:
+       %> - 2.5.0
+       %> - 3.1.0
        % =================================================================
-       function loadPathOfRawBinary(obj, pathWithRawBinaryFiles)
-           infoFile = fullfilename(pathWithRawBinaryFiles,'info.txt');
+       function didLoad = loadPathOfRawBinary(obj, pathWithRawBinaryFiles)
+           infoFile = fullfile(pathWithRawBinaryFiles,'info.txt');
  
            %load meta data from info.txt
            [infoStruct, firmwareVersion] = obj.parseInfoTxt(infoFile);
@@ -1363,21 +1416,22 @@ toc
            % Determine the specification
            
            % It is either 2.5.0 or 3.1.0
-           if(strcmp(firmwareVersion,'2.5.0') || strcmp(firmwareVersion,'3.1.0'))
+           if(strcmp(firmwareVersion,'2.5.0') || strcmp(firmwareVersion,'3.1.0')|| strcmp(firmwareVersion,'1.5.0'))
                if(strcmp(firmwareVersion,'2.5.0'))
-                   fullBinFilename = fullfilename(pathWithRawBinaryFiles,'activity.bin');
-               elseif(strcmp(firmwareVersion,'3.1.0'))
-                   fullBinFilename = fullfilename(pathWithRawBinaryFiles,'log.bin');
+                   fullBinFilename = fullfile(pathWithRawBinaryFiles,'activity.bin');
+               elseif(strcmp(firmwareVersion,'3.1.0') || strcmp(firmwareVersion,'1.5.0') )
+                   fullBinFilename = fullfile(pathWithRawBinaryFiles,'log.bin');
                else
                    % for future firmware version loaders
-                   
+                   warndlg(sprintf('Attempting to load data from untested firmware version (%s)',firmwareVersion));
+                   fullBinFilename = fullfile(pathWithRawBinaryFiles,'log.bin');
                end
                obj.setFullFilename(fullBinFilename);
-               obj.loadFile(fullBinFilename);
+               didLoad = obj.loadFile(fullBinFilename);
            else
                % Not 2.5.0 or 3.1.0 - skip - cannot handle right now.
-                fprintf(1,'Firmware version (%s) either not found or unrecognized in %s.\n',firmwareVersion,infoTxtFullFilename);
-
+                fprintf(1,'Firmware version (%s) either not found or unrecognized in %s.\n',firmwareVersion,infoFile);
+                didLoad = false;
            end
        end
 
@@ -2103,7 +2157,7 @@ toc
                
                recordCount = 0;
                
-               fid = fopen(fullRawActivityBinFilename,'r','b');
+               fid = fopen(fullRawActivityBinFilename,'r','b');  %I'm going with a big endian format here.
                
                if(fid>0)
                    
@@ -2133,7 +2187,7 @@ toc
                    try          
                        % both fw 2.5 and 3.1.0 use same packet format for
                        % acceleration data.  
-                       if(strcmp(firmwareVersion,'2.5.0')||strcmp(firmwareVersion,'3.1.0')||strcmp(firmwareVersion,'2.2.1'))
+                       if(strcmp(firmwareVersion,'2.5.0')||strcmp(firmwareVersion,'3.1.0')||strcmp(firmwareVersion,'2.2.1')||strcmp(firmwareVersion,'1.5.0'))
                            tic
                            axesPerRecord = 3;
                            checksumSizeBytes = 1;
@@ -2155,7 +2209,7 @@ toc
                                % desired result here.
                                axesUBitData = fread(fid,[axesPerRecord,inf],precision)';
                                
-                           elseif(strcmp(firmwareVersion,'3.1.0')||strcmp(firmwareVersion,'2.2.1'))
+                           elseif(strcmp(firmwareVersion,'3.1.0')||strcmp(firmwareVersion,'2.2.1') || strcmp(firmwareVersion,'1.5.0'))
                                % endian format: big
                                % global header: none
                                % packet encoding:
@@ -2163,9 +2217,10 @@ toc
                                %   accel packets:  36 bits each (format: see ver 2.5.0) + 1 byte for checksum
                                
                                triaxialAccelCodeBigEndian = 7680;
+                               trixaialAccelCodeLittleEndian = 7686; %?
                                triaxialAccelCodeLittleEndian = 30;
                                triaxialAccelCode = triaxialAccelCodeBigEndian;
-                               
+                               %                                packetCode = 7686 (popped up in a firmware version 1.5
                                bitsPerByte = 8;                               
                                bitsPerAccelRecord = 36;  %size in number of bits (12 bits per acceleration axis)
                                recordsPerByte = bitsPerByte/bitsPerAccelRecord;
@@ -2179,7 +2234,7 @@ toc
                                                
                                    packetCode = fread(fid,1,'uint16=>double');
                                    fseek(fid,timeStampSizeBytes,0);
-                                   packetSizeBytes = fread(fid,2,'uint8');
+                                   packetSizeBytes = fread(fid,2,'uint8');  % This works for firmware version 1.5 packetSizeBytes = fread(fid,1,'uint16','l');
                                    if(~feof(fid))                                       
                                        packetSizeBytes = [1 256]*packetSizeBytes;                                       
                                        if(packetCode == triaxialAccelCode)  % This is for the triaxial accelerometers
@@ -2201,11 +2256,11 @@ toc
                                frewind(fid);
                                curRecord = 1;
                                axesUBitData = zeros(recordCount,axesPerRecord);
-                               timeStamp = zeros(recordCount,1);
+                               obj.timeStamp = zeros(recordCount,1);
                                while(~feof(fid) && curRecord<=recordCount)
                                    packetCode = fread(fid,1,'uint16=>double');
                                    if(packetCode==triaxialAccelCode)  % This is for the triaxial accelerometers
-                                       timeStamp(curRecord) = fread(fid,1,'uint32=>double');
+                                       obj.timeStamp(curRecord) = fread(fid,1,'uint32=>double');
                                        packetSizeBytes = [1 256]*fread(fid,2,'uint8');
                                        
                                        packetRecordCount = packetSizeBytes*recordsPerByte;

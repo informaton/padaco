@@ -33,6 +33,11 @@ extractLoadShapeFeatures
 ./utility/lib/
     libmysqlsclient libraries and plug ins.
 
+Model/
+    model_summary.m
+    table_summary.m
+    gee_model.m
+    mym.m
 
 Utility/
 
