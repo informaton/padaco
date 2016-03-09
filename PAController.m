@@ -38,6 +38,9 @@ classdef PAController < handle
         %> mode.
         StatTool;
         
+        %> Figure handle to the main figure window
+        figureH;
+        
         %> Linehandle in Padaco that is currently selected by the user.
         current_linehandle;
         
@@ -103,8 +106,8 @@ classdef PAController < handle
             obj.resultsPathname = obj.SETTINGS.CONTROLLER.resultsPathname;
             
             obj.accelTypeShown = [];
-            
-            if(ishandle(Padaco_fig_h))
+            obj.figureH = Padaco_fig_h;
+            if(ishandle(obj.figureH))
                 obj.featureHandles = [];
                 
                 % Create a VIEW class
@@ -116,13 +119,13 @@ classdef PAController < handle
                 
                 
                 % initialize the view here ...?
-                obj.VIEW = PAView(Padaco_fig_h,uiLinecontextmenu_handle,uiPrimaryAxescontextmenu_handle,featureLineContextMenuHandle);
+                obj.VIEW = PAView(obj.figureH,uiLinecontextmenu_handle,uiPrimaryAxescontextmenu_handle,featureLineContextMenuHandle);
 
                 obj.VIEW.showBusy([],'all');
                 
                 obj.initWidgets();
                 
-                set(Padaco_fig_h,'CloseRequestFcn',{@obj.figureCloseCallback,guidata(Padaco_fig_h)});
+                set(obj.figureH,'CloseRequestFcn',{@obj.figureCloseCallback,guidata(obj.figureH)});
 
                 %configure the menu bar callbacks.
                 obj.initMenubarCallbacks();
@@ -1458,7 +1461,7 @@ classdef PAController < handle
         % =================================================================
         function contextmenu_mainaxes_h = getPrimaryAxesContextmenuHandle(obj)
             %%% reference line contextmenu            
-            contextmenu_mainaxes_h = uicontextmenu('callback',@obj.contextmenu_primaryAxes_callback);
+            contextmenu_mainaxes_h = uicontextmenu('callback',@obj.contextmenu_primaryAxes_callback,'parent',obj.figureH);
             uimenu(contextmenu_mainaxes_h,'Label','Unhide','tag','unhide');            
         end
         
@@ -1521,7 +1524,7 @@ classdef PAController < handle
        % =================================================================
        function uicontextmenu_handle = getLineContextmenuHandle(obj)           
        % --------------------------------------------------------------------
-           uicontextmenu_handle = uicontextmenu('callback',@obj.contextmenu_line_callback);%,get(parentAxes,'parent'));
+           uicontextmenu_handle = uicontextmenu('callback',@obj.contextmenu_line_callback,'parent',obj.figureH);%,get(parentAxes,'parent'));
            uimenu(uicontextmenu_handle,'Label','Resize','separator','off','callback',@obj.contextmenu_line_resize_callback);
            uimenu(uicontextmenu_handle,'Label','Use Default Scale','separator','off','callback',@obj.contextmenu_line_defaultScale_callback,'tag','defaultScale');
            uimenu(uicontextmenu_handle,'Label','Move','separator','off','callback',@obj.contextmenu_line_move_callback);
@@ -1540,7 +1543,7 @@ classdef PAController < handle
        %> PAView classes.
        % =================================================================
        function uicontextmenu_handle = getFeatureLineContextmenuHandle(obj)           
-           uicontextmenu_handle = uicontextmenu();%,get(parentAxes,'parent'));
+           uicontextmenu_handle = uicontextmenu('parent',obj.figureH);%,get(parentAxes,'parent'));
            uimenu(uicontextmenu_handle,'Label','Copy to clipboard','separator','off','callback',@obj.contextmenu_line2clipboard_callback,'tag','copy_window2clipboard');
        end
        

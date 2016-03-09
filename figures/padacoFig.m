@@ -61,59 +61,11 @@ function padacoFig_OpeningFcn(hObject, eventdata, handles, varargin)
 % varargin   command line arguments to padacoFig (see VARARGIN)
 
 % Choose default command line output for padacoFig
-handles.output = hObject;
 
-% set(hObject,'visible','off')
-initializeGUI(hObject);
+handles.output = hObject;
 
 % Update handles structure
 guidata(hObject, handles);
-
-mPathname = fileparts(mfilename('fullpath'));
-addpath(mPathname);
-subPaths = {'icons','utility','html'};
-for s=1:numel(subPaths)
-    addpath(fullfile(mPathname,subPaths{s}));
-end
-
-try
-    parametersFile = '_padaco.parameters.txt';
-    handles.user.controller = PAController(hObject,mPathname,parametersFile); 
-    guidata(hObject,handles);
-catch me
-    %     me.message
-    %     me.stack(1)
-    showME(me);
-    fprintf(1,['The default settings file may be corrupted or inaccessible.',...
-        '  This can occur when installing the software on a new computer or from editing the settings file externally.',...
-        '\nChoose OK in the popup dialog to correct the settings file.\n']);
-    resetDlg(hObject,fullfile(mPathname,parametersFile));   
-end
-
-
-
-function initializeGUI(hObject)
-
-% set(hObject,'visible','on');
-figColor = get(hObject,'color');
-handles = guidata(hObject);
-set(handles.text_status,'backgroundcolor',figColor,'units','normalized');
-
-% ch = findall(hObject,'type','uipanel');
-% set(ch,'units','normalized');
-% set(ch,'backgroundcolor',figColor);
-% 
-% ch = findobj(hObject,'-regexp','tag','text.*');
-% 
-% ch(strcmp(get(ch,'type'),'uimenu'))=[];
-% set(ch,'backgroundcolor',figColor);
-
-ch = findobj(hObject,'-regexp','tag','axes.*');
-set(ch,'units','normalized');
-
-set(hObject,'closeRequestFcn','delete(gcbo)');
-% movegui(hObject,'northwest');
-
 
 
 % --------------------------------------------------------------------
@@ -127,10 +79,6 @@ function varargout = padacoFig_OutputFcn(hObject, eventdata, handles)
 % Get default command line output from handles structure
 if(ishandle(hObject))
     varargout{1} = handles.output;
-    
-    movegui(hObject,'northwest');
-%     set(hObject,'visible','on');
-
 else
     varargout{1} = [];
 end
