@@ -8,7 +8,6 @@ function padaco()
     end
     hObject = padacoFig('visible','off');
     handles = initializeGUI(hObject);
-    
 
     try
         parametersFile = '_padaco.parameters.txt';
@@ -31,7 +30,6 @@ function handles = initializeGUI(hObject)
     
     % set(hObject,'visible','on');
     figColor = get(hObject,'color');
-    movegui(hObject,'northwest');
     
     handles = guidata(hObject);
     set(handles.text_status,'backgroundcolor',figColor,'units','normalized');
@@ -49,6 +47,9 @@ function handles = initializeGUI(hObject)
     set(ch,'units','normalized');
     
     set(hObject,'closeRequestFcn','delete(gcbo)');
-    % movegui(hObject,'northwest');
+    
+%     renderOffscreen(hObject);
+    movegui(hObject,'northwest');
     
 end
+

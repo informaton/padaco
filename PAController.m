@@ -1203,7 +1203,7 @@ classdef PAController < handle
         %> @param hObject    handle to menu_file_quit (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         % --------------------------------------------------------------------        
-        function menuViewmodeTimeSeriesCallback(obj,hObject,eventdata)           
+        function menuViewmodeTimeSeriesCallback(obj,hObject,eventdata)
             obj.setViewMode('timeseries');
             if(~isempty(obj.accelObj))
                 obj.initAccelDataView();

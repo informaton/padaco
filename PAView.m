@@ -145,10 +145,12 @@ classdef PAView < handle
                 obj.contextmenuhandle.signals = lineContextmenuHandle;
                 obj.contextmenuhandle.featureLine = featureLineContextmenuHandle;
                 
-                obj.createView();  
-                
-                
+                obj.createView(); 
                 obj.disableWidgets();
+                
+                set(obj.getFigHandle(),'visible','on');
+
+                
             else
                 obj = [];
             end
@@ -180,7 +182,7 @@ classdef PAView < handle
             resultsPanelPos = get(handles.panel_results,'position');
             newResultsPanelY = sum(timeSeriesPanelPos([2,4]))-resultsPanelPos(4);
             set(handles.panel_results,'position',[timeSeriesPanelPos(1),newResultsPanelY,resultsPanelPos(3:4)]);
-            
+
 
             % Line up panel_controlCentroid with panel_epochControls
             epochControlsPos = get(handles.panel_epochControls,'position');
@@ -195,7 +197,7 @@ classdef PAView < handle
             priAxesControlsPos(2) = sum(epochControlsPos([2,4]))-priAxesControlsPos(4);  % This is y_ = y^ + h^ - h_
             set(handles.panel_centroidPrimaryAxesControls,'position',priAxesControlsPos);
             
-            
+
             
             
             metaDataHandles = [handles.panel_study;get(handles.panel_study,'children')];
@@ -267,7 +269,6 @@ classdef PAView < handle
             obj.clearAxesHandles();
             obj.clearTextHandles(); 
             obj.clearWidgets();
-            
             
         end
         
