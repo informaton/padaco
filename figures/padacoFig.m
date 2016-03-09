@@ -1,39 +1,39 @@
-function varargout = padaco(varargin)
+function varargout = padacoFig(varargin)
 % Files brought in:
 %     showME(ME);
 %     killall;
     
-% PADACO MATLAB code for padaco.fig
-%      PADACO, by itself, creates a new PADACO or raises the existing
+% PADACOFIG MATLAB code for padacoFig.fig
+%      PADACOFIG, by itself, creates a new PADACOFIG or raises the existing
 %      singleton*.
 %
-%      H = PADACO returns the handle to a new PADACO or the handle to
+%      H = PADACOFIG returns the handle to a new PADACOFIG or the handle to
 %      the existing singleton*.
 %
-%      PADACO('CALLBACK',hObject,eventData,handles,...) calls the local
-%      function named CALLBACK in PADACO.M with the given input arguments.
+%      PADACOFIG('CALLBACK',hObject,eventData,handles,...) calls the local
+%      function named CALLBACK in PADACOFIG.M with the given input arguments.
 %
-%      PADACO('Property','Value',...) creates a new PADACO or raises the
+%      PADACOFIG('Property','Value',...) creates a new PADACOFIG or raises the
 %      existing singleton*.  Starting from the left, property value pairs are
-%      applied to the GUI before padaco_OpeningFcn gets called.  An
+%      applied to the GUI before padacoFig_OpeningFcn gets called.  An
 %      unrecognized property name or invalid value makes property application
-%      stop.  All inputs are passed to padaco_OpeningFcn via varargin.
+%      stop.  All inputs are passed to padacoFig_OpeningFcn via varargin.
 %
 %      *See GUI Options on GUIDE's Tools menu.  Choose "GUI allows only one
 %      instance to run (singleton)".
 %
 % See also: GUIDE, GUIDATA, GUIHANDLES
 
-% Edit the above text to modify the response to help padaco
+% Edit the above text to modify the response to help padacoFig
 
-% Last Modified by GUIDE v2.5 03-Mar-2016 09:57:50
+% Last Modified by GUIDE v2.5 09-Mar-2016 11:14:03
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
 gui_State = struct('gui_Name',       mfilename, ...
                    'gui_Singleton',  gui_Singleton, ...
-                   'gui_OpeningFcn', @padaco_OpeningFcn, ...
-                   'gui_OutputFcn',  @padaco_OutputFcn, ...
+                   'gui_OpeningFcn', @padacoFig_OpeningFcn, ...
+                   'gui_OutputFcn',  @padacoFig_OutputFcn, ...
                    'gui_LayoutFcn',  [], ...@padaco_LayoutFcn , ...
                    'gui_Callback',   []);
 if nargin && ischar(varargin{1})
@@ -49,18 +49,18 @@ end
 
 
 % function h = padaco_LayoutFcn(varargin)
-%     h = openfig('padaco.fig',varargin{:},'invisible');
+%     h = openfig('padacoFig.fig',varargin{:},'invisible');
     
 
-% --- Executes just before padaco is made visible.
-function padaco_OpeningFcn(hObject, eventdata, handles, varargin)
+% --- Executes just before padacoFig is made visible.
+function padacoFig_OpeningFcn(hObject, eventdata, handles, varargin)
 % This function has no output args, see OutputFcn.
 % hObject    handle to figure
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-% varargin   command line arguments to padaco (see VARARGIN)
+% varargin   command line arguments to padacoFig (see VARARGIN)
 
-% Choose default command line output for padaco
+% Choose default command line output for padacoFig
 handles.output = hObject;
 
 % set(hObject,'visible','off')
@@ -118,7 +118,7 @@ set(hObject,'closeRequestFcn','delete(gcbo)');
 
 % --------------------------------------------------------------------
 % --- Outputs from this function are returned to the command line.
-function varargout = padaco_OutputFcn(hObject, eventdata, handles) 
+function varargout = padacoFig_OutputFcn(hObject, eventdata, handles) 
 % varargout  cell array for returning output args (see VARARGOUT);
 % hObject    handle to figure
 % eventdata  reserved - to be defined in a future version of MATLAB

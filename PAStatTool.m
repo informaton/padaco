@@ -6,7 +6,7 @@ classdef PAStatTool < handle
     properties(Access=private)
         resultsDirectory;
         featuresDirectory;
-        imagesDirectory;
+        %         imagesDirectory; % Not used
         
         databaseObj;
         %> handle of scatter plot figure.
@@ -111,8 +111,14 @@ classdef PAStatTool < handle
             end
             
             try
-                this.databaseObj = CLASS_database_goals();                
-                this.profileFields = this.databaseObj.getColumnNames('subjectInfo_t');
+                if(widgetSettings.useDatabase)
+                    %                     this.databaseObj = CLASS_database_goals();
+                    this.databaseObj = feval(widgetSettings.databaseClass);
+                    this.profileFields = this.databaseObj.getColumnNames('subjectInfo_t');
+                else
+                    this.databaseObj = [];
+                    this.profileFields = {''};
+                end
             catch me
                 showME(me);
                 this.databaseObj = [];
@@ -134,7 +140,7 @@ classdef PAStatTool < handle
             this.originalFeatureStruct = [];
             this.canPlot = false;
             this.featuresDirectory = [];
-            this.imagesDirectory = [];
+            %             this.imagesDirectory = [];
             this.figureH = padaco_fig_h;
             this.featureStruct = [];
             
@@ -152,17 +158,18 @@ classdef PAStatTool < handle
             if(isdir(resultsPathname))
                 this.resultsDirectory = resultsPathname;
                 featuresPath = fullfile(resultsPathname,'features');
-                imagesPath = fullfile(resultsPathname,'features');
                 if(isdir(featuresPath))
                     this.featuresDirectory = featuresPath;
                 else
                     fprintf('Features pathname (%s) does not exist!\n',featuresPath);
                 end
-                if(isdir(imagesPath))
-                    this.imagesDirectory = imagesPath;
-                else
-                    fprintf('Images pathname (%s) does not exist!\n',imagesPath);
-                end
+                
+                %                 imagesPath = fullfile(resultsPathname,'images');
+                %                 if(isdir(imagesPath))
+                %                     this.imagesDirectory = imagesPath;
+                %                 else
+                %                     fprintf('Images pathname (%s) does not exist!\n',imagesPath);
+                %                 end
 
                 this.initWidgets(widgetSettings);  %initializes previousstate.plotType on success
 
@@ -195,6 +202,16 @@ classdef PAStatTool < handle
             delete@handle(this);
         end 
       
+
+        %> @brief Returns boolean indicator if results view is showing
+        %> clusters (plot type 'centroids') or not.
+        function clusterView = inClusterView(this)
+            clusterView = strcmpi(this.getPlotType(),'centroids');
+        end
+        
+        function plotType = getPlotType(this)
+            plotType = getMenuUserData(this.handles.menu_plottype);
+        end
         
         % ======================================================================
         %> @brief Get method for centroidObj instance variable.
@@ -290,12 +307,14 @@ classdef PAStatTool < handle
                 tmpFeatureStruct = this.originalFeatureStruct;
                 tmpUsageStateStruct = this.usageStateStruct;
                 startTimeSelection = pSettings.startTimeSelection;
-                stopTimeSelection = pSettings.stopTimeSelection ;
+                stopTimeSelection = pSettings.stopTimeSelection;
 %                 if(stopTimeSelection<1)
                     % Do nothing; this means, that we started at rayday and
                     % will go 24 hours
                 if(stopTimeSelection== startTimeSelection)
-                    warndlg('Not going to load only 1 feature; just do a mean ...');
+                    if(this.inClusterView())
+                        warndlg('Only one time epoch selected - defaulting to all epochs instead.');
+                    end
                     
                 elseif(startTimeSelection < stopTimeSelection)
                     tmpFeatureStruct.startTimes = tmpFeatureStruct.startTimes(startTimeSelection:stopTimeSelection);
@@ -519,6 +538,38 @@ classdef PAStatTool < handle
                 fprintf('PAStatTool.m cannot plot (refreshPlot)\n');
             end
         end
+        
+        function enable(obj)
+            obj.setEnableState('on');
+        end
+        
+        function disable(obj)
+            obj.setEnableState('off');
+        end
+        
+        % Enable state should be 'on','off', or empty (defaults to 'off').
+        function setEnableState(obj, enableState)
+            
+            resultPanels = [
+                obj.handles.panel_results;
+                obj.handles.panel_controlCentroid;
+                obj.handles.panel_centroidPrimaryAxesControls;
+                ];
+            
+            switch( enableState )
+                case 'off'
+                    set(findall(resultPanels,'enable','on'),'enable','off');
+                case 'on'
+                    set(findall(resultPanels,'enable','off'),'enable','on');
+            end
+            
+            if(obj.inClusterView())
+                set(resultPanels,'visible','on');
+            else
+                set(resultPanels(1),'visible','on');
+                set(resultPanels(2:3),'visible','off');
+            end
+        end
             
 
     end
@@ -574,7 +625,7 @@ classdef PAStatTool < handle
         % ======================================================================
         function plotSelectionChange(this, menuHandle, ~)
             this.clearPlots();
-            plotType = this.base.plotTypes{get(menuHandle,'value')};
+            plotType = this.getPlotType();  %this.base.plotTypes{get(menuHandle,'value')};
             set(menuHandle,'tooltipstring',this.base.tooltipstring.(plotType));
             switch(plotType)
                 case 'centroids'
@@ -763,7 +814,6 @@ classdef PAStatTool < handle
         end
 
         
-                
         % ======================================================================
         %> @brief Initialize gui handles using input parameter or default
         %> parameters.  Initalizes callbacks where applicable.
@@ -917,7 +967,7 @@ classdef PAStatTool < handle
                         
                         pos = get(this.handles.check_showAnalysisFigure,'position');
                         pos(2) = 0; %parentPos(4)/2-pos(4)/2; % get the lower position that results in the widget being placed in the center of the panel.
-                        set(this.handles.check_showAnalysisFigure,'position',pos)
+                        set(this.handles.check_showAnalysisFigure,'position',pos);
                         
                         drawnow();
                         %
@@ -925,7 +975,7 @@ classdef PAStatTool < handle
                         bgColor = get(this.handles.push_nextCentroid,'backgroundcolor');
                         
                         % bgColor = [0.94,0.94,0.94];
-                        nextImg = imread('./icons/arrow-right_16px.png','png','backgroundcolor',bgColor);
+                        nextImg = imread('arrow-right_16px.png','png','backgroundcolor',bgColor);
                         previousImg = fliplr(nextImg);
                         
                         set(this.handles.push_nextCentroid,'cdata',nextImg,'string',[]);
@@ -952,6 +1002,8 @@ classdef PAStatTool < handle
                         this.handles.contextmenu.secondaryAxes.weekday = uimenu(contextmenu_secondaryAxes,'Label','Show current centroid''s weekday distribution','callback',{@this.centroidDistributionCallback,'weekday'});
                         this.handles.contextmenu.secondaryAxes.membership = uimenu(contextmenu_secondaryAxes,'Label','Show membership distribution by centroid','callback',{@this.centroidDistributionCallback,'membership'});
                         set(this.handles.axes_secondary,'uicontextmenu',contextmenu_secondaryAxes);
+                        
+
                     end
                 end                
             end
@@ -966,14 +1018,17 @@ classdef PAStatTool < handle
             
             %% Analysis Figure
             % Profile Summary
-            this.initProfileTable(widgetSettings.profileFieldSelection);
-                      
-            % Initialize the scatter plot axes
-            this.initScatterPlotAxes();
-            
-            set(this.handles.push_dumpTable,'string','Dump Table','callback',@this.dumpTableResultsCallback);
-            set(this.handles.text_analysisTitle,'string','','fontsize',12);
-            
+            if(widgetSettings.useDatabase && ~isempty(this.databaseObj))
+                this.initProfileTable(widgetSettings.profileFieldSelection);
+                
+                % Initialize the scatter plot axes
+                this.initScatterPlotAxes();
+                
+                set(this.handles.push_dumpTable,'string','Dump Table','callback',@this.dumpTableResultsCallback);
+                set(this.handles.text_analysisTitle,'string','','fontsize',12);
+            else
+                set(this.handles.check_showAnalysisFigure,'visible','off');
+            end
            
             % disable everything
             if(~this.canPlot)
@@ -1700,11 +1755,6 @@ classdef PAStatTool < handle
                     this.centroidObj = [];
                 else
                     this.refreshGlobalProfile();
-                    
-                    %                     fprintf(1,'pause(3)');
-                    %                     pause(3);
-                    %                     set(this.handles.text_results,'visible','off','string','');
-                    %                     fprintf(1,'\n');
                 end
             else
                 inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);                
@@ -1795,219 +1845,227 @@ classdef PAStatTool < handle
         %> display of centroid data.
         % ======================================================================
         function plotCentroids(this,centroidAndPlotSettings)
+            
             this.clearPrimaryAxes();
 %            this.clearPlots();
             this.showMouseBusy();
-            
-            if(isempty(this.centroidObj)|| this.centroidObj.failedToConverge())
-               % clear everything and give a warning that the centroid is empty
-               fprintf('Clustering results are empty\n');
-            else
-                if(nargin<2)
-                    centroidAndPlotSettings = this.getPlotSettings();
-                end
-                distributionAxes = this.handles.axes_secondary;
-                centroidAxes = this.handles.axes_primary;
-                
-                numCentroids = this.centroidObj.numCentroids();
-                numLoadShapes = this.centroidObj.numLoadShapes();
-                
-                %% Show centroids on primary axes
-%                 coi = this.centroidObj.getCentroidOfInterest();
-                cois = this.centroidObj.getCentroidsOfInterest();
-                
-                numCOIs = numel(cois);
-                nextPlot = get(centroidAxes,'nextplot');
-                coiColors = 'kbgrycm';
-                coiStyles = repmat('-:',size(coiColors));
-                coiColors = [coiColors, fliplr(coiColors)];
-                maxColorStyles = numel(coiColors);
-                
-                yLimMode = centroidAndPlotSettings.primaryAxis_yLimMode;
-                set(centroidAxes,'ytickmode',yLimMode,...
-                    'ylimmode',yLimMode,...
-                    'yticklabelmode',yLimMode);
-                
-                if(centroidAndPlotSettings.showCentroidMembers || numCOIs>1)
-                    hold(centroidAxes,'on');
-                    set(centroidAxes,'ygrid','on');
+            try
+                if(isempty(this.centroidObj)|| this.centroidObj.failedToConverge())
+                    % clear everything and give a warning that the centroid is empty
+                    fprintf('Clustering results are empty\n');
                 else
-                    set(centroidAxes,'ygrid','off','nextplot','replacechildren');
-                end
-
-                
-                %                 % Prep the x-axis.  This should probably be done elsewhere
-                %                 % as it will not change when going from one centroid to the
-                %                 % next, but only (though not necessarily) when refreshing centroids.
-                %                 xTicks = 1:8:this.featureStruct.totalCount;
-                %                 if(xTicks(end)~=this.featureStruct.totalCount)
-                %                     xTicks(end+1)=this.featureStruct.totalCount;
-                %                 end
-                %                 xTickLabels = this.featureStruct.startTimes(xTicks);
-                %                 set(centroidAxes,'xlim',[1,this.featureStruct.totalCount],'xtick',xTicks,'xticklabel',xTickLabels);
-
-
-                %                 dailyDivisionTicks = 1:8:featureStruct.totalCount;
-                %                 xticks = dailyDivisionTicks;
-                %                 weekdayticks = xticks;
-                %                 xtickLabels = featureStruct.startTimes(1:8:end);
-                %                 daysofweekStr = xtickLabels;                
-                
-                legendStrings = cell(numCOIs,1);
-                centroidHandles = nan(numCOIs,1);
-                coiSortOrders = centroidHandles;
-                coiPctMemberships = coiSortOrders;
-                %                 coiIndices = centroidHandles;
-                totalMembers = 0;
-                coiMemberIDs = [];
-                for c=1:numCOIs
-                    coi = cois{c};                    
-                    if(centroidAndPlotSettings.showCentroidMembers)
-                        plot(centroidAxes,coi.memberShapes','-','linewidth',1,'color',[0.85 0.85 0.85]);
+                    if(nargin<2)
+                        centroidAndPlotSettings = this.getPlotSettings();
                     end
+                    distributionAxes = this.handles.axes_secondary;
+                    centroidAxes = this.handles.axes_primary;
+                    
+                    numCentroids = this.centroidObj.numCentroids();
+                    numLoadShapes = this.centroidObj.numLoadShapes();
+                    
+                    %% Show centroids on primary axes
+                    %                 coi = this.centroidObj.getCentroidOfInterest();
+                    cois = this.centroidObj.getCentroidsOfInterest();
+                    
+                    numCOIs = numel(cois);
+                    nextPlot = get(centroidAxes,'nextplot');
+                    coiColors = 'kbgrycm';
+                    coiStyles = repmat('-:',size(coiColors));
+                    coiColors = [coiColors, fliplr(coiColors)];
+                    maxColorStyles = numel(coiColors);
+                    
+                    yLimMode = centroidAndPlotSettings.primaryAxis_yLimMode;
+                    set(centroidAxes,'ytickmode',yLimMode,...
+                        'ylimmode',yLimMode,...
+                        'yticklabelmode',yLimMode);
+                    
+                    if(centroidAndPlotSettings.showCentroidMembers || numCOIs>1)
+                        hold(centroidAxes,'on');
+                        set(centroidAxes,'ygrid','on');
+                    else
+                        set(centroidAxes,'ygrid','off','nextplot','replacechildren');
+                    end
+                    
+                    
+                    %                 % Prep the x-axis.  This should probably be done elsewhere
+                    %                 % as it will not change when going from one centroid to the
+                    %                 % next, but only (though not necessarily) when refreshing centroids.
+                    %                 xTicks = 1:8:this.featureStruct.totalCount;
+                    %                 if(xTicks(end)~=this.featureStruct.totalCount)
+                    %                     xTicks(end+1)=this.featureStruct.totalCount;
+                    %                 end
+                    %                 xTickLabels = this.featureStruct.startTimes(xTicks);
+                    %                 set(centroidAxes,'xlim',[1,this.featureStruct.totalCount],'xtick',xTicks,'xticklabel',xTickLabels);
+                    
+                    
+                    %                 dailyDivisionTicks = 1:8:featureStruct.totalCount;
+                    %                 xticks = dailyDivisionTicks;
+                    %                 weekdayticks = xticks;
+                    %                 xtickLabels = featureStruct.startTimes(1:8:end);
+                    %                 daysofweekStr = xtickLabels;
+                    
+                    legendStrings = cell(numCOIs,1);
+                    centroidHandles = nan(numCOIs,1);
+                    coiSortOrders = centroidHandles;
+                    coiPctMemberships = coiSortOrders;
+                    %                 coiIndices = centroidHandles;
+                    totalMembers = 0;
+                    coiMemberIDs = [];
+                    for c=1:numCOIs
+                        coi = cois{c};
+                        if(centroidAndPlotSettings.showCentroidMembers)
+                            plot(centroidAxes,coi.memberShapes','-','linewidth',1,'color',[0.85 0.85 0.85]);
+                        end
+                        pctMembership =  coi.numMembers/numLoadShapes*100;
+                        legendStrings{c} = sprintf('Centroid #%u (%0.2f%%)',coi.sortOrder, pctMembership);
+                        
+                        coiSortOrders(c) = coi.sortOrder;
+                        coiPctMemberships(c) =  coi.numMembers/numLoadShapes*100;
+                        %                     coiIndices(c) = coi.index;
+                        coiMemberIDs = [coiMemberIDs;coi.memberIDs(:)];
+                        totalMembers = totalMembers+coi.numMembers;  %total load shape counts
+                        
+                        
+                        % This changes my axes limit mode if nextplot is set to
+                        % 'replace' instead of 'replacechildren'
+                        colorStyleIndex = mod(c-1,maxColorStyles)+1;  %b/c MATLAB is one based, and 'mod' is not.
+                        centroidHandles(c) = plot(centroidAxes,coi.shape,'linewidth',2,'linestyle',coiStyles(colorStyleIndex),'color',coiColors(colorStyleIndex)); %[0 0 0]);
+                        % 'displayname',legendStrings{c};
+                    end
+                    
+                    %want to figure out unique individuals that may be
+                    %contributing to a particular load shape.
+                    uniqueMemberIDs = unique(coiMemberIDs);
+                    numUniqueMemberIDs = numel(uniqueMemberIDs);
+                    
+                    % The centroid of interest will change according to user
+                    % selection or interaction with the gui.  It is updated
+                    % internally within centroidObj.
+                    coi = this.centroidObj.getCentroidOfInterest();
                     pctMembership =  coi.numMembers/numLoadShapes*100;
-                    legendStrings{c} = sprintf('Centroid #%u (%0.2f%%)',coi.sortOrder, pctMembership);
                     
-                    coiSortOrders(c) = coi.sortOrder;
-                    coiPctMemberships(c) =  coi.numMembers/numLoadShapes*100;
-                    %                     coiIndices(c) = coi.index;
-                    coiMemberIDs = [coiMemberIDs;coi.memberIDs(:)];
-                    totalMembers = totalMembers+coi.numMembers;  %total load shape counts
-
+                    set(centroidAxes,'nextplot',nextPlot);
                     
-                    % This changes my axes limit mode if nextplot is set to
-                    % 'replace' instead of 'replacechildren'
-                    colorStyleIndex = mod(c-1,maxColorStyles)+1;  %b/c MATLAB is one based, and 'mod' is not.
-                    centroidHandles(c) = plot(centroidAxes,coi.shape,'linewidth',2,'linestyle',coiStyles(colorStyleIndex),'color',coiColors(colorStyleIndex)); %[0 0 0]);
-                    % 'displayname',legendStrings{c};
-                end
-                
-                %want to figure out unique individuals that may be
-                %contributing to a particular load shape.
-                uniqueMemberIDs = unique(coiMemberIDs);
-                numUniqueMemberIDs = numel(uniqueMemberIDs);
-                
-                % The centroid of interest will change according to user 
-                % selection or interaction with the gui.  It is updated
-                % internally within centroidObj.  
-                coi = this.centroidObj.getCentroidOfInterest();
-                pctMembership =  coi.numMembers/numLoadShapes*100;                
-                
-                set(centroidAxes,'nextplot',nextPlot);
-                
-                totalMemberIDsCount = this.centroidObj.getUniqueLoadShapeIDsCount();
-                pctOfTotalMemberIDs = numUniqueMemberIDs/totalMemberIDsCount*100;
-                if(numCOIs>1)
-                    coiSortOrdersString = num2str(coiSortOrders(:)','%d,');
-                    coiSortOrdersString(end)=[]; %remove trailing ','
-                    legend(centroidAxes,centroidHandles,legendStrings,'box','on','fontsize',12);
-                    centroidTitle = sprintf('Centroids #{%s}. Loadshapes: %u of %u (%0.2f%%).  Individuals: %u of %u (%0.2f%%)',coiSortOrdersString,...
-                        totalMembers, numLoadShapes, sum(coiPctMemberships), numUniqueMemberIDs,totalMemberIDsCount, pctOfTotalMemberIDs);
-                else
-                    legend(centroidAxes,'off');
-                    centroidTitle = sprintf('Centroid #%u (%s). Popularity %u of %u. Loadshapes: %u of %u (%0.2f%%).  Individuals: %u of %u (%0.2f%%)',coi.sortOrder,...
-                        this.featureStruct.method, numCentroids-coi.sortOrder+1,numCentroids, coi.numMembers, numLoadShapes, pctMembership, numUniqueMemberIDs, totalMemberIDsCount, pctOfTotalMemberIDs);                    
-                end                
-                title(centroidAxes,centroidTitle,'fontsize',14,'interpreter','none');
-                                
-                
-                %% Analysis figure and scatter plot
-                %                 title(this.handles.axes_scatterplot,centroidTitle,'fontsize',12);
-                set(this.handles.text_analysisTitle,'string',centroidTitle);
-                
-                displayName = sprintf('Centroid #%u (%0.2f%%)\n',[coiSortOrders(:),coiPctMemberships(:)]');
-                displayName(end-1:end) = []; %remove trailing '\n'
-                yData = get(this.handles.line_allScatterPlot,'ydata');
-                set(this.handles.line_coiInScatterPlot,'xdata',coiSortOrders,'ydata',yData(coiSortOrders),'displayName',displayName);
-                
-                %%  Show distribution on secondary axes
-                switch(this.centroidDistributionType)
+                    totalMemberIDsCount = this.centroidObj.getUniqueLoadShapeIDsCount();
+                    pctOfTotalMemberIDs = numUniqueMemberIDs/totalMemberIDsCount*100;
+                    if(numCOIs>1)
+                        coiSortOrdersString = num2str(coiSortOrders(:)','%d,');
+                        coiSortOrdersString(end)=[]; %remove trailing ','
+                        legend(centroidAxes,centroidHandles,legendStrings,'box','on','fontsize',12);
+                        centroidTitle = sprintf('Centroids #{%s}. Loadshapes: %u of %u (%0.2f%%).  Individuals: %u of %u (%0.2f%%)',coiSortOrdersString,...
+                            totalMembers, numLoadShapes, sum(coiPctMemberships), numUniqueMemberIDs,totalMemberIDsCount, pctOfTotalMemberIDs);
+                    else
+                        legend(centroidAxes,'off');
+                        centroidTitle = sprintf('Centroid #%u (%s). Popularity %u of %u. Loadshapes: %u of %u (%0.2f%%).  Individuals: %u of %u (%0.2f%%)',coi.sortOrder,...
+                            this.featureStruct.method, numCentroids-coi.sortOrder+1,numCentroids, coi.numMembers, numLoadShapes, pctMembership, numUniqueMemberIDs, totalMemberIDsCount, pctOfTotalMemberIDs);
+                    end
+                    title(centroidAxes,centroidTitle,'fontsize',14,'interpreter','none');
                     
-                    % plots the Calinski-Harabasz indices obtained during
-                    % adaptve k-means filtering.
-                    case 'performance'
-                        this.centroidObj.plotPerformance(distributionAxes);
                     
-                    % plots the distribution of weekdays on x-axis
-                    % and the loadshape count (for the centroid of
-                    % interest) on the y-axis.
-                    case 'weekday'
-                        daysofweekStr = {'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
-                        daysofweekOrder = 1:7;
+                    %% Analysis figure and scatter plot
+                    %                 title(this.handles.axes_scatterplot,centroidTitle,'fontsize',12);
+                    if(centroidAndPlotSettings.useDatabase && ~isempty(this.databaseObj))
+                        set(this.handles.text_analysisTitle,'string',centroidTitle);
                         
-                        % +1 to adjust startDaysOfWeek range from [0,6] to [1,7]
-                        coiDaysOfWeek = this.featureStruct.startDaysOfWeek(coiStruct.memberIndices)+1;
-                        coiDaysOfWeekCount = histc(coiDaysOfWeek,daysofweekOrder);
-                        coiDaysOfWeekPct = coiDaysOfWeekCount/sum(coiDaysOfWeekCount(:));
-                        bar(distributionAxes,coiDaysOfWeekPct);
+                        displayName = sprintf('Centroid #%u (%0.2f%%)\n',[coiSortOrders(:),coiPctMemberships(:)]');
+                        displayName(end-1:end) = []; %remove trailing '\n'
+                        yData = get(this.handles.line_allScatterPlot,'ydata');
+                        set(this.handles.line_coiInScatterPlot,'xdata',coiSortOrders,'ydata',yData(coiSortOrders),'displayName',displayName);
+                    end
+                    
+                    %%  Show distribution on secondary axes
+                    switch(this.centroidDistributionType)
                         
-                        for d=1:7
-                            daysofweekStr{d} = sprintf('%s (n=%u)',daysofweekStr{d},coiDaysOfWeekCount(d));
-                        end
-                        
-                        title(distributionAxes,sprintf('Weekday distribution for Centroid #%u (membership count = %u)',coiStruct.index,coiStruct.numMembers),'fontsize',14);
-                        %ylabel(distributionAxes,sprintf('Load shape count'));
-                        xlabel(distributionAxes,'Days of week');
-                        xlim(distributionAxes,[daysofweekOrder(1)-0.75 daysofweekOrder(end)+0.75]);                        
-                        set(distributionAxes,'ylim',[0,1],'ygrid','on','ytickmode','auto','xtick',daysofweekOrder,'xticklabel',daysofweekStr);
-            
-                    % plots centroids id's (sorted by membership in ascending order) on x-axis
-                    % and the count of loadshapes (i.e. membership count) on the y-axis.
-                    case 'membership'
-                        set(distributionAxes,'ylimmode','auto');
-                        barWidth = 0.8;
-                        
-                        y = this.centroidObj.getHistogram();
-                        x = 1:numel(y);
-
-                        highlightColor = [0.75 0.75 0];                        
-                        
-                        barH = bar(distributionAxes,y,barWidth,'buttonDownFcn',@this.centroidHistogramButtonDownFcn);
-                        
-                        oldVersion = verLessThan('matlab','7.14');
-                        if(oldVersion)
-                            %barH = bar(distributionAxes,y,barWidth);
-                            defaultColor = [0 0 9/16];
-                            faceVertexCData = repmat(defaultColor,numCentroids,1);
-                        end
-                        
-                        for c=1:numCOIs
-                            coi = cois{c};
-                            if(oldVersion)
-                                faceVertexCData(coi.sortOrder,:) = highlightColor;
-                                patchH = get(barH,'children');
-                                if(numCentroids>100)
-                                    %  set(patchH,'edgecolor',[0.4 0.4 0.4]);
-                                    set(patchH,'edgecolor','none','buttonDownFcn',{@this.centroidHistogramPatchButtonDownFcn,coi.sortOrder});
-                                end
-                                set(patchH,'facevertexcdata',faceVertexCData);
-                            else
-                                pH = patch(repmat(x(coi.sortOrder),1,4)+0.5*barWidth*[-1 -1 1 1],1*[y(coi.sortOrder) 0 0 y(coi.sortOrder)],highlightColor,'parent',distributionAxes,'facecolor',highlightColor,'edgecolor',highlightColor,'buttonDownFcn',{@this.centroidHistogramPatchButtonDownFcn,coi.sortOrder});
+                        % plots the Calinski-Harabasz indices obtained during
+                        % adaptve k-means filtering.
+                        case 'performance'
+                            this.centroidObj.plotPerformance(distributionAxes);
+                            
+                            % plots the distribution of weekdays on x-axis
+                            % and the loadshape count (for the centroid of
+                            % interest) on the y-axis.
+                        case 'weekday'
+                            daysofweekStr = {'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
+                            daysofweekOrder = 1:7;
+                            
+                            % +1 to adjust startDaysOfWeek range from [0,6] to [1,7]
+                            coiDaysOfWeek = this.featureStruct.startDaysOfWeek(coiStruct.memberIndices)+1;
+                            coiDaysOfWeekCount = histc(coiDaysOfWeek,daysofweekOrder);
+                            coiDaysOfWeekPct = coiDaysOfWeekCount/sum(coiDaysOfWeekCount(:));
+                            bar(distributionAxes,coiDaysOfWeekPct);
+                            
+                            for d=1:7
+                                daysofweekStr{d} = sprintf('%s (n=%u)',daysofweekStr{d},coiDaysOfWeekCount(d));
                             end
-
-                        end
-                        
-                        title(distributionAxes,sprintf('Centroid vs Load shape count. Centroids: %u Load shapes: %u',this.centroidObj.numCentroids(), this.centroidObj.numLoadShapes()),'fontsize',14);
-                        %ylabel(distributionAxes,sprintf('Load shape count'));
-                        xlabel(distributionAxes,'Centroid popularity');
-                        xlim(distributionAxes,[0.25 numCentroids+.75]);
-                        set(distributionAxes,'ygrid','on','ytickmode','auto','xtick',[]);
-                        %                     case 'globalprofile'
-                        %                         globalProfile = this.getGlobalProfile();
-                        %                     case 'localVsGlobalProfile'
-                        %                         globalProfile = this.getGlobalProfile();
-                        %                         primaryKeys = coiStruct.memberIDs;
-                        %                         ` = this.getProfileCell(primaryKeys);
-                        %                     case 'centroidprofile'
-                        %                         primaryKeys = coiStruct.memberIDs;
-                        %                         coiProfile = this.getProfileCell(primaryKeys);
-                    otherwise
-                        warndlg(sprintf('Distribution type (%s) is unknonwn and or not supported',this.centroidDistributionType));                        
+                            
+                            title(distributionAxes,sprintf('Weekday distribution for Centroid #%u (membership count = %u)',coiStruct.index,coiStruct.numMembers),'fontsize',14);
+                            %ylabel(distributionAxes,sprintf('Load shape count'));
+                            xlabel(distributionAxes,'Days of week');
+                            xlim(distributionAxes,[daysofweekOrder(1)-0.75 daysofweekOrder(end)+0.75]);
+                            set(distributionAxes,'ylim',[0,1],'ygrid','on','ytickmode','auto','xtick',daysofweekOrder,'xticklabel',daysofweekStr);
+                            
+                            % plots centroids id's (sorted by membership in ascending order) on x-axis
+                            % and the count of loadshapes (i.e. membership count) on the y-axis.
+                        case 'membership'
+                            set(distributionAxes,'ylimmode','auto');
+                            barWidth = 0.8;
+                            
+                            y = this.centroidObj.getHistogram();
+                            x = 1:numel(y);
+                            
+                            highlightColor = [0.75 0.75 0];
+                            
+                            barH = bar(distributionAxes,y,barWidth,'buttonDownFcn',@this.centroidHistogramButtonDownFcn);
+                            
+                            oldVersion = verLessThan('matlab','7.14');
+                            if(oldVersion)
+                                %barH = bar(distributionAxes,y,barWidth);
+                                defaultColor = [0 0 9/16];
+                                faceVertexCData = repmat(defaultColor,numCentroids,1);
+                            end
+                            
+                            for c=1:numCOIs
+                                coi = cois{c};
+                                if(oldVersion)
+                                    faceVertexCData(coi.sortOrder,:) = highlightColor;
+                                    patchH = get(barH,'children');
+                                    if(numCentroids>100)
+                                        %  set(patchH,'edgecolor',[0.4 0.4 0.4]);
+                                        set(patchH,'edgecolor','none','buttonDownFcn',{@this.centroidHistogramPatchButtonDownFcn,coi.sortOrder});
+                                    end
+                                    set(patchH,'facevertexcdata',faceVertexCData);
+                                else
+                                    pH = patch(repmat(x(coi.sortOrder),1,4)+0.5*barWidth*[-1 -1 1 1],1*[y(coi.sortOrder) 0 0 y(coi.sortOrder)],highlightColor,'parent',distributionAxes,'facecolor',highlightColor,'edgecolor',highlightColor,'buttonDownFcn',{@this.centroidHistogramPatchButtonDownFcn,coi.sortOrder});
+                                end
+                                
+                            end
+                            
+                            title(distributionAxes,sprintf('Centroid vs Load shape count. Centroids: %u Load shapes: %u',this.centroidObj.numCentroids(), this.centroidObj.numLoadShapes()),'fontsize',14);
+                            %ylabel(distributionAxes,sprintf('Load shape count'));
+                            xlabel(distributionAxes,'Centroid popularity');
+                            xlim(distributionAxes,[0.25 numCentroids+.75]);
+                            set(distributionAxes,'ygrid','on','ytickmode','auto','xtick',[]);
+                            %                     case 'globalprofile'
+                            %                         globalProfile = this.getGlobalProfile();
+                            %                     case 'localVsGlobalProfile'
+                            %                         globalProfile = this.getGlobalProfile();
+                            %                         primaryKeys = coiStruct.memberIDs;
+                            %                         ` = this.getProfileCell(primaryKeys);
+                            %                     case 'centroidprofile'
+                            %                         primaryKeys = coiStruct.memberIDs;
+                            %                         coiProfile = this.getProfileCell(primaryKeys);
+                        otherwise
+                            warndlg(sprintf('Distribution type (%s) is unknonwn and or not supported',this.centroidDistributionType));
+                    end
+                    
+                    
+                    this.refreshCOIProfile();
+                    
                 end
-                
-                this.refreshCOIProfile();
-                
-            end   
+            catch me
+                showME(me);
+                this.clearPrimaryAxes();                
+            end
             
             this.showMouseReady();
         end
@@ -2021,6 +2079,10 @@ classdef PAStatTool < handle
         %> @retval userSettings Struct of GUI parameter value pairs
         % ======================================================================
         function userSettings = getPlotSettings(this)
+            
+            userSettings.useDatabase = this.originalWidgetSettings.useDatabase;
+            userSettings.databaseClass = this.originalWidgetSettings.databaseClass;
+            
             userSettings.showCentroidMembers = get(this.handles.check_showCentroidMembers,'value');
             userSettings.processedTypeSelection = 1;
             userSettings.baseFeatureSelection = get(this.handles.menu_feature,'value');
@@ -2086,7 +2148,7 @@ classdef PAStatTool < handle
         %> @retval didRefresh True on successful refresh, false otherwise.        
         function didRefresh = refreshCOIProfile(this)
             try
-                if(this.hasCentroid())
+               if(~isempty(this.databaseObj) && this.hasCentroid())
                 
                     % This gets the memberIDs attached to each centroid.
                     % This gives us all 
@@ -2116,7 +2178,7 @@ classdef PAStatTool < handle
         % ======================================================================
         function didRefresh = refreshGlobalProfile(this)
             try
-                if(this.hasCentroid())
+                if(~isempty(this.databaseObj) && this.hasCentroid())
                     
                     % This gets the memberIDs attached to each centroid.
                     % This gives us all 
@@ -2181,8 +2243,13 @@ classdef PAStatTool < handle
                 %                     'insulin'};
             end
             statOfInterest = 'AVG';
-            [dataSummaryStruct, ~]=this.databaseObj.getSubjectInfoSummary(primaryKeys,fieldsOfInterest,statOfInterest);
-            coiProfile = PAStatTool.profile2cell(dataSummaryStruct);
+            if(~isempty(this.databaseObj))
+                [dataSummaryStruct, ~]=this.databaseObj.getSubjectInfoSummary(primaryKeys,fieldsOfInterest,statOfInterest);
+                coiProfile = PAStatTool.profile2cell(dataSummaryStruct);
+            else
+                dataSummaryStruct = [];
+                coiProfile = [];
+            end
         end
         
         
@@ -2330,6 +2397,8 @@ classdef PAStatTool < handle
         %> - @c centroidDurationSelection
         % ======================================================================
         function paramStruct = getDefaultParameters()
+            paramStruct.useDatabase = 0;
+            paramStruct.databaseClass = 'CLASS_database_goals';
             paramStruct.trimResults = 0;
             paramStruct.cullResults = 0;
             paramStruct.sortValues = 0;

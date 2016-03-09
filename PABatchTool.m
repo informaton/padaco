@@ -39,7 +39,7 @@ classdef PABatchTool < handle
                 this.settings = this.getDefaultParameters();
             end
                         
-            batchFig = batchTool('visible','off','name','');
+            batchFig = batchTool('visible','off','name','','sizechangedfcn',[]);
             batchHandles = guidata(batchFig);
             
             set(batchHandles.button_getSourcePath,'callback',{@this.getSourceDirectoryCallback,batchHandles.text_sourcePath,batchHandles.text_filesFound});  
@@ -86,7 +86,7 @@ classdef PABatchTool < handle
             if(ishandle(this.figureH))
                 delete(this.figureH);
             end
-            close@handle(this);
+            delete(this);
         end
         
         % Callbacks
@@ -281,7 +281,11 @@ classdef PABatchTool < handle
             % setup timers
             pctDone = 0;
             pctDelta = 1/numel(fullFilenames);
-            waitH = waitbar(pctDone,filenames{1},'name','Batch processing');
+            waitH = waitbar(pctDone,filenames{1},'name','Batch processing','visible','off');
+            titleH = get(get(waitH,'children'),'title');
+            set(titleH,'interpreter','none');  % avoid '_' being interpreted as subscript instruction
+            set(waitH,'visible','on');  %now show the results
+            drawnow;
             startTime = now;
             startClock = clock;
             % batch process
@@ -359,6 +363,7 @@ classdef PABatchTool < handle
             end
             elapsedTimeStr = datestr(now-startTime,'HH:MM:SS');
             if(ishandle(waitH))
+                pause(1);
                 waitbar(1,waitH,'Finished!');
                 pause(1);
                 delete(waitH);
@@ -368,8 +373,8 @@ classdef PABatchTool < handle
 
                 successCount = fileCount-failCount;
                 batchResultStr = sprintf(['Processed %u files in %s.\n',...
-                    '\tSuccess:\t%u\n',...
-                    '\tFail:\t%u\n\n'],fileCount,elapsedTimeStr,successCount,successCount,failCount);
+                    '\n\tSuccess:\t%u\n',...
+                    '\tFail:\t%u\n\n'],fileCount,elapsedTimeStr,successCount,failCount);
                 
                 if(failCount>0)
                     
@@ -399,7 +404,10 @@ classdef PABatchTool < handle
                     end;
                 else
                     dlgName = 'Batch complete';
-                    buttonName = questdlg(batchResultStr,dlgName,'Show results','Return to batch tool');
+                    defaultBtn = 'Show results';
+                    options.Default = defaultBtn;
+                    options.Interpreter = 'none';
+                    buttonName = questdlg(batchResultStr,dlgName,'Show results','Return to batch tool',options); 
                     switch buttonName
                         case 'Show results'
                             % Close the batch mode
@@ -410,8 +418,8 @@ classdef PABatchTool < handle
                             obj.close();
                             % Go to the results view
                         case 'Return to batch tool'
-                            % Default behavior is to return to the
-                            % settings.
+                            % Bring the figure to the front/onscreen
+                            movegui(obj.figureH);
                             
                     end
 

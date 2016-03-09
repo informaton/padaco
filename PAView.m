@@ -689,6 +689,9 @@ classdef PAView < handle
             if(strcmpi(viewMode,'timeseries'))
 
                 set(resultPanels,'visible','off');
+                set(findall(resultPanels,'enable','on'),'enable','off');
+
+                
                 set(timeseriesPanels,'visible','on');
                 
                 set(handles.menu_viewmode_timeseries,'checked','on');
@@ -707,7 +710,10 @@ classdef PAView < handle
                     set(findall(resultPanels,'enable','on'),'enable','off');
                 end
 
-                set(resultPanels,'visible','on');
+                % Handle the specific visibility in the PAStatTool ->
+                % which has more control
+                set(resultPanels(1),'visible','on');
+                set(resultPanels(2:3),'visible','off');
                 
                 set(handles.menu_viewmode_timeseries,'checked','off');
                 set(handles.menu_viewmode_results,'checked','on');

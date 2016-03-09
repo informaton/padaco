@@ -149,7 +149,6 @@ classdef PAController < handle
         function close(obj)
             if(~isempty(obj.accelObj))
                 obj.SETTINGS.DATA = obj.accelObj.getSaveParameters();
-               
             end
             
             % update the stat tool settings if it was used successfully.
@@ -1870,7 +1869,15 @@ classdef PAController < handle
                 success = this.StatTool.getCanPlot();                
             end
             disableFlag = ~success;
+            
             this.VIEW.initWidgets('results',disableFlag);
+            
+            %             if(disableFlag)
+            %                 this.StatTool.disable();
+            %             else
+            %                 this.StatTool.enable();
+            %             end
+            
             if(~success)
                 this.StatTool = [];
                 responseButton = questdlg('Results output pathname is either not set or was not found.  Would you like to choose one now?','Find results output path?');
