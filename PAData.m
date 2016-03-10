@@ -149,8 +149,7 @@ classdef PAData < handle
        % =================================================================
        function obj = PAData(fullFilenameOrPath,pStruct)
            obj.pathname =[];
-           obj.filename = [];
-                      
+           obj.filename = [];                      
 
            if(nargin<2 || isempty(pStruct))
                pStruct = obj.getDefaultParameters();
@@ -1550,6 +1549,13 @@ toc
            end
        end
        
+       function frameableSamples = getFrameableSampleCount(obj)
+           [frameDurMinutes, frameDurHours ] = obj.getFrameDuration();
+           frameDurSeconds = frameDurMinutes*60+frameDurHours*60*60;
+           frameCount = obj.getFrameCount();
+           frameableSamples = frameCount*frameDurSeconds*obj.getSampleRate();
+       end
+       
        % ======================================================================
        %> @brief Extracts features from the identified signal
        %> @param obj Instance of PAData.
@@ -1577,28 +1583,25 @@ toc
            end
            
            currentNumFrames = obj.getFrameCount();
+           frameableSamples = obj.getFrameableSampleCount();
            
            % recalculate based on a change in frame size ...
            if(currentNumFrames~=obj.numFrames)
-               [frameDurMinutes, frameDurHours ] = obj.getFrameDuration();
-               frameDurSeconds = frameDurMinutes*60+frameDurHours*60*60;
-               obj.numFrames = currentNumFrames;
-               frameableSamples = obj.numFrames*frameDurSeconds*obj.getSampleRate();
-               data = obj.getStruct('all');
-               data = eval(['data.',signalTagLine]);
+               obj.numFrames =currentNumFrames;
+               
+               numColumns = frameableSamples/obj.numFrames;  % This could go replace the '[]' in the reshape() methods below
                
                % Not efficient to calculate usageFrames each time if it is
                % not requested, but it avoids having to program a variety
                % of case statements for when a non 'all' or 'usagestate' was selected the
                % frist time, etc.
                %                if(any(strcmpi(method,{'all','usagestate'})))
-                   [usageVec, ~,~] = classifyUsageState(obj);
-                   obj.usageFrames =  reshape(usageVec(1:frameableSamples),[],obj.numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
+               [usageVec, ~,~] = obj.classifyUsageState();
+               obj.usageFrames =  reshape(usageVec(1:frameableSamples),[],obj.numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
                %                end
-               obj.frames =  reshape(data(1:frameableSamples),[],obj.numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
                
                obj.features = [];
-               dateNumIndices = 1:size(obj.frames,1):frameableSamples;
+               dateNumIndices = 1:numColumns:frameableSamples;
                
                %take the first part
                obj.startDatenums = obj.dateTimeNum(dateNumIndices(1:end));               
@@ -1620,6 +1623,10 @@ toc
                % otherwise just use the original           
            end
            
+           data = obj.getStruct('all');
+           data = eval(['data.',signalTagLine]);
+           obj.frames =  reshape(data(1:frameableSamples),[],obj.numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
+
            %frames are stored in consecutive columns.
            data = obj.frames;
            switch(lower(method))
@@ -1754,21 +1761,20 @@ toc
            % activity determined from vector magnitude signal
 
            UNKNOWN = -1;
-           STUDYOVER=0;          
            NONWEAR = 5;
            WEAR = 10;
-           REMS = 10;           
-           NREMS = 15;
-           NAPPING = 20;
-           INACTIVE = 25;
-           ACTIVE = 30;
+           %            STUDYOVER=0;
+           %            REMS = 10;
+           %            NREMS = 15;
+           %            NAPPING = 20;
+           %            INACTIVE = 25;
+           %            ACTIVE = 30;
            
-           countActivity = obj.accel.count.vecMag;
-            
-           longClassificationMinimumDurationOfMinutes = 15;%a 1/4 hour filter?
+           countActivity = obj.accel.count.vecMag;            
+           longClassificationMinimumDurationOfMinutes = 15;%a 15 minute or 1/4 hour filter
            samplesPerMinute = obj.getSampleRate()*60;              
 
-           shortClassificationMinimumDurationOfMinutes = 5;%a 1/4 hour filter?
+           shortClassificationMinimumDurationOfMinutes = 5;%a 5 minute or 1/12 hour filter
 
            longFilterLength = longClassificationMinimumDurationOfMinutes*samplesPerMinute;           
            shortFilterLength = shortClassificationMinimumDurationOfMinutes*samplesPerMinute;           
@@ -1787,7 +1793,6 @@ toc
            % This is good for determining where the study has ended... using a 15 minute duration minimum
            % (essentially 15 counts allowed per hundred samples.)
            offBodyThreshold = longClassificationMinimumDurationOfMinutes*onbodyVsOffBodyCountsPerMinuteCutoff;
-           
            
            longActiveThreshold = longClassificationMinimumDurationOfMinutes*(activeVsInactiveCountsPerSecondCutoff*60);
            
@@ -1897,7 +1902,7 @@ toc
            %
            %
            % =======
-           usageVec(activeVec) = tagStruct.ACTIVE;%30;  %None!
+           usageVec(activeVec) = tagStruct.ACTIVE;%35;  %None!
            usageVec(inactiveVec) = tagStruct.INACTIVE;%25;
            usageVec(~awakeVsAsleepVec) = tagStruct.NAP;%20; 
            usageVec(sleepVec) = tagStruct.NREM;%15;   %Sleep period
@@ -3252,8 +3257,7 @@ toc
            end
            
            switch structType
-               case 'timeSeries'
-                   
+               case 'timeSeries'                   
                    accelS.raw.x =[];
                    accelS.raw.y = [];
                    accelS.raw.z = [];

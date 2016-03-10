@@ -101,7 +101,6 @@ classdef PAController < handle
 
             %create/intilize the settings object            
             obj.SETTINGS = PASettings(rootPathname,parameters_filename);
-            obj.batch = obj.SETTINGS.CONTROLLER.batch;
             obj.screenshotPathname = obj.SETTINGS.CONTROLLER.screenshotPathname;
             obj.resultsPathname = obj.SETTINGS.CONTROLLER.resultsPathname;
             
@@ -1218,15 +1217,15 @@ classdef PAController < handle
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
         function menuViewmodeBatchCallback(obj,hObject,eventdata)           
-            batchTool = PABatchTool(obj.batch);
+            batchTool = PABatchTool(obj.SETTINGS.BATCH);
             batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
             batchTool.addlistener('SwitchToResults',@obj.menuViewmodeResultsCallback);
         end        
         
         function updateBatchToolSettingsCallback(obj,batchToolObj,eventData)
-            obj.batch = eventData.settings;
-            if(isdir(obj.batch.outputDirectory))
-                obj.resultsPathname = obj.batch.outputDirectory;
+            obj.SETTINGS.BATCH = eventData.settings;
+            if(isdir(obj.SETTINGS.BATCH.outputDirectory))
+                obj.resultsPathname = obj.SETTINGS.BATCH.outputDirectory;
             end
             
         end
@@ -1914,7 +1913,6 @@ classdef PAController < handle
         function pStruct = getSaveParameters(obj)
             pStruct.featureFcn = obj.getExtractorMethod();
             pStruct.signalTagLine = obj.getSignalSelection();
-            pStruct.batch = obj.batch;
             pStruct.screenshotPathname = obj.screenshotPathname;
             pStruct.viewMode = obj.viewMode;
             pStruct.resultsPathname = obj.resultsPathname;
@@ -2198,12 +2196,13 @@ classdef PAController < handle
             pStruct.featureFcn = featureFcns{1};
             pStruct.signalTagLine = tagLines{1};
 
-            pStruct.batch = PABatchTool.getDefaultParameters();
             
             mPath = fileparts(mfilename('fullpath'));
             pStruct.screenshotPathname = mPath;
             pStruct.viewMode = 'timeseries';
-            pStruct.resultsPathname = pStruct.batch.outputDirectory;
+            
+            batchSettings = PABatchTool.getDefaultParameters();
+            pStruct.resultsPathname = batchSettings.outputDirectory;
         end        
     end
     

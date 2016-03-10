@@ -338,8 +338,12 @@ classdef PAStatTool < handle
                 else
                     warndlg('Something unexpected happened');
                 end
+                if(pSettings.discardNonWearFeatures)
+                    this.featureStruct = this.discardNonWearFeatures(tmpFeatureStruct,tmpUsageStateStruct);
+                else
+                    this.featureStruct = tmpFeatureStruct;                    
+                end
                 
-                this.featureStruct = this.discardNonWearFeatures(tmpFeatureStruct,tmpUsageStateStruct);
                 loadFeatures = this.featureStruct.shapes;
 
                 if(pSettings.centroidDurationHours~=24)
@@ -1424,7 +1428,7 @@ classdef PAStatTool < handle
                         else
                             imageMap(dayofweek+1) = sum(sum(features(dayofweek==daysofweek,:),1))/numSubjects;
                         end
-                        daysofweekStr{dayofweekIndex} = sprintf('%s\n(n=%u)',daysofweekStr{dayofweekIndex},numSubjects);                        
+                        daysofweekStr{dayofweekIndex} = sprintf('%s (n=%u)',daysofweekStr{dayofweekIndex},numSubjects);                        
                     end
                     
                     bar(axesHandle,imageMap);
@@ -1438,7 +1442,7 @@ classdef PAStatTool < handle
                         
                         dayofweekIndex = daysofweekOrder(dayofweek+1);
                         numSubjects = sum(dayofweek==daysofweek);
-                        daysofweekStr{dayofweekIndex} = sprintf('%s\n(n=%u)',daysofweekStr{dayofweekIndex},numSubjects);
+                        daysofweekStr{dayofweekIndex} = sprintf('%s (n=%u)',daysofweekStr{dayofweekIndex},numSubjects);
                     end
                     
                     bar(axesHandle,imageMap);
@@ -2082,6 +2086,7 @@ classdef PAStatTool < handle
             
             userSettings.useDatabase = this.originalWidgetSettings.useDatabase;
             userSettings.databaseClass = this.originalWidgetSettings.databaseClass;
+            userSettings.discardNonWearFeatures = this.originalWidgetSettings.discardNonWearFeatures;
             
             userSettings.showCentroidMembers = get(this.handles.check_showCentroidMembers,'value');
             userSettings.processedTypeSelection = 1;
@@ -2399,6 +2404,7 @@ classdef PAStatTool < handle
         function paramStruct = getDefaultParameters()
             paramStruct.useDatabase = 0;
             paramStruct.databaseClass = 'CLASS_database_goals';
+            paramStruct.discardNonWearFeatures = 1;
             paramStruct.trimResults = 0;
             paramStruct.cullResults = 0;
             paramStruct.sortValues = 0;

@@ -3,7 +3,7 @@
 % ======================================================================
 %> @brief PASettings used by Padaco to initialize, store, and update
 %> user preferences.  The class is designed for storage and manipulation of
-%> the user settings relating to Padaco.  
+%> the user settings relating to Padaco.
 %> @note:  This file was originally taken from SEV's CLASS_settings class,
 %> by permission of the author Hyatt Moore.
 % ======================================================================
@@ -23,7 +23,7 @@ classdef  PASettings < handle
         %> @brief name of text file that stores the toolkit's settings
         parameters_filename
         %> @brief cell of string names corresponding to the struct properties that
-        %> contain settings  <b><i> {'DATA','VIEW', 'BATCH_PROCESS', 'PSD','MUSIC'}</i></b>
+        %> contain settings  <b><i> {'DATA','VIEW', 'CONTROLLER','BATCH'}</i></b>
         fieldNames;
         %> struct of PAController preferences.
         CONTROLLER;
@@ -32,16 +32,16 @@ classdef  PASettings < handle
         %> struct of viewer related settings.
         VIEW;
         %> struct of batch processing settings.
-        BATCH_PROCESS;        
+        BATCH;
         %> struct of StatTool plot/analysis settings.
-        StatTool;        
+        StatTool;
     end
     
     methods(Static)
         
         % ======================================================================
         %> @brief Returns a structure of parameters parsed from the text file identified by the
-        %> the input filename.  
+        %> the input filename.
         %> Parameters in the text file are stored per row using the
         %> following form:
         %> - fieldname1 value1
@@ -50,24 +50,24 @@ classdef  PASettings < handle
         %> an optional ':' is allowed after the fieldname such as
         %> fieldname: value
         %
-        %> The parameters is 
+        %> The parameters is
         %>
         %> @param filename String identifying the filename to load.
         %> @retval paramStruct Structure that contains the listed fields found in the
         %> file 'filename' along with their corresponding values
         % =================================================================
-        function paramStruct = loadParametersFromFile(filename)             
+        function paramStruct = loadParametersFromFile(filename)
             fid = fopen(filename,'r');
             paramStruct = PASettings.loadStruct(fid);
-            fclose(fid);            
+            fclose(fid);
         end
-
-                
+        
+        
         % ======================================================================
         %> @brief Parses the XML file and returns an array of structs
         %> @param xmlFilename Name of the XML file to parse (absolute path)
         %> @retval xmlStruct A structure containing the elements and
-        %> associated attributes of the xml as parsed by xml_read.  
+        %> associated attributes of the xml as parsed by xml_read.
         % ======================================================================
         function xmlStruct = loadXMLStruct(xmlFilename)
             % Testing dom = xmlread('cohort.xml');
@@ -105,7 +105,7 @@ classdef  PASettings < handle
         function pstruct = loadStruct(fid,pstruct)
             % Hyatt Moore IV (< June, 2013)
             
-
+            
             if(~isempty(fopen(fid)))
                 file_open = true;
                 pat = '^([^\.\s]+)|\.([^\.\s]+)|\s+(.*)+$';
@@ -113,9 +113,9 @@ classdef  PASettings < handle
                 file_open = false;
             end
             
-
+            
             if(nargin<2)
-                pstruct = struct;                
+                pstruct = struct;
             end;
             
             while(file_open)
@@ -165,12 +165,12 @@ classdef  PASettings < handle
                 
                 % the str2num approach fails for timeseries objects that
                 % are passed in as the valueStr.  So use the str2vec method
-                % instead.                
+                % instead.
                 %    if(~isnan(str2num(valueStr))) %#ok<ST2NM>
                 %    evalmsg = ['pstruct' fields '=str2num(valueStr);'];
                 valueStr = tok{end}{:};
                 if(~isnan(PASettings.str2vec(valueStr)))
-                    evalmsg = ['pstruct' fields '=PASettings.str2vec(valueStr);'];                    
+                    evalmsg = ['pstruct' fields '=PASettings.str2vec(valueStr);'];
                 elseif(isnan(str2double(valueStr)))
                     evalmsg = ['pstruct' fields '=valueStr;'];
                 else
@@ -183,13 +183,13 @@ classdef  PASettings < handle
         
         % --------------------------------------------------------------------
         %> @brief Converts a string of space delimited numerics to a vector
-        %> of numbers.  
-        %> @param str A string of numbers.  For example 
+        %> of numbers.
+        %> @param str A string of numbers.  For example
         %> str = '0 0 0'
         %> @param delim Optional delimiter to use.  Default is white space.
         %> @retval vec A vector of numeric values corresponding the str
         %> values.  For example if str = '0 0 0' then vec = [0 0 0]
-        %> @note NaN is returned if the entire string cannot be converted to a vector.  For example if 
+        %> @note NaN is returned if the entire string cannot be converted to a vector.  For example if
         %> str = '0 'lkj 0 0' then vec = NaN
         % --------------------------------------------------------------------
         function vec = str2vec(str,delim)
@@ -207,15 +207,15 @@ classdef  PASettings < handle
                 end
                 
                 if(~isempty(vecStr) && iscell(vecStr))
-                    vecStr = vecStr{1};                    
+                    vecStr = vecStr{1};
                 end
                 if(~isempty(vec) && iscell(vec))
-                    vec = vec{1};                    
+                    vec = vec{1};
                 end
                 
                 
                 % Set this to 1 or less to avoid catching things like this:
-                % 700023t00c1.csv.csv  
+                % 700023t00c1.csv.csv
                 % which gets parsed to 700023
                 if(numel(vecStr) <=1 || numel(vec)~=numel(vecStr))
                     vec = nan;
@@ -344,13 +344,13 @@ classdef  PASettings < handle
         %> hardcoded default values (i.e. setDefaults).
         %> @param obj instance of the PASettings class.
         % =================================================================
-        function initialize(obj)            
-            obj.fieldNames = {'DATA','CONTROLLER','VIEW','BATCH_PROCESS','StatTool'};
+        function initialize(obj)
+            obj.fieldNames = {'DATA','CONTROLLER','VIEW','BATCH','StatTool'};
             obj.setDefaults();
             
             full_paramsFile = fullfile(obj.rootpathname,obj.parameters_filename);
             
-            if(exist(full_paramsFile,'file'))                
+            if(exist(full_paramsFile,'file'))
                 paramStruct = obj.loadParametersFromFile(full_paramsFile);
                 if(~isstruct(paramStruct))
                     fprintf('\nWarning: Could not load parameters from file %s.  Will use default settings instead.\n\r',full_paramsFile);
@@ -361,7 +361,7 @@ classdef  PASettings < handle
                     if(isempty(fnames))
                         fprintf('\nWarning: Could not load parameters from file %s.  Will use default settings instead.\n\r',full_paramsFile);
                     else
-                    
+                        
                         for f=1:numel(obj.fieldNames)
                             cur_field = obj.fieldNames{f};
                             if(~isfield(paramStruct,cur_field) || ~isstruct(paramStruct.(cur_field)))
@@ -375,7 +375,7 @@ classdef  PASettings < handle
                                     if(~isfield(paramStruct.(cur_field),cur_sub_field))
                                         fprintf('\nSettings file corrupted.  The %s.%s parameter is missing.  Using default Padaco settings\n\n', cur_field,cur_sub_field);
                                         return;
-                                    end                            
+                                    end
                                 end
                             end
                         end
@@ -388,7 +388,7 @@ classdef  PASettings < handle
             end
         end
         
-
+        
         % -----------------------------------------------------------------
         % =================================================================
         %> @brief Activates GUI for editing single study mode settings
@@ -396,15 +396,17 @@ classdef  PASettings < handle
         %> @param obj instance of PASettings class.
         %> @param optional_fieldName (Optional)  String indicating which settings to update.
         %> Can be
-        %> - @c BATCH_PROCESS
-        %> - @c DEFAULTS
+        %> - @c StatTool
+        %> - @c VIEW
+        %> - @c BATCH
+        %> - @c CONTROLLER
         %> @retval wasModified a boolean value; true if any changes were
         %> made to the settings in the GUI and false otherwise.
         % =================================================================
         function wasModified = defaultsEditor(obj,optional_fieldName)
             tmp_obj = obj.copy();
             if(nargin<2 || isempty(optional_fieldName))
-                lite_fieldNames = {'StatTool','VIEW'}; %these are only one structure deep
+                lite_fieldNames = {'StatTool','VIEW','CONTROLLER'}; %these are only one structure deep
             else
                 lite_fieldNames = optional_fieldName;
                 if(~iscell(lite_fieldNames))
@@ -421,7 +423,7 @@ classdef  PASettings < handle
                 end
                 wasModified = true;
                 tmp_obj = []; %clear it out.
-
+                
             else
                 wasModified = false;
             end
@@ -448,13 +450,13 @@ classdef  PASettings < handle
                 filename = fullfile(obj.rootpathname,obj.parameters_filename);
                 if(nargin<2)
                     dataStruct2Save = [];
-                end                
+                end
             end
             
             if(isempty(dataStruct2Save))
                 fnames = obj.fieldNames;
                 for f=1:numel(fnames)
-                    dataStruct2Save.(fnames{f}) = obj.(fnames{f});               
+                    dataStruct2Save.(fnames{f}) = obj.(fnames{f});
                 end
             end
             
@@ -519,15 +521,9 @@ classdef  PASettings < handle
                         end
                         obj.VIEW.filter_inf_file = 'filter.inf';
                         obj.VIEW.database_inf_file = 'database.inf';
-                   case 'BATCH_PROCESS'
-                        obj.BATCH_PROCESS.src_folder = '.'; %the folder to do a batch job on.
+                    case 'BATCH'
+                        obj.BATCH = PABatchTool.getDefaultParameters();
                         
-                        %artifacts and events
-                        obj.BATCH_PROCESS.output_files.events_filename = 'evt.';
-                        obj.BATCH_PROCESS.output_files.artifacts_filename = 'art.';
-                        obj.BATCH_PROCESS.output_files.save2txt = 1;
-                        obj.BATCH_PROCESS.output_files.save2mat = 0;
-
                 end
             end
         end
@@ -554,6 +550,6 @@ classdef  PASettings < handle
                 copyObj.(pname) = obj.(pname);
             end
         end
- 
+        
     end
 end
