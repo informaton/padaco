@@ -42,10 +42,23 @@ classdef PABatchTool < handle
             batchFig = batchTool('visible','off','name','','sizechangedfcn',[]);
             batchHandles = guidata(batchFig);
             
+            contextmenu_directory = uicontextmenu('parent',batchFig);
+            if(ismac)
+                label = 'Show in Finder';
+            elseif(ispc)
+                label = 'Show in Explorer';
+            else
+                label = 'Show in browser';
+            end
+            uimenu(contextmenu_directory,'Label',label,'callback',@showPathContextmenuCallback);
+            
             set(batchHandles.button_getSourcePath,'callback',{@this.getSourceDirectoryCallback,batchHandles.text_sourcePath,batchHandles.text_filesFound});  
             set(batchHandles.button_getOutputPath,'callback',{@this.getOutputDirectoryCallback,batchHandles.text_outputPath});
             
-            set(batchHandles.text_outputPath,'string',this.settings.outputDirectory);
+            
+            
+            set(batchHandles.text_outputPath,'string',this.settings.outputDirectory,'uicontextmenu',contextmenu_directory);
+            set(batchHandles.text_sourcePath,'string',this.settings.sourceDirectory,'uicontextmenu',contextmenu_directory);
             %             set(batchHandles.check_usageState,'value',this.settings.classifyUsageState);
 
             
@@ -248,6 +261,9 @@ classdef PABatchTool < handle
             timeAxis = datenum(startDateVec):datenum(frameInterval):datenum(stopDateVec);
             timeAxisStr = datestr(timeAxis,'HH:MM');
             
+            logFid = obj.prepLogFile(obj.settings);
+            fprintf(logFid,'File count:\t%u',fileCount);
+
             % Setup output folders
             for fn=1:numel(featureFcns)
                 
@@ -280,7 +296,7 @@ classdef PABatchTool < handle
            
             % setup timers
             pctDone = 0;
-            pctDelta = 1/numel(fullFilenames);
+            pctDelta = 1/fileCount;
             waitH = waitbar(pctDone,filenames{1},'name','Batch processing','visible','off');
             titleH = get(get(waitH,'children'),'title');
             set(titleH,'interpreter','none');  % avoid '_' being interpreted as subscript instruction
@@ -288,8 +304,9 @@ classdef PABatchTool < handle
             drawnow;
             startTime = now;
             startClock = clock;
+            
             % batch process
-            for f=1:numel(fullFilenames)
+            for f=1:fileCount
                 %                 waitbar(pctDone,waitH,filenames{f});
                 ticStart = tic;
                 %for each featureFcnArray item as featureFcn                
@@ -337,7 +354,14 @@ classdef PABatchTool < handle
                 catch me
                     showME(me);
                     failedFiles{end+1} = filenames{f};
-                    fprintf('\t%s\tFAILED.\n',fullFilenames{f});
+                    failMsg = sprintf('\t%s\tFAILED.\n',fullFilenames{f});
+                    fprintf(1,failMsg);
+                    
+                    % Log error
+                    fprintf(logFid,'\n=======================================\n');
+                    fprintf(logFid,failMsg);
+                    showME(me,logFid);
+                    
                 end  
                 
                 num_files_completed = f;
@@ -373,20 +397,38 @@ classdef PABatchTool < handle
 
                 successCount = fileCount-failCount;
                 batchResultStr = sprintf(['Processed %u files in %s.\n',...
-                    '\n\tSuccess:\t%u\n',...
+                    '\tSuccess:\t%u\n',...
                     '\tFail:\t%u\n\n'],fileCount,elapsedTimeStr,successCount,failCount);
                 
+                fprintf(logFid,'\n====================SUMMARY===============\n');
+                fprintf(logFid,batchResultStr);
+                fprintf(1,batchResultStr);
                 if(failCount>0)
                     
-                    promptStr = sprintf('%s\nThe following files were not processed:\n',batchResultStr);
-                    fprintf(1,'\n\n%u Files Failed:\n',numel(failedFiles));
+                    promptStr = str2cell(sprintf('%s\nThe following files were not processed:',batchResultStr));
+                    failMsg = sprintf('\n\n%u Files Failed:\n',numel(failedFiles));
+                    fprintf(1,failMsg);
+                    fprintf(logFid,failMsg);
                     for f=1:numel(failedFiles)
-                        fprintf('\t%s\tFAILED.\n',failedFiles{f});
+                        failMsg = sprintf('\t%s\tFAILED.\n',failedFiles{f});
+                        fprintf(1,failMsg);
+                        fprintf(logFid,failMsg);
                     end
                     
+                    fclose(logFid);
+                    
                     skipped_filenames = failedFiles(:);
-                    [selections,clicked_ok]= listdlg('PromptString',message,'Name','Batch Completed',...
-                        'OKString','Copy to Clipboard','CancelString','Close','ListString',skipped_filenames);
+                    if(failCount<=10)
+                        listSize = [180 150];  %[ width height]
+                    elseif(failCount<=20)
+                        listSize = [180 200];
+                    else
+                        listSize = [180 300];
+                    end
+                    
+                    [selections,clicked_ok]= listdlg('PromptString',promptStr,'Name','Batch Completed',...
+                        'OKString','Copy to Clipboard','CancelString','Close','ListString',skipped_filenames,...
+                        'listSize',listSize);
                     
                     if(clicked_ok)
                         %char(10) is newline
@@ -403,6 +445,9 @@ classdef PABatchTool < handle
                         end
                     end;
                 else
+                    
+                    fclose(logFid);
+                    
                     dlgName = 'Batch complete';
                     defaultBtn = 'Show results';
                     options.Default = defaultBtn;
@@ -447,6 +492,22 @@ classdef PABatchTool < handle
             pStruct.alignment.intervalLengthHours = 24;  %duration of each interval (in hours) once started
             pStruct.frameDurationMinutes = 15;
             pStruct.featureLabel = 'All';
-        end                
+            pStruct.logFilename = 'batchRun_@TIMESTAMP.txt';  
+        end            
+        
+        function logFID = prepLogFile(settings)
+            startDateTime = datestr(now);            
+            logFilename = strrep(settings.logFilename,'@TIMESTAMP',startDateTime);
+            logFID = fopen(fullfile(settings.outputDirectory,logFilename),'w');
+            fprintf(logFID,'Padaco batch processing log\nStart time:\t%s\n',startDateTime);
+            fprintf(logFID,'Source directory:\t%s\n',settings.sourceDirectory);
+            fprintf(logFID,'Output directory:\t%s\n',settings.outputDirectory);
+            fprintf(logFID,'Features:\t%s\n',settings.featureLabel);
+            fprintf(logFID,'Frame duration (minutes):\t%u\n',settings.frameDurationMinutes);
+            
+            fprintf(logFID,'Alignment settings:\n');
+            fprintf(logFID,'\tElapsed start (hours):\t%u\n',settings.alignment.elapsedStartHours);
+            fprintf(logFID,'\tInterval length (hours):\t%u\n',settings.alignment.intervalLengthHours);
+        end
     end
 end

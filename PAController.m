@@ -101,7 +101,6 @@ classdef PAController < handle
 
             %create/intilize the settings object            
             obj.SETTINGS = PASettings(rootPathname,parameters_filename);
-            obj.batch = obj.SETTINGS.CONTROLLER.batch;
             obj.screenshotPathname = obj.SETTINGS.CONTROLLER.screenshotPathname;
             obj.resultsPathname = obj.SETTINGS.CONTROLLER.resultsPathname;
             
@@ -930,6 +929,13 @@ classdef PAController < handle
                 obj.VIEW.setFrameDurationMinutes(num2str(cur_frameDurationMinutes));
                 if(new_frameDurationMinutes==cur_frameDurationMinutes)
                     success=true;
+                    % update the aggregate duration if new frame duration is
+                    % smaller.
+                    frameDurationTotalMinutes = obj.getFrameDurationAsMinutes();
+                    if(frameDurationTotalMinutes<obj.getAggregateDurationAsMinutes())
+                        obj.setAggregateDurationMinutes(frameDurationTotalMinutes);
+                    end
+
                 end
             end
         end
@@ -946,6 +952,13 @@ classdef PAController < handle
                 obj.VIEW.setFrameDurationHours(num2str(cur_frameDurationHours));
                 if(new_frameDurationHours==cur_frameDurationHours)
                     success=true;
+                    
+                    % update the aggregate duration if new frame duration is
+                    % smaller.
+                    frameDurationTotalMinutes = obj.getFrameDurationAsMinutes();
+                    if(frameDurationTotalMinutes<obj.getAggregateDurationAsMinutes())
+                        obj.setAggregateDurationMinutes(frameDurationTotalMinutes);
+                    end                    
                 end
             end
         end
@@ -1002,6 +1015,9 @@ classdef PAController < handle
                         obj.setViewMode('timeseries');
                     end
                     obj.VIEW.showBusy('Loading','all');
+                    [pathname,basename, baseext] = fileparts(f);
+                    obj.SETTINGS.DATA.pathname = pathname;
+                    obj.SETTINGS.DATA.filename = strcat(basename,baseext);
 
                     obj.accelObj = PAData(f,obj.SETTINGS.DATA);
                     
@@ -1218,15 +1234,15 @@ classdef PAController < handle
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
         function menuViewmodeBatchCallback(obj,hObject,eventdata)           
-            batchTool = PABatchTool(obj.batch);
+            batchTool = PABatchTool(obj.SETTINGS.BATCH);
             batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
             batchTool.addlistener('SwitchToResults',@obj.menuViewmodeResultsCallback);
         end        
         
         function updateBatchToolSettingsCallback(obj,batchToolObj,eventData)
-            obj.batch = eventData.settings;
-            if(isdir(obj.batch.outputDirectory))
-                obj.resultsPathname = obj.batch.outputDirectory;
+            obj.SETTINGS.BATCH = eventData.settings;
+            if(isdir(obj.SETTINGS.BATCH.outputDirectory))
+                obj.resultsPathname = obj.SETTINGS.BATCH.outputDirectory;
             end
             
         end
@@ -1275,6 +1291,19 @@ classdef PAController < handle
             [curFrameDurationMin, curFrameDurationHour] = obj.accelObj.getFrameDuration();
             curFrameDurationTotalMin = [curFrameDurationMin, curFrameDurationHour]*[1;60];
         end
+        
+        
+        % --------------------------------------------------------------------
+        %> @brief Returns the total frame duration (i.e. hours and minutes) in aggregated minutes.
+        %> @param obj Instance of PAData
+        %> @retval curFrameDurationMin The current frame duration as total
+        %> minutes.        
+        % --------------------------------------------------------------------
+        function aggregateDurationTotalMin = getAggregateDurationAsMinutes(obj)
+            aggregateDurationTotalMin = obj.accelObj.getAggregateDurationInMinutes();
+            
+        end
+        
         
         % --------------------------------------------------------------------
         %> @brief Returns the current study's duration as seconds.
@@ -1914,7 +1943,6 @@ classdef PAController < handle
         function pStruct = getSaveParameters(obj)
             pStruct.featureFcn = obj.getExtractorMethod();
             pStruct.signalTagLine = obj.getSignalSelection();
-            pStruct.batch = obj.batch;
             pStruct.screenshotPathname = obj.screenshotPathname;
             pStruct.viewMode = obj.viewMode;
             pStruct.resultsPathname = obj.resultsPathname;
@@ -2198,12 +2226,13 @@ classdef PAController < handle
             pStruct.featureFcn = featureFcns{1};
             pStruct.signalTagLine = tagLines{1};
 
-            pStruct.batch = PABatchTool.getDefaultParameters();
             
             mPath = fileparts(mfilename('fullpath'));
             pStruct.screenshotPathname = mPath;
             pStruct.viewMode = 'timeseries';
-            pStruct.resultsPathname = pStruct.batch.outputDirectory;
+            
+            batchSettings = PABatchTool.getDefaultParameters();
+            pStruct.resultsPathname = batchSettings.outputDirectory;
         end        
     end
     
