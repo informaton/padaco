@@ -379,11 +379,11 @@ classdef PAData < handle
        %> and the current frame duration is retained (and also returned).
        % --------------------------------------------------------------------
        function aggregateDurationMin = setAggregateDurationMinutes(obj,aggregateDurationMin)
-           if(aggregateDurationMin>0 && aggregateDurationMin<=obj.getAggregateDuration())
+           if(aggregateDurationMin>0 && aggregateDurationMin<=obj.getFrameDurationInMinutes())
                obj.aggregateDurMin = aggregateDurationMin;
            end
            %returns the current frame duration, whether it be 'frameDurationMin' or not.
-           aggregateDurationMin = obj.getAggregateDuration();
+           aggregateDurationMin = obj.getAggregateDurationInMinutes();
        end
        
        % --------------------------------------------------------------------
@@ -391,7 +391,7 @@ classdef PAData < handle
        %> @param obj Instance of PAData
        %> @retval aggregateDuration The current window;
        % --------------------------------------------------------------------
-       function aggregateDuration = getAggregateDuration(obj)
+       function aggregateDuration = getAggregateDurationInMinutes(obj)
            aggregateDuration = obj.aggregateDurMin;
        end       
        
@@ -405,7 +405,7 @@ classdef PAData < handle
        %> the frame count is 1.
        % --------------------------------------------------------------------
        function binCount = getBinCount(obj)
-           binCount = floor(obj.durationSec/60/obj.getAggregateDuration());        
+           binCount = floor(obj.durationSec/60/obj.getAggregateDurationInMinutes());        
        end
        
        %> @brief Returns studyID instance variable.
@@ -438,11 +438,11 @@ classdef PAData < handle
        %> and the current frame duration is retained (and also returned).
        % --------------------------------------------------------------------
        function frameDurationMin = setFrameDurationMinutes(obj,frameDurationMin)
-           if(frameDurationMin>=0 && frameDurationMin<=obj.durationSec/60)
+           if(frameDurationMin>=0 && frameDurationMin<=obj.durationSec/60 && (frameDurationMin>0 || obj.frameDurHour>0)) % Make sure we have non-zero duration frames
                obj.frameDurMin = frameDurationMin;
            end
            %returns the current frame duration, whether it be 'frameDurationMin' or not.
-           [frameDurationMin,~] = obj.getFrameDuration();
+           [frameDurationMin,~] = obj.getFrameDuration();           
        end
        
        % --------------------------------------------------------------------
@@ -455,11 +455,12 @@ classdef PAData < handle
        %> and the current frame duration is retained (and also returned).
        % --------------------------------------------------------------------
        function frameDurationHours = setFrameDurationHours(obj,frameDurationHours)
-           if(frameDurationHours>=0 && frameDurationHours<=obj.durationSec/60/60)
+           if(frameDurationHours>=0 && frameDurationHours<=obj.durationSec/60/60 && (frameDurationHours>0 || obj.frameDurMin>0))  % Make sure we have non-zero duration frames
                obj.frameDurHour = frameDurationHours;
            end
            %returns the current frame duration, whether it be 'frameDurationMin' or not.
            [~,frameDurationHours] = obj.getFrameDuration();
+           
        end       
        
        % --------------------------------------------------------------------
@@ -470,7 +471,12 @@ classdef PAData < handle
        % --------------------------------------------------------------------
        function [curFrameDurationMin, curFrameDurationHour] = getFrameDuration(obj)
            curFrameDurationMin = obj.frameDurMin;
-           curFrameDurationHour = obj.frameDurHour;           
+           curFrameDurationHour = obj.frameDurHour; 
+       end
+       
+       function frameDurationMin = getFrameDurationInMinutes(obj)
+           [curFrameDurationMin, curFrameDurationHour] = obj.getFrameDuration();
+           frameDurationMin = curFrameDurationMin+curFrameDurationHour*60;
        end
        
        % --------------------------------------------------------------------
@@ -1870,12 +1876,15 @@ toc
            studyOverVec = obj.unrollEvents(studyover_events,numel(usageVec));
            
            nonwear_events = obj.thresholdcrossings(nonwearVec,0);
-
-           nonwearStartStopDateNums = [obj.dateTimeNum(nonwear_events(:,1)),obj.dateTimeNum(nonwear_events(:,2))];
-           %durationOff = nonwear(:,2)-nonwear(:,1);
-           %durationOffInHours = (nonwear(:,2)-nonwear(:,1))/3600;
+           if(~isempty(nonwear_events))
+               nonwearStartStopDateNums = [obj.dateTimeNum(nonwear_events(:,1)),obj.dateTimeNum(nonwear_events(:,2))];
+               %durationOff = nonwear(:,2)-nonwear(:,1);
+               %durationOffInHours = (nonwear(:,2)-nonwear(:,1))/3600;
+           else
+               nonwearStartStopDateNums = [];
+           end
            nonwearState = repmat(NONWEAR,size(nonwear_events,1),1);
-
+           
            %            wearVec = runningActivitySum>=offBodyThreshold;
            wearVec = ~nonwearVec;
            wear = obj.thresholdcrossings(wearVec,0);

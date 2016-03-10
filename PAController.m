@@ -929,6 +929,13 @@ classdef PAController < handle
                 obj.VIEW.setFrameDurationMinutes(num2str(cur_frameDurationMinutes));
                 if(new_frameDurationMinutes==cur_frameDurationMinutes)
                     success=true;
+                    % update the aggregate duration if new frame duration is
+                    % smaller.
+                    frameDurationTotalMinutes = obj.getFrameDurationAsMinutes();
+                    if(frameDurationTotalMinutes<obj.getAggregateDurationAsMinutes())
+                        obj.setAggregateDurationMinutes(frameDurationTotalMinutes);
+                    end
+
                 end
             end
         end
@@ -945,6 +952,13 @@ classdef PAController < handle
                 obj.VIEW.setFrameDurationHours(num2str(cur_frameDurationHours));
                 if(new_frameDurationHours==cur_frameDurationHours)
                     success=true;
+                    
+                    % update the aggregate duration if new frame duration is
+                    % smaller.
+                    frameDurationTotalMinutes = obj.getFrameDurationAsMinutes();
+                    if(frameDurationTotalMinutes<obj.getAggregateDurationAsMinutes())
+                        obj.setAggregateDurationMinutes(frameDurationTotalMinutes);
+                    end                    
                 end
             end
         end
@@ -1001,6 +1015,9 @@ classdef PAController < handle
                         obj.setViewMode('timeseries');
                     end
                     obj.VIEW.showBusy('Loading','all');
+                    [pathname,basename, baseext] = fileparts(f);
+                    obj.SETTINGS.DATA.pathname = pathname;
+                    obj.SETTINGS.DATA.filename = strcat(basename,baseext);
 
                     obj.accelObj = PAData(f,obj.SETTINGS.DATA);
                     
@@ -1274,6 +1291,19 @@ classdef PAController < handle
             [curFrameDurationMin, curFrameDurationHour] = obj.accelObj.getFrameDuration();
             curFrameDurationTotalMin = [curFrameDurationMin, curFrameDurationHour]*[1;60];
         end
+        
+        
+        % --------------------------------------------------------------------
+        %> @brief Returns the total frame duration (i.e. hours and minutes) in aggregated minutes.
+        %> @param obj Instance of PAData
+        %> @retval curFrameDurationMin The current frame duration as total
+        %> minutes.        
+        % --------------------------------------------------------------------
+        function aggregateDurationTotalMin = getAggregateDurationAsMinutes(obj)
+            aggregateDurationTotalMin = obj.accelObj.getAggregateDurationInMinutes();
+            
+        end
+        
         
         % --------------------------------------------------------------------
         %> @brief Returns the current study's duration as seconds.
