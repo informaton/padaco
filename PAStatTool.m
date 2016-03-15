@@ -284,11 +284,10 @@ classdef PAStatTool < handle
         %> @retval success Boolean: true if features are loaded from file.  False if they are not.
         % ======================================================================
         function success = getFeatureStruct(this)
-            
             pSettings = this.getPlotSettings();
             inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
 
-            if(exist(inputFilename,'file')) 
+            if(exist(inputFilename,'file'))
                 
                 if(isempty(this.usageStateStruct))
                     usageFeature = 'usagestate';
@@ -833,6 +832,9 @@ classdef PAStatTool < handle
                 widgetSettings = this.getDefaultParameters();                
             end
 
+            customIndex = strcmpi(this.base.weekdayTags,'custom');
+            this.base.weekdayValues{customIndex} = widgetSettings.customDaysOfWeek;
+            
             featuresPathname = this.featuresDirectory;
             this.hideCentroidControls();
 
@@ -895,9 +897,16 @@ classdef PAStatTool < handle
                         set(this.handles.menu_signalsource,'string',this.base.signalDescriptions,'userdata',this.base.signalTypes,'value',widgetSettings.signalSelection);
                         set(this.handles.menu_plottype,'userdata',this.base.plotTypes,'string',this.base.plotTypeDescriptions,'value',widgetSettings.plotTypeSelection);
                         
-                        % Centroid widgets
-                        set(this.handles.menu_weekdays,'userdata',this.base.weekdayTags,'string',this.base.weekdayDescriptions,'value',widgetSettings.weekdaySelection);
-                        
+                        % Centroid widgets                        
+                        if(strcmpi(this.base.weekdayTags{widgetSettings.weekdaySelection},'custom'))
+                            customIndex = widgetSettings.weekdaySelection;
+                            tooltipString = cell2str(this.base.daysOfWeekDescriptions(this.base.weekdayValues{customIndex}+1));
+                        else
+                            tooltipString = '';
+                        end
+                        set(this.handles.menu_weekdays,'string',this.base.weekdayDescriptions,'userdata',this.base.weekdayTags,...
+                            'value',widgetSettings.weekdaySelection,'callback',@this.menuWeekdaysCallback,'tooltipstring',tooltipString);
+
                         %                         set(this.handles.menu_centroidStartTime,'userdata',[],'string',{'Start times'},'value',1);
                         %                         set(this.handles.menu_centroidStopTime,'userdata',[],'string',{'Stop times'},'value',1);
                         
@@ -997,7 +1006,7 @@ classdef PAStatTool < handle
                         set(this.handles.check_holdPlots,'value',strcmpi(widgetSettings.primaryAxis_nextPlot,'add'),'callback',@this.checkHoldPlotsCallback);
                         set(this.handles.check_showAnalysisFigure,'value',widgetSettings.showAnalysisFigure,'callback',@this.checkShowAnalysisFigureCallback);
                         
-                        set([this.handles.menu_weekdays
+                        set([
                             this.handles.menu_centroidStartTime
                             this.handles.menu_centroidStopTime
                             this.handles.edit_centroidMinimum
@@ -1024,6 +1033,7 @@ classdef PAStatTool < handle
             this.previousState.sortValues = widgetSettings.sortValues;
             this.previousState.normalizeValues = widgetSettings.normalizeValues;
             this.previousState.plotType = this.base.plotTypes{widgetSettings.plotTypeSelection};
+            this.previousState.weekdaySelection = widgetSettings.weekdaySelection;
             
             %% Analysis Figure
             % Profile Summary
@@ -1043,6 +1053,40 @@ classdef PAStatTool < handle
             if(~this.canPlot)
                 set(findall(this.handles.panel_results,'enable','on'),'enable','off');
                 this.hideCentroidControls();
+            end
+        end
+        
+        
+        function menuWeekdaysCallback(this, hObject, eventData)
+            curTag = getMenuUserData(hObject);
+            curValue = get(hObject,'value');
+            if(strcmpi(curTag,'custom'))
+                listString = this.base.daysOfWeekDescriptions(:);
+                listSize = [200, 100];
+                customIndex = strcmpi(this.base.weekdayTags,'custom');
+                initialValue = this.base.weekdayValues{customIndex}+1;
+                name = 'Custom selection';
+                
+                promptString = 'Select day(s) of week to use in clustering';
+                selectionMode = 'multiple';                
+                
+                [selection, okayChecked] = listdlg('liststring',listString,...
+                    'name',name,'promptString',promptString,...
+                    'listSize',listSize,...
+                    'initialValue',initialValue,'selectionMode',selectionMode);
+                
+                if(okayChecked && ~isempty(selection) && ~isequal(selection,initialValue))
+                    this.base.weekdayValues{customIndex} = selection-1;  %return to 0 based indexing for day of week fields.  
+                    this.previousState.weekdaySelection = curValue;
+                    set(hObject,'tooltipstring',cell2str(listString(selection)));
+                    this.enableCentroidRecalculation();                    
+                else
+                    set(hObject,'value',this.previousState.weekdaySelection);
+                end
+            else
+                this.previousState.weekdaySelection = curValue;
+                set(hObject,'tooltipstring',[]);
+                this.enableCentroidRecalculation();
             end
         end
         
@@ -1406,8 +1450,9 @@ classdef PAStatTool < handle
         function plotSelection(this,plotOptions)
             axesHandle = this.handles.axes_primary;
             daysofweek = this.featureStruct.startDaysOfWeek;
-            daysofweekStr = {'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
-            daysofweekOrder = 1:7;
+                        
+            daysofweekStr = this.base.daysOfWeekShortDescriptions; %{'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
+            daysofweekOrder = this.base.daysOfWeekOrder; %1:7;
             features = this.featureStruct.features;
             divisionsPerDay = size(features,2);
             
@@ -1712,7 +1757,8 @@ classdef PAStatTool < handle
             this.clearPrimaryAxes();
             this.showBusy();
             pSettings= this.getPlotSettings();
-            this.centroidObj = [];            
+            this.centroidObj = [];
+            
             if(this.getFeatureStruct())            
                 % does not converge well if not normalized as we are no longer looking at the shape alone
                 
@@ -1724,18 +1770,23 @@ classdef PAStatTool < handle
                 % - @c weekdays Returns only data recorded on the weekdays (Monday
                 % to Friday)
                 % - @c weekends Returns data recored on the weekend
-                % (Saturday-Sunday)                
-                switch(pSettings.weekdayTag)                    
-                    case 'weekdays'
-                        daysOfInterest = 1:5;
-                    case 'weekends'
-                        daysOfInterest = [0,6];
-                    case 'all'
-                        daysOfInterest = [];
-                    otherwise               
-                        daysOfInterest = [];
-                        %this is the default case with 'all'
-                end
+                % (Saturday-Sunday)
+                weekdayIndex = strcmpi(this.base.weekdayTags,pSettings.weekdayTag);
+                daysOfInterest = this.base.weekdayValues{weekdayIndex};
+                
+                %                 switch(pSettings.weekdayTag)
+                %                     case 'weekdays'
+                %                         daysOfInterest = 1:5;
+                %                     case 'weekends'
+                %                         daysOfInterest = [0,6];
+                %                     case 'all'
+                %                         daysOfInterest = [];
+                %                     case 'custom'
+                %                         daysOfInterest = getMenuUserData(this.handles.menu_weekdays);
+                %                     otherwise
+                %                         daysOfInterest = [];
+                %                         %this is the default case with 'all'
+                %                 end
                 
                 if(~isempty(daysOfInterest))
                     rowsOfInterest = ismember(this.featureStruct.startDaysOfWeek,daysOfInterest); 
@@ -1751,7 +1802,6 @@ classdef PAStatTool < handle
                 set(this.handles.axes_primary,'color',[1 1 1],'xlimmode','auto','ylimmode',pSettings.primaryAxis_yLimMode,'xtickmode','auto',...
                     'ytickmode',pSettings.primaryAxis_yLimMode,'xticklabelmode','auto','yticklabelmode',pSettings.primaryAxis_yLimMode,'xminortick','off','yminortick','off');
                 set(resultsTextH,'visible','on','foregroundcolor',[0.1 0.1 0.1],'string','');
-               
 
                 % % set(this.handles.text_primaryAxes,'backgroundcolor',[0 0 0],'foregroundcolor',[1 1 0],'visible','on');
                 this.showCentroidControls();
@@ -1760,7 +1810,13 @@ classdef PAStatTool < handle
                 this.centroidObj = PACentroid(this.featureStruct.features,pSettings,this.handles.axes_primary,resultsTextH,this.featureStruct.studyIDs);
                 
                 if(this.centroidObj.failedToConverge())
-                    warndlg('Failed to converge');
+                    warnMsg = {'Failed to converge',[]};
+                    if(isempty(this.featureStruct.features))
+                        warnMsg{end} = 'No features found.  Try altering input settings (e.g. days of week)';
+                    else
+                        warnMsg{end} = 'See console for possible explanations';
+                    end
+                    warndlg(warnMsg);
                     this.centroidObj = [];
                 else
                     this.refreshGlobalProfile();
@@ -1780,11 +1836,12 @@ classdef PAStatTool < handle
                 
                 this.plotCentroids(pSettings); 
                 this.enableCentroidControls();
+                dissolve(resultsTextH,2.5);
             else
+                dissolve(resultsTextH,2.5);
                 this.disableCentroidControls();
-                set(this.handles.axes_primary,'color',[0.75 0.75 0.75]);
+                %                 set(this.handles.axes_primary,'color',[0.75 0.75 0.75]);
             end
-            dissolve(resultsTextH,2.5);
             this.showReady();
         end
         
@@ -1825,10 +1882,12 @@ classdef PAStatTool < handle
             set(this.handles.panel_centroidPrimaryAxesControls,'visible','on');
         end
         
+        %> @brief Does not change panel_plotCentroid controls.
         function enableCentroidControls(this)
             set(findall(this.handles.panel_centroidPrimaryAxesControls,'enable','off'),'enable','on');  
-            
             set(findall(this.handles.panel_controlCentroid,'enable','off'),'enable','on');  
+            %             set(findall(this.handles.panel_plotCentroid,'enable','off'),'enable','on');
+            
             % add a context menu now to primary axes
             contextmenu_primaryAxes = uicontextmenu('parent',this.figureH);
             axesScalingMenu = uimenu(contextmenu_primaryAxes,'Label','y-Axis scaling','callback',@this.primaryAxesScalingContextmenuCallback);
@@ -1842,12 +1901,21 @@ classdef PAStatTool < handle
             set(this.handles.axes_primary,'uicontextmenu',contextmenu_primaryAxes);            
         end
         
+        %> @brief Does not alter panel_plotCentroid controls, which we want to
+        %> leave avaialbe to the user to manipulate settings in the event
+        %> that they have excluded loadshapes and need to alter the settings
+        %> to included them in a follow-on calculation.
         function disableCentroidControls(this)
             set(findall(this.handles.panel_centroidPrimaryAxesControls,'enable','on'),'enable','off');              
-            set(findall(this.handles.panel_controlCentroid,'enable','on'),'enable','off');              
+            set(findall(this.handles.panel_controlCentroid,'enable','on'),'enable','off');
+            %             set(findall(this.handles.panel_plotCentroid,'enable','on'),'enable','off');
+            
             set(this.handles.text_resultsCentroid,'enable','on');
             % add a context menu now to primary axes           
             set(this.handles.axes_primary,'uicontextmenu',[]);
+            this.clearPlots();
+            set([this.handles.axes_primary
+                this.handles.axes_secondary],'color',[0.75 0.75 0.75]);
         end
         
         
@@ -2143,6 +2211,9 @@ classdef PAStatTool < handle
             %             userSettings.centroidStopTime = getSelectedMenuString(this.handles.menu_centroidStopTime);
 
             userSettings.weekdayTag = this.base.weekdayTags{userSettings.weekdaySelection};
+            customIndex = strcmpi(this.base.weekdayTags,'custom');
+            userSettings.customDaysOfWeek = this.base.weekdayValues{customIndex};
+            
             userSettings.centroidDurationSelection = get(this.handles.menu_duration,'value');
             userSettings.centroidDurationHours = this.base.centroidHourlyDurations(userSettings.centroidDurationSelection);
             
@@ -2438,6 +2509,7 @@ classdef PAStatTool < handle
             paramStruct.weekdaySelection = 1;
             paramStruct.startTimeSelection = 1;
             paramStruct.stopTimeSelection = -1;
+            paramStruct.customDaysOfWeek = 0;  %for sunday.
             
             paramStruct.centroidDurationSelection = 1;
                         
@@ -2491,8 +2563,13 @@ classdef PAStatTool < handle
             baseSettings.processedTypes = {'count','raw'};            
             baseSettings.numShades = 1000;
             
-            baseSettings.weekdayDescriptions = {'All days','Monday-Friday','Weekend'};            
-            baseSettings.weekdayTags = {'all','weekdays','weekends'};
+            baseSettings.weekdayDescriptions = {'All days','Monday-Friday','Weekend','Custom'};            
+            baseSettings.weekdayTags = {'all','weekdays','weekends','custom'};
+            baseSettings.weekdayValues = {0:6,1:5,[0,6],[]};
+            baseSettings.daysOfWeekShortDescriptions = {'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
+            baseSettings.daysOfWeekDescriptions = {'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'};
+            baseSettings.daysOfWeekOrder = 1:7;
+                    
             
             baseSettings.centroidDurationDescriptions = {'1 day','12 hours','6 hours','4 hours','3 hours','2 hours','1 hour'};
             baseSettings.centroidDurationDescriptions = {'24 hours','12 hours','6 hours','4 hours','3 hours','2 hours','1 hour'};
