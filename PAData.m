@@ -1161,6 +1161,9 @@ classdef PAData < handle
                        % NOTE:  Chopping off the first six columns: date time values;
                        tmpDataCell(1:6) = [];
                        
+                       % The following call to mergedCell ensures the data
+                       % is chronologically ordered and data is not
+                       % missing.
                        [dataCell, ~, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,missingValue);
                        
                        tmpDataCell = []; %free up this memory;

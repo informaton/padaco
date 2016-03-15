@@ -189,6 +189,7 @@ classdef PAView < handle
             coiControlsPos = get(handles.panel_controlCentroid,'position');
             coiControlsPos(2) = sum(epochControlsPos([2,4]))-coiControlsPos(4);  % This is y_ = y^ + h^ - h_
             set(handles.panel_controlCentroid,'position',coiControlsPos);
+            drawnow();
             
             
             
@@ -196,6 +197,7 @@ classdef PAView < handle
             priAxesControlsPos = get(handles.panel_centroidPrimaryAxesControls,'position');
             priAxesControlsPos(2) = sum(epochControlsPos([2,4]))-priAxesControlsPos(4);  % This is y_ = y^ + h^ - h_
             set(handles.panel_centroidPrimaryAxesControls,'position',priAxesControlsPos);
+            drawnow();
             
 
             
@@ -265,6 +267,8 @@ classdef PAView < handle
             % create a spot for it in the struct;
             obj.patchhandle.feature = [];
             
+            % Flush our drawing queue
+            drawnow();
             % Clear the figure and such.  
             obj.clearAxesHandles();
             obj.clearTextHandles(); 
@@ -286,7 +290,7 @@ classdef PAView < handle
 
             obj.initAxesHandlesViewMode(viewMode);
             obj.clearTextHandles();
-            obj.initWidgets(viewMode);          
+            obj.initWidgets(viewMode);
         end
         
         % --------------------------------------------------------------------
@@ -550,8 +554,8 @@ classdef PAView < handle
                 
             elseif(strcmpi(viewMode,'results'))
                 axesProps.primary.ylimmode = 'auto';
-%                 axesProps.primary.ytickmode='auto';
-%                 axesProps.primary.yticklabelmode = 'auto';
+                %                 axesProps.primary.ytickmode='auto';
+                %                 axesProps.primary.yticklabelmode = 'auto';
                 axesProps.primary.xAxisLocation = 'bottom';
                 axesProps.primary.xminortick='off';
                 
@@ -580,6 +584,7 @@ classdef PAView < handle
                 title(h,'');
                 ylabel(h,'');
                 xlabel(h,'');
+                set(h,'xtick',[],'ytick',[]);
             end
         end
 
@@ -689,11 +694,9 @@ classdef PAView < handle
             
             if(strcmpi(viewMode,'timeseries'))
 
+                set(timeseriesPanels,'visible','on');
                 set(resultPanels,'visible','off');
                 set(findall(resultPanels,'enable','on'),'enable','off');
-
-                
-                set(timeseriesPanels,'visible','on');
                 
                 set(handles.menu_viewmode_timeseries,'checked','on');
                 set(handles.menu_viewmode_results,'checked','off');
@@ -703,6 +706,7 @@ classdef PAView < handle
                 end
                 
             elseif(strcmpi(viewMode,'results'))
+                set(resultPanels(1),'visible','on');
                 set(timeseriesPanels,'visible','off');
                 % Handle the enabling or disabling in the PAStatTool ->
                 % which has more control
@@ -713,9 +717,8 @@ classdef PAView < handle
 
                 % Handle the specific visibility in the PAStatTool ->
                 % which has more control
-                set(resultPanels(1),'visible','on');
-                set(resultPanels(2:3),'visible','off');
-                
+                %                 set(resultPanels(1),'visible','on');
+                %                 set(resultPanels(2:3),'visible','off');
                 set(handles.menu_viewmode_timeseries,'checked','off');
                 set(handles.menu_viewmode_results,'checked','on');
             else

@@ -122,27 +122,30 @@ classdef PAController < handle
 
                 obj.VIEW.showBusy([],'all');
                 
-                obj.initWidgets();
+                obj.initTimeSeriesWidgets();
                 
                 set(obj.figureH,'CloseRequestFcn',{@obj.figureCloseCallback,guidata(obj.figureH)});
 
                 %configure the menu bar callbacks.
                 obj.initMenubarCallbacks();
-                
-                lastViewMode = obj.SETTINGS.CONTROLLER.viewMode;
-                
+                               
                 % attempt to load the last set of results
+                lastViewMode = obj.SETTINGS.CONTROLLER.viewMode;
                 switch(lower(lastViewMode))
                     case 'results'
+%                         success = obj.initResultsView();                        
                         obj.menuViewmodeResultsCallback();
                     case 'timeseries'
                         obj.menuViewmodeTimeSeriesCallback();
+                      
                     case 'batch'
                         obj.menuViewmodeBatchCallback();
                     otherwise
                         % unhandled
                 end
-
+                %                 if(success)
+                %                      obj.VIEW.showReady('all');
+                %                 end
             end                
         end
         
@@ -442,7 +445,7 @@ classdef PAController < handle
         end
                 
         
-        function initWidgets(obj)
+        function initTimeSeriesWidgets(obj)
             
             prefilterSelection = PAData.getPrefilterMethods();
             set(obj.VIEW.menuhandle.prefilterMethod,'string',prefilterSelection,'value',1);
@@ -1255,7 +1258,7 @@ classdef PAController < handle
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         % --------------------------------------------------------------------        
         function menuViewmodeResultsCallback(obj,hObject,eventdata)           
-            obj.setViewMode('results');
+             obj.setViewMode('results');
             if(obj.initResultsView())  
                 obj.VIEW.showReady('all');
             end
@@ -1891,26 +1894,21 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function success = initResultsView(this)
             success = false;
+            %             this.VIEW.initWidgets('results',false);
+                        
             if(isdir(this.resultsPathname))
                 if(~isempty(this.StatTool))                   
                     this.StatTool.init();  %calls a plot refresh
                 else
                     this.StatTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname,this.SETTINGS.StatTool);
                 end
-
                 success = this.StatTool.getCanPlot();                
             end
-            disableFlag = ~success;
             
-            this.VIEW.initWidgets('results',disableFlag);
-            
-            %             if(disableFlag)
-            %                 this.StatTool.disable();
-            %             else
-            %                 this.StatTool.enable();
-            %             end
             
             if(~success)
+                this.StatTool.disable();
+
                 this.StatTool = [];
                 responseButton = questdlg('Results output pathname is either not set or was not found.  Would you like to choose one now?','Find results output path?');
                 if(strcmpi(responseButton,'yes'))

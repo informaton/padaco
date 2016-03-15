@@ -259,7 +259,7 @@ classdef PAStatTool < handle
         function [startTimeSelection, stopTimeSelection ] = setStartTimes(this,startTimeCellStr)
             if(~isempty(this.originalWidgetSettings))
                 stopTimeSelection = this.originalWidgetSettings.stopTimeSelection;
-                if(stopTimeSelection<=0)
+                if(stopTimeSelection<=0 || stopTimeSelection == 1)
                     stopTimeSelection = numel(startTimeCellStr);
                 end
                 startTimeSelection = this.originalWidgetSettings.startTimeSelection;
@@ -675,6 +675,8 @@ classdef PAStatTool < handle
             set(this.handles.check_normalizevalues,'value',1,'enable','off');
             set(this.handles.axes_primary,'ydir','normal');  %sometimes this gets changed by the heatmap displays which have the time shown in reverse on the y-axis
             
+            set([this.handles.panel_centroidPrimaryAxesControls
+                this.handles.panel_controlCentroid],'visible','on');
             if(this.getCanPlot())
                 if(isempty(this.centroidObj) || this.centroidObj.failedToConverge())
                     this.disableCentroidControls();
@@ -895,8 +897,11 @@ classdef PAStatTool < handle
                         
                         % Centroid widgets
                         set(this.handles.menu_weekdays,'userdata',this.base.weekdayTags,'string',this.base.weekdayDescriptions,'value',widgetSettings.weekdaySelection);
-                        set(this.handles.menu_centroidStartTime,'userdata',[],'string',{'Start times'},'value',1);
-                        set(this.handles.menu_centroidStopTime,'userdata',[],'string',{'Stop times'},'value',1);
+                        
+                        %                         set(this.handles.menu_centroidStartTime,'userdata',[],'string',{'Start times'},'value',1);
+                        %                         set(this.handles.menu_centroidStopTime,'userdata',[],'string',{'Stop times'},'value',1);
+                        
+                        
                         %                         startStopTimesInDay= 0:1/4:24;
                         %                         hoursInDayStr = datestr(startStopTimesInDay/24,'HH:MM');
                         %                         set(this.handles.menu_centroidStartTime,'userdata',startStopTimesInDay(1:end-1),'string',hoursInDayStr(1:end-1,:),'value',widgetSettings.startTimeSelection);
@@ -949,29 +954,29 @@ classdef PAStatTool < handle
                         
                         set(this.handles.push_nextCentroid,'units','pixels');
                         set(this.handles.push_previousCentroid,'units','pixels');
-                        drawnow();
+                        
                         % Correct arrow positions - they seem to shift in
                         % MATLAB R2014b from their guide set position.
-                        pos = get(this.handles.push_nextCentroid,'position');
-                        set(this.handles.push_nextCentroid,'position',pos.*[1 -1 1 1]);
-                        pos = get(this.handles.push_previousCentroid,'position');
-                        set(this.handles.push_previousCentroid,'position',pos.*[1 -1 1 1]);
+                        %                         pos = get(this.handles.push_nextCentroid,'position');
+                        %                         set(this.handles.push_nextCentroid,'position',pos.*[1 -1 1 1]);
+                        %                         pos = get(this.handles.push_previousCentroid,'position');
+                        %                         set(this.handles.push_previousCentroid,'position',pos.*[1 -1 1 1]);
                         
                         % Correct primary axes control widgets - they seem to shift in
                         % MATLAB R2014b from their guide set position.
-                        %                         parentH = get(this.handles.check_autoScaleYAxes,'parent');  %both widgets share the same parent panel here.
+                        %                         parentH = get(this.handles.check_holdYAxes,'parent');  %both widgets share the same parent panel here.
                         %                         parentPos = get(parentH,'position');
-                        pos = get(this.handles.check_autoScaleYAxes,'position');
-                        pos(2) = 0; %parentPos(4)/2-pos(4)/2; % get the lower position that results in the widget being placed in the center of the panel.
-                        set(this.handles.check_autoScaleYAxes,'position',pos);
+                        %                         pos = get(this.handles.check_holdYAxes,'position');
+                        %                         pos(2) = 0; %parentPos(4)/2-pos(4)/2; % get the lower position that results in the widget being placed in the center of the panel.
+                        %                         set(this.handles.check_holdYAxes,'position',pos);
                         
-                        pos = get(this.handles.check_holdPlots,'position');
-                        pos(2) = 0; %parentPos(4)/2-pos(4)/2; % get the lower position that results in the widget being placed in the center of the panel.
-                        set(this.handles.check_holdPlots,'position',pos);
-                        
-                        pos = get(this.handles.check_showAnalysisFigure,'position');
-                        pos(2) = 0; %parentPos(4)/2-pos(4)/2; % get the lower position that results in the widget being placed in the center of the panel.
-                        set(this.handles.check_showAnalysisFigure,'position',pos);
+                        %                         pos = get(this.handles.check_holdPlots,'position');
+                        %                         pos(2) = 0; %parentPos(4)/2-pos(4)/2; % get the lower position that results in the widget being placed in the center of the panel.
+                        %                         set(this.handles.check_holdPlots,'position',pos);
+                        %
+                        %                         pos = get(this.handles.check_showAnalysisFigure,'position');
+                        %                         pos(2) = 0; %parentPos(4)/2-pos(4)/2; % get the lower position that results in the widget being placed in the center of the panel.
+                        %                         set(this.handles.check_showAnalysisFigure,'position',pos);
                         
                         drawnow();
                         %
@@ -988,7 +993,7 @@ classdef PAStatTool < handle
                         set(this.handles.push_nextCentroid,'units','points');
                         set(this.handles.push_previousCentroid,'units','points');
 
-                        set(this.handles.check_autoScaleYAxes,'value',strcmpi(widgetSettings.primaryAxis_yLimMode,'auto'),'callback',@this.checkAutoScaleYAxesCallback);
+                        set(this.handles.check_holdYAxes,'value',strcmpi(widgetSettings.primaryAxis_yLimMode,'auto'),'callback',@this.checkHoldYAxesCallback);
                         set(this.handles.check_holdPlots,'value',strcmpi(widgetSettings.primaryAxis_nextPlot,'add'),'callback',@this.checkHoldPlotsCallback);
                         set(this.handles.check_showAnalysisFigure,'value',widgetSettings.showAnalysisFigure,'callback',@this.checkShowAnalysisFigureCallback);
                         
@@ -1124,22 +1129,22 @@ classdef PAStatTool < handle
             'ytickmode',yScalingMode,...
             'yticklabelmode',yScalingMode);
             if(strcmpi(yScalingMode,'auto'))
-                set(this.handles.check_autoScaleYAxes,'value',1);
+                set(this.handles.check_holdYAxes,'value',1);
                 checkHoldPlotsCallback
                 this.plotCentroids();
             else
-                set(this.handles.check_autoScaleYAxes,'value',0);
+                set(this.handles.check_holdYAxes,'value',0);
                 if(strcmpi(get(this.handles.axes_primary,'nextplot'),'replace'))
                     set(this.handles.axes_primary,'nextplot','replaceChildren');
                 end
             end
         end
         
-        function checkAutoScaleYAxesCallback(this,hObject,eventData)
+        function checkHoldYAxesCallback(this,hObject,eventData)
             if(get(hObject,'value'))
-                yScalingMode = 'auto';
-            else
                 yScalingMode = 'manual';
+            else
+                yScalingMode = 'auto';
             end
             
             set(this.handles.axes_primary,'ylimmode',yScalingMode,...
@@ -1362,7 +1367,7 @@ classdef PAStatTool < handle
                 'push_previousCentroid'
                 'text_resultsCentroid'
                 'check_holdPlots'
-                'check_autoScaleYAxes'
+                'check_holdYAxes'
                 'check_showAnalysisFigure'
 
 %                 'text_resultsCentroid'
@@ -1767,17 +1772,7 @@ classdef PAStatTool < handle
             
             % Prep the x-axis here since it will not change when going from one centroid to the
             % next, but only (though not necessarily) when refreshing centroids.
-            xTicks = 1:6:this.featureStruct.totalCount;
-            
-            % This is nice to place a final tick matching the end time on
-            % the graph, but it sometimes gets too busy and the tick
-            % separation distance is non-linear which can be an eye soar.
-%             if(xTicks(end)~=this.featureStruct.totalCount)
-%                 xTicks(end+1)=this.featureStruct.totalCount;
-%             end
-            
-            xTickLabels = this.featureStruct.startTimes(xTicks);
-            set(this.handles.axes_primary,'xlim',[1,this.featureStruct.totalCount],'xtick',xTicks,'xticklabel',xTickLabels);
+            this.drawCentroidXTicksAndLabels();
             
             if(~isempty(this.centroidObj))
                 defaultBackgroundColor = get(0,'FactoryuicontrolBackgroundColor');
@@ -1792,6 +1787,22 @@ classdef PAStatTool < handle
             dissolve(resultsTextH,2.5);
             this.showReady();
         end
+        
+        function drawCentroidXTicksAndLabels(this)
+            xTicks = 1:6:this.featureStruct.totalCount;
+            
+            % This is nice to place a final tick matching the end time on
+            % the graph, but it sometimes gets too busy and the tick
+            % separation distance is non-linear which can be an eye soar.
+            %             if(xTicks(end)~=this.featureStruct.totalCount)
+            %                 xTicks(end+1)=this.featureStruct.totalCount;
+            %             end
+            
+            xTickLabels = this.featureStruct.startTimes(xTicks);
+            set(this.handles.axes_primary,'xlim',[1,this.featureStruct.totalCount],'xtick',xTicks,'xticklabel',xTickLabels);
+            
+        end
+        
         
         %> @brief Hides the panel of centroid interaction controls.  For
         %> example, the forward and back buttons that appear in between the
@@ -1861,6 +1872,10 @@ classdef PAStatTool < handle
                     if(nargin<2)
                         centroidAndPlotSettings = this.getPlotSettings();
                     end
+                    
+                    % draw the x-ticks and labels
+                    this.drawCentroidXTicksAndLabels();
+                    
                     distributionAxes = this.handles.axes_secondary;
                     centroidAxes = this.handles.axes_primary;
                     
@@ -1993,7 +2008,7 @@ classdef PAStatTool < handle
                             daysofweekOrder = 1:7;
                             
                             % +1 to adjust startDaysOfWeek range from [0,6] to [1,7]
-                            coiDaysOfWeek = this.featureStruct.startDaysOfWeek(coiStruct.memberIndices)+1;
+                            coiDaysOfWeek = this.featureStruct.startDaysOfWeek(coi.memberIndices)+1;
                             coiDaysOfWeekCount = histc(coiDaysOfWeek,daysofweekOrder);
                             coiDaysOfWeekPct = coiDaysOfWeekCount/sum(coiDaysOfWeekCount(:));
                             bar(distributionAxes,coiDaysOfWeekPct);
@@ -2002,7 +2017,7 @@ classdef PAStatTool < handle
                                 daysofweekStr{d} = sprintf('%s (n=%u)',daysofweekStr{d},coiDaysOfWeekCount(d));
                             end
                             
-                            title(distributionAxes,sprintf('Weekday distribution for Centroid #%u (membership count = %u)',coiStruct.index,coiStruct.numMembers),'fontsize',14);
+                            title(distributionAxes,sprintf('Weekday distribution for Centroid #%u (membership count = %u)',coi.index,coi.numMembers),'fontsize',14);
                             %ylabel(distributionAxes,sprintf('Load shape count'));
                             xlabel(distributionAxes,'Days of week');
                             xlim(distributionAxes,[daysofweekOrder(1)-0.75 daysofweekOrder(end)+0.75]);
@@ -2053,10 +2068,10 @@ classdef PAStatTool < handle
                             %                         globalProfile = this.getGlobalProfile();
                             %                     case 'localVsGlobalProfile'
                             %                         globalProfile = this.getGlobalProfile();
-                            %                         primaryKeys = coiStruct.memberIDs;
+                            %                         primaryKeys = coi.memberIDs;
                             %                         ` = this.getProfileCell(primaryKeys);
                             %                     case 'centroidprofile'
-                            %                         primaryKeys = coiStruct.memberIDs;
+                            %                         primaryKeys = coi.memberIDs;
                             %                         coiProfile = this.getProfileCell(primaryKeys);
                         otherwise
                             warndlg(sprintf('Distribution type (%s) is unknonwn and or not supported',this.centroidDistributionType));
