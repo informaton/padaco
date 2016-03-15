@@ -8,7 +8,7 @@
 %> controller. 
 classdef PAController < handle
     properties(Constant)
-        versionNum = 1.5;
+        versionNum = 1.51;
     end
     properties(Access=private)
         %> @brief Vector for keeping track of the feature handles that are

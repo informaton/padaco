@@ -1,10 +1,12 @@
 function padaco()
     
     mPathname = fileparts(mfilename('fullpath'));
-    addpath(mPathname);
-    subPaths = {'figures','icons','utility','html'};
-    for s=1:numel(subPaths)
-        addpath(fullfile(mPathname,subPaths{s}));
+    if(~isdeployed)
+        addpath(mPathname);
+        subPaths = {'figures','icons','utility','html'};
+        for s=1:numel(subPaths)
+            addpath(fullfile(mPathname,subPaths{s}));
+        end
     end
     hObject = padacoFig('visible','off');
     handles = initializeGUI(hObject);
