@@ -733,6 +733,33 @@ classdef PAStatTool < handle
             end
         end
         
+        
+
+        % ======================================================================
+        %> @brief Mouse button callback when clicking on the centroid
+        %> distribution histogram.
+        %> @param this Instance of PAStatTool
+        %> @param hObject Handle to the bar graph.
+        %> @param eventdata Struct of 'hit' even data.
+        % ======================================================================
+        function centroidDayOfWeekHistogramButtonDownFcn(this,histogramH,eventdata, overlayingPatchHandles)
+            xHit = eventdata.IntersectionPoint(1);
+            barWidth = 1;  % histogramH.BarWidth is 0.8 by default, but leaves 0.2 of ambiguity between adjancent bars.
+            xStartStop = [histogramH.XData(:)-barWidth/2, histogramH.XData(:)+barWidth/2];
+            selectedBarIndex = find( xStartStop(:,1)<xHit & xStartStop(:,2)>xHit ,1);
+            selectedDayOfInterest = selectedBarIndex-1;
+            this.centroidObj.toggleDayOfInterestOrder(selectedDayOfInterest);
+            
+            daysOfInterest = this.centroidObj.getDaysOfInterest();
+            if(daysOfInterest(selectedBarIndex))
+                set(overlayingPatchHandles(selectedBarIndex),'visible','off');
+            else
+                set(overlayingPatchHandles(selectedBarIndex),'visible','on');
+            end
+            this.plotCentroids();
+        end
+
+                
         % ======================================================================
         %> @brief Mouse button callback when clicking on the centroid
         %> distribution histogram.
@@ -1085,7 +1112,7 @@ classdef PAStatTool < handle
                 end
             else
                 this.previousState.weekdaySelection = curValue;
-                set(hObject,'tooltipstring',[]);
+                set(hObject,'tooltipstring','');
                 this.enableCentroidRecalculation();
             end
         end
@@ -1807,7 +1834,7 @@ classdef PAStatTool < handle
                 this.showCentroidControls();
                 
                 drawnow();
-                this.centroidObj = PACentroid(this.featureStruct.features,pSettings,this.handles.axes_primary,resultsTextH,this.featureStruct.studyIDs);
+                this.centroidObj = PACentroid(this.featureStruct.features,pSettings,this.handles.axes_primary,resultsTextH,this.featureStruct.studyIDs, this.featureStruct.startDaysOfWeek);
                 
                 if(this.centroidObj.failedToConverge())
                     warnMsg = {'Failed to converge',[]};
@@ -1973,7 +2000,6 @@ classdef PAStatTool < handle
                         set(centroidAxes,'ygrid','off','nextplot','replacechildren');
                     end
                     
-                    
                     %                 % Prep the x-axis.  This should probably be done elsewhere
                     %                 % as it will not change when going from one centroid to the
                     %                 % next, but only (though not necessarily) when refreshing centroids.
@@ -2001,15 +2027,15 @@ classdef PAStatTool < handle
                     for c=1:numCOIs
                         coi = cois{c};
                         if(centroidAndPlotSettings.showCentroidMembers)
-                            plot(centroidAxes,coi.memberShapes','-','linewidth',1,'color',[0.85 0.85 0.85]);
+                            plot(centroidAxes,coi.dayOfWeek.memberShapes','-','linewidth',1,'color',[0.85 0.85 0.85]);
                         end
-                        pctMembership =  coi.numMembers/numLoadShapes*100;
+                        pctMembership =  coi.dayOfWeek.numMembers/numLoadShapes*100;
                         legendStrings{c} = sprintf('Centroid #%u (%0.2f%%)',coi.sortOrder, pctMembership);
                         
                         coiSortOrders(c) = coi.sortOrder;
-                        coiPctMemberships(c) =  coi.numMembers/numLoadShapes*100;
+                        coiPctMemberships(c) =  coi.dayOfWeek.numMembers/numLoadShapes*100;
                         %                     coiIndices(c) = coi.index;
-                        coiMemberIDs = [coiMemberIDs;coi.memberIDs(:)];
+                        coiMemberIDs = [coiMemberIDs;coi.dayOfWeek.memberIDs(:)];
                         totalMembers = totalMembers+coi.numMembers;  %total load shape counts
                         
                         
@@ -2029,7 +2055,7 @@ classdef PAStatTool < handle
                     % selection or interaction with the gui.  It is updated
                     % internally within centroidObj.
                     coi = this.centroidObj.getCentroidOfInterest();
-                    pctMembership =  coi.numMembers/numLoadShapes*100;
+                    pctMembership =  coi.dayOfWeek.numMembers/numLoadShapes*100;
                     
                     set(centroidAxes,'nextplot',nextPlot);
                     
@@ -2044,7 +2070,7 @@ classdef PAStatTool < handle
                     else
                         legend(centroidAxes,'off');
                         centroidTitle = sprintf('Centroid #%u (%s). Popularity %u of %u. Loadshapes: %u of %u (%0.2f%%).  Individuals: %u of %u (%0.2f%%)',coi.sortOrder,...
-                            this.featureStruct.method, numCentroids-coi.sortOrder+1,numCentroids, coi.numMembers, numLoadShapes, pctMembership, numUniqueMemberIDs, totalMemberIDsCount, pctOfTotalMemberIDs);
+                            this.featureStruct.method, numCentroids-coi.sortOrder+1,numCentroids, coi.dayOfWeek.numMembers, numLoadShapes, pctMembership, numUniqueMemberIDs, totalMemberIDsCount, pctOfTotalMemberIDs);
                     end
                     title(centroidAxes,centroidTitle,'fontsize',14,'interpreter','none');
                     
@@ -2059,7 +2085,9 @@ classdef PAStatTool < handle
                         yData = get(this.handles.line_allScatterPlot,'ydata');
                         set(this.handles.line_coiInScatterPlot,'xdata',coiSortOrders,'ydata',yData(coiSortOrders),'displayName',displayName);
                     end
-                    
+
+                    oldVersion = verLessThan('matlab','7.14');
+ 
                     %%  Show distribution on secondary axes
                     switch(this.centroidDistributionType)
                         
@@ -2072,20 +2100,37 @@ classdef PAStatTool < handle
                             % and the loadshape count (for the centroid of
                             % interest) on the y-axis.
                         case 'weekday'
-                            daysofweekStr = {'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
-                            daysofweekOrder = 1:7;
+                            daysofweekStr = this.base.daysOfWeekShortDescriptions;%{'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
+                            daysofweekOrder = this.base.daysOfWeekOrder;  %1:7;
                             
                             % +1 to adjust startDaysOfWeek range from [0,6] to [1,7]
                             coiDaysOfWeek = this.featureStruct.startDaysOfWeek(coi.memberIndices)+1;
                             coiDaysOfWeekCount = histc(coiDaysOfWeek,daysofweekOrder);
                             coiDaysOfWeekPct = coiDaysOfWeekCount/sum(coiDaysOfWeekCount(:));
-                            bar(distributionAxes,coiDaysOfWeekPct);
-                            
-                            for d=1:7
-                                daysofweekStr{d} = sprintf('%s (n=%u)',daysofweekStr{d},coiDaysOfWeekCount(d));
+                            h = bar(distributionAxes,coiDaysOfWeekPct);%,'buttonDownFcn',@this.centroidDayOfWeekHistogramButtonDownFcn);
+                            barWidth = get(h,'barwidth');
+                            x = get(h,'xdata');
+                            y = get(h,'ydata');
+                            pH = nan(max(daysofweekOrder),1);
+                            daysOfInterestVec = this.centroidObj.getDaysOfInterest();  %on means that we show the original bar, and that the day is 'on'; while the visibility of the overlay is off.
+                            for d=1:numel(daysofweekOrder)
+                                dayOrder = daysofweekOrder(d);
+                                daysofweekStr{dayOrder} = sprintf('%s (n=%u)',daysofweekStr{dayOrder},coiDaysOfWeekCount(dayOrder));
+                                
+                                if(~oldVersion)
+                                    onColor = [1 1 1];
+                                    if(daysOfInterestVec(dayOrder)) % don't draw the cover-up patches for days we are interested in.
+                                        visibility = 'off';
+                                    else
+                                        visibility = 'on';
+                                    end
+                                    pH(dayOrder) = patch(repmat(x(dayOrder),1,4)+0.5*barWidth*[-1 -1 1 1],1*[y(dayOrder) 0 0 y(dayOrder)],onColor,'parent',distributionAxes,'facecolor',onColor,'edgecolor',onColor,'pickableparts','none','hittest','off','visible',visibility);
+                                end
                             end
                             
-                            title(distributionAxes,sprintf('Weekday distribution for Centroid #%u (membership count = %u)',coi.index,coi.numMembers),'fontsize',14);
+                            
+                            set(h,'buttonDownFcn',{@this.centroidDayOfWeekHistogramButtonDownFcn,pH});
+                            title(distributionAxes,sprintf('Weekday distribution for Centroid #%u (membership count = %u)',coi.index,coi.dayOfWeek.numMembers),'fontsize',14);
                             %ylabel(distributionAxes,sprintf('Load shape count'));
                             xlabel(distributionAxes,'Days of week');
                             xlim(distributionAxes,[daysofweekOrder(1)-0.75 daysofweekOrder(end)+0.75]);
@@ -2104,7 +2149,6 @@ classdef PAStatTool < handle
                             
                             barH = bar(distributionAxes,y,barWidth,'buttonDownFcn',@this.centroidHistogramButtonDownFcn);
                             
-                            oldVersion = verLessThan('matlab','7.14');
                             if(oldVersion)
                                 %barH = bar(distributionAxes,y,barWidth);
                                 defaultColor = [0 0 9/16];
