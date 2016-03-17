@@ -399,11 +399,15 @@ classdef PAController < handle
         %> @param hObject 
         %> @param eventdata        
         % --------------------------------------------------------------------
-        function menuHelpFAQCallback(obj,hObject,eventdata)
-            msg = sprintf('Help FAQ');
-            filename = fullfile(obj.SETTINGS.rootpathname,'html','Padaco_FAQ.html');
+        function menuHelpFAQCallback(this,hObject,eventdata)
+            %msg = sprintf('Help FAQ');
+            this.VIEW.showBusy('Initializing help');
+            filename = fullfile(this.SETTINGS.rootpathname,'html','PadacoFAQ.html');
             url = sprintf('file://%s',filename);
-            web(url,'-notoolbar');
+            %             web(url,'-notoolbar','-noaddressbox');
+            htmldlg('url',url);
+            
+            this.VIEW.showReady();
             %             web(url);
         end
         
