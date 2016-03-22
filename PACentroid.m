@@ -4,6 +4,10 @@
 %> processing.
 % ======================================================================
 classdef PACentroid < handle
+    properties(Constant)
+        WEEKDAY_ORDER = 0:6;  % for Sunday through Saturday
+    end
+    
     %> @brief The sort order can be difficult to understand.  First, the
     %> adaptive k-means algorithm is applied and centroids are found.  The
     %> centroids are labeled arbitrarily according to the index or position
@@ -34,6 +38,8 @@ classdef PACentroid < handle
         
         loadShapeIDs;
         uniqueLoadShapeIDs;
+        loadShapeDayOfWeek;  %Nx1 vector with values in [0,6] representing [Sunday, Monday, Tuesday ..., Saturday]
+        daysOfInterest; % 7x1 boolean vector representing if the correspondning day of week is of interest.  [1] => Sunday, [2]=> Monday, ... , [7]=> Saturday
         
         %> Nx1 vector of centroid index for loadShape profile associated with its row.
         loadshapeIndex2centroidIndexMap;
@@ -118,20 +124,26 @@ classdef PACentroid < handle
         %> Status updates are sent to the command window by default.
         %> @param Optional Nx1 cell string with load shape source
         %> identifiers (e.g. which participant they came from).
+        %> @param Optional Nx1 vector with entries defining day of week
+        %> corresponding to the load shape entry found at the same row index
+        %> in the loadShapes matrix.  
         %> @retval Instance of PACentroid on success.  Empty matrix on
         %> failure.
         % ======================================================================        
-        function this = PACentroid(loadShapes,settings,axesOrLineH,textHandle,loadShapeIDs)    
+        function this = PACentroid(loadShapes,settings,axesOrLineH,textHandle,loadShapeIDs,loadShapeDayOfWeek)    
             
             this.init();
-            if(nargin<5)
-                loadShapeIDs = [];
-                if(nargin<4)
-                    textHandle = [];
-                    if(nargin<3)
-                        axesOrLineH = [];
-                        if(nargin<2)
-                            settings = [];
+            if(nargin<6)
+                loadShapeDayOfWeek = [];
+                if(nargin<5)
+                    loadShapeIDs = [];
+                    if(nargin<4)
+                        textHandle = [];
+                        if(nargin<3)
+                            axesOrLineH = [];
+                            if(nargin<2)
+                                settings = [];
+                            end
                         end
                     end
                 end
@@ -181,7 +193,7 @@ classdef PACentroid < handle
             this.settings.maxClusters = maxClusters;
             this.loadShapes = loadShapes;
             this.loadShapeIDs = loadShapeIDs;
-            
+            this.loadShapeDayOfWeek = loadShapeDayOfWeek;
             this.uniqueLoadShapeIDs = unique(loadShapeIDs);
             this.calculateCentroids();  
         end
@@ -256,6 +268,9 @@ classdef PACentroid < handle
             this.sortIndices = [];
             this.coiSortOrder = [];
             this.coiToggleOrder = [];
+            this.loadShapeDayOfWeek = [];  %Nx1 vector with values in [0,6] representing [Sunday, Monday, Tuesday ..., Saturday]
+            this.daysOfInterest = true(7,1); % 7x1 boolean vector representing if the correspondning day of week is of interest.  [1] => Sunday, [2]=> Monday, ... , [7]=> Saturday
+            
         end
                 
         function didChange = toggleOnNextCOI(this)
@@ -313,6 +328,20 @@ classdef PACentroid < handle
                 if(this.coiToggleOrder(toggleSortIndex))
                     this.coiSortOrder = toggleSortIndex;
                 end
+            end
+        end
+        
+        function daysOfInterest = getDaysOfInterest(this)
+            daysOfInterest = this.daysOfInterest;
+        end
+        
+        function didToggle = toggleDayOfInterestOrder(this, dayOfInterest)
+            if(nargin > 1 && ~isempty(dayOfInterest) && dayOfInterest>=0 && dayOfInterest<=6)
+                dayOfInterest = dayOfInterest+1;
+                this.daysOfInterest(dayOfInterest) = ~this.daysOfInterest(dayOfInterest);
+                didToggle = true;
+            else
+                didToggle = false;
             end
         end
         
@@ -398,13 +427,19 @@ classdef PACentroid < handle
             % loadshapeIndex2centroidIndexMap row index corresponds to the member index,
             % while the value at that row corresponds to the centroid
             % index.  We want the rows with the centroid index:            
-            coi.memberIndices = coi.index==this.loadshapeIndex2centroidIndexMap;
+            coi.memberIndices = (coi.index==this.loadshapeIndex2centroidIndexMap);
             
             % Now we can pull the member variables that were
             % clustered to the centroid index of interest.
             coi.memberShapes = this.loadShapes(coi.memberIndices,:);
             coi.memberIDs = this.loadShapeIDs(coi.memberIndices,:);
             coi.numMembers = size(coi.memberShapes,1);
+            
+            
+            coi.dayOfWeek.memberIndices = coi.memberIndices  & ismember(this.loadShapeDayOfWeek,this.WEEKDAY_ORDER(this.daysOfInterest));
+            coi.dayOfWeek.memberShapes = this.loadShapes(coi.dayOfWeek.memberIndices,:);
+            coi.dayOfWeek.memberIDs = this.loadShapeIDs(coi.dayOfWeek.memberIndices,:);
+            coi.dayOfWeek.numMembers = size(coi.dayOfWeek.memberShapes,1);
         end
 
 
@@ -812,7 +847,6 @@ classdef PACentroid < handle
                         K = K+numNotCloseEnough;
                         [~, centroids] = kmeans(loadShapes,K,'Start',centroids,'EmptyAction','drop','onlinephase','off');
                     end
-                    
                 end
                 
                 if(numNotCloseEnough~=0)
@@ -823,9 +857,7 @@ classdef PACentroid < handle
                         set(textStatusH,'string',{curString(end);statusStr});
                         drawnow();
                     end
-                    
                 else
-                    
                     if(ishandle(performanceAxesH))
                         if(ishandle(performanceAxesH))
                             performanceIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);
