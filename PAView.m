@@ -1347,7 +1347,7 @@ classdef PAView < handle
         function showReady(obj,axesTag)
             set(obj.getFigHandle(),'pointer','arrow');
             set(obj.texthandle.status,'string','');
-            if(nargin>1)
+            if(nargin>1 && ~isempty(axesTag))
                 obj.setAxesState(axesTag,'ready');
             end
             drawnow();

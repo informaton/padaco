@@ -1263,8 +1263,8 @@ classdef PAController < handle
         % --------------------------------------------------------------------        
         function menuViewmodeResultsCallback(obj,hObject,eventdata)           
              obj.setViewMode('results');
-            if(obj.initResultsView())  
-                obj.VIEW.showReady('all');
+            if(obj.initResultsView())
+                 obj.VIEW.showReady(); %'all');
             end
         end        
         
