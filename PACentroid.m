@@ -30,6 +30,7 @@ classdef PACentroid < handle
         %> - @c minClusters
         %> - @c maxClusters
         %> - @c thresholdScale        
+        %> - @c method - {'kmeans' (Default),'kmedians'}
         settings;
         
         %> NxM array of N profiles of length M (M is the centroid
@@ -109,6 +110,8 @@ classdef PACentroid < handle
         %> - @c minClusters [40]  Used to set initial K
         %> - @c maxClusters [0.5*N]
         %> - @c clusterThreshold [1.5]                  
+        %> - @c method - {'kmeans','kmedians'}; clustering method.  Default
+        %> is kmeans.
         %> @param Optional axes or line handle for displaying clustering progress.
         %> - If argument is a handle to a MATLAB @b axes, then a line handle
         %> will be added to the axes and adjusted with clustering progress.
@@ -154,6 +157,7 @@ classdef PACentroid < handle
                 settings.minClusters = 10;
                 settings.maxClusters = ceil(N/2);
                 settings.clusterThreshold = 0.2;
+                settings.method = 'kmeans';
             end
             if(~isempty(textHandle) && ishandle(textHandle) && strcmpi(get(textHandle,'type'),'uicontrol') && strcmpi(get(textHandle,'style'),'text'))
                 this.statusTextHandle = textHandle;
@@ -190,6 +194,11 @@ classdef PACentroid < handle
                 maxClusters = ceil(size(loadShapes,1)/2);
             end
             
+            if(~isfield(settings,'method'))
+                settings.method = 'kmeans';
+            end
+            
+            this.settings.method = settings.method;
             this.settings.maxClusters = maxClusters;
             this.loadShapes = loadShapes;
             this.loadShapeIDs = loadShapeIDs;
@@ -515,10 +524,21 @@ classdef PACentroid < handle
             end
             useDefaultRandomizerSeed = true;
             
-            if(ishandle(this.statusTextHandle))
-               set(this.statusTextHandle ,'string',{sprintf('Performaing adaptive K-means algorithm of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.thresholdScale)});                
-            end            
-            [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression] = this.adaptiveKmeans(inputLoadShapes,inputSettings, useDefaultRandomizerSeed,this.performanceAxesHandle,this.statusTextHandle);
+            inputSettings.method = 'kmedians';
+            if(strcmpi(inputSettings.method,'kmedians'))
+                if(ishandle(this.statusTextHandle))
+                    set(this.statusTextHandle ,'string',{sprintf('Performing accelerated k-medians clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.thresholdScale)});
+                end
+                [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression] = deal([],[],[],[]);
+            else
+                
+                if(ishandle(this.statusTextHandle))
+                    set(this.statusTextHandle ,'string',{sprintf('Performing adaptive K-means clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.thresholdScale)});
+                end
+                
+                [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression] = this.adaptiveKmeans(inputLoadShapes,inputSettings, useDefaultRandomizerSeed,this.performanceAxesHandle,this.statusTextHandle);
+            end
+            
             if(~isempty(this.centroidShapes))                
                 [this.histogram, this.centroidSortMap] = this.calculateAndSortDistribution(this.loadshapeIndex2centroidIndexMap);%  was -->       calculateAndSortDistribution(this.loadshapeIndex2centroidIndexMap);
                 this.coiSortOrder2Index = this.centroidSortMap;
@@ -631,6 +651,7 @@ classdef PACentroid < handle
         %> - @c minClusters [40]  Used to set initial K
         %> - @c maxClusters [0.5*N]
         %> - @c thresholdScale [1.5]        
+        %> - @c method  {'kmeans','kmedians'}
         %> @param Boolean
         %> @param Boolean Set randomizer seed to default
         %> - @c true Use 'default' for randomizer (rng)
@@ -662,6 +683,7 @@ classdef PACentroid < handle
                             settings.minClusters = 40;
                             settings.maxClusters = size(loadShapes,1)/2;
                             settings.thresholdScale = 5; %higher threshold equates to fewer clusters.
+                            settings.method = 'kmeans';
                         end
                     end
                 end

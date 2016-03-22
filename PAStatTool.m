@@ -665,6 +665,17 @@ classdef PAStatTool < handle
         end    
         
         % ======================================================================
+        %> @brief Checks if a centroid object member (instance of
+        %> PACentroid) exists and converged.
+        %> @param this Instance of PAStatTool
+        %> @retval isValid (boolean) True if a centroid object (instance of
+        %> PACentroid) exists and converged; False otherwise
+        % ======================================================================
+        function isValid = hasValidCentroid(this)
+            isValid = ~(isempty(this.centroidObj) || this.centroidObj.failedToConverge());
+        end
+        
+        % ======================================================================
         %> @brief Configure gui handles for centroid analysis and viewing.
         %> @param this Instance of PAStatTool
         % ======================================================================
@@ -677,20 +688,26 @@ classdef PAStatTool < handle
             set([this.handles.panel_centroidPrimaryAxesControls
                 this.handles.panel_controlCentroid],'visible','on');
             if(this.getCanPlot())
-                if(isempty(this.centroidObj) || this.centroidObj.failedToConverge())
+                if(this.hasValidCentroid())
+                    this.showCentroidControls();
+                    this.plotCentroids();                    
+                else
                     this.disableCentroidControls();
                     this.refreshCentroidsAndPlot();
-                else
-                    this.showCentroidControls();
-                    this.plotCentroids();
                 end
                 
-                %             this.disableCentroidControls();
-                %             this.showCentroidControls();
                 set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','on');
                 
-                set(this.handles.axes_secondary,'visible','on','color',[1 1 1]);
-                set(this.figureH,'WindowKeyPressFcn',@this.mainFigureKeyPressFcn);
+                if(this.hasValidCentroid())
+                    validColor = [1 1 1];
+                    keyPressFcn = @this.mainFigureKeyPressFcn;
+                else
+                    validColor = [0.75 0.75 0.75];
+                    keyPressFcn = [];
+                end
+                
+                set(this.handles.axes_secondary,'visible','on','color',validColor);
+                set(this.figureH,'WindowKeyPressFcn',keyPressFcn);
                 
                 if(this.shouldShowAnalysisFigure())
                     set(this.analysisFigureH,'visible','on');
@@ -1853,11 +1870,13 @@ classdef PAStatTool < handle
                 warndlg(sprintf('Could not find the input file required (%s)!',inputFilename));
             end
             
-            % Prep the x-axis here since it will not change when going from one centroid to the
-            % next, but only (though not necessarily) when refreshing centroids.
-            this.drawCentroidXTicksAndLabels();
+
             
             if(~isempty(this.centroidObj))
+                % Prep the x-axis here since it will not change when going from one centroid to the
+                % next, but only (though not necessarily) when refreshing centroids.
+                this.drawCentroidXTicksAndLabels();
+                
                 defaultBackgroundColor = get(0,'FactoryuicontrolBackgroundColor');
                 set(this.handles.push_refreshCentroids,'enable','off','backgroundcolor',defaultBackgroundColor);
                 
@@ -1865,6 +1884,7 @@ classdef PAStatTool < handle
                 this.enableCentroidControls();
                 dissolve(resultsTextH,2.5);
             else
+                set(resultsTextH,'visible','off');
                 dissolve(resultsTextH,2.5);
                 this.disableCentroidControls();
                 %                 set(this.handles.axes_primary,'color',[0.75 0.75 0.75]);
