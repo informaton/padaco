@@ -3,6 +3,10 @@
 %> @brief PAStatTool serves as Padaco's batch results analsysis controller
 % ======================================================================
 classdef PAStatTool < handle   
+    
+    events
+       UserCancel_Event;
+    end
     properties(Access=private)
         resultsDirectory;
         featuresDirectory;
@@ -1001,7 +1005,7 @@ classdef PAStatTool < handle
                         % parent centroid panel based on the menu selection
                         % change callback which is called after initWidgets
                         % in the constructor.
-                        set(this.handles.push_refreshCentroids,'callback',@this.refreshCentroidsAndPlot);
+                        this.initRefreshCentroidButton('off');
                         set(this.handles.push_previousCentroid,'callback',@this.showPreviousCentroidCallback);
                         set(this.handles.push_nextCentroid,'callback',@this.showNextCentroidCallback);
                         
@@ -1099,6 +1103,47 @@ classdef PAStatTool < handle
                 this.hideCentroidControls();
             end
         end
+        
+        function initRefreshCentroidButton(this,enableState)
+            if(nargin<2 || ~strcmpi(enableState,'off'))
+                enableState = 'on';
+            end
+            defaultBackgroundColor = get(0,'FactoryuicontrolBackgroundColor');
+            set(this.handles.push_refreshCentroids,'callback',@this.refreshCentroidsAndPlot,...
+                'enable',enableState,'string','Recalculate',...
+                'backgroundcolor',defaultBackgroundColor);
+        end
+        
+        % ======================================================================
+        %> @brief Callback to enable the push_refreshCentroids button.  The button's 
+        %> background color is switched to green to highlight the change and need
+        %> for recalculation.
+        %> @param this Instance of PAStatTool
+        %> @param Variable number of arguments required by MATLAB gui callbacks
+        % ======================================================================
+        function enableCentroidRecalculation(this,varargin)
+            %             bgColor = 'green';
+            bgColor = [0.2 0.8 0.1];
+            set(this.handles.push_refreshCentroids,'enable','on',...
+                'backgroundcolor',bgColor,'string','Recalculate',...
+                'callback',@this.refreshCentroidsAndPlot);
+        end
+        
+        function enableCentroidCancellation(this, varargin)
+            bgColor = [0.8 0.2 0.1];
+            set(this.handles.push_refreshCentroids,'enable','on',...
+                'backgroundcolor',bgColor,'string','Cancel',...
+                'callback',@this.cancelCentroidsCalculationCallback);
+        end
+        
+        function cancelCentroidsCalculationCallback(this,hObject,eventdata)
+            bgColor = [0.7 0.5 0.4];
+            fgColor = [0 0 0];
+            set(this.handles.push_refreshCentroids,'enable','off','callback',[],...
+                'backgroundcolor',bgColor,'string','Cancelling');
+            set(this.handles.push_refreshCentroids,'foregroundcolor',fgColor);
+            this.notify('UserCancel_Event');
+        end        
         
         
         function menuWeekdaysCallback(this, hObject, eventData)
@@ -1768,16 +1813,7 @@ classdef PAStatTool < handle
             this.plotCentroids();
         end
         
-        % ======================================================================
-        %> @brief Callback to enable the push_refreshCentroids button.  The button's 
-        %> background color is switched to green to highlight the change and need
-        %> for recalculation.
-        %> @param this Instance of PAStatTool
-        %> @param Variable number of arguments required by MATLAB gui callbacks
-        % ======================================================================
-        function enableCentroidRecalculation(this,varargin)
-            set(this.handles.push_refreshCentroids,'enable','on','backgroundcolor','green');
-        end
+
         
         % ======================================================================
         %> @brief Check button callback to refresh centroid display.
@@ -1851,7 +1887,13 @@ classdef PAStatTool < handle
                 this.showCentroidControls();
                 
                 drawnow();
-                this.centroidObj = PACentroid(this.featureStruct.features,pSettings,this.handles.axes_primary,resultsTextH,this.featureStruct.studyIDs, this.featureStruct.startDaysOfWeek);
+                delayedStart = true;
+                tmpCentroidObj = PACentroid(this.featureStruct.features,pSettings,this.handles.axes_primary,resultsTextH,this.featureStruct.studyIDs, this.featureStruct.startDaysOfWeek, delayedStart);
+                this.addlistener('UserCancel_Event',@tmpCentroidObj.cancelCalculations);
+                this.centroidObj = tmpCentroidObj;
+                this.enableCentroidCancellation();
+                
+                this.centroidObj.calculateCentroids();
                 
                 if(this.centroidObj.failedToConverge())
                     warnMsg = {'Failed to converge',[]};
@@ -1872,19 +1914,24 @@ classdef PAStatTool < handle
             
 
             
-            if(~isempty(this.centroidObj))
+            if(this.hasValidCentroid()) % ~isempty(this.centroidObj))
                 % Prep the x-axis here since it will not change when going from one centroid to the
                 % next, but only (though not necessarily) when refreshing centroids.
                 this.drawCentroidXTicksAndLabels();
                 
-                defaultBackgroundColor = get(0,'FactoryuicontrolBackgroundColor');
-                set(this.handles.push_refreshCentroids,'enable','off','backgroundcolor',defaultBackgroundColor);
+                
+                if(this.centroidObj.getUserCancelled())
+                    this.initRefreshCentroidButton('on');
+                else
+                    this.initRefreshCentroidButton('off');                    
+                end
                 
                 this.plotCentroids(pSettings); 
                 this.enableCentroidControls();
                 dissolve(resultsTextH,2.5);
             else
                 set(resultsTextH,'visible','off');
+                this.initRefreshCentroidButton('on');  % want to initialize the button again so they can try again perhaps.
                 this.disableCentroidControls();
             end
             this.showReady();

@@ -3,7 +3,7 @@ function padaco()
     mPathname = fileparts(mfilename('fullpath'));
     if(~isdeployed)
         addpath(mPathname);
-        subPaths = {'figures','icons','utility','html'};
+        subPaths = {'figures','icons','utility','html','events'};
         for s=1:numel(subPaths)
             addpath(fullfile(mPathname,subPaths{s}));
         end
