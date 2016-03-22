@@ -1872,7 +1872,7 @@ classdef PAStatTool < handle
             
 
             
-            if(~isempty(this.centroidObj))
+            if(this.hasValidCentroid()) % ~isempty(this.centroidObj))
                 % Prep the x-axis here since it will not change when going from one centroid to the
                 % next, but only (though not necessarily) when refreshing centroids.
                 this.drawCentroidXTicksAndLabels();

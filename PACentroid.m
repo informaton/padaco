@@ -525,17 +525,22 @@ classdef PACentroid < handle
             useDefaultRandomizerSeed = true;
             
             inputSettings.method = 'kmedians';
+            inputSettings.method = 'kmedoids';
             if(strcmpi(inputSettings.method,'kmedians'))
                 if(ishandle(this.statusTextHandle))
                     set(this.statusTextHandle ,'string',{sprintf('Performing accelerated k-medians clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.thresholdScale)});
                 end
                 [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression] = deal([],[],[],[]);
-            else
+            elseif(strcmpi(inputSettings.method,'kmedoids'))
+                if(ishandle(this.statusTextHandle))
+                    set(this.statusTextHandle ,'string',{sprintf('Performing adaptive k-medoids clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.thresholdScale)});
+                end
+                [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression] = this.adaptiveKmedoids(inputLoadShapes,inputSettings, useDefaultRandomizerSeed,this.performanceAxesHandle,this.statusTextHandle);
+            elseif(strcmpi(inputSetting.method,'kmeans'))
                 
                 if(ishandle(this.statusTextHandle))
-                    set(this.statusTextHandle ,'string',{sprintf('Performing adaptive K-means clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.thresholdScale)});
+                    set(this.statusTextHandle ,'string',{sprintf('Performing adaptive k-means clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.thresholdScale)});
                 end
-                
                 [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression] = this.adaptiveKmeans(inputLoadShapes,inputSettings, useDefaultRandomizerSeed,this.performanceAxesHandle,this.statusTextHandle);
             end
             
@@ -645,13 +650,276 @@ classdef PACentroid < handle
     methods(Static)
         
         % ======================================================================
+        %> @brief Performs adaptive k-medoids clustering of input data.
         %> @param loadShapes NxM matrix to  be clustered (Each row represents an M dimensional value).
         %> @param settings  Optional struct with following fields [and
         %> default values]
         %> - @c minClusters [40]  Used to set initial K
         %> - @c maxClusters [0.5*N]
         %> - @c thresholdScale [1.5]        
-        %> - @c method  {'kmeans','kmedians'}
+        %> - @c method  'kmedoids'
+        %> @param Boolean
+        %> @param Boolean Set randomizer seed to default
+        %> - @c true Use 'default' for randomizer (rng)
+        %> - @c false (default) Do not update randomizer seed (rng).
+        %> - @c true Display calinski index at each adaptive k-means iteration (slower)
+        %> - @c false (default) Do not calcuate Calinzki index.
+        %> @retval idx = Rx1 vector of cluster indices that the matching (i.e. same) row of the loadShapes is assigned to.
+        %> @retval centroids - KxC matrix of cluster centroids.
+        %> @retval The Calinski index for the returned idx and centroids
+        %> @retrval Struct of X and Y fields containing the progression of
+        %> cluster sizes and corresponding Calinksi indices obtained for
+        %> each iteration of k means.
+        % ======================================================================
+        function [idx, centroids, performanceIndex, performanceProgression] = adaptiveKmedoids(loadShapes,settings,defaultRandomizer,performanceAxesH,textStatusH)
+            performanceIndex = [];
+            X = [];
+            Y = [];
+            idx = [];
+            
+            
+            % argument checking and validation ....
+            if(nargin<5)
+                textStatusH = -1;
+                if(nargin<4)
+                    performanceAxesH = -1;
+                    if(nargin<3)
+                        defaultRandomizer = false;
+                        if(nargin<2)
+                            settings.minClusters = 40;
+                            settings.maxClusters = size(loadShapes,1)/2;
+                            settings.thresholdScale = 5; %higher threshold equates to fewer clusters.
+                            settings.method = 'kmedoids';
+                        end
+                    end
+                end
+            end
+            
+            if(defaultRandomizer)
+                rng('default');  % To get same results from run to run...
+            end            
+            
+            if(ishandle(textStatusH) && ~(strcmpi(get(textStatusH,'type'),'uicontrol') && strcmpi(get(textStatusH,'style'),'text')))
+                fprintf(1,'Input graphic handle is of type %s, but ''text'' type is required.  Status measure will be output to the console window.',get(textStatusH,'type'));
+                textStatusH = -1;
+            end    
+            
+            
+            if(ishandle(performanceAxesH) && ~strcmpi(get(performanceAxesH,'type'),'axes'))
+                fprintf(1,'Input graphic handle is of type %s, but ''axes'' type is required.  Performance measures will not be shown.',get(performanceAxesH,'type'));
+                performanceAxesH = -1;
+            end    
+            
+            
+            
+            % Make sure we have an axes handle.
+            if(ishandle(performanceAxesH))
+                %performanceAxesH = axes('parent',calinskiFig,'box','on');
+                %calinskiLine = line('xdata',nan,'ydata',nan,'parent',performanceAxesH,'linestyle','none','marker','o');
+                xlabel(performanceAxesH,'K');
+                ylabel(performanceAxesH,'Calinksi Index');                
+            end
+            
+            K = settings.minClusters;
+            
+            N = size(loadShapes,1);
+            firstLoop = true;
+            if(settings.maxClusters==0 || N == 0)
+                performanceProgression.X = X;
+                performanceProgression.Y = Y;
+                performanceProgression.statusStr = 'Did not converge: empty data set received for clustering';
+                centroids = [];
+
+            else
+                % prime the kmedoids algorithms starting centroids
+                centroids = loadShapes(pa_randperm(N,K),:);
+                % prime loop condition since we don't have a do while ...
+                numNotCloseEnough = settings.minClusters;
+
+                while(numNotCloseEnough>0 && K<=settings.maxClusters)
+                    if(~firstLoop)
+                        if(numNotCloseEnough==1)
+                            statusStr = sprintf('1 cluster was not close enough.  Setting desired number of clusters to %u.',numNotCloseEnough,K);
+                        else
+                            statusStr = sprintf('%u clusters were not close enough.  Setting desired number of clusters to %u.',numNotCloseEnough,K);
+                        end
+                        fprintf(1,'%s\n',statusStr);
+                        if(ishandle(textStatusH))
+                            curString = get(textStatusH,'string');
+                            set(textStatusH,'string',[curString(end-1:end);statusStr]);
+                        end
+                        
+                    else
+                        statusStr = sprintf('Initializing desired number of clusters to %u.',K);
+                        fprintf(1,'%s\n',statusStr);
+                        if(ishandle(textStatusH))
+                            curString = get(textStatusH,'string');
+                            set(textStatusH,'string',[curString(end);statusStr]);
+                        end
+                        
+                        firstLoop = false;
+                    end
+                    
+                    tic
+
+                    [idx, centroids, sumD, pointToClusterDistances] = kmedoids(loadShapes,K,'Start',centroids);
+                    
+                    if(ishandle(performanceAxesH))
+                        performanceIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);
+                        X(end+1)= K;
+                        Y(end+1)=performanceIndex;
+                        PACentroid.plot(performanceAxesH,X,Y);
+                        
+                        statusStr = sprintf('Calisnki index = %0.2f for K = %u clusters',performanceIndex,K);
+                        
+                        fprintf(1,'%s\n',statusStr);
+                        if(ishandle(textStatusH))
+                            
+                            curString = get(textStatusH,'string');
+                            set(textStatusH,'string',[curString(end-1:end);statusStr]);
+                        end
+                        
+                        drawnow();
+                        %plot(calinskiAxes,'xdata',X,'ydata',Y);
+                        %set(calinskiLine,'xdata',X,'ydata',Y);
+                        %set(calinkiAxes,'xlim',[min(X)-5,
+                        %max(X)]+5,[min(Y)-10,max(Y)+10]);
+                    end
+                    
+                    
+                    removed = sum(isnan(centroids),2)>0;
+                    numRemoved = sum(removed);
+                    if(numRemoved>0)
+                        statusStr = sprintf('%u clusters were dropped during this iteration.',numRemoved);
+                        fprintf(1,'%s\n',statusStr);
+                        if(ishandle(textStatusH))
+                            curString = get(textStatusH,'string');
+                            set(textStatusH,'string',[curString(end);statusStr]);
+                        end
+                        
+                        centroids(removed,:)=[];
+                        K = K-numRemoved;
+                        [idx, centroids, sumD, pointToClusterDistances] = kmedoids(loadShapes,K,'Start',centroids,'onlinephase','off');
+                        
+                        if(ishandle(performanceAxesH))
+                            performanceIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);
+                            X(end+1)= K;
+                            Y(end+1)=performanceIndex;
+                            PACentroid.plot(performanceAxesH,X,Y);
+                            
+                            statusStr = sprintf('Calisnki index = %0.2f for K = %u clusters',performanceIndex,K);
+                            
+                            fprintf(1,'%s\n',statusStr);
+                            if(ishandle(textStatusH))
+                                curString = get(textStatusH,'string');
+                                set(textStatusH,'string',[curString(end);statusStr]);
+                            end
+                            
+                            drawnow();
+                            
+                            %set(calinskiLine,'xdata',X,'ydata',Y);
+                            %set(calinkiAxes,'xlim',[min(X)-5,
+                            %max(X)]+5,[min(Y)-10,max(Y)+10]);
+                        end
+                    end
+                    
+                    toc
+                    
+                    point2centroidDistanceIndices = sub2ind(size(pointToClusterDistances),(1:N)',idx);
+                    distanceToCentroids = pointToClusterDistances(point2centroidDistanceIndices);
+                    sqEuclideanCentroids = (sum(centroids.^2,2));
+                    
+                    clusterThresholds = settings.thresholdScale*sqEuclideanCentroids;
+                    notCloseEnoughPoints = distanceToCentroids>clusterThresholds(idx);
+                    notCloseEnoughClusters = unique(idx(notCloseEnoughPoints));
+                    
+                    numNotCloseEnough = numel(notCloseEnoughClusters);
+                    if(numNotCloseEnough>0)
+                        centroids(notCloseEnoughClusters,:)=[];
+                        for k=1:numNotCloseEnough
+                            curClusterIndex = notCloseEnoughClusters(k);
+                            clusteredLoadShapes = loadShapes(idx==curClusterIndex,:);
+                            numClusteredLoadShapes = size(clusteredLoadShapes,1);
+                            if(numClusteredLoadShapes>1)
+                                try
+                                    [~,splitCentroids] = kmedoids(clusteredLoadShapes,2);
+                                    
+                                catch me
+                                    showME(me);
+                                end
+                                centroids = [centroids;splitCentroids];
+                            else
+                                if(numClusteredLoadShapes~=1)
+                                    echo(numClusteredLoadShapes); %houston, we have a problem.
+                                end
+                                numNotCloseEnough = numNotCloseEnough-1;
+                                centroids = [centroids;clusteredLoadShapes];
+                            end
+                        end
+                        
+                        % reset cluster centers now / batch update
+                        K = K+numNotCloseEnough;
+                        [~, centroids] = kmedoids(loadShapes,K,'Start',centroids,'onlinephase','off');
+                    end
+                end
+                
+                if(numNotCloseEnough~=0)
+                    statusStr = sprintf('Failed to converge using a maximum limit of %u clusters.',settings.maxClusters);
+                    fprintf(1,'%s\n',statusStr);
+                    if(ishandle(textStatusH))
+                        curString = get(textStatusH,'string');
+                        set(textStatusH,'string',[curString(end);statusStr]);
+                        drawnow();
+                    end
+                    
+                    [performanceIndex, X, Y, idx, centroids] = deal([]);
+                else
+                    if(ishandle(performanceAxesH))
+                        if(ishandle(performanceAxesH))
+                            performanceIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);
+                            X(end+1)= K;
+                            Y(end+1)=performanceIndex;
+                            PACentroid.plot(performanceAxesH,X,Y);
+                            
+                            statusStr = sprintf('Calisnki index = %0.2f for K = %u clusters',performanceIndex,K);
+                            
+                            fprintf(1,'%s\n',statusStr);
+                            if(ishandle(textStatusH))
+                                curString = get(textStatusH,'string');
+                                set(textStatusH,'string',[curString(end);statusStr]);
+                            end
+                            
+                            drawnow();
+                            
+                            %set(calinskiLine,'xdata',X,'ydata',Y);
+                            %set(calinkiAxes,'xlim',[min(X)-5,
+                            %max(X)]+5,[min(Y)-10,max(Y)+10]);
+                        end
+                    end
+                    statusStr = sprintf('Converged with a cluster size of %u.  Calinski index = %0.2f  ',K,performanceIndex);
+                    fprintf(1,'%s\n',statusStr);
+                    if(ishandle(textStatusH))
+                        curString = get(textStatusH,'string');
+                        set(textStatusH,'string',[curString(end);statusStr]);
+                    end
+                end
+            
+                performanceProgression.X = X;
+                performanceProgression.Y = Y;
+                performanceProgression.statusStr = statusStr;
+                
+            end
+        end
+        
+        % ======================================================================
+        %> @brief Performs adaptive k-means clustering of input data.        
+        %> @param loadShapes NxM matrix to  be clustered (Each row represents an M dimensional value).
+        %> @param settings  Optional struct with following fields [and
+        %> default values]
+        %> - @c minClusters [40]  Used to set initial K
+        %> - @c maxClusters [0.5*N]
+        %> - @c thresholdScale [1.5]        
+        %> - @c method  'kmeans'
         %> @param Boolean
         %> @param Boolean Set randomizer seed to default
         %> - @c true Use 'default' for randomizer (rng)
@@ -766,9 +1034,9 @@ classdef PACentroid < handle
                     %
                     %     [IDX, C, SUMD, D] = kmeans(X, K) returns distances from each point
                     %     to every centroid in the N-by-K matrix D.
+                    
                     [idx, centroids, sumD, pointToClusterDistances] = kmeans(loadShapes,K,'Start',centroids,'EmptyAction','drop');
                     
-                    %    [~, centroids, sumOfPointToCentroidDistances] = kmeans(loadShapes,K,'EmptyAction','drop');
                     if(ishandle(performanceAxesH))
                         performanceIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);
                         X(end+1)= K;
@@ -876,9 +1144,13 @@ classdef PACentroid < handle
                     fprintf(1,'%s\n',statusStr);
                     if(ishandle(textStatusH))
                         curString = get(textStatusH,'string');
-                        set(textStatusH,'string',{curString(end);statusStr});
+                        set(textStatusH,'string',[curString(end);statusStr]);
                         drawnow();
                     end
+                    
+                    % No partial credit
+                    [performanceIndex, X, Y, idx, centroids] = deal([]);
+
                 else
                     if(ishandle(performanceAxesH))
                         if(ishandle(performanceAxesH))
@@ -917,9 +1189,7 @@ classdef PACentroid < handle
             
                 
             end
-        end
-            
-        
+        end        
         
                 
         %> @brief Validation metric for cluster separation.   Useful in determining if clusters are well separated.  
