@@ -1885,9 +1885,7 @@ classdef PAStatTool < handle
                 dissolve(resultsTextH,2.5);
             else
                 set(resultsTextH,'visible','off');
-                dissolve(resultsTextH,2.5);
                 this.disableCentroidControls();
-                %                 set(this.handles.axes_primary,'color',[0.75 0.75 0.75]);
             end
             this.showReady();
         end
