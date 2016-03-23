@@ -1108,10 +1108,13 @@ classdef PAStatTool < handle
             if(nargin<2 || ~strcmpi(enableState,'off'))
                 enableState = 'on';
             end
+            fgColor = get(0,'FactoryuicontrolForegroundColor');
             defaultBackgroundColor = get(0,'FactoryuicontrolBackgroundColor');
             set(this.handles.push_refreshCentroids,'callback',@this.refreshCentroidsAndPlot,...
                 'enable',enableState,'string','Recalculate',...
-                'backgroundcolor',defaultBackgroundColor);
+                'backgroundcolor',defaultBackgroundColor,...
+                'foregroundcolor',fgColor,...
+                'fontsize',12);
         end
         
         % ======================================================================
@@ -1124,24 +1127,27 @@ classdef PAStatTool < handle
         function enableCentroidRecalculation(this,varargin)
             %             bgColor = 'green';
             bgColor = [0.2 0.8 0.1];
+            fgColor = [1 1 1];
             set(this.handles.push_refreshCentroids,'enable','on',...
                 'backgroundcolor',bgColor,'string','Recalculate',...
+                'foregroundcolor',fgColor,...
                 'callback',@this.refreshCentroidsAndPlot);
         end
         
         function enableCentroidCancellation(this, varargin)
             bgColor = [0.8 0.2 0.1];
+            fgColor = [0 0 0];
             set(this.handles.push_refreshCentroids,'enable','on',...
                 'backgroundcolor',bgColor,'string','Cancel',...
+                'foregroundcolor',fgColor,...
                 'callback',@this.cancelCentroidsCalculationCallback);
         end
         
         function cancelCentroidsCalculationCallback(this,hObject,eventdata)
-            bgColor = [0.7 0.5 0.4];
-            fgColor = [0 0 0];
+            %             bgColor = [0.6 0.4 0.3];
+            bgColor = [0.6 0.1 0.1];
             set(this.handles.push_refreshCentroids,'enable','off','callback',[],...
                 'backgroundcolor',bgColor,'string','Cancelling');
-            set(this.handles.push_refreshCentroids,'foregroundcolor',fgColor);
             this.notify('UserCancel_Event');
         end        
         

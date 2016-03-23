@@ -148,7 +148,7 @@ classdef PAView < handle
                 obj.createView(); 
                 obj.disableWidgets();
                 
-                set(obj.getFigHandle(),'visible','on');
+                %                 set(obj.getFigHandle(),'visible','on');
 
                 
             else
