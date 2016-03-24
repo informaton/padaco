@@ -1277,7 +1277,7 @@ classdef PAController < handle
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         % --------------------------------------------------------------------        
         function menuViewmodeResultsCallback(obj,hObject,eventdata)           
-             obj.setViewMode('results');
+            obj.setViewMode('results');
             if(obj.initResultsView())
                  obj.VIEW.showReady(); %'all');
             end

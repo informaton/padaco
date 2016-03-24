@@ -710,6 +710,9 @@ classdef PAStatTool < handle
                     keyPressFcn = [];
                 end
                 
+                
+                % This is handled in the plot centroid method, right before tick marks are down on
+                % set(this.handles.axes_primary,'color',validColor); 
                 set(this.handles.axes_secondary,'visible','on','color',validColor);
                 set(this.figureH,'WindowKeyPressFcn',keyPressFcn);
                 
@@ -2039,14 +2042,17 @@ classdef PAStatTool < handle
                         centroidAndPlotSettings = this.getPlotSettings();
                     end
                     
-                    % draw the x-ticks and labels
-                    this.drawCentroidXTicksAndLabels();
+                    
+                    numCentroids = this.centroidObj.numCentroids();
+                    numLoadShapes = this.centroidObj.numLoadShapes();
                     
                     distributionAxes = this.handles.axes_secondary;
                     centroidAxes = this.handles.axes_primary;
                     
-                    numCentroids = this.centroidObj.numCentroids();
-                    numLoadShapes = this.centroidObj.numLoadShapes();
+                    set(centroidAxes,'color',[1 1 1]);
+                    % draw the x-ticks and labels
+                    this.drawCentroidXTicksAndLabels();
+                    
                     
                     %% Show centroids on primary axes
                     %                 coi = this.centroidObj.getCentroidOfInterest();
