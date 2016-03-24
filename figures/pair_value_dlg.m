@@ -91,7 +91,6 @@ function pair_value_dlg_OpeningFcn(hObject, eventdata, handles, varargin)
     % --- Initializes the display; creates the text and edit uicontrols.
 function handles = initializeView(handles)
     
-    
     %make the tab groups...
     tabgroup = uitabgroup('parent',handles.panel_tabs);
     % set(handles.tabgroup,'callback',{@tabgroup_callback,guidata(gcbo)});
@@ -107,26 +106,16 @@ function handles = initializeView(handles)
             tabs(f) = uitab('v0','parent',tabgroup,'Title',fname);
         else
             tabs(f) = uitab('parent',tabgroup,'Title',fname);
-        end
-        
-        if(f==1)            
-            numRecords = numel(fieldnames(handles.user.settings_obj.(fname)));
-        end
-%         records = numel(fieldnames(handles.user.settings_obj.(fname)));
-%         if(records>maxRecords)
-%             maxRecords = records;
-%         end
-    end
-    
+        end        
+        numRecords = max(numRecords,numel(fieldnames(handles.user.settings_obj.(fname))));
+    end    
     
     % User maxRecords on the first iteration through
     handles = resizePanelWithScrollbarOption(handles.panel_main,handles.slider_verticalScroll, numRecords,handles.user.maxNumRecordsShown,handles);
     
-    
     handles.tabgroup = tabgroup;
     handles.tabs = tabs;
 
-    
     if(verLessThan('matlab','7.14'))
         set(handles.tabgroup,'SelectionChangeFcn',@tabgroup_callback);
     else
@@ -141,10 +130,11 @@ function handles = getCurrentSettings(handles,tabName)
     for f = 1:numel(fnames)
         value_tag = sprintf('%s%u',handles.user.edit_prefix,f);
         value_Str = get(handles.(value_tag),'string');
-        if(isnan(str2double(value_Str)))
-            handles.user.settings_obj.(tabName).(fnames{f})=value_Str;
+        numeric_valueStr = str2num(value_Str);%#ok<*ST2NM>
+        if(isnumerictype(numeric_valueStr))
+            handles.user.settings_obj.(tabName).(fnames{f})=numeric_valueStr;
         else
-            handles.user.settings_obj.(tabName).(fnames{f})=str2double(value_Str);
+            handles.user.settings_obj.(tabName).(fnames{f})=value_Str;
         end
     end
     
@@ -163,19 +153,17 @@ function tabgroup_callback(hObject,eventdata)
         if(strcmpi(get(h,'type'),'uicontrol')&& strcmpi(get(h,'style'),'edit'))
             try
                 refresh(handles.figure1);
-                getframe(handles.figure1);
-                get(h,'string')
+                %                 getframe(handles.figure1);
+                %                 get(h,'string')
             catch me
                 showME(me);
-            end
-            
+            end            
         end
     end
     
     if(eventdata.OldValue == 0)
         tabName = get(handles.tabs(eventdata.NewValue),'Title');
         fnames = fieldnames(handles.user.settings_obj.(tabName));
-        
     else
         if(verLessThan('matlab','7.14'))
             tabName = get(handles.tabs(eventdata.NewValue),'Title');
@@ -194,26 +182,27 @@ function tabgroup_callback(hObject,eventdata)
         handles = getCurrentSettings(handles,oldTabName);
         numRecords = numel(fnames);
         handles = resizePanelWithScrollbarOption(handles.panel_main,handles.slider_verticalScroll, numRecords,handles.user.maxNumRecordsShown,handles);
-
     end
     
     %want to return the new handles that I have here...
     % handles = resizePanelAndFigureForUIControls(handles.panel_main,maxRecords,handles);
     
-    try
-        
+    try        
         for f = 1:numel(fnames)
             text_tag = sprintf('%s%u',handles.user.static_prefix,f);
             value_tag = sprintf('%s%u',handles.user.edit_prefix,f);
             set(handles.(text_tag),'string',fnames{f});
-            set(handles.(value_tag),'string',handles.user.settings_obj.(tabName).(fnames{f}));
+            curValue = handles.user.settings_obj.(tabName).(fnames{f});
+            if(~isnan(num2str(curValue)))
+                curValue = num2str(curValue);
+            end
+            set(handles.(value_tag),'string',curValue);
         end
         
     catch me
         showME(me);
     end
-    guidata(hObject,handles);
-    
+    guidata(hObject,handles);    
     
     % --- Outputs from this function are returned to the command line.
 function varargout = pair_value_dlg_OutputFcn(hObject, eventdata, handles)

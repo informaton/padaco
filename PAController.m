@@ -362,6 +362,7 @@ classdef PAController < handle
             
              %  quit - handled in main window.
             set(handles.menu_file_quit,'callback',{@obj.menuFileQuitCallback,guidata(figH)});
+            set(handles.menu_file_restart,'callback',@restartDlg);
             
             %% Tools
             % export
@@ -1134,6 +1135,20 @@ classdef PAController < handle
             obj.figureCloseCallback(gcbf,eventdata,handles);
         end
         
+        %         % --------------------------------------------------------------------
+        %         %> @brief Menubar callback for restarting the program.
+        %         %> Executes when user clicks restart from the menubar's file->restart item.
+        %         %> @param obj Instance of PAController
+        %         %> @param hObject    handle to menu_file_quit (see GCBO)
+        %         %> @param eventdata  reserved - to be defined in a future version of MATLAB
+        %         %> @note See startBatchProcessCallback for actual batch processing
+        %         %> steps.
+        %         % --------------------------------------------------------------------
+        %         function menuFileRestartCallback(obj,hObject,eventdata)
+        %             restartDlg();  % or just go straight to a restart() call
+        %         end
+        
+                
         %> @brief Call back for export menu option under menubar 'file'
         %> option.
         function menu_file_exportMenu_callback(this,hObject, eventdata)
