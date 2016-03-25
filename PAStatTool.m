@@ -139,8 +139,8 @@ classdef PAStatTool < handle
             % variable names for the table
             %             this.profileMetrics = {''};
 
-
-            this.originalWidgetSettings = widgetSettings;
+            initializeOnSet = false;
+            this.setWidgetSettings(widgetSettings, initializeOnSet);
             this.originalFeatureStruct = [];
             this.canPlot = false;
             this.featuresDirectory = [];
@@ -249,6 +249,27 @@ classdef PAStatTool < handle
         % ======================================================================
         function paramStruct = getSaveParameters(this)
             paramStruct = this.getPlotSettings();            
+        end
+        
+        
+        % ======================================================================
+        %> @brief Sets the widget settings.  In particular, set the
+        %> originalWidgetSettings property to the input struct.
+        %> @param this Instance of PAStatTool
+        %> @param Struct of settings for the Stat tool.  Should conform to
+        %> getDefaultParameters
+        %> @param initializeOnSet Optional flag that defaults to {True}.
+        %> When true, initWidgets() is called using the input widgetSettings.
+        %> When false, initWidgets is not called (helpful on construction)
+        % ======================================================================
+        function setWidgetSettings(this,widgetSettings, initializeOnSet)
+            if(nargin<3 || isempty(initializeOnSet) || ~islogical(initializeOnSet))
+                initializeOnSet = true;
+            end
+            this.originalWidgetSettings = widgetSettings;
+            if(initializeOnSet)
+                this.initWidgets(this.originalWidgetSettings);
+            end
         end
         
         % ======================================================================

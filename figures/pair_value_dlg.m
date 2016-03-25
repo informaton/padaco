@@ -131,7 +131,7 @@ function handles = getCurrentSettings(handles,tabName)
         value_tag = sprintf('%s%u',handles.user.edit_prefix,f);
         value_Str = get(handles.(value_tag),'string');
         numeric_valueStr = str2num(value_Str);%#ok<*ST2NM>
-        if(isnumerictype(numeric_valueStr))
+        if(isnumeric(numeric_valueStr))
             handles.user.settings_obj.(tabName).(fnames{f})=numeric_valueStr;
         else
             handles.user.settings_obj.(tabName).(fnames{f})=value_Str;

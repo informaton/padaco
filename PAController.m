@@ -131,21 +131,12 @@ classdef PAController < handle
                                
                 % attempt to load the last set of results
                 lastViewMode = obj.SETTINGS.CONTROLLER.viewMode;
-                switch(lower(lastViewMode))
-                    case 'results'
-%                         success = obj.initResultsView();                        
-                        obj.menuViewmodeResultsCallback();
-                    case 'timeseries'
-                        obj.menuViewmodeTimeSeriesCallback();
-                      
-                    case 'batch'
-                        obj.menuViewmodeBatchCallback();
-                    otherwise
-                        % unhandled
+                
+                try
+                    obj.setViewMode(lastViewMode);
+                catch me
+                    showME(me);
                 end
-                %                 if(success)
-                %                      obj.VIEW.showReady('all');
-                %                 end
             end                
         end
         
@@ -172,6 +163,7 @@ classdef PAController < handle
         
         function saveParameters(obj)
             obj.SETTINGS.saveParametersToFile();
+            fprintf(1,'Settings saved to disk.\n');
         end
         
 %         function paramStruct = getSaveParametersStruct(obj)
@@ -359,7 +351,6 @@ classdef PAController < handle
             set(handles.menu_file_screenshot_primaryAxes,'callback',{@obj.menuFileScreenshotCallback,'primaryAxes'});
             set(handles.menu_file_screenshot_secondaryAxes,'callback',{@obj.menuFileScreenshotCallback,'secondaryAxes'});
             
-            
              %  quit - handled in main window.
             set(handles.menu_file_quit,'callback',{@obj.menuFileQuitCallback,guidata(figH)});
             set(handles.menu_file_restart,'callback',@restartDlg);
@@ -369,12 +360,12 @@ classdef PAController < handle
             set(handles.menu_file_export,'callback',@obj.menu_file_exportMenu_callback);            
             set(handles.menu_file_export_dataObj,'callback',@obj.menu_file_export_dataObj_callback);
             set(handles.menu_file_export_centroidObj,'callback',@obj.menu_file_export_centroidObj_callback);
+            set(handles.menu_viewmode_batch,'callback',@obj.menuViewmodeBatchCallback);
+            
             
             %% View Modes            
-            set(handles.menu_viewmode_timeseries,'callback',@obj.menuViewmodeTimeSeriesCallback);
-            set(handles.menu_viewmode_batch,'callback',@obj.menuViewmodeBatchCallback);
-            set(handles.menu_viewmode_results,'callback',@obj.menuViewmodeResultsCallback);            
-                
+            set(handles.menu_viewmode_timeseries,'callback',{@obj.setViewModeCallback,'timeSeries'});
+            set(handles.menu_viewmode_results,'callback',{@obj.setViewModeCallback,'results'});
             
             %% Help
             set(handles.menu_help_faq,'callback',@obj.menuHelpFAQCallback);
@@ -390,7 +381,6 @@ classdef PAController < handle
                 handles.menu_help
                 handles.menu_help_faq
                 ],'enable','on');
-
         end
         
         
@@ -444,8 +434,15 @@ classdef PAController < handle
             end
             wasModified = obj.SETTINGS.defaultsEditor(optionalSettingsName);
             if(wasModified)
-                % save parameters to disk?
+                if(isa(obj.StatTool,'PAStatTool'))
+                    obj.StatTool.setWidgetSettings(obj.SETTINGS.StatTool);
+                end
                 fprintf('Settings have been updated.\n');
+
+                % save parameters to disk
+                obj.saveParameters();
+                
+                obj.setViewMode(obj.viewMode);
             end
         end
                 
@@ -1209,7 +1206,10 @@ classdef PAController < handle
             end
         end
         
-                
+               
+        function setViewModeCallback(this, hObject, eventData, viewMode)
+            this.setViewMode(viewMode);
+        end
         
         % --------------------------------------------------------------------
         %% Settings menubar callbacks
@@ -1230,21 +1230,14 @@ classdef PAController < handle
             obj.VIEW.showBusy(['Switching to ',viewMode,' view'],'all');   
             obj.VIEW.setViewMode(viewMode);
             obj.VIEW.showReady();
-        end
-        
-        
-        % Time Series viewing callback
-        % --------------------------------------------------------------------
-        %> @brief Menubar callback to set time series view mode.
-        %> Executes when user attempts to close padaco fig.
-        %> @param obj Instance of PAController
-        %> @param hObject    handle to menu_file_quit (see GCBO)
-        %> @param eventdata  reserved - to be defined in a future version of MATLAB
-        % --------------------------------------------------------------------        
-        function menuViewmodeTimeSeriesCallback(obj,hObject,eventdata)
-            obj.setViewMode('timeseries');
-            if(~isempty(obj.accelObj))
-                obj.initAccelDataView();
+            
+            switch lower(viewMode)
+                case 'timeseries'
+                    if(~isempty(obj.accelObj))
+                        obj.initAccelDataView();
+                    end
+                case 'results'
+                    obj.initResultsView();
             end
         end
                 
@@ -1266,25 +1259,7 @@ classdef PAController < handle
             if(isdir(obj.SETTINGS.BATCH.outputDirectory))
                 obj.resultsPathname = obj.SETTINGS.BATCH.outputDirectory;
             end
-            
         end
-        
-        % Results viewing callback
-        % --------------------------------------------------------------------
-        %> @brief Menubar callback for switching to results view mode.
-        %> @param obj Instance of PAController
-        %> @param hObject    handle to menu_file_quit (see GCBO)
-        %> @param eventdata  reserved - to be defined in a future version of MATLAB
-        % --------------------------------------------------------------------        
-        function menuViewmodeResultsCallback(obj,hObject,eventdata)           
-            obj.setViewMode('results');
-            if(obj.initResultsView())
-                 obj.VIEW.showReady(); %'all');
-            end
-        end        
-        
-
-       
             
         % --------------------------------------------------------------------
         %> @brief Creates a temporary figure and axes, draws an overlay
@@ -1933,7 +1908,8 @@ classdef PAController < handle
                 if(strcmpi(responseButton,'yes'))
                     this.menuFileOpenResultsPathCallback();
                 end
-                
+            else
+                this.VIEW.showReady();
             end
         end
         
