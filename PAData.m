@@ -1639,6 +1639,8 @@ toc
            obj.frames =  reshape(data(1:frameableSamples),[],obj.numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
 
            %frames are stored in consecutive columns.
+           % feature functions operate along columns and the output is then
+           % transposed to produce the final, feature column vector
            data = obj.frames;
            switch(lower(method))
                case 'none'
@@ -1651,7 +1653,7 @@ toc
                    obj.features.std = std(data)';
                    obj.features.mode = mode(data)';
                    obj.features.usagestate = mode(obj.usageFrames)';                   
-                   obj.features.psd = obj.getPSD(data);
+                   obj.features.psd = obj.getPSD();
                    %                    obj.features.count = obj.getCount(data)';
                case 'rms'
                    obj.features.rms = sqrt(mean(data.^2))';
@@ -1670,18 +1672,24 @@ toc
                case 'usagestate'
                    obj.features.usagestate = mode(obj.usageFrames)';
                case 'psd'
-                   obj.features.psd = obj.getPSD(data);
+                   obj.features.psd = obj.getPSD();
                otherwise
                    fprintf(1,'Unknown method (%s)\n',method);
            end
        end
        
-       function dataPSD = getPSD(obj, data)
+       function dataPSD = getPSD(obj)
+           [r,c] = size(obj.frames);  %c = num frames
+           data = obj.frames';
+           data = data(:);
            [psdSettings, Fs] = obj.getPSDSettings();
+           
+           % Result is num frames X num fft samples.
            dataPSD = featureFcn.getpsd(data,Fs,psdSettings);
        end
        
        function psdBands = getPSDBands(obj, data, numBands)
+           % Result is num frames X num fft samples.           
            dataPSD = obj.getPSD(data);
            if(nargin<3 || isempty(numBands))
                % bin out our bands...
@@ -1691,13 +1699,12 @@ toc
            end
        end
        
-       function [psdSettings, Fs] = getPSDSettings(obj)
-           psdSettings.FFT_window_sec = 10;
-           psdSettings.interval = 5;
+       function [psdSettings, Fs] = getPSDSettings(obj)           
+           psdSettings.FFT_window_sec = obj.getFrameDurationInMinutes()*60;
+           psdSettings.interval = psdSettings.FFT_window_sec;
            psdSettings.wintype = 'hann';
            psdSettings.removemean =true;
            Fs = obj.getSampleRate();
-           
        end
        
        % --------------------------------------------------------------------

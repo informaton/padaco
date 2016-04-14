@@ -112,7 +112,7 @@ function [psd_vec, freq_vec, nfft] = getpsd(signal_x,Fs,PSD_settings,ZeroPad)
                 mx = mean(x);
                 x = x-mx;
             end;
-            x = x.*win;
+            x = x(:).*win(:);
             
             %     fft_x= abs(fft(x,nfft));
             %     Sxx = fft_x.^2/U;
@@ -141,7 +141,7 @@ function [psd_vec, freq_vec, nfft] = getpsd(signal_x,Fs,PSD_settings,ZeroPad)
             
             psd_vec(r,:) = Sxx./nfft;
             
-            if(RemoveMean)
+            if(RemoveMean)  %Place mean value as 0 Hz.
                 psd_vec(r,1) = mx;
             end;
             

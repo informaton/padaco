@@ -609,7 +609,7 @@ classdef PAController < handle
                 %obtain the prefilter and feature extraction methods
                 prefilterMethod = obj.getPrefilterMethod();
                 
-                set(hObject,'enable','off');
+%                 set(hObject,'enable','off');
                 obj.VIEW.showBusy('Calculating Features','all');
                 % get the prefilter duration in minutes.
                 % aggregateDurMin = obj.VIEW.getAggregateDuration();
