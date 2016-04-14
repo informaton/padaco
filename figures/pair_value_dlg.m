@@ -131,7 +131,7 @@ function handles = getCurrentSettings(handles,tabName)
         value_tag = sprintf('%s%u',handles.user.edit_prefix,f);
         value_Str = get(handles.(value_tag),'string');
         numeric_valueStr = str2num(value_Str);%#ok<*ST2NM>
-        if(isnumeric(numeric_valueStr))
+        if(~isempty(numeric_valueStr) && isnumeric(numeric_valueStr))
             handles.user.settings_obj.(tabName).(fnames{f})=numeric_valueStr;
         else
             handles.user.settings_obj.(tabName).(fnames{f})=value_Str;
@@ -147,19 +147,21 @@ function tabgroup_callback(hObject,eventdata)
     %      NewValue: 1
     
     handles = guidata(hObject);
-    h=get(handles.figure1,'currentobject');
-    % get(h,'string')
-    if(ishandle(h))
-        if(strcmpi(get(h,'type'),'uicontrol')&& strcmpi(get(h,'style'),'edit'))
-            try
-                refresh(handles.figure1);
-                %                 getframe(handles.figure1);
-                %                 get(h,'string')
-            catch me
-                showME(me);
-            end            
-        end
-    end
+    
+    % Not sure what this is in here for ....
+%     h=get(handles.figure1,'currentobject');
+%     % get(h,'string')
+%     if(ishandle(h))
+%         if(strcmpi(get(h,'type'),'uicontrol')&& strcmpi(get(h,'style'),'edit'))
+%             try
+%                 refresh(handles.figure1);
+%                 %                 getframe(handles.figure1);
+%                 %                 get(h,'string')
+%             catch me
+%                 showME(me);
+%             end            
+%         end
+%     end
     
     if(eventdata.OldValue == 0)
         tabName = get(handles.tabs(eventdata.NewValue),'Title');
@@ -179,6 +181,7 @@ function tabgroup_callback(hObject,eventdata)
         else
             oldTabName = eventdata.OldValue.Title;
         end
+        % Make sure the old settings are updated correctly
         handles = getCurrentSettings(handles,oldTabName);
         numRecords = numel(fnames);
         handles = resizePanelWithScrollbarOption(handles.panel_main,handles.slider_verticalScroll, numRecords,handles.user.maxNumRecordsShown,handles);

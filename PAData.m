@@ -1582,6 +1582,8 @@ toc
        %> - c std
        %> - c mode   
        %> - c usagestate
+       %> - c psd
+       
        % ======================================================================
        function obj = extractFeature(obj,signalTagLine,method)
            if(nargin<3 || isempty(method))
@@ -1649,7 +1651,7 @@ toc
                    obj.features.std = std(data)';
                    obj.features.mode = mode(data)';
                    obj.features.usagestate = mode(obj.usageFrames)';                   
-                   
+                   obj.features.psd = obj.getPSD(data);
                    %                    obj.features.count = obj.getCount(data)';
                case 'rms'
                    obj.features.rms = sqrt(mean(data.^2))';
@@ -1667,11 +1669,36 @@ toc
                    obj.features.mode = mode(data)';
                case 'usagestate'
                    obj.features.usagestate = mode(obj.usageFrames)';
+               case 'psd'
+                   obj.features.psd = obj.getPSD(data);
                otherwise
                    fprintf(1,'Unknown method (%s)\n',method);
            end
        end
        
+       function dataPSD = getPSD(obj, data)
+           [psdSettings, Fs] = obj.getPSDSettings();
+           dataPSD = featureFcn.getpsd(data,Fs,psdSettings);
+       end
+       
+       function psdBands = getPSDBands(obj, data, numBands)
+           dataPSD = obj.getPSD(data);
+           if(nargin<3 || isempty(numBands))
+               % bin out our bands...
+               psdBands = dataPSD;
+           else
+               psdBands = [];
+           end
+       end
+       
+       function [psdSettings, Fs] = getPSDSettings(obj)
+           psdSettings.FFT_window_sec = 10;
+           psdSettings.interval = 5;
+           psdSettings.wintype = 'hann';
+           psdSettings.removemean =true;
+           Fs = obj.getSampleRate();
+           
+       end
        
        % --------------------------------------------------------------------
        %> @brief Calculates a desired feature for a particular acceleration object's field value.
@@ -3371,14 +3398,18 @@ toc
        % --------------------------------------------------------------------
        function extractorDescriptions = getExtractorDescriptions()
            featureStruct = PAData.getFeatureDescriptionStruct();
+           extractorDescriptions = struct2cell(featureStruct);
            
-           fnames = fieldnames(featureStruct);
+           %%  This was apparently before I knew about struct2cell:
+           %            fnames = fieldnames(featureStruct);
+           %
+           %            extractorDescriptions = cell(numel(fnames),1);
+           %            for f=1:numel(fnames)
+           %                extractorDescriptions{f} = featureStruct.(fnames{f});
+           %            end
            
-           extractorDescriptions = cell(numel(fnames),1);
-           for f=1:numel(fnames)
-               extractorDescriptions{f} = featureStruct.(fnames{f});
-           end
-           %extractorMethods = ['All';extractorMethods;'None'];   
+           %%  And this was apparently before that ...
+           % extractorMethods = ['All';extractorMethods;'None'];   
        end
        
        % --------------------------------------------------------------------
@@ -3394,6 +3425,7 @@ toc
            featureStruct.var = 'Variance';
            featureStruct.mode = 'Mode';
            featureStruct.usagestate = 'Activity Categories';
+           featureStruct.psd = 'Power Spectral Density';
            
            %            featureStruct.count = 'Count';
        end

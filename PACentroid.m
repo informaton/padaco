@@ -114,6 +114,8 @@ classdef PACentroid < handle
     end
             
     methods        
+        
+        
         % ======================================================================
         %> @param loadShapes NxM matrix to  be clustered (Each row represents an M dimensional value).
         %> @param settings  Optional struct with following fields [and
@@ -228,6 +230,17 @@ classdef PACentroid < handle
                 this.calculateCentroids();
             end
         end
+        
+        %> @brief Removes any graphic handle to references.  This is
+        %> a helpful precursor to calling 'save' on the object, as it
+        %> avoids the issue of recreating the figure handles when the
+        %> object is later loaded with a 'load' call.
+        function removeHandleReferences(this)
+            this.statusTextHandle = 1;
+            this.performanceAxesHandle = -1;
+            this.performanceLineHandle = -1;            
+        end
+        
         
         % ======================================================================
         %> @brief Sets the calculationState property to the cancel state value (-2).
@@ -609,8 +622,16 @@ classdef PACentroid < handle
         function h= plotPerformance(this, axesH)
             X = this.performanceProgression.X;
             Y = this.performanceProgression.Y;
+%             axesSettings.font = get(axesH,'font');
+            fontSettings.fontName = get(axesH,'fontname');
+            fontSettings.fontsize = get(axesH,'fontsize');
+            
             h=this.plot(axesH,X,Y);
-            set(axesH,'xlim',[min(X)-0.5,max(X)+0.5],'ylimmode','auto','ygrid','on','ytickmode','auto','xtickmode','auto','xticklabelmode','auto','yticklabelmode','auto');
+            
+            set(axesH,'xlim',[min(X)-0.5,max(X)+0.5],'ylimmode','auto','ygrid','on',...
+                'ytickmode','auto','xtickmode','auto',...
+                'xticklabelmode','auto','yticklabelmode','auto',...
+                fontSettings);
             title(axesH,this.performanceProgression.statusStr,'fontsize',14);
         end          
 

@@ -14,7 +14,8 @@ function padaco()
     try
         parametersFile = '_padaco.parameters.txt';
         handles.user.controller = PAController(hObject,mPathname,parametersFile);
-        set(hObject,'visible','on');
+        %         set(hObject,'visible','on');  % handled inside
+        %         PAController constructor.
         guidata(hObject,handles);
     catch me
         %     me.message

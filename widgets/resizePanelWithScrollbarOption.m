@@ -136,15 +136,22 @@ function handles  = resizePanelWithScrollbarOption(innerPanel_H,verticalScrollba
     
     delta_innerOuterPanel_height = new_innerPanel_height - new_containerPanel_height;  %figure out if I have a gap/need a scrollbar
     
-    %do we need to adjust up or down? - 1 is at the top with highest y offset, num_rows_desired
-    % has a lower y value
+    % if == Do we need to adjust up or down? A y-value of '1' is at the
+    % bottom of the settings figure and should correspond to the number of
+    % rows desired (i.e. highest tag(k) should have the small y-offset.
     if(new_containerPanel_height~=original_containerPanel_height)
-        for k =1:num_rows_desired
-            for t=1:numel(tag_prefixes)
+        for k =1:max(num_rows_desired,max_suffix) % these are the rows
+            for t=1:numel(tag_prefixes)  % these are the columns in each row
                 
                 tmp_h = first_uicontrol_h(t);
                 tmp_pos = first_uicontrol_pos(t,:);
-                y_offset = new_innerPanel_height-innerPanel_delta_yOffset*(k);
+                % If we don't adjust k as "num_rows_desired-k+1" then we will
+                % be placing our lowest k index at the bottom of the settings window (with the highest y-offset)
+                % We don't want this though when we have tabs, because we
+                % want to be able to reference the top of the settings
+                % figure, which is what a viewer first sees and has
+                % access to.
+                y_offset = new_innerPanel_height-innerPanel_delta_yOffset*(k);  %num_rows_desired-k+1);
                 tagStr = sprintf('%s_%u',tag_prefixes{t},k);
                 tmp_pos(2) = y_offset;
                 
@@ -152,6 +159,7 @@ function handles  = resizePanelWithScrollbarOption(innerPanel_H,verticalScrollba
                 if(k>max_suffix)
                     if(~isfield(handles,tagStr)||~ishandle(handles.(tagStr)))
                         handles.(tagStr) = copyobj(tmp_h,innerPanel_H);
+                        set(handles.(tagStr),'tag',tagStr);
                     end
                 end
                 
@@ -167,10 +175,10 @@ function handles  = resizePanelWithScrollbarOption(innerPanel_H,verticalScrollba
                     set(handles.(tagStr),'visible','on');
                 end
                 
-                set(handles.(tagStr),'tag',tagStr,'position',tmp_pos);
-                if(isempty(get(handles.(tagStr),'string')))
-                    set(handles.(tagStr),'string',tagStr);
-                end
+                set(handles.(tagStr),'position',tmp_pos);
+%                 if(isempty(get(handles.(tagStr),'string')))
+%                     set(handles.(tagStr),'string',tagStr);
+%                 end
             end
         end
         

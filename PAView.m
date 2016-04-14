@@ -192,16 +192,6 @@ classdef PAView < handle
             drawnow();
             
             
-            
-            % Line up panel_centroidPrimaryAxesControls with panel_epochControls
-            priAxesControlsPos = get(handles.panel_centroidPrimaryAxesControls,'position');
-            priAxesControlsPos(2) = sum(epochControlsPos([2,4]))-priAxesControlsPos(4);  % This is y_ = y^ + h^ - h_
-            set(handles.panel_centroidPrimaryAxesControls,'position',priAxesControlsPos);
-            drawnow();
-            
-
-            
-            
             metaDataHandles = [handles.panel_study;get(handles.panel_study,'children')];
             set(metaDataHandles,'backgroundcolor',[0.94,0.94,0.94],'visible','off');
             
@@ -219,7 +209,7 @@ classdef PAView < handle
                 handles.panel_plotType
                 handles.panel_plotSignal
                 handles.panel_plotData
-                handles.panel_centroidPrimaryAxesControls
+                handles.panel_controlCentroid
                 handles.panel_plotCentroid];
             set(whiteHandles,'backgroundcolor',[0.94,0.94,0.94]);
 %             set(findobj(whiteHandles,'-property','shadowcolor'),'shadowcolor',[0 0 0],'highlightcolor',[0 0 0]);
@@ -542,14 +532,20 @@ classdef PAView < handle
             axesProps.primary.yticklabel = [];
             axesProps.primary.uicontextmenu = [];
 
-            if(strcmpi(viewMode,'timeseries'))
-                
+            if(strcmpi(viewMode,'timeseries'))                
+                % Want these for both the primary (upper) and secondary (lower) axes
                 axesProps.primary.xAxisLocation = 'top';
-                axesProps.primary.uicontextmenu = obj.contextmenuhandle.primaryAxes;
                 axesProps.primary.ylimmode = 'manual';
                 axesProps.primary.ytickmode='manual';
                 axesProps.primary.yticklabelmode = 'manual';
+                
                 axesProps.secondary = axesProps.primary;
+                
+                % want this on the secondary
+                axesProps.secondary.xminortick = 'off';
+                
+                % Don't want these to be on the secondary axes.
+                axesProps.primary.uicontextmenu = obj.contextmenuhandle.primaryAxes;
                 axesProps.primary.xminortick='on';
                 
             elseif(strcmpi(viewMode,'results'))
@@ -615,7 +611,6 @@ classdef PAView < handle
             resultPanels = [
                             handles.panel_results;
                             handles.panel_controlCentroid;
-                            handles.panel_centroidPrimaryAxesControls
                             handles.panel_epochControls;
                            ];
 
@@ -683,7 +678,6 @@ classdef PAView < handle
             resultPanels = [
                 handles.panel_results;
                 handles.panel_controlCentroid;
-                handles.panel_centroidPrimaryAxesControls;
                 ];
             
                        
@@ -785,7 +779,9 @@ classdef PAView < handle
             obj.updateSecondaryAxes(PADataObject.getStartStopDatenum());
                         
             %initialize the various line handles and label content and
-            %color.
+            %color.  Struct types consist of
+            %> 1. timeSeries
+            %> 2. features
             structType = PADataObject.getStructTypes();
             fnames = fieldnames(structType);
             for f=1:numel(fnames)
@@ -1600,17 +1596,18 @@ classdef PAView < handle
                     %recurse down
                     destStruct.(fname) = PAView.recurseHandleGenerator(dummyStruct.(fname),handleType,curHandleProperties,destStruct.(fname));
                 else
-                    if(strcmpi(handleType,'line'))
-                        destStruct.(fname) = line();
-                    elseif(strcmpi(handleType,'text'))
-                        destStruct.(fname) = text();
+                    
+                    if(strcmpi(handleType,'line') || strcmpi(handleType,'text'))
+                        if(nargin>1 && ~isempty(curHandleProperties)) %aka  if(hasProperties)
+                            destStruct.(fname) = feval(handleType,curHandleProperties);
+                        else                            
+                            destStruct.(fname) = feval(handleType);
+                        end
                     else
                         destStruct.(fname) = [];
                         fprintf('Warning!  Handle type %s unknown!',handleType);
                     end
-                    if(nargin>1 && ~isempty(curHandleProperties))
-                        set(destStruct.(fname),curHandleProperties);
-                    end                    
+                    
                 end
             end
         end

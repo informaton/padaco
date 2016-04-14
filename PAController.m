@@ -115,10 +115,10 @@ classdef PAController < handle
                 uiLinecontextmenu_handle = obj.getLineContextmenuHandle();
                 uiPrimaryAxescontextmenu_handle = obj.getPrimaryAxesContextmenuHandle();
                 featureLineContextMenuHandle = obj.getFeatureLineContextmenuHandle();
-                
-                
+
                 % initialize the view here ...?
                 obj.VIEW = PAView(obj.figureH,uiLinecontextmenu_handle,uiPrimaryAxescontextmenu_handle,featureLineContextMenuHandle);
+                set(obj.figureH,'visible','on');
 
                 obj.VIEW.showBusy([],'all');
                 
@@ -131,7 +131,6 @@ classdef PAController < handle
                                
                 % attempt to load the last set of results
                 lastViewMode = obj.SETTINGS.CONTROLLER.viewMode;
-                
                 try
                     obj.setViewMode(lastViewMode);
                 catch me
@@ -341,7 +340,6 @@ classdef PAController < handle
             set(handles.menu_file_about,'callback',@obj.menuFileAboutCallback);
             set(handles.menu_file_settings,'callback',@obj.menuFileSettingsCallback);
             
-            
             %  open
             set(handles.menu_file_open,'callback',@obj.menuFileOpenCallback);
             set(handles.menu_file_open_resultspath,'callback',@obj.menuFileOpenResultsPathCallback);
@@ -444,8 +442,7 @@ classdef PAController < handle
                 
                 obj.setViewMode(obj.viewMode);
             end
-        end
-                
+        end    
         
         function initTimeSeriesWidgets(obj)
             
@@ -456,9 +453,14 @@ classdef PAController < handle
             extractorMethodDescriptions = PAData.getExtractorDescriptions(); 
             extractorStruct = PAData.getFeatureDescriptionStruct(); 
             
-            
-            if(isfield(extractorStruct,'usagestate'))
-                extractorStruct = rmfield(extractorStruct,'usagestate');
+            % Don't include the following because these are more
+            % complicated ...
+            fieldsToRemove = {'usagestate','psd'};
+            for f=1:numel(fieldsToRemove)
+                fieldToRemove = fieldsToRemove{f};
+                if(isfield(extractorStruct,fieldToRemove))
+                    extractorStruct = rmfield(extractorStruct,fieldToRemove);
+                end
             end
             
             extractorMethodFcns = fieldnames(extractorStruct);
@@ -603,50 +605,58 @@ classdef PAController < handle
         %> @param eventdata Required by MATLAB, but not used
         % --------------------------------------------------------------------
         function button_goCallback(obj,hObject,eventdata)
-            %obtain the prefilter and feature extraction methods
-            prefilterMethod = obj.getPrefilterMethod();
-            
-            set(hObject,'enable','off');
-            obj.VIEW.showBusy('Calculating Features','primary');
-            % get the prefilter duration in minutes. 
-            % aggregateDurMin = obj.VIEW.getAggregateDuration();
-            
-            %Tell the model to prefilter and extract
-            if(~strcmpi(prefilterMethod,'none'))                             
-                obj.accelObj.prefilter(prefilterMethod);
-                obj.VIEW.enableAggregateRadioButton();
+            try
+                %obtain the prefilter and feature extraction methods
+                prefilterMethod = obj.getPrefilterMethod();
                 
-                % No point of changing to the bin state right now as we
-                % will be selecting features anyway...
-                %                 displayType = 'bins';
-                %                 obj.setRadioButton(displayType);
-            else
-                obj.VIEW.enableAggregateRadioButton('off');
+                set(hObject,'enable','off');
+                obj.VIEW.showBusy('Calculating Features','all');
+                % get the prefilter duration in minutes.
+                % aggregateDurMin = obj.VIEW.getAggregateDuration();
+                
+                %Tell the model to prefilter and extract
+                if(~strcmpi(prefilterMethod,'none'))
+                    obj.accelObj.prefilter(prefilterMethod);
+                    obj.VIEW.enableAggregateRadioButton();
+                    
+                    % No point of changing to the bin state right now as we
+                    % will be selecting features anyway...
+                    %                 displayType = 'bins';
+                    %                 obj.setRadioButton(displayType);
+                else
+                    obj.VIEW.enableAggregateRadioButton('off');
+                end
+                
+                %extractorMethod = obj.getExtractorMethod();
+                extractorMethod = 'all';
+                selectedSignalTagLine = obj.getSignalSelection();
+                
+                obj.accelObj.extractFeature(selectedSignalTagLine,extractorMethod);
+                obj.VIEW.enableFeatureRadioButton();
+                
+                obj.updateSecondaryFeaturesDisplay();
+                % obj.VIEW.appendFeatureMenu(extractorMethod);
+                displayType = 'features';
+                obj.setRadioButton(displayType);
+                
+                
+                
+                
+                % This is disabled until the first time features are
+                % calculated.
+                obj.VIEW.enableTimeSeriesRadioButton();
+                
+                
+                obj.VIEW.draw();
+                obj.VIEW.showReady('all');
+                set(hObject,'enable','on');
+                
+            catch me
+                showME(me);
+                obj.VIEW.showReady('all');
+                set(hObject,'enable','on');
+                
             end
-            
-            %extractorMethod = obj.getExtractorMethod();
-            extractorMethod = 'all';            
-            selectedSignalTagLine = obj.getSignalSelection();
-
-            obj.accelObj.extractFeature(selectedSignalTagLine,extractorMethod);
-            obj.VIEW.enableFeatureRadioButton();
-            
-            obj.updateSecondaryFeaturesDisplay();
-            % obj.VIEW.appendFeatureMenu(extractorMethod);
-            displayType = 'features';
-            obj.setRadioButton(displayType); 
-            
-            
-            
-            
-            % This is disabled until the first time features are
-            % calculated.
-            obj.VIEW.enableTimeSeriesRadioButton();
-            
-            
-            obj.VIEW.draw();
-            obj.VIEW.showReady('primary');
-            set(hObject,'enable','on');
             
         end
         
@@ -1229,11 +1239,19 @@ classdef PAController < handle
             obj.viewMode = viewMode;              
             obj.VIEW.showBusy(['Switching to ',viewMode,' view'],'all');   
             obj.VIEW.setViewMode(viewMode);
+            figure(obj.figureH);  %redraw and place it on top
+            refresh(obj.figureH); % redraw it
+            %             shg();  %make sure it is on top.
             obj.VIEW.showReady();
             
             switch lower(viewMode)
                 case 'timeseries'
-                    if(~isempty(obj.accelObj))
+                    if(isempty(obj.accelObj))                        
+                        responseButton = questdlg('A time series file is not currently loaded.  Would you like to open one now?','Find a time series file to load?');
+                        if(strcmpi(responseButton,'yes'))
+                            obj.menuFileOpenCallback();
+                        end
+                    else
                         obj.initAccelDataView();
                     end
                 case 'results'
@@ -1474,7 +1492,7 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function [usageVec, usageStates,startStopDatenums] = getUsageState(obj)
             paDataObj = obj.accelObj;
-            [usageVec, usageStates, startStopDatenums] = paDataObj.classifyUsageState;             
+            [usageVec, usageStates, startStopDatenums] = paDataObj.classifyUsageState();             
         end
                 
         %% context menu's for the view
@@ -1512,15 +1530,22 @@ classdef PAController < handle
            delete(get(contextmenu_h,'children'));
            set(contextmenu_h,'enable','off');
            lineHandles = obj.getDisplayableLineHandles();
+           hasHiddenSignals = false;
            for h=1:numel(lineHandles)
                lineH = lineHandles(h);               
                if(strcmpi(get(lineH,'visible'),'off'))
                    tagLine = get(lineH,'tag');
                    set(contextmenu_h,'enable','on');
                    uimenu(contextmenu_h,'Label',tagLine,'separator','off','callback',{@obj.showLineHandle_callback,lineH});
+                   hasHiddenSignals = true;
                end;
            end;
            set(gco,'selected','off');
+           if(~hasHiddenSignals)
+               set(contextmenu_h,'visible','off');
+           else
+               set(contextmenu_h,'visible','on');
+           end
            
        end
        
@@ -1888,8 +1913,7 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function success = initResultsView(this)
             success = false;
-            %             this.VIEW.initWidgets('results',false);
-                        
+            % this.VIEW.initWidgets('results',false);
             if(isdir(this.resultsPathname))
                 if(~isempty(this.StatTool))                   
                     this.StatTool.init();  %calls a plot refresh
@@ -1898,7 +1922,6 @@ classdef PAController < handle
                 end
                 success = this.StatTool.getCanPlot();                
             end
-            
             
             if(~success)
                 this.StatTool.disable();
