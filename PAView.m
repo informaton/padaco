@@ -1182,16 +1182,21 @@ classdef PAView < handle
         %> @brief Appends the new feature to the drop down feature menu.
         %> @param obj Instance of PAView
         %> @param newFeature String label to append to the drop down feature menu.
+        %> @param newUserData Mixed entry to append to the drop down
+        %> feature menu's user data field.
         % --------------------------------------------------------------------
-        function appendFeatureMenu(obj,newFeature)
+        function appendFeatureMenu(obj,newFeature,newUserData)
             
             featureOptions = get(obj.menuhandle.displayFeature,'string');
+            userData = get(obj.menuhandle.displayFeature,'userdata');
             if(~iscell(featureOptions))
                 featureOptions = {featureOptions};
+                userData = {userData};
             end
             if(isempty(intersect(featureOptions,newFeature)))
                 featureOptions{end+1} = newFeature;
-                set(obj.menuhandle.displayFeature,'string',featureOptions);
+                userData{end+1} = newUserData;
+                set(obj.menuhandle.displayFeature,'string',featureOptions,'userdata',userData);
             end;
         end        
         

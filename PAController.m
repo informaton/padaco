@@ -444,18 +444,21 @@ classdef PAController < handle
             end
         end    
         
+        
         function initTimeSeriesWidgets(obj)
             
             prefilterSelection = PAData.getPrefilterMethods();
             set(obj.VIEW.menuhandle.prefilterMethod,'string',prefilterSelection,'value',1);
             
             % feature extractor
-            extractorMethodDescriptions = PAData.getExtractorDescriptions(); 
             extractorStruct = PAData.getFeatureDescriptionStruct(); 
             
             % Don't include the following because these are more
-            % complicated ...
-            fieldsToRemove = {'usagestate','psd'};
+            % complicated ... and require fieldnames to correspond to
+            % function names.
+            
+            psd_bandNames = PAData.getPSDBandNames();
+            fieldsToRemove = ['usagestate';psd_bandNames];
             for f=1:numel(fieldsToRemove)
                 fieldToRemove = fieldsToRemove{f};
                 if(isfield(extractorStruct,fieldToRemove))
@@ -464,8 +467,11 @@ classdef PAController < handle
             end
             
             extractorMethodFcns = fieldnames(extractorStruct);
+            extractorMethodDescriptions = struct2cell(extractorStruct);
+
             set(obj.VIEW.menuhandle.displayFeature,'string',extractorMethodDescriptions,'userdata',extractorMethodFcns,'value',1);
             
+            obj.VIEW.appendFeatureMenu('PSD','getPSD');
             % set(obj.menuhandle.signalSelection,'string',extractorMethods,'value',1);
             
             % Window display resolution
@@ -1454,14 +1460,38 @@ classdef PAController < handle
              if(nargin<5) ||isempty(paDataObj)
                paDataObj = obj.accelObj; 
             end
-            timeSeriesStruct = paDataObj.getStruct('all','timeSeries');
-            fieldData = eval(['timeSeriesStruct.',fieldName]);
-            indices = ceil(linspace(1,numel(fieldData),numSections+1));
             featureVec = zeros(numSections,1);
             startStopDatenums = zeros(numSections,2);
-            for i=1:numSections
-                featureVec(i) = feval(featureFcn,fieldData(indices(i):indices(i+1)));
-                startStopDatenums(i,:) = [paDataObj.dateTimeNum(indices(i)),paDataObj.dateTimeNum(indices(i+1))];
+            
+            % Here we deal with features, which *should* already have the
+            % correct number of sections needed.
+            if(strcmpi(featureFcn,'getpsd'))
+                featureStruct = paDataObj.getStruct('all','features');
+                switch fieldName(end)
+                    case 'g'
+                        featureVec = featureStruct.psd_band_1;
+                    case 'x'
+                        featureVec = featureStruct.psd_band_2;
+                    case 'y'
+                        featureVec = featureStruct.psd_band_3;
+                    case 'z'
+                        featureVec = featureStruct.psd_band_4;
+                    otherwise
+                        featureVec = featureStruct.psd_band_1;
+                end
+                indices = ceil(linspace(1,numel(paDataObj.dateTimeNum),numSections+1));
+                for i=1:numSections
+                    startStopDatenums(i,:) = [paDataObj.dateTimeNum(indices(i)),paDataObj.dateTimeNum(indices(i+1))];
+                end
+            else
+                timeSeriesStruct = paDataObj.getStruct('all','timeSeries');
+                fieldData = eval(['timeSeriesStruct.',fieldName]);
+            
+                indices = ceil(linspace(1,numel(fieldData),numSections+1));
+                for i=1:numSections
+                    featureVec(i) = feval(featureFcn,fieldData(indices(i):indices(i+1)));
+                    startStopDatenums(i,:) = [paDataObj.dateTimeNum(indices(i)),paDataObj.dateTimeNum(indices(i+1))];
+                end
             end
         end
         
@@ -1846,19 +1876,31 @@ classdef PAController < handle
             else
                 obj.accelTypeShown = 'count';
             end               
-                
+            
             obj.VIEW.initWithAccelData(obj.accelObj);
+
             
             %set signal choice 
-            obj.setSignalSelection(obj.SETTINGS.CONTROLLER.signalTagLine); %internally sets to 1st in list if not found..
+            signalSelection = obj.setSignalSelection(obj.SETTINGS.CONTROLLER.signalTagLine); %internally sets to 1st in list if not found..
             obj.setExtractorMethod(obj.SETTINGS.CONTROLLER.featureFcn);
          
+            % Go ahead and extract features using current settings.  This
+            % is good because then we can use
+            obj.accelObj.extractFeature(signalSelection,'all');
+            
+            
+            % This was disabled until the first time features are
+            % calculated.
+            obj.VIEW.enableTimeSeriesRadioButton();
+            obj.VIEW.enableFeatureRadioButton();                
             
             % set the display to show time series data initially.
             displayType = 'Time Series';
             displayStructName = PAData.getStructNameFromDescription(displayType);
             obj.setRadioButton(displayStructName);
             obj.setDisplayType(displayStructName);
+            
+            
             
             %but not everything is shown...
             
@@ -1878,6 +1920,7 @@ classdef PAController < handle
             height = remainingHeight/itemsToDisplay;
             if(obj.accelObj.getSampleRate()<=1)
                 [usageVec,usageState, startStopDatenums] = obj.getUsageState();
+                
                 vecHandles = obj.VIEW.addFeaturesVecToSecondaryAxes(usageVec,obj.accelObj.dateTimeNum,height,heightOffset);
                 %obj.VIEW.addOverlayToSecondaryAxes(usageState,startStopDatenums,1/numRegions,curRegion/numRegions);
             else
