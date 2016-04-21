@@ -27,6 +27,21 @@ classdef PAData < handle
         %> @li z z-axis
         %> @li vecMag vectorMagnitude
         accel;
+        
+        %> @brief Structure of power spectral densities for count and raw accelerations structs (x,y,z).  Fields are:
+        %> - @c frames PSD of the data currently in the @c @b frames member
+        %> variable.
+        %> - @c count Structure of actigraph derived counts for x,y,z acceleration readings.  Fields are:
+        %> @li x x-axis
+        %> @li y y-axis
+        %> @li z z-axis
+        %> @li vecMag vectorMagnitude
+        %> - @c raw Structure of raw x,y,z accelerations.  Fields are:
+        %> @li x x-axis
+        %> @li y y-axis
+        %> @li z z-axis
+        psd;
+        
         %> @brief Structure of inclinometer values.  Fields include:
         %> @li off
         %> @li standing
@@ -120,6 +135,11 @@ classdef PAData < handle
         %> @brief Selected signal (e.g. count vector magnitude) at frame rate.
         frames;
         
+        %> @brief The label or tag line of the signal from which frames was
+        %> populated with.  (i.e. the original data that was framed and
+        %> placed in the member variable @c frames
+        frames_signalTagLine;
+        
         %> @brief Mode of usage state vector (i.e. taken from getUsageActivity) for current frame rate.
         usageFrames;
         
@@ -160,6 +180,7 @@ classdef PAData < handle
             
             obj.accelType = [];
             obj.startDatenums = [];
+            
             
             % Can summarize these with defaults from below...last f(X) call.
             %            obj.aggregateDurMin = 1;
@@ -1639,12 +1660,14 @@ classdef PAData < handle
             
             data = obj.getStruct('all');
             data = eval(['data.',signalTagLine]);
-            obj.frames =  reshape(data(1:frameableSamples),[],obj.numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
             
+            obj.frames =  reshape(data(1:frameableSamples),[],obj.numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
             % Frames are stored in consecutive columns.
             % Feature functions operate along columns and the output is then
             % transposed to produce the final, feature column vector
             data = obj.frames;
+            obj.frames_signalTagLine = signalTagLine;
+            
             switch(lower(method))
                 case 'none'
                 case 'all'
@@ -1656,7 +1679,7 @@ classdef PAData < handle
                     obj.features.std = std(data)';
                     obj.features.mode = mode(data)';
                     obj.features.usagestate = mode(obj.usageFrames)';
-                    obj.calculatePSD();
+                    obj.calculatePSD(signalTagLine);
                     %                    obj.features.count = obj.getCount(data)';
                 case 'rms'
                     obj.features.rms = sqrt(mean(data.^2))';
@@ -1675,16 +1698,32 @@ classdef PAData < handle
                 case 'usagestate'
                     obj.features.usagestate = mode(obj.usageFrames)';
                 case 'psd'
-                    obj.calculatePSD();        
+                    obj.calculatePSD(signalTagLine);        
                 otherwise
                     fprintf(1,'Unknown method (%s)\n',method);
             end
         end
         
-        function obj = calculatePSD(obj)
-            [psd_bands, obj.features.psd] = obj.getPSDBands();
-            psd_bandNames = obj.getPSDBandNames();
-            
+        %> @brief Calculates the PSD for the current frames and assigns the
+        %> result to obj.psd.frames.  Will also assign
+        %> obj.frames_signalTagLine to the signalTagLine argument when
+        %> provided, otherwise the current value for
+        %> obj.frames_signalTagLine is assumed to be correct and specific for
+        %> the source of the frame data.  PSD bands are assigned to their
+        %> named fields (e.g. psd_band_1) in the obj.features.(bandName)
+        %> field.  
+        function obj = calculatePSD(obj,signalTagLine)
+            % psd_bands is NxM matrix of M PSD for N epochs (calculated
+            % spectrums)
+            if(nargin<2)
+                signalTagLine = obj.frames_signalTagLine;
+            else
+                obj.frames_signalTagLine = signalTagLine;
+            end
+                
+            [psd_bands, obj.psd.frames] = obj.getPSDBands();
+            eval(['obj.psd.',signalTagLine, '= obj.psd.frames;']);
+            psd_bandNames = obj.getPSDBandNames();            
             for p=1:numel(psd_bandNames)
                 bandName = psd_bandNames{p};
                 obj.features.(bandName) = psd_bands(:,p);
@@ -2997,11 +3036,18 @@ classdef PAData < handle
         %> @note                    [x].string: 0.5000
         %> @note                    [y].string: 1
         %> @note
+        %> @note PAData.structEval('overwrite',ltStruct,ltStruct,value)
+        %> @note ans =
+        %> @note         x: value
+        %> @note     accel: [1x1 struct]
+        %> @note              [x]: value
+        %> @note              [y]: value
+        %> @note        
         %> @note
         % ======================================================================
-        function resultStruct = structEval(operand,ltStruct,rtStruct,optionalDestField)
+        function resultStruct = structEval(operand,ltStruct,rtStruct,optionalDestFieldOrValue)
             if(nargin < 4)
-                optionalDestField = [];
+                optionalDestFieldOrValue = [];
             end
             
             if(isstruct(ltStruct))
@@ -3009,20 +3055,22 @@ classdef PAData < handle
                 resultStruct = struct();
                 for f=1:numel(fnames)
                     curField = fnames{f};
-                    resultStruct.(curField) = PAData.structEval(operand,ltStruct.(curField),rtStruct.(curField),optionalDestField);
+                    resultStruct.(curField) = PAData.structEval(operand,ltStruct.(curField),rtStruct.(curField),optionalDestFieldOrValue);
                 end
             else
                 if(strcmpi(operand,'calculateposition'))
                     resultStruct.position = [rtStruct.xdata(1), rtStruct.ydata(1), 0];
                     
                 else
-                    if(~isempty(optionalDestField))
+                    if(~isempty(optionalDestFieldOrValue))
                         if(strcmpi(operand,'passthrough'))
-                            resultStruct.(optionalDestField) = ltStruct;
+                            resultStruct.(optionalDestFieldOrValue) = ltStruct;
+                        elseif(strcmpi(operand,'overwrite'))
+                            resultStruct = optionalDestFieldOrValue;
                         elseif(strcmpi(operand,'repmat'))
-                            resultStruct = repmat(ltStruct,optionalDestField);
+                            resultStruct = repmat(ltStruct,optionalDestFieldOrValue);
                         else
-                            resultStruct.(optionalDestField) = feval(operand,ltStruct,rtStruct);
+                            resultStruct.(optionalDestFieldOrValue) = feval(operand,ltStruct,rtStruct);
                         end
                     else
                         resultStruct = feval(operand,ltStruct,rtStruct);
@@ -3427,10 +3475,13 @@ classdef PAData < handle
         %> prefilter() method.
         % --------------------------------------------------------------------
         function extractorDescriptions = getExtractorDescriptions()
-            featureStruct = PAData.getFeatureDescriptionStruct();
-            extractorDescriptions = struct2cell(featureStruct);
+            [~, extractorDescriptions] = PAData.getFeatureDescriptionStruct();
             
-            %%  This was apparently before I knew about struct2cell:
+            %% This was before I rewrote getFeatureDescriptionStruct
+            % featureStruct = PAData.getFeatureDescriptionStruct();
+            % extractorDescriptions = struct2cell(featureStruct);
+            
+            %%  This was apparently before I knew about struct2cell ...
             %            fnames = fieldnames(featureStruct);
             %
             %            extractorDescriptions = cell(numel(fnames),1);
@@ -3438,7 +3489,7 @@ classdef PAData < handle
             %                extractorDescriptions{f} = featureStruct.(fnames{f});
             %            end
             
-            %%  And this was apparently before that ...
+            %%  And this, apparently (again), was before that ...
             % extractorMethods = ['All';extractorMethods;'None'];
         end
         
@@ -3446,7 +3497,7 @@ classdef PAData < handle
         %> @brief Returns a struct of feature extraction methods and string descriptions as the corresponding values.
         %> @retval featureStruct A struct of  feature extraction methods and string descriptions as the corresponding values.
         % --------------------------------------------------------------------
-        function featureStruct = getFeatureDescriptionStruct()
+        function [featureStruct, varargout] = getFeatureDescriptionStruct()
             featureStruct.mean = 'Mean';
             featureStruct.median = 'Median';
             featureStruct.std = 'Standard Deviation';
@@ -3454,17 +3505,39 @@ classdef PAData < handle
             featureStruct.sum = 'sum';
             featureStruct.var = 'Variance';
             featureStruct.mode = 'Mode';
-            featureStruct.usagestate = 'Activity Categories';
-            
-            psdNames = PAData.getPSDBandNames();
-            for p=1:numel(psdNames)
-                featureStruct.(psdNames{p}) = sprintf('Power Spectral Density (band - %u)',p);
+            featureStruct.usagestate = 'Activity Categories';            
+            featureStruct.psd = 'Power Spectral Density';
+            %           featureStruct.count = 'Count';
+            if(nargout>1)
+                varargout{1} = struct2cell(featureStruct);
             end
             
-            %             featureStruct.psd = 'Power Spectral Density';
-            %            featureStruct.count = 'Count';
         end
         
+        
+        function [featureStructWithPSDBands, varargout] = getFeatureDescriptionStructWithPSDBands()
+            featureStruct = rmfield(PAData.getFeatureDescriptionStruct,'psd');
+            psdFeatureStruct = PAData.getPSDFeatureDescriptionStruct();
+            featureStructWithPSDBands = PAData.mergeStruct(featureStruct,psdFeatureStruct);
+            if(nargout>1)
+                varargout{1} = struct2cell(featureStructWithPSDBands);
+            end
+        end
+        
+        function [psdFeatureStruct, varargout] = getPSDFeatureDescriptionStruct()
+            psdFeatureStruct = struct();
+            psdNames = PAData.getPSDBandNames();
+            for p=1:numel(psdNames)
+                psdFeatureStruct.(psdNames{p}) = sprintf('Power Spectral Density (band - %u)',p);
+            end            
+            if(nargout>1)
+                varargout{1} = struct2cell(psdFeatureStruct);
+            end
+        end
+        
+        function psdExtractorDescriptions = getPSDExtractorDescriptions()
+            [~,psdExtractorDescriptions] = PAData.getPSDFeatureDescriptionStruct();
+        end        
         
         % --------------------------------------------------------------------
         %> @brief Returns a struct representing the internal architecture

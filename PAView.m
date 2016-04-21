@@ -412,9 +412,9 @@ classdef PAView < handle
                 
                 displayStruct = obj.displayType;
                 
-                obj.recurseHandleSetter(obj.labelhandle.(displayStruct), visibleProps);
                 obj.recurseHandleSetter(obj.referencelinehandle.(displayStruct), visibleProps);
                 obj.recurseHandleSetter(obj.linehandle.(displayStruct), visibleProps);
+                obj.recurseHandleSetter(obj.labelhandle.(displayStruct), visibleProps);
             else
                 fprintf('Warning, this string (%s) is not an acceptable option.\n',displayTypeStr);
             end
@@ -792,7 +792,14 @@ classdef PAView < handle
                 labelProps = PAData.mergeStruct(labelProps,labelPosStruct);
                 
                 colorStruct = PADataObject.getColor(curStructType);
+                
                 visibleStruct = PADataObject.getVisible(curStructType);
+                
+                % Keep everything invisible at this point - so ovewrite the
+                % visibility property before we merge it together.
+                visibleStruct = PAData.structEval('overwrite',visibleStruct,visibleStruct,'off');
+                
+                
                 allStruct = PADataObject.mergeStruct(colorStruct,visibleStruct);
                 
                 labelProps = PADataObject.mergeStruct(labelProps,allStruct);

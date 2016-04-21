@@ -451,27 +451,28 @@ classdef PAController < handle
             set(obj.VIEW.menuhandle.prefilterMethod,'string',prefilterSelection,'value',1);
             
             % feature extractor
-            extractorStruct = PAData.getFeatureDescriptionStruct(); 
+            extractorStruct = rmfield(PAData.getFeatureDescriptionStruct(),'usagestate');
             
             % Don't include the following because these are more
             % complicated ... and require fieldnames to correspond to
             % function names.
             
-            psd_bandNames = PAData.getPSDBandNames();
-            fieldsToRemove = ['usagestate';psd_bandNames];
-            for f=1:numel(fieldsToRemove)
-                fieldToRemove = fieldsToRemove{f};
-                if(isfield(extractorStruct,fieldToRemove))
-                    extractorStruct = rmfield(extractorStruct,fieldToRemove);
-                end
-            end
+            %             psd_bandNames = PAData.getPSDBandNames();
+            %             fieldsToRemove = ['usagestate';psd_bandNames];
+            %             for f=1:numel(fieldsToRemove)
+            %                 fieldToRemove = fieldsToRemove{f};
+            %                 if(isfield(extractorStruct,fieldToRemove))
+            %                     extractorStruct = rmfield(extractorStruct,fieldToRemove);
+            %                 end
+            %             end
+            
             
             extractorMethodFcns = fieldnames(extractorStruct);
             extractorMethodDescriptions = struct2cell(extractorStruct);
 
             set(obj.VIEW.menuhandle.displayFeature,'string',extractorMethodDescriptions,'userdata',extractorMethodFcns,'value',1);
             
-            obj.VIEW.appendFeatureMenu('PSD','getPSD');
+            %             obj.VIEW.appendFeatureMenu('PSD','getPSD');
             % set(obj.menuhandle.signalSelection,'string',extractorMethods,'value',1);
             
             % Window display resolution
@@ -696,9 +697,10 @@ classdef PAController < handle
                 delete(obj.featureHandles);
             end
             obj.featureHandles = [];
+            startStopDatenums = obj.getFeatureStartStopDatenums(featureFcn,signalTagLines{1},numFeatures);
             for s=1:numel(signalTagLines)
                 signalName = signalTagLines{s};
-                [featureVec, startStopDatenums] = obj.getFeatureVec(featureFcn,signalName,numFeatures);
+                featureVec = obj.getFeatureVec(featureFcn,signalName,numFeatures);  %  redundant time stamp calculations benig done for start stpop dateneums in here.
                 if(s<numel(signalTagLines))
                     vecHandles = obj.VIEW.addFeaturesVecToSecondaryAxes(featureVec,startStopDatenums,height,heightOffset);                   
                     obj.featureHandles = [obj.featureHandles(:);vecHandles(:)];
@@ -724,7 +726,7 @@ classdef PAController < handle
             set(hObject,'enable','off');
             handles = guidata(hObject);
             initColor = get(handles.axes_secondary,'color');
-            obj.VIEW.showBusy('Calculating features','secondary');
+            obj.VIEW.showBusy('(Updating secondary display)','secondary');
             numFrames = obj.getFrameCount();            
             obj.updateSecondaryFeaturesDisplay(numFrames);        
             set(handles.axes_secondary,'color',initColor);
@@ -1452,15 +1454,19 @@ classdef PAController < handle
         %> of samples.  In this case, the last section may be shorter or
         %> longer than the others.
         % --------------------------------------------------------------------
-        function [featureVec,startStopDatenums] = getFeatureVec(obj,featureFcn,fieldName,numSections,paDataObj)
+        function [featureVec,varargout] = getFeatureVec(obj,featureFcn,fieldName,numSections,paDataObj)
             if(nargin<2 || isempty(numSections) || numSections <=1)
                 numSections = 100;
             end
             
              if(nargin<5) ||isempty(paDataObj)
-               paDataObj = obj.accelObj; 
-            end
+                 paDataObj = obj.accelObj;
+             end
+            
+             
             featureVec = zeros(numSections,1);
+            
+            
             startStopDatenums = zeros(numSections,2);
             
             % Here we deal with features, which *should* already have the
@@ -1468,7 +1474,7 @@ classdef PAController < handle
             if(strcmpi(featureFcn,'getpsd'))
                 featureStruct = paDataObj.getStruct('all','features');
                 switch fieldName(end)
-                    case 'g'
+                    case 'g'  % accel.count.vecMag
                         featureVec = featureStruct.psd_band_1;
                     case 'x'
                         featureVec = featureStruct.psd_band_2;
@@ -1479,10 +1485,7 @@ classdef PAController < handle
                     otherwise
                         featureVec = featureStruct.psd_band_1;
                 end
-                indices = ceil(linspace(1,numel(paDataObj.dateTimeNum),numSections+1));
-                for i=1:numSections
-                    startStopDatenums(i,:) = [paDataObj.dateTimeNum(indices(i)),paDataObj.dateTimeNum(indices(i+1))];
-                end
+
             else
                 timeSeriesStruct = paDataObj.getStruct('all','timeSeries');
                 fieldData = eval(['timeSeriesStruct.',fieldName]);
@@ -1490,9 +1493,49 @@ classdef PAController < handle
                 indices = ceil(linspace(1,numel(fieldData),numSections+1));
                 for i=1:numSections
                     featureVec(i) = feval(featureFcn,fieldData(indices(i):indices(i+1)));
+                end
+            end
+            
+            if(nargout>1)
+                varargout{1} = obj.getFeatureStartStopDatenums(featureFcn,fieldName,numSections,paDataObj);
+            end
+        end
+        
+        
+        % Retrieves the start stop datenum pairs for the provided feature function and fieldName.  
+        % Originally this function was implemented inside getFeatureFcn
+        % with the thinking that it would degrade performance to call a
+        % second for loop to calculate the startStopDatenums.  This was not
+        % the case in practice, however, because the features would be
+        % retrieved for different signals which all had the same number of
+        % samples and startStopDatenums (so it was redundant to keep
+        % calculating the same values.
+        function startStopDatenums = getFeatureStartStopDatenums(obj,featureFcn,fieldName,numSections,paDataObj)
+            if(nargin<2 || isempty(numSections) || numSections <=1)
+                numSections = 100;
+            end
+            
+            if(nargin<5) ||isempty(paDataObj)
+                paDataObj = obj.accelObj;
+            end
+           
+            startStopDatenums = zeros(numSections,2);
+            
+            if(strcmpi(featureFcn,'getpsd'))
+                indices = ceil(linspace(1,numel(paDataObj.dateTimeNum),numSections+1));
+                for i=1:numSections
+                    startStopDatenums(i,:) = [paDataObj.dateTimeNum(indices(i)),paDataObj.dateTimeNum(indices(i+1))];
+                end
+            else
+                timeSeriesStruct = paDataObj.getStruct('all','timeSeries');
+                fieldData = eval(['timeSeriesStruct.',fieldName]);
+                
+                indices = ceil(linspace(1,numel(fieldData),numSections+1));
+                for i=1:numSections
                     startStopDatenums(i,:) = [paDataObj.dateTimeNum(indices(i)),paDataObj.dateTimeNum(indices(i+1))];
                 end
             end
+            
         end
         
         % --------------------------------------------------------------------
@@ -1877,6 +1920,8 @@ classdef PAController < handle
                 obj.accelTypeShown = 'count';
             end               
             
+            
+            % Shows line labels after initWithAccelData
             obj.VIEW.initWithAccelData(obj.accelObj);
 
             
@@ -1886,6 +1931,8 @@ classdef PAController < handle
          
             % Go ahead and extract features using current settings.  This
             % is good because then we can use
+            obj.VIEW.showBusy('Calculating features','all');
+
             obj.accelObj.extractFeature(signalSelection,'all');
             
             
@@ -1898,6 +1945,9 @@ classdef PAController < handle
             displayType = 'Time Series';
             displayStructName = PAData.getStructNameFromDescription(displayType);
             obj.setRadioButton(displayStructName);
+            
+            
+            % Now I am showing labels
             obj.setDisplayType(displayStructName);
             
             

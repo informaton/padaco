@@ -23,6 +23,10 @@ classdef PABatchTool < handle
         settings;
         %> Handle to the figure we create.  
         figureH;
+        
+        %> Flag for determining if batch mode is running or not.  Can be
+        %> changed to false by user cancelling.
+        isRunning;
     end
     
     methods
@@ -50,6 +54,8 @@ classdef PABatchTool < handle
             else
                 label = 'Show in browser';
             end
+            
+            isRunning = false;
             uimenu(contextmenu_directory,'Label',label,'callback',@showPathContextmenuCallback);
             
             set(batchHandles.button_getSourcePath,'callback',{@this.getSourceDirectoryCallback,batchHandles.text_sourcePath,batchHandles.text_filesFound});  
@@ -74,21 +80,19 @@ classdef PABatchTool < handle
             %             end
             %             set(batchHandles.menu_imageFormat,'string',imageFormats,'value',imgSelection);
             %
-            featureFcns = fieldnames(PAData.getFeatureDescriptionStruct());
-            featureDesc = PAData.getExtractorDescriptions();       
-            
-            featureFcns = [featureFcns; {featureFcns}]; % = {featureFcns{:},featureFcns}';
+            featureFcns = fieldnames(PAData.getFeatureDescriptionStruct()); %spits field-value pairs of feature names and feature description strings
+            featureDesc = PAData.getExtractorDescriptions();  %spits out the string values      
+
+            featureFcns = [featureFcns; 'all']; 
             featureLabels = [featureDesc; 'All'];
-            featureDesc = [featureDesc; {featureDesc}];
-            
+
             featureLabel = this.settings.featureLabel;
             featureSelection = find(strcmpi(featureLabels,featureLabel));
+            
             if(isempty(featureSelection))
                 featureSelection =1;
             end
-            data.featureFunctions = featureFcns;
-            data.featureDescriptions = featureDesc;
-            set(batchHandles.menu_featureFcn,'string',featureLabels,'value',featureSelection,'userdata',data);
+            set(batchHandles.menu_featureFcn,'string',featureLabels,'value',featureSelection,'userdata',featureFcns);
 
             % Make visible
             this.figureH = batchFig;
@@ -159,7 +163,6 @@ classdef PABatchTool < handle
            end
            set(text_filesFound_h,'string',msg);
         end
-        
                
         % --------------------------------------------------------------------
         %> @brief Batch figure button callback for getting a directory to
@@ -210,26 +213,22 @@ classdef PABatchTool < handle
             obj.notify('BatchToolStarting',EventData_BatchTool(obj.settings));
             accelType = 'count';
             
+            obj.isRunning = true;
             % get feature settings
             % determine which feature to process
-            userdata = get(handles.menu_featureFcn,'userdata');
-            featureSelectionIndex = get(handles.menu_featureFcn,'value');
             
-            allFeatureFcns = userdata.featureFunctions;
-            allFeatureDescriptions = userdata.featureDescriptions;
-            allFeatureLabels = get(handles.menu_featureFcn,'string');
-            obj.settings.featureLabel = allFeatureLabels{featureSelectionIndex};
+            featureFcn = getMenuUserData(handles.menu_featureFcn);
+            obj.settings.featureLabel = getMenuString(handles.menu_featureFcn);
             
-            featureDescriptions = allFeatureDescriptions{featureSelectionIndex};
-            featureFcns = allFeatureFcns{featureSelectionIndex};
-            if(~iscell(featureFcns))
-                featureFcns = {featureFcns};
-            end
+%             userdata = get(handles.menu_featureFcn,'userdata');
+%             featureSelectionIndex = get(handles.menu_featureFcn,'value');
+%             allFeatureFcns = userdata.featureFunctions;
+%             allFeatureDescriptions = userdata.featureDescriptions;
+%             allFeatureLabels = get(handles.menu_featureFcn,'string');
             
-            if(~iscell(featureDescriptions))
-                featureDescriptions = {featureDescriptions};
-            end
-            
+%             obj.settings.featureLabel = featureLabel;  
+%             featureDescription = allFeatureDescriptions{featureSelectionIndex};
+%             featureFcn = allFeatureFcns{featureSelectionIndex};
             
             % determine frame aggreation size - size to calculate each
             % feature from
@@ -239,8 +238,6 @@ classdef PABatchTool < handle
 
             % features are grouped for all studies into one file per
             % signal, place groupings into feature function directories
-            
-            features_pathnames =   strcat(fullfile(obj.settings.outputDirectory,'features'),filesep,featureFcns);
             
             
             obj.settings.alignment.elapsedStartHours = 0; %when to start the first measurement
@@ -264,12 +261,30 @@ classdef PABatchTool < handle
             logFid = obj.prepLogFile(obj.settings);
             fprintf(logFid,'File count:\t%u',fileCount);
 
-            % Setup output folders
-            for fn=1:numel(featureFcns)
+            %% Setup output folders
+
+            % PAData separates the psd feature into bands in order to
+            % create feature vectors.  Unfortunately, this does not give a
+            % clean way to separate the groups into the expanded feature
+            % vectors, hence the gobbly goop code here:
+            if(strcmpi(featureFcn,'all'))
+                featureStructWithPSDBands= PAData.getFeatureDescriptionStructWithPSDBands();
+                outputFeatureFcns = fieldnames(featureStructWithPSDBands);
+                outputFeatureLabels = struct2cell(featureStructWithPSDBands);  % leave it here for the sake of other coders; yes, you can assign this using a second output argument from getFeatureDescriptionWithPSDBands                
+            else
+                outputFeatureFcns = {featureFcn};
+                outputFeatureLabels = {obj.settings.featureLabel};
+            end
+            
+            outputFeaturePathnames =   strcat(fullfile(obj.settings.outputDirectory,'features'),filesep,outputFeatureFcns);
+            
+            
+            for fn=1:numel(outputFeatureFcns)
                 
                 % Prep output alignment files.
-                featureFcn = featureFcns{fn};
-                features_pathname = features_pathnames{fn};
+                outputFeatureFcn = outputFeatureFcns{fn};
+                features_pathname = outputFeaturePathnames{fn};
+                feature_description = outputFeatureLabels{fn};
                 if(~isdir(features_pathname))
                     mkdir(features_pathname);
                 end
@@ -277,9 +292,9 @@ classdef PABatchTool < handle
                 for s=1:numel(signalNames)
                     signalName = signalNames{s};
                     
-                    featureFilename = fullfile(features_pathname,strcat('features.',featureFcn,'.',signalName,'.txt'));
+                    featureFilename = fullfile(features_pathname,strcat('features.',outputFeatureFcn,'.',signalName,'.txt'));
                     fid = fopen(featureFilename,'w');
-                    fprintf(fid,'# Feature:\t%s\n',featureDescriptions{fn});
+                    fprintf(fid,'# Feature:\t%s\n',feature_description);
                     
                     fprintf(fid,'# Length:\t%u\n',size(timeAxisStr,1));
                     
@@ -287,7 +302,6 @@ classdef PABatchTool < handle
                     for t=1:size(timeAxisStr,1)
                         fprintf(fid,'\t%s',timeAxisStr(t,:));
                     end
-                    
                     fprintf(fid,'\n');
                     fclose(fid);
                 end            
@@ -297,8 +311,18 @@ classdef PABatchTool < handle
             % setup timers
             pctDone = 0;
             pctDelta = 1/fileCount;
-            waitH = waitbar(pctDone,filenames{1},'name','Batch processing','visible','off');
-            titleH = get(get(waitH,'children'),'title');
+
+            %             waitH = waitbar(pctDone,filenames{1},'name','Batch processing','visible','off');
+            
+            % Job security:
+            %             waitH = waitbar(pctDone,filenames{1},'name','Batch processing','visible','on','CreateCancelBtn',{@(hObject,eventData) feval(get(get(hObject,'parent'),'closerequestfcn'),get(hObject,'parent'),[])},'closerequestfcn',{@(varargin) delete(varargin{1})});
+           
+            % Program security:
+            waitH = waitbar(pctDone,filenames{1},'name','Batch processing','visible','on','CreateCancelBtn',@obj.waitbarCancelCallback,'closerequestfcn',@obj.waitbarCloseRequestCallback);
+            
+            % We have a cancel button and an axes handle on our waitbar
+            % window; so look for the one that has the title on it. 
+            titleH = get(findobj(get(waitH,'children'),'flat','-property','title'),'title');
             set(titleH,'interpreter','none');  % avoid '_' being interpreted as subscript instruction
             set(waitH,'visible','on');  %now show the results
             drawnow;
@@ -306,7 +330,9 @@ classdef PABatchTool < handle
             startClock = clock;
             
             % batch process
-            for f=1:fileCount
+            f = 0;
+            while(f< fileCount && obj.isRunning)                
+                f = f+1;
                 %                 waitbar(pctDone,waitH,filenames{f});
                 ticStart = tic;
                 %for each featureFcnArray item as featureFcn                
@@ -319,32 +345,53 @@ classdef PABatchTool < handle
                         fprintf('There was an error in setting the frame duration.\n');
                     else
                         
-                        [~,filename,~] = fileparts(curData.getFilename());
+                        % [~,filename,~] = fileparts(curData.getFilename());
                         
-                        for fn=1:numel(featureFcns)
-                            featureFcn = featureFcns{fn};
-                            
-                            
-                            features_pathname = features_pathnames{fn};
-                            for s=1:numel(signalNames)
-                                signalName = signalNames{s};
-                                featureFilename = fullfile(features_pathname,strcat('features.',featureFcn,'.',signalName,'.txt'));
-                                curData.extractFeature(signalName,featureFcn);
-                                [alignedVec, alignedStartDateVecs] = curData.getAlignedFeatureVecs(featureFcn,signalName,elapsedStartHour, intervalDurationHours);
+                        for s=1:numel(signalNames)
+                            signalName = signalNames{s};
+                        
+                            % Calculate/extract the features for the
+                            % current signal (e.g. x, y, z, or vecMag) and
+                            % the given feature function (e.g.
+                            % 'mode','psd','all')
+                            curData.extractFeature(signalName,featureFcn);
+                                
+                            for fn=1:numel(outputFeatureFcns)
+                                outputFeatureFcn = outputFeatureFcns{fn};
+                                features_pathname = outputFeaturePathnames{fn};
+                                
+                                featureFilename = fullfile(features_pathname,strcat('features.',outputFeatureFcn,'.',signalName,'.txt'));
+                                [alignedVec, alignedStartDateVecs] = curData.getAlignedFeatureVecs(outputFeatureFcn,signalName,elapsedStartHour, intervalDurationHours);
+                                
+                                
                                 numIntervals = size(alignedVec,1);
                                 if(numIntervals>maxNumIntervals)
                                     alignedVec = alignedVec(1:maxNumIntervals,:);
                                     alignedStartDateVecs = alignedStartDateVecs(1:maxNumIntervals, :);
                                     numIntervals = maxNumIntervals;
                                 end
-                                alignedStartDaysOfWeek = datestr(alignedStartDateVecs,'ddd');
-                                alignedStartNumericDaysOfWeek = nan(numIntervals,1);
-                                for a=1:numIntervals
-                                    alignedStartNumericDaysOfWeek(a)=dateMap.(alignedStartDaysOfWeek(a,:));
+                                % Currently, only x,y,z or vector magnitude
+                                % are considered for signal names.  And
+                                % they all have the same number of samples.
+                                % Thus, it is not necessary to perform the
+                                % following caluclations on the first
+                                % iteration through.
+                                if(s==1)
+                                    alignedStartDaysOfWeek = datestr(alignedStartDateVecs,'ddd');
+                                    alignedStartNumericDaysOfWeek = nan(numIntervals,1);
+                                    for a=1:numIntervals
+                                        alignedStartNumericDaysOfWeek(a)=dateMap.(alignedStartDaysOfWeek(a,:));
+                                    end
+                                    startDatenums = datenum(alignedStartDateVecs);
+                                    studyIDs = repmat(curData.getStudyID('numeric'),numIntervals,1);
+                                
+                                    result = [studyIDs,startDatenums,alignedStartNumericDaysOfWeek,alignedVec];
+                                else
+                                    % Just fill in the new part, which is a
+                                    % MxN array of features - taken for M
+                                    % days at N time intervals.
+                                    result =[result(:,1:3), alignedVec];
                                 end
-                                startDatenums = datenum(alignedStartDateVecs);
-                                studyIDs = repmat(curData.getStudyID('numeric'),numIntervals,1);
-                                result = [studyIDs,startDatenums,alignedStartNumericDaysOfWeek,alignedVec];
                                 save(featureFilename,'result','-ascii','-tabs','-append');
                             end
                             
@@ -371,52 +418,73 @@ classdef PABatchTool < handle
                 fprintf('File %d of %d (%0.2f%%) Completed in %0.2f seconds\n',num_files_completed,fileCount,pctDone,elapsed_dur_sec);
                 elapsed_dur_total_sec = etime(clock,startClock);
                 avg_dur_sec = elapsed_dur_total_sec/num_files_completed;
-                remaining_dur_sec = avg_dur_sec*(fileCount-num_files_completed);
-                est_str = sprintf('%01ihrs %01imin %01isec',floor(mod(remaining_dur_sec/3600,24)),floor(mod(remaining_dur_sec/60,60)),floor(mod(remaining_dur_sec,60)));
                 
-                msg = {['Processing ',filenames{f}, ' (file ',num2str(f) ,' of ',fileCountStr,')'],...
-                    ['Elapsed Time: ',datestr(now-startTime,'HH:MM:SS')],...
-                    ['Time Remaining: ',est_str]};
-                fprintf('%s\n',msg{2});
-                if(ishandle(waitH))
+                if(obj.isRunning)
+                    remaining_dur_sec = avg_dur_sec*(fileCount-num_files_completed);
+                    est_str = sprintf('%01ihrs %01imin %01isec',floor(mod(remaining_dur_sec/3600,24)),floor(mod(remaining_dur_sec/60,60)),floor(mod(remaining_dur_sec,60)));
                     
-                    waitbar(pctDone,waitH,char(msg));
-                else
-                    %                     waitHandle = findall(0,'tag','waitbarHTag');
-                end                
+                    msg = {['Processing ',filenames{f}, ' (file ',num2str(f) ,' of ',fileCountStr,')'],...
+                        ['Elapsed Time: ',datestr(now-startTime,'HH:MM:SS')],...
+                        ['Time Remaining: ',est_str]};
+                    fprintf('%s\n',msg{2});
+                    if(ishandle(waitH))
+                        
+                        waitbar(pctDone,waitH,char(msg));
+                    else
+                        %                     waitHandle = findall(0,'tag','waitbarHTag');
+                    end
+                end
             end
             elapsedTimeStr = datestr(now-startTime,'HH:MM:SS');
-            if(ishandle(waitH))
+            
+            % Let the user have a glimplse of the most recent update -
+            % otherwise they have been waiting for this point long enough
+            % already because they pressed the 'cancel' button 
+            if(obj.isRunning)
                 pause(1);
-                waitbar(1,waitH,'Finished!');
-                pause(1);
-                delete(waitH);
-                fileCount = numel(filenames);
-                failCount = numel(failedFiles);
+            end
+            
+            waitbar(1,waitH,'Finished!');
+            pause(1);  % Allow the finish message time to be seen.
+            
+            delete(waitH);  % we are done with this now.
+            
+            fileCount = numel(filenames);
+            failCount = numel(failedFiles);
+            
+            skipCount = fileCount - f;  %f is number of files processed.
+            successCount = f-failCount;
+            
+            if(~obj.isRunning)
+                userCanceledMsg = sprintf('User canceled batch operation before completion.\n\n');
+            else
+                userCanceledMsg = '';
+            end
+            
+            batchResultStr = sprintf(['%sProcessed %u files in %s.\n',...
+                '\tSucceeded:\t%u\n',...
+                '\tSkipped:\t%u\n',...
+                '\tFailed:\t%u\n\n'],userCanceledMsg,fileCount,elapsedTimeStr,successCount,skipCount,failCount);
+            
+            fprintf(logFid,'\n====================SUMMARY===============\n');
+            fprintf(logFid,batchResultStr);
+            fprintf(1,batchResultStr);
+            if(failCount>0 || skipCount>0)
                 
-
-                successCount = fileCount-failCount;
-                batchResultStr = sprintf(['Processed %u files in %s.\n',...
-                    '\tSuccess:\t%u\n',...
-                    '\tFail:\t%u\n\n'],fileCount,elapsedTimeStr,successCount,failCount);
-                
-                fprintf(logFid,'\n====================SUMMARY===============\n');
-                fprintf(logFid,batchResultStr);
-                fprintf(1,batchResultStr);
-                if(failCount>0)
-                    
-                    promptStr = str2cell(sprintf('%s\nThe following files were not processed:',batchResultStr));
-                    failMsg = sprintf('\n\n%u Files Failed:\n',numel(failedFiles));
+                promptStr = str2cell(sprintf('%s\nThe following files were not processed:',batchResultStr));
+                failMsg = sprintf('\n\n%u Files Failed:\n',numel(failedFiles));
+                fprintf(1,failMsg);
+                fprintf(logFid,failMsg);
+                for f=1:numel(failedFiles)
+                    failMsg = sprintf('\t%s\tFAILED.\n',failedFiles{f});
                     fprintf(1,failMsg);
                     fprintf(logFid,failMsg);
-                    for f=1:numel(failedFiles)
-                        failMsg = sprintf('\t%s\tFAILED.\n',failedFiles{f});
-                        fprintf(1,failMsg);
-                        fprintf(logFid,failMsg);
-                    end
-                    
-                    fclose(logFid);
-                    
+                end
+                
+                fclose(logFid);
+                
+                % Only handle the case where non-skipped files fail here.
+                if(failCount>0)
                     skipped_filenames = failedFiles(:);
                     if(failCount<=10)
                         listSize = [180 150];  %[ width height]
@@ -444,35 +512,49 @@ classdef PABatchTool < handle
                             delete(h);
                         end
                     end;
-                else
-                    
-                    fclose(logFid);
-                    
-                    dlgName = 'Batch complete';
-                    defaultBtn = 'Show results';
-                    options.Default = defaultBtn;
-                    options.Interpreter = 'none';
-                    buttonName = questdlg(batchResultStr,dlgName,'Show results','Return to batch tool',options); 
-                    switch buttonName
-                        case 'Show results'
-                            % Close the batch mode
-                            
-                            % Set the results path to be that of the normal
-                            % settings path.  
-                            obj.notify('SwitchToResults',EventData_SwitchToResults);
-                            obj.close();
-                            % Go to the results view
-                        case 'Return to batch tool'
-                            % Bring the figure to the front/onscreen
-                            movegui(obj.figureH);
-                            
-                    end
-
+                end
+            else
+                
+                fclose(logFid);
+                
+                dlgName = 'Batch complete';
+                defaultBtn = 'Show results';
+                options.Default = defaultBtn;
+                options.Interpreter = 'none';
+                buttonName = questdlg(batchResultStr,dlgName,'Show results','Return to batch tool',options);
+                switch buttonName
+                    case 'Show results'
+                        % Close the batch mode
+                        
+                        % Set the results path to be that of the normal
+                        % settings path.
+                        obj.notify('SwitchToResults',EventData_SwitchToResults);
+                        obj.close();
+                        % Go to the results view
+                    case 'Return to batch tool'
+                        % Bring the figure to the front/onscreen
+                        movegui(obj.figureH);
+                        
                 end
                 
             end
+            
+            obj.isRunning = false;
+            
             %             obj.resultsPathname = obj.settings.outputDirectory;
-        end        
+        end
+        
+        
+        % Helper functions for close request and such
+        function waitbarCloseRequestCallback(obj,hWaitbar, ~)
+            obj.isRunning = false;
+            waitbar(100,hWaitbar,'Cancelling .... please wait while current iteration finishes.');
+        end
+        
+        function waitbarCancelCallback(obj,hCancelBtn, eventData) 
+            obj.waitbarCloseRequestCallback(get(hCancelBtn,'parent'),eventData);
+        end
+        
     end
     
     methods(Static)
@@ -509,5 +591,6 @@ classdef PABatchTool < handle
             fprintf(logFID,'\tElapsed start (hours):\t%u\n',settings.alignment.elapsedStartHours);
             fprintf(logFID,'\tInterval length (hours):\t%u\n',settings.alignment.intervalLengthHours);
         end
+        
     end
 end
