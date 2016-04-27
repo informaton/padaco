@@ -667,6 +667,25 @@ classdef PAController < handle
             
         end
         
+        %> @brief
+        %> @param obj Instance of PAController
+        %> @param axisToUpdate Axis to update 'x' or 'y' on the secondary
+        %> axes.
+        %> @param labels Cell of labels to place on the secondary axes.
+        function updateSecondaryAxesLabels(obj, axisToUpdate, labels)
+            axesProps.secondary = struct();
+            if(strcmpi(axisToUpdate,'x'))
+                tickField = 'xtick';
+                labelField = 'xticklabel';
+            else
+                tickField = 'ytick';
+                labelField = 'yticklabel';
+            end
+            axesProps.secondary.(tickField) = PAView.getTicksForLabels(labels);
+            axesProps.secondary.(labelField) = labels;
+            obj.VIEW.initAxesHandles(axesProps);
+        end
+        
         % --------------------------------------------------------------------
         %> @brief Updates the secondary axes with the current features selected in the GUI
         %> @param obj Instance of PAController
@@ -686,6 +705,15 @@ classdef PAController < handle
 
             featureFcn = obj.getExtractorMethod();
             
+            % update secondary axes y labels according to our feature
+            % function.
+            if(strcmpi(featureFcn,'psd'))
+                ytickLabels = {sprintf('PSD (B4)\r(0.01 - 1)'),'Band 3','Band 2','Band 1','Band 1','Activity','Lumens','Daylight'};
+            else
+                ytickLabels = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Lumens','Daylight'};
+            end
+            obj.updateSecondaryAxesLabels('y',ytickLabels);
+            
             %  signalTagLine = obj.getSignalSelection();
             %  obj.drawFeatureVecPatches(featureFcn,signalTagLine,numFrames);
             
@@ -698,13 +726,25 @@ classdef PAController < handle
             end
             obj.featureHandles = [];
             startStopDatenums = obj.getFeatureStartStopDatenums(featureFcn,signalTagLines{1},numFeatures);
+            
+            % Normal behavior is to show each axes for the accelerometer
+            % x, y, z, vecMag (i.e. accel.count.x, accel.count.y, ...)
+            % However, for the PSD, we assign PSD bands to these axes as 
+            % 'vecMag' - psd_band_1
+            % 'x' - psd_band_2
+            % 'y' - psd_band_3
+            % 'z' - psd_band_4
             for s=1:numel(signalTagLines)
                 signalName = signalTagLines{s};
                 featureVec = obj.getFeatureVec(featureFcn,signalName,numFeatures);  %  redundant time stamp calculations benig done for start stpop dateneums in here.
+                
+                % x, y, z
                 if(s<numel(signalTagLines))
                     vecHandles = obj.VIEW.addFeaturesVecToSecondaryAxes(featureVec,startStopDatenums,height,heightOffset);                   
                     obj.featureHandles = [obj.featureHandles(:);vecHandles(:)];
                     heightOffset = heightOffset+height;
+                    
+                % vecMag
                 else
                     % This requires twice the height because it will have a
                     % feature line and heat map
@@ -1484,12 +1524,9 @@ classdef PAController < handle
              
             featureVec = zeros(numSections,1);
             
-            
-            startStopDatenums = zeros(numSections,2);
-            
             % Here we deal with features, which *should* already have the
             % correct number of sections needed.
-            if(strcmpi(featureFcn,'getpsd'))
+            if(strcmpi(featureFcn,'psd'))
                 featureStruct = paDataObj.getStruct('all','features');
                 switch fieldName(end)
                     case 'g'  % accel.count.vecMag
@@ -1539,7 +1576,7 @@ classdef PAController < handle
            
             startStopDatenums = zeros(numSections,2);
             
-            if(strcmpi(featureFcn,'getpsd'))
+            if(strcmpi(featureFcn,'psd'))
                 indices = ceil(linspace(1,numel(paDataObj.dateTimeNum),numSections+1));
                 for i=1:numSections
                     startStopDatenums(i,:) = [paDataObj.dateTimeNum(indices(i)),paDataObj.dateTimeNum(indices(i+1))];

@@ -1662,9 +1662,10 @@ classdef PAData < handle
             data = eval(['data.',signalTagLine]);
             
             obj.frames =  reshape(data(1:frameableSamples),[],obj.numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
-            % Frames are stored in consecutive columns.
-            % Feature functions operate along columns and the output is then
-            % transposed to produce the final, feature column vector
+            % Frames are stored in consecutive columns.  Thus the rows
+            % represent the consecutive samples of data for that frame
+            % Feature functions operate along columns (i.e. down the rows) and the output is then
+            % transposed to produce a final, feature vector (1 row)
             data = obj.frames;
             obj.frames_signalTagLine = signalTagLine;
             
@@ -1731,9 +1732,9 @@ classdef PAData < handle
         end
         
         function dataPSD = getPSD(obj)
-            %            [r,c] = size(obj.frames);  %c = num frames
-            data = obj.frames';
-            data = data(:);
+            %            [r,c] = size(obj.frames);  %c = num frames, r =
+            %            samples per frame
+            data = obj.frames(:);   %get frame data column wise (i.e. convert it back to data that we can get PSD from
             [psdSettings, Fs] = obj.getPSDSettings();
             
             % Result is num frames X num fft samples.
