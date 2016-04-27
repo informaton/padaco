@@ -529,12 +529,11 @@ classdef PABatchTool < handle
                         % Set the results path to be that of the normal
                         % settings path.
                         obj.notify('SwitchToResults',EventData_SwitchToResults);
-                        obj.close();
-                        % Go to the results view
+                        obj.close();  % close this out, 'return',
+                        return;       %  and go to the results view
                     case 'Return to batch tool'
                         % Bring the figure to the front/onscreen
                         movegui(obj.figureH);
-                        
                 end
                 
             end

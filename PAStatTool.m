@@ -171,11 +171,9 @@ classdef PAStatTool < handle
             this.initHandles();            
             this.initBase();
             this.centroidDistributionType = widgetSettings.centroidDistributionType;  % {'performance','membership','weekday'}
-
             
             this.featureInputFilePattern = ['%s',filesep,'%s',filesep,'features.%s.accel.%s.%s.txt'];
             this.featureInputFileFieldnames = {'inputPathname','displaySeletion','processType','curSignal'};       
-               
             
             if(isdir(resultsPathname))
                 this.resultsDirectory = resultsPathname;
@@ -191,30 +189,43 @@ classdef PAStatTool < handle
                 plotType = this.base.plotTypes{get(this.handles.menu_plottype,'value')};
                 this.clearPlots();
                 
-                if(exist(this.getFullCentroidCacheFilename(),'file'))
+                if(exist(this.getFullCentroidCacheFilename(),'file') && this.useCache)
 
-                    validFields = {'centroidObj';
-                        'featureStruct';
-                        'originalFeatureStruct'
-                        'usageStateStruct'};
-                    tmpStruct = load(this.getFullCentroidCacheFilename(),'-mat',validFields{:});
-                    for f = 1:numel(validFields)
-                        curField = validFields{f};
-                        if(isfield(tmpStruct,curField))
-                            curValue = tmpStruct.(curField);
-                            if((strcmp(curField,'centroidObj') && isa(curValue,'PACentroid'))||...
-                                (~strcmpi(curField,'centroidObj') && isstruct(curValue)))
-                                    this.(curField) = curValue;
+                    try
+                        validFields = {'centroidObj';
+                            'featureStruct';
+                            'originalFeatureStruct'
+                            'usageStateStruct'
+                            'resultsDirectory'
+                            'featuresDirectory'};
+                        tmpStruct = load(this.getFullCentroidCacheFilename(),'-mat',validFields{:});
+                        
+                        % Double check that the cached data is still there in
+                        % the expected results directory. We give results and
+                        % features directory of the current object precendence
+                        % over that found in the cache (e.g. we don't overwrite
+                        % this.featuresDirectory with tmpStruct.featuresDirectory
+                        if(strcmpi(tmpStruct.featuresDirectory,this.featuresDirectory))
+                            for f = 1:numel(validFields)
+                                curField = validFields{f};
+                                if(isfield(tmpStruct,curField))
+                                    curValue = tmpStruct.(curField);
+                                    if((strcmp(curField,'centroidObj') && isa(curValue,'PACentroid'))||...
+                                            (~strcmpi(curField,'centroidObj') && isstruct(curValue)))
+                                        this.(curField) = curValue;
+                                    end
+                                end
                             end
+                            % updates our features and start/stop times
+                            this.setStartTimes(this.originalFeatureStruct.startTimes);
+                            
+                            % Updates our scatter plot as applicable.
+                            this.refreshGlobalProfile();
                         end
+                    catch me
+                        showME(me);
                     end
-                    % updates our features and start/stop times
-                    this.setStartTimes(this.originalFeatureStruct.startTimes);
                     
-                    % Updates our scatter plot as applicable.
-                    this.refreshGlobalProfile();
-                    
-
                 end
                 
                 set(padaco_fig_h,'visible','on');                
@@ -243,8 +254,7 @@ classdef PAStatTool < handle
             
             % call the parent/superclass method
             delete@handle(this);
-        end 
-      
+        end
 
         %> @brief Returns boolean indicator if results view is showing
         %> clusters (plot type 'centroids') or not.
@@ -358,10 +368,14 @@ classdef PAStatTool < handle
             inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
 
             if(exist(inputFilename,'file'))
+
+                usageFeature = 'usagestate';
+                usageFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,usageFeature,usageFeature,'count','vecMag');
                 
-                if(isempty(this.usageStateStruct))
-                    usageFeature = 'usagestate';
-                    usageFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,usageFeature,usageFeature,'count','vecMag');
+                % Double check that we haven't switched paths somewhere and
+                % are still using a previous copy of usageStateStruct (i.e.
+                % check usageFilename against this.usageStateStruct.filename)
+                if(isempty(this.usageStateStruct) || ~strcmpi(usageFilename,this.usageStateStruct.filename))
                     if(exist(usageFilename,'file'))
                         this.usageStateStruct= this.loadAlignedFeatures(usageFilename);
                     end
@@ -1911,6 +1925,15 @@ classdef PAStatTool < handle
             this.plotCentroids();
         end
         
+        %> @brief Creates a matlab struct with pertinent fields related to
+        %> the current centroid and its calculation, and then saves the
+        %> struct in a matlab binary (.mat) file.  Fields include
+        %> - centroidObj (sans handle references)
+        %> - featureStruct
+        %> - originalFeatureStruct
+        %> - usageStateStruct
+        %> - resultsDirectory
+        %> - featuresDirectory
         function didCache = cacheCentroid(this)
             didCache = false;
             if(this.useCache)
@@ -1921,6 +1944,8 @@ classdef PAStatTool < handle
                         tmpStruct.featureStruct = this.featureStruct;
                         tmpStruct.originalFeatureStruct = this.originalFeatureStruct;
                         tmpStruct.usageStateStruct = this.usageStateStruct;
+                        tmpStruct.resultsDirectory = this.resultsDirectory;
+                        tmpStruct.featuresDirectory = this.featuresDirectory;
                         fnames = fieldnames(tmpStruct);
                         save(this.getFullCentroidCacheFilename(),'-mat','-struct','tmpStruct',fnames{:});
                         didCache = true;
@@ -2766,7 +2791,7 @@ classdef PAStatTool < handle
         %> - @c weekdayTags
         % ======================================================================
         function baseSettings = getBaseSettings()
-            featureDescriptionStruct = PAData.getFeatureDescriptionStruct();
+            featureDescriptionStruct = PAData.getFeatureDescriptionStructWithPSDBands();
             baseSettings.featureDescriptions = struct2cell(featureDescriptionStruct);
             baseSettings.featureTypes = fieldnames(featureDescriptionStruct);
             baseSettings.signalTypes = {'x','y','z','vecMag'};

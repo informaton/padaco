@@ -1035,14 +1035,21 @@ classdef PAController < handle
             try
                 if(~isempty(f))
                     if(~strcmpi(obj.viewMode,'timeseries'))
-                        obj.setViewMode('timeseries');
+                        obj.VIEW.setViewMode('timeseries'); % by pass the this.setViewMode() for now to avoid follow-up query that a file has not been loaded yet.
                     end
+
+                    
                     obj.VIEW.showBusy('Loading','all');
                     [pathname,basename, baseext] = fileparts(f);
                     obj.SETTINGS.DATA.pathname = pathname;
                     obj.SETTINGS.DATA.filename = strcat(basename,baseext);
 
                     obj.accelObj = PAData(f,obj.SETTINGS.DATA);
+                    
+                    
+                    if(~strcmpi(obj.viewMode,'timeseries'))
+                        obj.setViewMode('timeseries');
+                    end
                     
                     %initialize the PAData object's visual properties                    
                     obj.initAccelDataView(); %calls show obj.VIEW.showReady() Ready...
@@ -1250,7 +1257,6 @@ classdef PAController < handle
             figure(obj.figureH);  %redraw and place it on top
             refresh(obj.figureH); % redraw it
             %             shg();  %make sure it is on top.
-            obj.VIEW.showReady();
             
             switch lower(viewMode)
                 case 'timeseries'
@@ -1265,6 +1271,12 @@ classdef PAController < handle
                 case 'results'
                     obj.initResultsView();
             end
+            
+            % Show ready when everything has been initialized to avoid
+            % flickering (i.e. don't place this above the switch
+            % statement).
+            obj.VIEW.showReady();
+            
         end
                 
         % --------------------------------------------------------------------
@@ -1277,8 +1289,14 @@ classdef PAController < handle
         function menuViewmodeBatchCallback(obj,hObject,eventdata)           
             batchTool = PABatchTool(obj.SETTINGS.BATCH);
             batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
-            batchTool.addlistener('SwitchToResults',@obj.menuViewmodeResultsCallback);
-        end        
+            batchTool.addlistener('SwitchToResults',@obj.setResultsViewModeCallback);
+        end
+        
+        % Pass through callback for setViewModeCallback method with
+        % 'results' argument.
+        function setResultsViewModeCallback(obj, hObject, eventData)
+            obj.setViewModeCallback(hObject,eventData,'results');     
+        end
         
         function updateBatchToolSettingsCallback(obj,batchToolObj,eventData)
             obj.SETTINGS.BATCH = eventData.settings;

@@ -3402,7 +3402,7 @@ classdef PAData < handle
                     
                 case 'features'
                     %                    featureNames =  PAData.getExtractorMethods();
-                    featureNames = fieldnames(PAData.getFeatureDescriptionStruct());
+                    featureNames = fieldnames(PAData.getFeatureDescriptionStructWithPSDBands());
                     dat = struct;
                     for f=1:numel(featureNames)
                         dat.(lower(featureNames{f})) = [];
@@ -3502,7 +3502,7 @@ classdef PAData < handle
             featureStruct.median = 'Median';
             featureStruct.std = 'Standard Deviation';
             featureStruct.rms = 'Root mean square';
-            featureStruct.sum = 'sum';
+            featureStruct.sum = 'Sum';
             featureStruct.var = 'Variance';
             featureStruct.mode = 'Mode';
             featureStruct.usagestate = 'Activity Categories';            
