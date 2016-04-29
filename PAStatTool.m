@@ -52,6 +52,12 @@ classdef PAStatTool < handle
         %> struct of handles that PAStatTool interacts with.  See
         %> initHandles()
         handles; 
+        
+        %> Struct of java component peers to some graphic handles listed
+        %> under @c handles.  Currently only table_profileFields (under the
+        %> analysis figure) is included.  
+        jhandles;
+        
         %> struct of base (all possible) parameter values that can be set
         base;  
         featureTypes;
@@ -1358,6 +1364,9 @@ classdef PAStatTool < handle
             backgroundColor(curIndex,:) = userData.rowOfInterestBackgroundColor;
             set(this.handles.table_centroidProfiles,'backgroundColor',backgroundColor,'rowStriping','on');
             
+            sRow = curIndex-1;  %java is 0 based
+            sCol = this.jhandles.table_centroidProfiles.getSelectedColumn();
+            this.jhandles.table_centroidProfiles.changeSelection(sRow,sCol,false,false);
             this.refreshScatterPlot();
         end
         
@@ -1565,6 +1574,8 @@ classdef PAStatTool < handle
                 'backgroundColor',backgroundColor,'rowStriping','on',...
                 'userdata',userData);
                         
+
+            
             this.refreshProfileTableData();
                         
             fitTableWidth(this.handles.table_centroidProfiles);
@@ -1615,6 +1626,17 @@ classdef PAStatTool < handle
                 fname = analysisHandlesOfInterest{f};
                 this.handles.(fname) = tmpAnalysisHandles.(fname);
             end
+            
+            %             h=uitable();
+            %             hFig = ancestor(h,'figure');
+            %             hFig = this.analysisFigureH;
+            %             jFrame = get(hFig,'JavaFrame');
+            jFrame = get(this.analysisFigureH,'JavaFrame');
+            jFigPanel = get(jFrame,'FigurePanelContainer');
+%             this.jhandles.table_centroidProfiles=jFigPanel.getComponent(0).getComponent(0).getComponent(0).getComponent(0).getComponent(0);
+            
+            this.jhandles.table_centroidProfiles = jFigPanel.getComponent(0).getComponent(4).getComponent(0).getComponent(0).getComponent(0);
+            %             j.getUIClassID=='TableUI';
         
             % allocate line handle names here for organizational consistency
             this.handles.line_allScatterPlot = [];
