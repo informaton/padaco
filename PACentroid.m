@@ -579,7 +579,7 @@ classdef PACentroid < handle
             useDefaultRandomizerSeed = true;
             
             %             inputSettings.method = 'kmedians';
-            inputSettings.method = 'kmedoids';
+            % inputSettings.method = 'kmedoids';
             if(strcmpi(inputSettings.method,'kmedians'))
                 if(ishandle(this.statusTextHandle))
                     set(this.statusTextHandle ,'string',{sprintf('Performing accelerated k-medians clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.thresholdScale)});

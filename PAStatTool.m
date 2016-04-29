@@ -15,6 +15,8 @@ classdef PAStatTool < handle
         featuresDirectory;
         cacheDirectory;
         
+        %> @brief Cluster method employed {'kmeans','kmedoids'}
+        clusterMethod;
         %> Booleans
         useCache;
         useDatabase;
@@ -115,14 +117,21 @@ classdef PAStatTool < handle
         %> @retval this Instance of PAStatTool
         % ======================================================================
         function this = PAStatTool(padaco_fig_h, resultsPathname, widgetSettings)
-            if(nargin<3)
-                widgetSettings = [];
+            if(nargin<3 || isempty(widgetSettings))
+                widgetSettings = PAStatTool.getDefaultParameters();
             end
             try
-                if(~isempty(widgetSettings) && isfield(widgetSettings,'useDatabase') && widgetSettings.useDatabase)
+                
+                % This call ensures that we have at a minimum, the default parameter field-values in widgetSettings.
+                % And eliminates later calls to determine if a field exists
+                % or not in the input widgetSettings parameter
+                widgetSettings = PAData.mergeStruct(PAStatTool.getDefaultParameters,widgetSettings);
+                
+                if(isfield(widgetSettings,'useDatabase') && widgetSettings.useDatabase)
                     this.useDatabase = true;
                     this.databaseObj = feval(widgetSettings.databaseClass);
                     this.profileFields = this.databaseObj.getColumnNames('subjectInfo_t');
+                    addpath('/users/unknown/Google Drive/work/Stanford - Pediatrics/code/models');
                 else
                     this.useDatabase = false;
                     this.databaseObj = [];
@@ -149,19 +158,7 @@ classdef PAStatTool < handle
             this.originalFeatureStruct = [];
             this.canPlot = false;
             this.featuresDirectory = [];
-            
-            
-            if(isfield(widgetSettings,'useCache'))
-                this.useCache = widgetSettings.useCache;
-            else
-                this.useCache = false;                
-            end
-            
-            if(~isempty(widgetSettings) && isfield(widgetSettings,'cacheDirectory'))
-                this.cacheDirectory = widgetSettings.cacheDirectory;
-            else            
-                this.cacheDirectory = [];
-            end
+
             
             this.figureH = padaco_fig_h;
             this.featureStruct = [];
@@ -303,7 +300,7 @@ classdef PAStatTool < handle
             paramStruct.useDatabase = this.useDatabase;
             paramStruct.databaseClass = this.originalWidgetSettings.databaseClass;
             paramStruct.useCache = this.useCache;
-            paramStruct.cacheDirectory = this.cacheDirectory;
+            paramStruct.cacheDirectory = this.cacheDirectory;            
         end
         
         % ======================================================================
@@ -321,6 +318,12 @@ classdef PAStatTool < handle
                 initializeOnSet = true;
             end
             this.originalWidgetSettings = widgetSettings;
+            
+            % Merge the defaults with what is here otherwise.  
+            this.useCache = widgetSettings.useCache;
+            this.cacheDirectory = widgetSettings.cacheDirectory;
+            this.clusterMethod = widgetSettings.clusterMethod;
+            
             if(initializeOnSet)
                 this.initWidgets(this.originalWidgetSettings);
 %                 this.refreshPlot();
@@ -1181,8 +1184,9 @@ classdef PAStatTool < handle
                 
                 % Initialize the scatter plot axes
                 this.initScatterPlotAxes();
+                set(this.handles.push_analyzeClusters,'string','Analyze Clusters','callback',@this.analyzeClustersCallback);
                 
-                set(this.handles.push_dumpTable,'string','Dump Table','callback',@this.dumpTableResultsCallback);
+                set(this.handles.push_exportTable,'string','Export Table','callback',@this.exportTableResultsCallback);
                 set(this.handles.text_analysisTitle,'string','','fontsize',12);
             else
                 set(this.handles.check_showAnalysisFigure,'visible','off');
@@ -1275,11 +1279,38 @@ classdef PAStatTool < handle
                 this.enableCentroidRecalculation();
             end
         end
+
         
-        function dumpTableResultsCallback(this, hObject,eventData)
+
+        function analyzeClustersCallback(this, hObject,eventData)
+           % Get my centroid Object
+           % Take in all of the clusters, or the ones selected
+           % Apply to see how well it splits the data...
+           % Requires: addpath('/users/unknown/Google Drive/work/Stanford - Pediatrics/code/models');
+           initString = get(hObject,'string');
+           try
+               set(hObject,'enable','off','String','Analyzing ...');
+               dependentVar = this.getProfileFieldSelection();
+%                'bmi_zscore'
+%                'bmi_zscore+'  %for logistic regression modeling
+               resultStr = gee_model(this.centroidObj.getCovariateStruct(),dependentVar,{'age'; '(sex=1) as male'});
+               if(~isempty(resultStr))
+                   msgbox(resultStr);
+               end
+                   
+           catch me
+               set(hObject,'string','Error!');
+               showME(me);
+               pause(1);
+           end
+           set(hObject,'enable','on','string',initString);
+            
+        end
+
+        
+        function exportTableResultsCallback(this, hObject,eventData)
             tableData = get(this.handles.table_centroidProfiles,'data');
             copy2workspace(tableData,'centroidProfilesTable');
-            
         end
         
 
@@ -1330,6 +1361,9 @@ classdef PAStatTool < handle
             this.refreshScatterPlot();
         end
         
+        function profileField = getProfileFieldSelection(this)
+            profileField = getMenuString(this.handles.menu_ySelection);
+        end
         
         function shouldShow = shouldShowAnalysisFigure(this)
             shouldShow = get(this.handles.check_showAnalysisFigure,'value');
@@ -1447,15 +1481,23 @@ classdef PAStatTool < handle
             numCentroids = this.centroidObj.getNumCentroids();  %or numel(globalStruct.colnames).
             sortOrders = find( this.centroidObj.getCOIToggleOrder() );
             curProfileFieldIndex = this.getProfileFieldIndex();
-            % get the current profile's ('curProfileIndex' row) mean ('2' column) for all centrois
+            % get the current profile's ('curProfileIndex' row) mean ('2' column) for all centroids
             % (':').
             x = 1:numCentroids;
             y = this.allProfiles(curProfileFieldIndex, 2, :);  % rows (1) = 
                         % columns (2) = 
                         % dimension (3) = centroid popularity (1 to most
                         % popular index)
-                        
+            
+            globalMean = repmat(this.profileTableData{curProfileFieldIndex,5},size(x));
+            profileSEM = this.profileTableData{curProfileFieldIndex,6};
+            upper95 = globalMean+1.96*profileSEM;
+            lower95 = globalMean-1.96*profileSEM;
+            
             set(this.handles.line_allScatterPlot,'xdata',x(:),'ydata',y(:));
+            set(this.handles.line_meanScatterPlot,'xdata',x(:),'ydata',globalMean(:));
+            set(this.handles.line_upper95PctScatterPlot,'xdata',x(:),'ydata',upper95(:));
+            set(this.handles.line_lower95PctScatterPlot,'xdata',x(:),'ydata',lower95(:));
             
             % The sort order indices will not change on a refresh like
             % this, but the y values at these indices will; so update them
@@ -1465,6 +1507,9 @@ classdef PAStatTool < handle
             
             set(this.handles.line_coiInScatterPlot,'xdata',sortOrders,'ydata',y(sortOrders));%,'displayName','blah');
             legend(this.handles.axes_scatterplot,this.handles.line_coiInScatterPlot,'location','southwest');
+            
+            
+            
         end
         
         % only extract the handles we are interested in using for the stat tool.
@@ -1532,6 +1577,10 @@ classdef PAStatTool < handle
         % ======================================================================
         function initScatterPlotAxes(this)
             set(this.handles.axes_scatterplot,'box','on');
+            this.handles.line_meanScatterPlot = line('parent',this.handles.axes_scatterplot,'xdata',[],'ydata',[],'color','b','linestyle','--');
+            this.handles.line_upper95PctScatterPlot = line('parent',this.handles.axes_scatterplot,'xdata',[],'ydata',[],'color','b','linestyle',':');
+            this.handles.line_lower95PctScatterPlot = line('parent',this.handles.axes_scatterplot,'xdata',[],'ydata',[],'color','b','linestyle',':');
+            
             this.handles.line_allScatterPlot = line('parent',this.handles.axes_scatterplot,'xdata',[],'ydata',[],'color','k','linestyle','none','marker','.','buttondownfcn',@this.scatterplotButtonDownFcn);
             this.handles.line_coiInScatterPlot = line('parent',this.handles.axes_scatterplot,'xdata',[],'ydata',[],'color','r','linestyle','none','markerFaceColor','g','marker','o','markersize',6,'buttondownfcn',@this.scatterPlotCOIButtonDownFcn);
             [~,profileFieldName] = this.getProfileFieldIndex();
@@ -1557,7 +1606,8 @@ classdef PAStatTool < handle
                 'axes_scatterplot'
                 'table_centroidProfiles'
                 'menu_ySelection'
-                'push_dumpTable'
+                'push_exportTable'
+                'push_analyzeClusters'
                 'text_analysisTitle'
                 };
             
@@ -1569,6 +1619,9 @@ classdef PAStatTool < handle
             % allocate line handle names here for organizational consistency
             this.handles.line_allScatterPlot = [];
             this.handles.line_coiInScatterPlot = [];
+            this.handles.line_meanScatterPlot = [];
+            this.handles.line_upper95PctScatterPlot = [];
+            this.handles.line_lower95PctScatterPlot = [];
             
             
             % get handles of interest from the main/primary figure.
@@ -1971,6 +2024,7 @@ classdef PAStatTool < handle
             this.clearPrimaryAxes();
             this.showBusy();
             pSettings= this.getPlotSettings();
+            
             this.centroidObj = [];
             
             if(this.calcFeatureStruct())            
@@ -2461,6 +2515,7 @@ classdef PAStatTool < handle
             userSettings.centroidDurationHours = this.base.centroidHourlyDurations(userSettings.centroidDurationSelection);
             
             userSettings.centroidDistributionType = this.centroidDistributionType;
+            userSettings.clusterMethod = this.clusterMethod;
         end
 
         
@@ -2773,6 +2828,8 @@ classdef PAStatTool < handle
             paramStruct.centroidDistributionType = 'membership';  %{'performance','membership','weekday'}
             
             paramStruct.profileFieldSelection = 1;
+            
+            paramStruct.clusterMethod = 'kmeans';  % {'kmeans','kmedoids'}
         end
         
         % ======================================================================

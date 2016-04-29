@@ -365,21 +365,24 @@ classdef  PASettings < handle
                         for f=1:numel(obj.fieldNames)
                             cur_field = obj.fieldNames{f};
                             if(~isfield(paramStruct,cur_field) || ~isstruct(paramStruct.(cur_field)))
-                                fprintf('\nWarning: Could not load parameters from file %s.  The %s parameters are missing.  Will use default settings instead.\n\r',full_paramsFile,cur_field);
-                                return;
+                                fprintf('\nWarning: Could not find the ''%s'' parameter in %s.  Default settings for this parameter are being used instead.\n\r',cur_field,full_paramsFile);
+                                continue;
                             else
                                 structFnames = fieldnames(obj.(cur_field));
                                 for g= 1:numel(structFnames)
                                     cur_sub_field = structFnames{g};
                                     %check if there is a corruption
                                     if(~isfield(paramStruct.(cur_field),cur_sub_field))
-                                        fprintf('\nSettings file corrupted.  The %s.%s parameter is missing.  Using default Padaco settings\n\n', cur_field,cur_sub_field);
-                                        return;
+                                        fprintf('\nSettings file may be corrupted or incomplete.  The %s.%s parameter is missing.  Using default setting for this paramter.\n\n', cur_field,cur_sub_field);
+                                        continue;
                                     end
                                 end
                             end
                         end
                         
+                        % Not that everything has been checked and we have
+                        % warned the groups of what we may be missing, we
+                        % can continue.
                         for f=1:numel(fnames)
                             obj.(fnames{f}) = paramStruct.(fnames{f});
                         end

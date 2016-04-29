@@ -3142,7 +3142,10 @@ classdef PAData < handle
         end
         
         % ======================================================================
-        %> @brief Appends the fields of one to another.
+        %> @brief Appends the fields of one to another.  Values for fields of the same name are taken from the right struct (rtStruct)
+        %> and built into the output struct.  If the left struct does not
+        %> have a matching field, then it will be created with the right
+        %> structs value.  
         %> @param ltStruct A structure whose fields are to be appended by the other.
         %> @param rtStruct A structure whose fields are will be appened to the other.
         %> @retval ltStruct The resultof append rtStruct to ltStruct.
@@ -3156,7 +3159,7 @@ classdef PAData < handle
         %> @note rtStruct =
         %> @note     xdata: [1 100]
         %> @note
-        %> @note PAData.structEval(rtStruct,ltStruct)
+        %> @note PAData.structEval(ltStruct,rtStruct)
         %> @note ans =
         %> @note     ydata: [1 1]
         %> @note     xdata: [1 100]
@@ -3174,6 +3177,7 @@ classdef PAData < handle
                     if(isstruct(ltStruct.(curField)))
                         ltStruct.(curField) = PAData.appendStruct(ltStruct.(curField),rtStruct);
                     else
+                        % This is a bit of an issue ...
                         appendNames=fieldnames(rtStruct);
                         for a=1:numel(appendNames)
                             ltStruct.(appendNames{a}) = rtStruct.(appendNames{a});
