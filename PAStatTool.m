@@ -672,7 +672,18 @@ classdef PAStatTool < handle
         function fullFilename = getFullCentroidCacheFilename(this)
             fullFilename = fullfile(this.cacheDirectory,this.RESULTS_CACHE_FILENAME);
         end
-            
+        
+        % ======================================================================
+        %> @brief Checks if a centroid object member (instance of
+        %> PACentroid) exists and converged.
+        %> @param this Instance of PAStatTool
+        %> @retval isValid (boolean) True if a centroid object (instance of
+        %> PACentroid) exists and converged; False otherwise
+        % ======================================================================
+        function isValid = hasValidCentroid(this)
+            isValid = ~(isempty(this.centroidObj) || this.centroidObj.failedToConverge());
+        end 
+
 
     end
     
@@ -742,82 +753,7 @@ classdef PAStatTool < handle
             this.previousState.plotType = plotType;
         end
         
-        
-        
-        
-        % ======================================================================
-        %> @brief Configure gui handles for non centroid/clusting viewing
-        %> @param this Instance of PAStatTool
-        % ======================================================================
-        function switchFromClustering(this)
-            this.previousState.sortValues = get(this.handles.check_sortvalues,'value');            
-            set(this.handles.check_sortvalues,'value',0,'enable','off');            
-            set(this.handles.check_normalizevalues,'value',this.previousState.normalizeValues,'enable','on');
-            this.hideCentroidControls();
-            
-            set(findall(this.handles.panel_plotCentroid,'enable','on'),'enable','off');            %  set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','off');
-            set(this.handles.axes_secondary,'visible','off');
-            set(this.figureH,'WindowKeyPressFcn',[]);
-            set(this.analysisFigureH,'visible','off');
 
-            this.refreshPlot();
-        end    
-        
-        % ======================================================================
-        %> @brief Checks if a centroid object member (instance of
-        %> PACentroid) exists and converged.
-        %> @param this Instance of PAStatTool
-        %> @retval isValid (boolean) True if a centroid object (instance of
-        %> PACentroid) exists and converged; False otherwise
-        % ======================================================================
-        function isValid = hasValidCentroid(this)
-            isValid = ~(isempty(this.centroidObj) || this.centroidObj.failedToConverge());
-        end
-        
-        % ======================================================================
-        %> @brief Configure gui handles for centroid analysis and viewing.
-        %> @param this Instance of PAStatTool
-        % ======================================================================
-        function switch2clustering(this)
-            set(this.handles.check_sortvalues,'value',this.previousState.sortValues,'enable','on');            
-            this.previousState.normalizeValues = get(this.handles.check_normalizevalues,'value');           
-            set(this.handles.check_normalizevalues,'value',1,'enable','off');
-            set(this.handles.axes_primary,'ydir','normal');  %sometimes this gets changed by the heatmap displays which have the time shown in reverse on the y-axis
-            
-            set(this.handles.panel_controlCentroid,'visible','on');
-            
-            if(this.getCanPlot())
-                if(this.hasValidCentroid())                    
-                    % lite version of refreshCentroidsAndPlot()
-                    this.showCentroidControls();
-                    this.plotCentroids();                     
-                    this.enableCentroidControls();
-                else
-                    this.disableCentroidControls();
-                    this.refreshCentroidsAndPlot();
-                end
-                
-                set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','on');
-                
-                if(this.hasValidCentroid())
-                    validColor = [1 1 1];
-                    keyPressFcn = @this.mainFigureKeyPressFcn;
-                else
-                    validColor = [0.75 0.75 0.75];
-                    keyPressFcn = [];
-                end
-                
-                
-                % This is handled in the plot centroid method, right before tick marks are down on
-                % set(this.handles.axes_primary,'color',validColor); 
-                set(this.handles.axes_secondary,'visible','on','color',validColor);
-                set(this.figureH,'WindowKeyPressFcn',keyPressFcn);
-                
-                if(this.shouldShowAnalysisFigure())
-                    set(this.analysisFigureH,'visible','on');
-                end
-            end
-        end
         
         % ======================================================================
         %> @brief Window key press callback for centroid view changes
@@ -966,6 +902,10 @@ classdef PAStatTool < handle
             this.plotCentroids();
         end
 
+    end
+    
+    methods
+            
         
         % ======================================================================
         %> @brief Initialize gui handles using input parameter or default
@@ -1218,6 +1158,140 @@ classdef PAStatTool < handle
                 'fontsize',12);
         end
         
+
+        % ======================================================================
+        %> @brief Configure gui handles for non centroid/clusting viewing
+        %> @param this Instance of PAStatTool
+        % ======================================================================
+        function switchFromClustering(this)
+            this.previousState.sortValues = get(this.handles.check_sortvalues,'value');            
+            set(this.handles.check_sortvalues,'value',0,'enable','off');            
+            set(this.handles.check_normalizevalues,'value',this.previousState.normalizeValues,'enable','on');
+            this.hideCentroidControls();
+            
+            set(findall(this.handles.panel_plotCentroid,'enable','on'),'enable','off');            %  set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','off');
+            set(this.handles.axes_secondary,'visible','off');
+            set(this.figureH,'WindowKeyPressFcn',[]);
+            set(this.analysisFigureH,'visible','off');
+
+            this.refreshPlot();
+        end    
+        
+
+        
+        % ======================================================================
+        %> @brief Configure gui handles for centroid analysis and viewing.
+        %> @param this Instance of PAStatTool
+        % ======================================================================
+        function switch2clustering(this)
+            set(this.handles.check_sortvalues,'value',this.previousState.sortValues,'enable','on');            
+            this.previousState.normalizeValues = get(this.handles.check_normalizevalues,'value');           
+            set(this.handles.check_normalizevalues,'value',1,'enable','off');
+            set(this.handles.axes_primary,'ydir','normal');  %sometimes this gets changed by the heatmap displays which have the time shown in reverse on the y-axis
+            
+            set(this.handles.panel_controlCentroid,'visible','on');
+            
+            if(this.getCanPlot())
+                if(this.hasValidCentroid())                    
+                    % lite version of refreshCentroidsAndPlot()
+                    this.showCentroidControls();
+                    this.plotCentroids();                     
+                    this.enableCentroidControls();
+                else
+                    this.disableCentroidControls();
+                    this.refreshCentroidsAndPlot();
+                end
+                
+                set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','on');
+                
+                if(this.hasValidCentroid())
+                    validColor = [1 1 1];
+                    keyPressFcn = @this.mainFigureKeyPressFcn;
+                else
+                    validColor = [0.75 0.75 0.75];
+                    keyPressFcn = [];
+                end
+                
+                
+                % This is handled in the plot centroid method, right before tick marks are down on
+                % set(this.handles.axes_primary,'color',validColor); 
+                set(this.handles.axes_secondary,'visible','on','color',validColor);
+                set(this.figureH,'WindowKeyPressFcn',keyPressFcn);
+                
+                if(this.shouldShowAnalysisFigure())
+                    set(this.analysisFigureH,'visible','on');
+                end
+            end
+        end        
+
+        
+        function decreaseProfileFieldSelection(this)
+           curProfileFieldIndex = this.getProfileFieldIndex();
+           this.setProfileFieldIndex(curProfileFieldIndex-1);
+        end
+        
+        function increaseProfileFieldSelection(this)
+           curProfileFieldIndex = this.getProfileFieldIndex();
+           this.setProfileFieldIndex(curProfileFieldIndex+1);
+        end
+        
+        
+        %> @brief Software driven callback trigger for
+        %> profileFieldSelectionChangeCallback.  Used as a wrapper for
+        %> handling non-menu_ySelection menu changes to the profile field
+        %> index (e.g. using up or down arrow keys).
+        %> @param this Instance of PAStatTool
+        %> @param profileFieldIndex
+        function setProfileFieldIndex(this, profileFieldIndex)
+            selections = get(this.handles.menu_ySelection,'string');
+            if(iscell(selections) && profileFieldIndex > 0 && profileFieldIndex <= numel(selections))
+                set(this.handles.menu_ySelection,'value',profileFieldIndex);
+                this.profileFieldSelectionChangeCallback(this.handles.menu_ySelection,[]);
+            end
+        end
+
+        %> @brief Callback for the profile selection menu widget found in
+        %> the analysis figure.  Results in changing the scatter plot and 
+        %> highlighting the newly selected field of interest in the
+        %> centroid profile table.
+        %> @param this Instance of PAStatTool
+        %> @param hObject
+        %> @param eventData 
+        function profileFieldSelectionChangeCallback(this,hObject,eventData)
+            [curSetting, curIndex] = getSelectedMenuString(hObject);
+            ylabel(this.handles.axes_scatterplot,curSetting);
+            
+            % highlight the newly selected field of interest in the
+            % centroid profile table.
+            userData = get(this.handles.table_centroidProfiles,'userdata');
+            backgroundColor = userData.defaultBackgroundColor;
+            backgroundColor(curIndex,:) = userData.rowOfInterestBackgroundColor;
+            set(this.handles.table_centroidProfiles,'backgroundColor',backgroundColor,'rowStriping','on');
+            drawnow();
+%             pause(0.2);
+            sRow = curIndex-1;  %java is 0 based
+            sCol = max(0,this.jhandles.table_centroidProfiles.getSelectedColumn());  %give us the first column if nothing is selected)
+%             this.jhandles.table_centroidProfiles.setRowSelectionInterval(sRow,sRow);
+%             this.jhandles.table_centroidProfiles.setSelectionBackground()
+            this.jhandles.table_centroidProfiles.changeSelection(sRow,sCol,false,false);
+            this.jhandles.table_centroidProfiles.repaint();
+            this.refreshScatterPlot();
+        end
+        
+        function profileField = getProfileFieldSelection(this)
+            profileField = getMenuString(this.handles.menu_ySelection);
+        end
+        
+        function shouldShow = shouldShowAnalysisFigure(this)
+            shouldShow = get(this.handles.check_showAnalysisFigure,'value');
+        end
+        
+        
+    end
+    
+    methods(Access=protected)
+        
+        
         % ======================================================================
         %> @brief Callback to enable the push_refreshCentroids button.  The button's 
         %> background color is switched to green to highlight the change and need
@@ -1318,66 +1392,7 @@ classdef PAStatTool < handle
             tableData = get(this.handles.table_centroidProfiles,'data');
             copy2workspace(tableData,'centroidProfilesTable');
         end
-        
-
-        
-        function decreaseProfileFieldSelection(this)
-           curProfileFieldIndex = this.getProfileFieldIndex();
-           this.setProfileFieldIndex(curProfileFieldIndex-1);
-        end
-        
-        function increaseProfileFieldSelection(this)
-           curProfileFieldIndex = this.getProfileFieldIndex();
-           this.setProfileFieldIndex(curProfileFieldIndex+1);
-        end
-        
-        
-        %> @brief Software driven callback trigger for
-        %> profileFieldSelectionChangeCallback.  Used as a wrapper for
-        %> handling non-menu_ySelection menu changes to the profile field
-        %> index (e.g. using up or down arrow keys).
-        %> @param this Instance of PAStatTool
-        %> @param profileFieldIndex
-        function setProfileFieldIndex(this, profileFieldIndex)
-            selections = get(this.handles.menu_ySelection,'string');
-            if(iscell(selections) && profileFieldIndex > 0 && profileFieldIndex <= numel(selections))
-                set(this.handles.menu_ySelection,'value',profileFieldIndex);
-                this.profileFieldSelectionChangeCallback(this.handles.menu_ySelection,[]);
-            end
-        end
-
-        %> @brief Callback for the profile selection menu widget found in
-        %> the analysis figure.  Results in changing the scatter plot and 
-        %> highlighting the newly selected field of interest in the
-        %> centroid profile table.
-        %> @param this Instance of PAStatTool
-        %> @param hObject
-        %> @param eventData 
-        function profileFieldSelectionChangeCallback(this,hObject,eventData)
-            [curSetting, curIndex] = getSelectedMenuString(hObject);
-            ylabel(this.handles.axes_scatterplot,curSetting);
-            
-            % highlight the newly selected field of interest in the
-            % centroid profile table.
-            userData = get(this.handles.table_centroidProfiles,'userdata');
-            backgroundColor = userData.defaultBackgroundColor;
-            backgroundColor(curIndex,:) = userData.rowOfInterestBackgroundColor;
-            set(this.handles.table_centroidProfiles,'backgroundColor',backgroundColor,'rowStriping','on');
-            
-            sRow = curIndex-1;  %java is 0 based
-            sCol = this.jhandles.table_centroidProfiles.getSelectedColumn();
-            this.jhandles.table_centroidProfiles.changeSelection(sRow,sCol,false,false);
-            this.refreshScatterPlot();
-        end
-        
-        function profileField = getProfileFieldSelection(this)
-            profileField = getMenuString(this.handles.menu_ySelection);
-        end
-        
-        function shouldShow = shouldShowAnalysisFigure(this)
-            shouldShow = get(this.handles.check_showAnalysisFigure,'value');
-        end
-        
+                
         % Should probably move to event listeners here pretty soon.
         function hideAnalysisFigure(this,varargin)
             set(this.handles.check_showAnalysisFigure,'value',0);
@@ -1483,7 +1498,10 @@ classdef PAStatTool < handle
         function centroidDistributionCallback(this,hObject,eventdata,selection)
             this.centroidDistributionType = selection;
             this.plotCentroids();
-        end            
+        end   
+    end
+    
+    methods
       
         
         function refreshScatterPlot(this)
@@ -1561,18 +1579,28 @@ classdef PAStatTool < handle
             backgroundColor = backgroundColor(1:numRows,:);  %make sure we only get as many rows as we actually have.
             userData.defaultBackgroundColor = backgroundColor;
             userData.rowOfInterestBackgroundColor = [0.5 0.5 0.5];
+            
+            this.jhandles.table_centroidProfiles.setSelectionBackground(java.awt.Color(0.5,0.5,0.5));
+            this.jhandles.table_centroidProfiles.setSelectionForeground(java.awt.Color(0.0,0.0,0.0));
+            
             backgroundColor(profileFieldSelection,:) = userData.rowOfInterestBackgroundColor;
             
             % legend(this.handles.axes_scatterPlot,'off');
             tableData = cell(numRows,numel(profileColumnNames));
             this.profileTableData = tableData;  %array2table(tableData,'VariableNames',profileColumnNames,'RowNames',rowNames);
             
+            % Could use the DefaultTableModel instead of the, otherwise,
+            % DefaultUIStyleTableModel which does not provide the same
+            % functionality (namely setRowData)
+            %             this.jhandles.table_centroidProfiles.setModel(javax.swing.table.DefaultTableModel(tableData,profileColumnNames));
+                     
             %             curStack = dbstack;
             %             fprintf(1,'Skipping centroid profile table initialization on line %u of %s\n',curStack(1).line,curStack(1).file);
             set(this.handles.table_centroidProfiles,'rowName',rowNames,'columnName',profileColumnNames,...
                 'units','points','fontname','arial','fontsize',12,'fontunits','pixels','visible','on',...
                 'backgroundColor',backgroundColor,'rowStriping','on',...
-                'userdata',userData);
+                'userdata',userData,'CellSelectionCallback',@this.analysisTableCellSelectionCallback);
+            
                         
 
             
@@ -1682,9 +1710,6 @@ classdef PAStatTool < handle
 %                 'text_resultsCentroid'
 %                 'table_centroidProfiles'
                 };
-            
-            
-        
             
             for f=1:numel(handlesOfInterest)
                 fname = handlesOfInterest{f};
@@ -2548,10 +2573,46 @@ classdef PAStatTool < handle
         function didRefresh = refreshProfileTableData(this)
             %             curStack = dbstack;
             %             fprintf(1,'Skipping %s on line %u of %s\n',curStack(1).name,curStack(1).line,curStack(1).file);
+            
+            sRow = this.getProfileFieldIndex()-1;  % Java is 0-based, MATLAB is 1-based
+            sCol = max(0,this.jhandles.table_centroidProfiles.getSelectedColumn());  %give us the first column if nothing is selected)
+                         
+            jViewPort = this.jhandles.table_centroidProfiles.getParent();
+            initViewPos = jViewPort.getViewPosition();
             set(this.handles.table_centroidProfiles,'data',this.profileTableData);
+            
+            %
+            %             colNames = get(this.handles.table_centroidProfiles,'columnname');
+%             this.jhandles.table_centroidProfiles.getModel.setDataVector(this.profileTableData, colNames); % data = java.util.Vector
+            %             %             data = this.jhandles.table_centroidProfiles.getModel.getDataVector;
+            
+            drawnow();
+            this.jhandles.table_centroidProfiles.changeSelection(sRow,sCol,false,false);            
+            jViewPort.setViewPosition(initViewPos);
+            drawnow();
+%             jViewPort.repaint();
+            
+            this.jhandles.table_centroidProfiles.repaint();
+            
+%             this.jhandles.table_centroidProfiles.clearSelection();
+%              this.jhandles.table_centroidProfiles.setRowSelectionInterval(sRow,sRow);
+            
+%          
             didRefresh = true;
-        end
+        end  
         
+        
+        function analysisTableCellSelectionCallback(this, hObject, eventdata)
+            if(~isempty(eventdata.Indices))
+                rowSelectionIndex = eventdata.Indices(1);
+                % If we clicked on a different row than where we were before,
+                % then adjust to the new row.
+                if(rowSelectionIndex~=this.getProfileFieldIndex())
+                    this.setProfileFieldIndex(rowSelectionIndex);
+                end
+            end
+            
+        end
         
         %> @brief Refreshes profile statistics for the current centroid of interest (COI).
         %> This method should be called whenever the COI changes.
