@@ -2,10 +2,10 @@
 %> @brief PAController serves as Padaco's controller component (i.e. in the model, view, controller paradigm).
 % ======================================================================
 %> @brief PAController serves as the UI component of event marking in
-%> the Padaco.  
+%> the Padaco.
 %
 %> In the model, view, controller paradigm, this is the
-%> controller. 
+%> controller.
 classdef PAController < handle
     properties(Constant)
         versionNum = 1.51;
@@ -28,12 +28,12 @@ classdef PAController < handle
         %> acceleration activity object - instance of PAData
         accelObj;
         %> Instance of PASettings - this is brought in to eliminate the need for several globals
-        SETTINGS; 
+        SETTINGS;
         %> Instance of PAView - Padaco's view component.
         VIEW;
-        %> Instance of PAModel - Padaco's model component.  See accelObj.  
-        MODEL;        
-
+        %> Instance of PAModel - Padaco's model component.  See accelObj.
+        MODEL;
+        
         %> Instance of PAStatTool - results controller when in results view
         %> mode.
         StatTool;
@@ -45,19 +45,19 @@ classdef PAController < handle
         current_linehandle;
         
         %> cell of string choices for the marking state (off, 'marking','general')
-        state_choices_cell; 
+        state_choices_cell;
         %> string of the current selected choice
         %> handle to the figure an instance of this class is associated with
         %> struct of handles for the context menus
-        contextmenuhandle; 
-
-        %> struct of different time resolutions, field names correspond to the units of time represented in the field        
+        contextmenuhandle;
+        
+        %> struct of different time resolutions, field names correspond to the units of time represented in the field
         window_resolution;
         num_windows;
         display_samples; %vector of the samples to be displayed
         shift_display_samples_delta; %number of samples to adjust display by for moving forward or back
         startDateTime;
-                
+        
         %> Struct of batch settings with fields as described by
         %PABatchTool's getDefault
         batch;
@@ -73,13 +73,13 @@ classdef PAController < handle
         resultsPathname;
         
         %> struct to keep track of various Padaco states
-        STATE; 
+        STATE;
         Padaco_loading_file_flag; %boolean set to true when initially loading a src file
         Padaco_mainaxes_ylim;
-        Padaco_mainaxes_xlim;        
+        Padaco_mainaxes_xlim;
     end
-
-
+    
+    
     methods
         
         function obj = PAController(Padaco_fig_h,...
@@ -96,10 +96,10 @@ classdef PAController < handle
             if(nargin<3)
                 parameters_filename = '_padaco.parameters.txt';
             end;
-                 
+            
             obj.StatTool = [];
-
-            %create/intilize the settings object            
+            
+            %create/intilize the settings object
             obj.SETTINGS = PASettings(rootPathname,parameters_filename);
             obj.screenshotPathname = obj.SETTINGS.CONTROLLER.screenshotPathname;
             obj.resultsPathname = obj.SETTINGS.CONTROLLER.resultsPathname;
@@ -114,21 +114,29 @@ classdef PAController < handle
                 % 2. make context menu handles for the primary axes
                 uiLinecontextmenu_handle = obj.getLineContextmenuHandle();
                 uiPrimaryAxescontextmenu_handle = obj.getPrimaryAxesContextmenuHandle();
+                uiSecondaryAxescontextmenu_handle = obj.getSecondaryAxesContextmenuHandle();
                 featureLineContextMenuHandle = obj.getFeatureLineContextmenuHandle();
-
+                
                 % initialize the view here ...?
-                obj.VIEW = PAView(obj.figureH,uiLinecontextmenu_handle,uiPrimaryAxescontextmenu_handle,featureLineContextMenuHandle);
+                obj.VIEW = PAView(obj.figureH,uiLinecontextmenu_handle,uiPrimaryAxescontextmenu_handle,featureLineContextMenuHandle,uiSecondaryAxescontextmenu_handle);
+                
+                
                 set(obj.figureH,'visible','on');
-
+                
                 obj.VIEW.showBusy([],'all');
+                
+                %  Apply this so that later we can retrieve useSmoothing
+                %  from obj.VIEW when it comes time to save parameters.
+                obj.VIEW.setUseSmoothing(obj.SETTINGS.CONTROLLER.useSmoothing);
+                
                 
                 obj.initTimeSeriesWidgets();
                 
                 set(obj.figureH,'CloseRequestFcn',{@obj.figureCloseCallback,guidata(obj.figureH)});
-
+                
                 %configure the menu bar callbacks.
                 obj.initMenubarCallbacks();
-                               
+                
                 % attempt to load the last set of results
                 lastViewMode = obj.SETTINGS.CONTROLLER.viewMode;
                 try
@@ -136,10 +144,10 @@ classdef PAController < handle
                 catch me
                     showME(me);
                 end
-            end                
+            end
         end
         
-        %% Shutdown functions        
+        %% Shutdown functions
         %> Destructor
         function close(obj)
             if(~isempty(obj.accelObj))
@@ -158,25 +166,25 @@ classdef PAController < handle
                 obj.StatTool.delete();
             end
             
-        end        
+        end
         
         function saveParameters(obj)
             obj.SETTINGS.saveParametersToFile();
             fprintf(1,'Settings saved to disk.\n');
         end
         
-%         function paramStruct = getSaveParametersStruct(obj)
-%             paramStruct = obj.SETTINGS.VIEW;
-%         end            
+        %         function paramStruct = getSaveParametersStruct(obj)
+        %             paramStruct = obj.SETTINGS.VIEW;
+        %         end
         
-
+        
         %% Startup configuration functions and callbacks
         % --------------------------------------------------------------------
         %> @brief Configure callbacks for the figure, menubar, and widets.
         %> Called internally during class construction.
         %> @param obj Instance of PAController
-        % --------------------------------------------------------------------        
-        function initCallbacks(obj)   
+        % --------------------------------------------------------------------
+        function initCallbacks(obj)
             figH = obj.VIEW.getFigHandle();
             
             % mouse and keyboard callbacks
@@ -184,12 +192,12 @@ classdef PAController < handle
             set(figH,'KeyReleaseFcn',@obj.keyReleaseCallback);
             set(figH,'WindowButtonDownFcn',@obj.windowButtonDownCallback);
             set(figH,'WindowButtonUpFcn',@obj.windowButtonUpCallback);
-        
-%         function setLinehandle(obj, line_h)
-%             obj.clear_handles();
-%             obj.current_linehandle = line_h;
-%             set(obj.current_linehandle,'selected','on');
-%         end
+            
+            %         function setLinehandle(obj, line_h)
+            %             obj.clear_handles();
+            %             obj.current_linehandle = line_h;
+            %             set(obj.current_linehandle,'selected','on');
+            %         end
             
             
             %configure the user interface widgets
@@ -229,26 +237,26 @@ classdef PAController < handle
             if(strcmp(key,'add'))
                 
             elseif(strcmp(key,'subtract'))
-                       
+                
             elseif(strcmp(key,'leftarrow')||strcmp(key,'pagedown'))
                 %go backward 1 window
-                obj.setCurWindow(window-1);                
+                obj.setCurWindow(window-1);
             elseif(strcmp(key,'rightarrow')||strcmp(key,'pageup'))
                 %go forward 1 window
-                obj.setCurWindow(window+1);                    
+                obj.setCurWindow(window+1);
             elseif(strcmp(key,'uparrow'))
                 %go forward 10 windows
                 obj.setCurWindow(window+10);
             elseif(strcmp(key,'downarrow'))
                 %go back 10 windows
-                obj.setCurWindow(window-10);                
+                obj.setCurWindow(window-10);
             end
             
             if(strcmp(eventdata.Key,'shift'))
                 set(obj.VIEW.getFigHandle(),'pointer','ibeam');
             end
             if(strcmp(eventdata.Modifier,'control'))
-                %kill the program            
+                %kill the program
                 if(strcmp(eventdata.Key,'x'))
                     delete(hObject);
                     %take screen capture of figure
@@ -256,7 +264,7 @@ classdef PAController < handle
                     obj.figureScreenshot();
                     %take screen capture of main axes
                 elseif(strcmp(eventdata.Key,'s'))
-                    if(isa(obj.VIEW,'PAView') &&ishandle(obj.VIEW.axeshandle.secondary))                        
+                    if(isa(obj.VIEW,'PAView') &&ishandle(obj.VIEW.axeshandle.secondary))
                         obj.screenshotPathname = screencap(obj.VIEW.axeshandle.secondary,[],obj.screenshotPathname);
                     end
                 elseif(strcmp(eventdata.Key,'p'))
@@ -280,10 +288,10 @@ classdef PAController < handle
                 set(obj.VIEW.getFigHandle(),'pointer','arrow');
             end;
         end
-
+        
         % --------------------------------------------------------------------
         %> @brief  Executes when user releases mouse click
-        %> If the currentObject selected is the secondary axes, then 
+        %> If the currentObject selected is the secondary axes, then
         %> the current window is set to the closest window corresponding to
         %> the mouse's x-position.
         %> @param obj Instance of PAController
@@ -291,11 +299,11 @@ classdef PAController < handle
         %> @param eventData Structure of mouse press information; unused
         % --------------------------------------------------------------------
         function windowButtonUpCallback(obj,hObject,eventData)
-            selected_obj = get(hObject,'CurrentObject');            
-            if(~isempty(selected_obj))
+            selected_obj = get(hObject,'CurrentObject');
+            if(~isempty(selected_obj) && ~strcmpi(get(hObject,'SelectionType'),'alt'))   % Dont get confused with mouse button up due to contextmenu call
                 if(selected_obj==obj.VIEW.axeshandle.secondary)
                     pos = get(selected_obj,'currentpoint');
-                    clicked_datenum = pos(1); 
+                    clicked_datenum = pos(1);
                     cur_window = obj.accelObj.datenum2window(clicked_datenum,obj.VIEW.getDisplayType());
                     obj.setCurWindow(cur_window);
                 end;
@@ -311,7 +319,7 @@ classdef PAController < handle
         %> wheel callback methods.
         % --------------------------------------------------------------------
         function windowButtonDownCallback(obj,hObject,eventData)
-            if(ishandle(obj.current_linehandle))                
+            if(ishandle(obj.current_linehandle))
                 set(obj.VIEW.figurehandle,'windowbuttonmotionfcn',[]);
                 
                 obj.deactivateLineHandle();
@@ -322,7 +330,7 @@ classdef PAController < handle
             set(obj.current_linehandle,'selected','off');
             obj.current_linehandle = [];
             obj.VIEW.showReady();
-            set(obj.VIEW.figurehandle,'windowbuttonmotionfcn',[],'WindowScrollWheelFcn',[]);            
+            set(obj.VIEW.figurehandle,'windowbuttonmotionfcn',[],'WindowScrollWheelFcn',[]);
         end
         
         %-- Menubar configuration --
@@ -330,7 +338,7 @@ classdef PAController < handle
         %> @brief Assign figure's menubar callbacks.
         %> Called internally during class construction.
         %> @param obj Instance of PAController
-        % --------------------------------------------------------------------        
+        % --------------------------------------------------------------------
         function initMenubarCallbacks(obj)
             figH = obj.VIEW.getFigHandle();
             handles = guidata(figH);
@@ -344,30 +352,30 @@ classdef PAController < handle
             set(handles.menu_file_open,'callback',@obj.menuFileOpenCallback);
             set(handles.menu_file_open_resultspath,'callback',@obj.menuFileOpenResultsPathCallback);
             
-             % screeshots
+            % screeshots
             set(handles.menu_file_screenshot_figure,'callback',{@obj.menuFileScreenshotCallback,'figure'});
             set(handles.menu_file_screenshot_primaryAxes,'callback',{@obj.menuFileScreenshotCallback,'primaryAxes'});
             set(handles.menu_file_screenshot_secondaryAxes,'callback',{@obj.menuFileScreenshotCallback,'secondaryAxes'});
             
-             %  quit - handled in main window.
+            %  quit - handled in main window.
             set(handles.menu_file_quit,'callback',{@obj.menuFileQuitCallback,guidata(figH)});
             set(handles.menu_file_restart,'callback',@restartDlg);
             
             %% Tools
             % export
-            set(handles.menu_file_export,'callback',@obj.menu_file_exportMenu_callback);            
+            set(handles.menu_file_export,'callback',@obj.menu_file_exportMenu_callback);
             set(handles.menu_file_export_dataObj,'callback',@obj.menu_file_export_dataObj_callback);
             set(handles.menu_file_export_centroidObj,'callback',@obj.menu_file_export_centroidObj_callback);
             set(handles.menu_viewmode_batch,'callback',@obj.menuViewmodeBatchCallback);
             
             
-            %% View Modes            
+            %% View Modes
             set(handles.menu_viewmode_timeseries,'callback',{@obj.setViewModeCallback,'timeSeries'});
             set(handles.menu_viewmode_results,'callback',{@obj.setViewModeCallback,'results'});
             
             %% Help
             set(handles.menu_help_faq,'callback',@obj.menuHelpFAQCallback);
-
+            
             % enable everything
             set([
                 handles.menu_file
@@ -385,8 +393,8 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         %> @brief Callback to display help FAQ from the menubar help->faq menu.
         %> @param obj Instance of PAController
-        %> @param hObject 
-        %> @param eventdata        
+        %> @param hObject
+        %> @param eventdata
         % --------------------------------------------------------------------
         function menuHelpFAQCallback(this,hObject,eventdata)
             %msg = sprintf('Help FAQ');
@@ -404,28 +412,28 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         %> @brief Assign figure's file->about menubar callback.
         %> @param obj Instance of PAController
-        %> @param hObject 
-        %> @param eventdata        
+        %> @param hObject
+        %> @param eventdata
         % --------------------------------------------------------------------
         function menuFileAboutCallback(obj,hObject,eventdata)
             msg = sprintf(['Padaco version %0.2f\n',...
-                '\nSponsored by Stanford University\nin a collaborative effort between\nStanford Pediatric''s Solution Science Lab and\nCivil Engineering''s Sustainable Energy Lab.\n',... 
+                '\nSponsored by Stanford University\nin a collaborative effort between\nStanford Pediatric''s Solution Science Lab and\nCivil Engineering''s Sustainable Energy Lab.\n',...
                 '\nSoftware license: To be decided',...
                 '\nCopyright Hyatt Moore IV (2014-2016)\n'
                 ],obj.versionNum);
             msgbox(msg);
         end
         
-
+        
         % --------------------------------------------------------------------
         %> @brief Assign figure's menubar callbacks.
         %> Called internally during class construction.
         %> @param obj Instance of PAController
-        %> @param hObject 
+        %> @param hObject
         %> @param eventdata
         %> @param optionalSettingsName String specifying the settings to
         %> update (optional)
-        % -------------------------------------------------------------------- 
+        % --------------------------------------------------------------------
         function menuFileSettingsCallback(obj,hObject,eventdata,optionalSettingsName)
             if(nargin<4)
                 optionalSettingsName = [];
@@ -436,13 +444,13 @@ classdef PAController < handle
                     obj.StatTool.setWidgetSettings(obj.SETTINGS.StatTool);
                 end
                 fprintf('Settings have been updated.\n');
-
+                
                 % save parameters to disk
                 obj.saveParameters();
                 
                 obj.setViewMode(obj.viewMode);
             end
-        end    
+        end
         
         
         function initTimeSeriesWidgets(obj)
@@ -469,7 +477,7 @@ classdef PAController < handle
             
             extractorMethodFcns = fieldnames(extractorStruct);
             extractorMethodDescriptions = struct2cell(extractorStruct);
-
+            
             set(obj.VIEW.menuhandle.displayFeature,'string',extractorMethodDescriptions,'userdata',extractorMethodFcns,'value',1);
             
             %             obj.VIEW.appendFeatureMenu('PSD','getPSD');
@@ -499,11 +507,11 @@ classdef PAController < handle
                 86400*2,'2 days';
                 86400*3,'3 days';
                 86400*5,'5 days';
-                86400*7,'1 week';                
-            };
+                86400*7,'1 week';
+                };
             
             set(obj.VIEW.menuhandle.windowDurSec,'userdata',cell2mat(windowMinSelection(:,1)), 'string',windowMinSelection(:,2),'value',5);
-
+            
         end
         
         % --------------------------------------------------------------------
@@ -522,9 +530,9 @@ classdef PAController < handle
             set(obj.VIEW.menuhandle.displayFeature,'callback',@obj.updateSecondaryFeaturesDisplayCallback);
             set(handles.menu_windowDurSec,'callback',@obj.menu_windowDurSecCallback);
             
-%             set(obj.VIEW.menuhandle.prefilterMethod,'callback',[]);
-%             set(obj.VIEW.menuhandle.signalSelection,'callback',[]);
-%             set(obj.VIEW.menuhandle.signalSelection,'callback',@obj.updateSecondaryFeaturesDisplayCallback);
+            %             set(obj.VIEW.menuhandle.prefilterMethod,'callback',[]);
+            %             set(obj.VIEW.menuhandle.signalSelection,'callback',[]);
+            %             set(obj.VIEW.menuhandle.signalSelection,'callback',@obj.updateSecondaryFeaturesDisplayCallback);
             
             set(handles.panel_displayButtonGroup,'selectionChangeFcn',@obj.displayChangeCallback);
             
@@ -538,7 +546,7 @@ classdef PAController < handle
             %                 handles.menu_signalsource;
             %                 handles.menu_plottype],'callback',@refreshResultsPlot);
             
-
+            
         end
         
         % --------------------------------------------------------------------
@@ -548,7 +556,7 @@ classdef PAController < handle
         %> menu is enabled, and is disabled otherwise.  The view is
         %> redrawn.
         %> @param obj Instance of PAController
-        %> @param hObject Handle to button group panel.  
+        %> @param hObject Handle to button group panel.
         %> @param eventData Structure of event data to include:
         %> @li @c EventName 'SelectionChanged'
         %> @li @c OldValue Handle to the previous callback
@@ -556,14 +564,14 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function displayChangeCallback(obj,hObject,eventData)
             displayType = get(eventData.NewValue,'string');
-            obj.setDisplayType(PAData.getStructNameFromDescription(displayType));  
+            obj.setDisplayType(PAData.getStructNameFromDescription(displayType));
             obj.VIEW.draw();
-        end        
+        end
         
         % --------------------------------------------------------------------
         %> @brief Sets display type instance variable for the view.
         %> @param obj Instance of PAView.
-        %> @param displayType A string representing the display type structure.  Can be 
+        %> @param displayType A string representing the display type structure.  Can be
         %> @li @c timeSeries
         %> @li @c bins
         %> @li @c features
@@ -571,7 +579,7 @@ classdef PAController < handle
         function setDisplayType(obj,displayType)
             visibleProps = obj.accelObj.getVisible(displayType);
             obj.VIEW.setDisplayType(displayType,visibleProps);
-        end  
+        end
         
         % --------------------------------------------------------------------
         %> @brief Executes a radio button group callback (i.e.
@@ -580,7 +588,7 @@ classdef PAController < handle
         %> @param displayType String value of the radio button to set.  Can be
         %> @li @c timeSeries
         %> @li @c bins
-        %> @li @c features        
+        %> @li @c features
         function setRadioButton(obj,displayType)
             handles = guidata(obj.VIEW.getFigHandle());
             eventStruct.EventName = 'SelectionChanged';
@@ -616,7 +624,7 @@ classdef PAController < handle
                 %obtain the prefilter and feature extraction methods
                 prefilterMethod = obj.getPrefilterMethod();
                 
-%                 set(hObject,'enable','off');
+                %                 set(hObject,'enable','off');
                 obj.VIEW.showBusy('Calculating Features','all');
                 % get the prefilter duration in minutes.
                 % aggregateDurMin = obj.VIEW.getAggregateDuration();
@@ -700,9 +708,9 @@ classdef PAController < handle
             
             
             if(nargin<2 || isempty(numFeatures))
-                numFeatures = obj.getFrameCount(); 
+                numFeatures = obj.getFrameCount();
             end
-
+            
             featureFcn = obj.getExtractorMethod();
             
             % update secondary axes y labels according to our feature
@@ -729,7 +737,7 @@ classdef PAController < handle
             
             % Normal behavior is to show each axes for the accelerometer
             % x, y, z, vecMag (i.e. accel.count.x, accel.count.y, ...)
-            % However, for the PSD, we assign PSD bands to these axes as 
+            % However, for the PSD, we assign PSD bands to these axes as
             % 'vecMag' - psd_band_1
             % 'x' - psd_band_2
             % 'y' - psd_band_3
@@ -740,18 +748,18 @@ classdef PAController < handle
                 
                 % x, y, z
                 if(s<numel(signalTagLines))
-                    vecHandles = obj.VIEW.addFeaturesVecToSecondaryAxes(featureVec,startStopDatenums,height,heightOffset);                   
+                    vecHandles = obj.VIEW.addFeaturesVecToSecondaryAxes(featureVec,startStopDatenums,height,heightOffset);
                     obj.featureHandles = [obj.featureHandles(:);vecHandles(:)];
                     heightOffset = heightOffset+height;
                     
-                % vecMag
+                    % vecMag
                 else
                     % This requires twice the height because it will have a
                     % feature line and heat map
                     obj.VIEW.addFeaturesVecAndOverlayToSecondaryAxes(featureVec,startStopDatenums,height*2,heightOffset);
                     heightOffset = heightOffset+height*2;
                 end
-            end   
+            end
         end
         
         % --------------------------------------------------------------------
@@ -767,12 +775,12 @@ classdef PAController < handle
             handles = guidata(hObject);
             initColor = get(handles.axes_secondary,'color');
             obj.VIEW.showBusy('(Updating secondary display)','secondary');
-            numFrames = obj.getFrameCount();            
-            obj.updateSecondaryFeaturesDisplay(numFrames);        
+            numFrames = obj.getFrameCount();
+            obj.updateSecondaryFeaturesDisplay(numFrames);
             set(handles.axes_secondary,'color',initColor);
-
+            
             obj.VIEW.showReady('secondary');
-            set(hObject,'enable','on');            
+            set(hObject,'enable','on');
         end
         
         % --------------------------------------------------------------------
@@ -826,8 +834,8 @@ classdef PAController < handle
             if(~isempty(extractorInd))
                 set(obj.VIEW.menuhandle.displayFeature,'value',extractorInd);
             end
-        end        
-
+        end
+        
         % --------------------------------------------------------------------
         %> @brief Retrieves current signal selection from the GUI's
         %> signalSelection dropdown menu.
@@ -846,7 +854,7 @@ classdef PAController < handle
         
         % --------------------------------------------------------------------
         %> @brief Sets the Signal Selection's drop down menu's value based on
-        %> the input parameter.        
+        %> the input parameter.
         %> @param obj Instance of PAController.
         %> @param signalTagLine String representing the tag line associated with each
         %> signal choice selection and listed as dropdown menus userdata.
@@ -871,21 +879,21 @@ classdef PAController < handle
                 v=regexp(signalTagLines{selectionIndex},'.+\.([^\.]+)\..*','tokens');
                 if(~isempty(v))
                     obj.accelTypeShown = v{1}{1};
-                end                
+                end
             end
             
             %             obj.SETTINGS.CONTROLLER.signalTagLine = signalTagLine;
         end
         
         % --------------------------------------------------------------------
-        %> @brief Initializes the signal selection drop down menu using PAData's 
+        %> @brief Initializes the signal selection drop down menu using PAData's
         %> default taglines and associated labels.
         %> signalSelection dropdown menu.
         %> @param obj Instance of PAController
         %> @note Tag lines are stored as user data at indices corresponding
         %> to the menu label descriptions.  For example, label{1} = 'X' and
         %> userdata{1} = 'accelRaw.x'
-        % --------------------------------------------------------------------        
+        % --------------------------------------------------------------------
         function initSignalSelectionMenu(obj)
             [tagLines,labels] = PAData.getDefaultTagLineLabels();
             offAccelType = obj.accelObj.getOffAccelType();
@@ -893,7 +901,7 @@ classdef PAController < handle
                 cellIndices = strfind(tagLines,offAccelType);
                 pruneIndices = false(size(cellIndices));
                 for k=1:numel(cellIndices)
-                   pruneIndices(k) = ~isempty(cellIndices{k}); 
+                    pruneIndices(k) = ~isempty(cellIndices{k});
                 end
                 labels(pruneIndices) = [];
                 tagLines(pruneIndices) = [];
@@ -915,7 +923,7 @@ classdef PAController < handle
             windowDurSec = windowDurSec(get(hObject,'value'));
             
             %change it - this internally recalculates the cur window
-            obj.accelObj.setWindowDurSec(windowDurSec);            
+            obj.accelObj.setWindowDurSec(windowDurSec);
             obj.setCurWindow(obj.getCurWindow());
         end
         
@@ -952,7 +960,7 @@ classdef PAController < handle
         function edit_frameSizeMinutesCallback(obj,hObject,eventdata)
             frameDurationMinutes = str2double(get(hObject,'string'));
             obj.setFrameDurationMinutes(frameDurationMinutes);
-        end 
+        end
         
         % --------------------------------------------------------------------
         %> @brief Callback for frame size in hours edit textbox.
@@ -974,7 +982,7 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function success = setAggregateDurationMinutes(obj,new_aggregateDuration)
             success = false;
-            if(~isempty(obj.accelObj))                
+            if(~isempty(obj.accelObj))
                 cur_aggregateDuration = obj.accelObj.setAggregateDurationMinutes(new_aggregateDuration);
                 obj.VIEW.setAggregateDurationMinutes(num2str(cur_aggregateDuration));
                 if(new_aggregateDuration==cur_aggregateDuration)
@@ -991,7 +999,7 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function success = setFrameDurationMinutes(obj,new_frameDurationMinutes)
             success = false;
-            if(~isempty(obj.accelObj))                
+            if(~isempty(obj.accelObj))
                 cur_frameDurationMinutes = obj.accelObj.setFrameDurationMinutes(new_frameDurationMinutes);
                 obj.VIEW.setFrameDurationMinutes(num2str(cur_frameDurationMinutes));
                 if(new_frameDurationMinutes==cur_frameDurationMinutes)
@@ -1002,11 +1010,11 @@ classdef PAController < handle
                     if(frameDurationTotalMinutes<obj.getAggregateDurationAsMinutes())
                         obj.setAggregateDurationMinutes(frameDurationTotalMinutes);
                     end
-
+                    
                 end
             end
         end
-         % --------------------------------------------------------------------
+        % --------------------------------------------------------------------
         %> @brief Set the frame size hour's units
         %> @param obj Instance of PAController
         %> @param new_frameDurationHours Hours for frame duration.
@@ -1014,7 +1022,7 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function success = setFrameDurationHours(obj,new_frameDurationHours)
             success = false;
-            if(~isempty(obj.accelObj))                
+            if(~isempty(obj.accelObj))
                 cur_frameDurationHours = obj.accelObj.setFrameDurationHours(new_frameDurationHours);
                 obj.VIEW.setFrameDurationHours(num2str(cur_frameDurationHours));
                 if(new_frameDurationHours==cur_frameDurationHours)
@@ -1025,7 +1033,7 @@ classdef PAController < handle
                     frameDurationTotalMinutes = obj.getFrameDurationAsMinutes();
                     if(frameDurationTotalMinutes<obj.getAggregateDurationAsMinutes())
                         obj.setAggregateDurationMinutes(frameDurationTotalMinutes);
-                    end                    
+                    end
                 end
             end
         end
@@ -1038,16 +1046,16 @@ classdef PAController < handle
         %> @retval success True if the window is set successfully, and false otherwise.
         %> @note Reason for failure include window values that are outside
         %> the range allowed by accelObj (e.g. negative values or those
-        %> longer than the duration given.  
+        %> longer than the duration given.
         % --------------------------------------------------------------------
         function success = setCurWindow(obj,new_window)
             success= false;
-            if(~isempty(obj.accelObj))                 
+            if(~isempty(obj.accelObj))
                 curWindow = obj.accelObj.setCurWindow(new_window);
                 windowStartDateNum = obj.accelObj.window2datenum(new_window);
                 windowEndDateNum = obj.accelObj.window2datenum(new_window+1);
                 if(new_window==curWindow)
-                    obj.VIEW.setCurWindow(num2str(curWindow),windowStartDateNum,windowEndDateNum);                
+                    obj.VIEW.setCurWindow(num2str(curWindow),windowStartDateNum,windowEndDateNum);
                     success=true;
                 end
             end
@@ -1081,13 +1089,13 @@ classdef PAController < handle
                     if(~strcmpi(obj.viewMode,'timeseries'))
                         obj.VIEW.setViewMode('timeseries'); % by pass the this.setViewMode() for now to avoid follow-up query that a file has not been loaded yet.
                     end
-
+                    
                     
                     obj.VIEW.showBusy('Loading','all');
                     [pathname,basename, baseext] = fileparts(f);
                     obj.SETTINGS.DATA.pathname = pathname;
                     obj.SETTINGS.DATA.filename = strcat(basename,baseext);
-
+                    
                     obj.accelObj = PAData(f,obj.SETTINGS.DATA);
                     
                     
@@ -1095,7 +1103,7 @@ classdef PAController < handle
                         obj.setViewMode('timeseries');
                     end
                     
-                    %initialize the PAData object's visual properties                    
+                    %initialize the PAData object's visual properties
                     obj.initAccelDataView(); %calls show obj.VIEW.showReady() Ready...
                     
                     % For testing/debugging
@@ -1110,7 +1118,7 @@ classdef PAController < handle
             catch me
                 showME(me);
                 obj.VIEW.showReady('all');
-            end            
+            end
         end
         
         
@@ -1131,7 +1139,7 @@ classdef PAController < handle
                 % hanging around showing results and the user unaware that
                 % a problem occurred (i.e. no change took place).
                 obj.StatTool = [];
-                obj.resultsPathname = resultsPath;               
+                obj.resultsPathname = resultsPath;
                 if(~strcmpi(obj.viewMode,'results'))
                     obj.VIEW.showBusy('Switching to results view');
                     obj.setViewMode('results');
@@ -1171,7 +1179,7 @@ classdef PAController < handle
                     handle = obj.VIEW.figurehandle;
                 case 'primaryaxes'
                     handle = obj.VIEW.axeshandle.primary;
-                case 'secondaryaxes'                    
+                case 'secondaryaxes'
                     handle = obj.VIEW.axeshandle.secondary;
                 otherwise
                     handle = [];
@@ -1214,7 +1222,7 @@ classdef PAController < handle
         %             restartDlg();  % or just go straight to a restart() call
         %         end
         
-                
+        
         %> @brief Call back for export menu option under menubar 'file'
         %> option.
         function menu_file_exportMenu_callback(this,hObject, eventdata)
@@ -1229,8 +1237,8 @@ classdef PAController < handle
             else
                 set(handles.menu_file_export_centroidObj,'enable','on');
             end
-        end        
-                
+        end
+        
         % --------------------------------------------------------------------
         %> @brief Menubar callback for exporting PAController's data object to the
         %> workspace.  This is useful for debugging and developing methods
@@ -1239,14 +1247,14 @@ classdef PAController < handle
         %> @param hObject    handle to menu_viewmode_batch (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
-        % --------------------------------------------------------------------        
+        % --------------------------------------------------------------------
         function menu_file_export_dataObj_callback(obj,hObject,~)
             dataObj = obj.accelObj;
             varName = 'dataObject';
             try
                 assignin('base',varName,dataObj);
                 uiwait(msgbox(sprintf('Data object was assigned to workspace variable %s',varName)));
-
+                
             catch me
                 showME(me);
                 uiwait(msgbox('An error occurred while trying to export data object to a workspace variable.  See console for details.'));
@@ -1261,21 +1269,21 @@ classdef PAController < handle
         %> @param hObject    handle to menu_viewmode_batch (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
-        % --------------------------------------------------------------------        
+        % --------------------------------------------------------------------
         function menu_file_export_centroidObj_callback(obj,hObject,~)
             centroidObj = obj.StatTool.getCentroidObj();
             varName = 'centroidObj';
             try
                 assignin('base',varName,centroidObj);
                 uiwait(msgbox(sprintf('Centroid object was assigned to workspace variable %s',varName)));
-
+                
             catch me
                 showME(me);
                 uiwait(msgbox('An error occurred while trying to export the centroid object to a workspace variable.  See console for details.'));
             end
         end
         
-               
+        
         function setViewModeCallback(this, hObject, eventData, viewMode)
             this.setViewMode(viewMode);
         end
@@ -1287,7 +1295,7 @@ classdef PAController < handle
         %> @param viewMode A string with one of two values
         %> - @c timeseries
         %> - @c results
-        % --------------------------------------------------------------------        
+        % --------------------------------------------------------------------
         function setViewMode(obj,viewMode)
             
             if(~strcmpi(viewMode,'timeseries') && ~strcmpi(viewMode,'results'))
@@ -1295,8 +1303,8 @@ classdef PAController < handle
                 viewMode = 'timeseries';
             end
             
-            obj.viewMode = viewMode;              
-            obj.VIEW.showBusy(['Switching to ',viewMode,' view'],'all');   
+            obj.viewMode = viewMode;
+            obj.VIEW.showBusy(['Switching to ',viewMode,' view'],'all');
             obj.VIEW.setViewMode(viewMode);
             figure(obj.figureH);  %redraw and place it on top
             refresh(obj.figureH); % redraw it
@@ -1304,7 +1312,7 @@ classdef PAController < handle
             
             switch lower(viewMode)
                 case 'timeseries'
-                    if(isempty(obj.accelObj))                        
+                    if(isempty(obj.accelObj))
                         responseButton = questdlg('A time series file is not currently loaded.  Would you like to open one now?','Find a time series file to load?');
                         if(strcmpi(responseButton,'yes'))
                             obj.menuFileOpenCallback();
@@ -1322,7 +1330,7 @@ classdef PAController < handle
             obj.VIEW.showReady();
             
         end
-                
+        
         % --------------------------------------------------------------------
         %> @brief Menubar callback for running the batch tool.
         %> @param obj Instance of PAController
@@ -1330,7 +1338,7 @@ classdef PAController < handle
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
-        function menuViewmodeBatchCallback(obj,hObject,eventdata)           
+        function menuViewmodeBatchCallback(obj,hObject,eventdata)
             batchTool = PABatchTool(obj.SETTINGS.BATCH);
             batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
             batchTool.addlistener('SwitchToResults',@obj.setResultsViewModeCallback);
@@ -1339,7 +1347,7 @@ classdef PAController < handle
         % Pass through callback for setViewModeCallback method with
         % 'results' argument.
         function setResultsViewModeCallback(obj, hObject, eventData)
-            obj.setViewModeCallback(hObject,eventData,'results');     
+            obj.setViewModeCallback(hObject,eventData,'results');
         end
         
         function updateBatchToolSettingsCallback(obj,batchToolObj,eventData)
@@ -1348,7 +1356,7 @@ classdef PAController < handle
                 obj.resultsPathname = obj.SETTINGS.BATCH.outputDirectory;
             end
         end
-            
+        
         % --------------------------------------------------------------------
         %> @brief Creates a temporary figure and axes, draws an overlay
         %> image on it using curData, saves the image to disk, and then
@@ -1357,20 +1365,20 @@ classdef PAController < handle
         %> @param curData Instance of PAData
         %> @param featureFcn Extractor method for obtaining features from
         %> curData.
-        %> @param img_filename Filename to save image to.  
+        %> @param img_filename Filename to save image to.
         %> @note The image format is determined from the extension of
         %> img_filename (e.g. if img_filename = 'picture.jpg', then a jpeg
-        %> is used.  
+        %> is used.
         % --------------------------------------------------------------------
         function save2image(obj, curData,featureFcn, img_filename)
             obj.overlayScreenshot(curData,featureFcn,img_filename);
         end
-
+        
         % --------------------------------------------------------------------
         %> @brief Returns the total frame duration (i.e. hours and minutes) in aggregated minutes.
         %> @param obj Instance of PAData
         %> @retval curFrameDurationMin The current frame duration as total
-        %> minutes.        
+        %> minutes.
         % --------------------------------------------------------------------
         function curFrameDurationTotalMin = getFrameDurationAsMinutes(obj)
             [curFrameDurationMin, curFrameDurationHour] = obj.accelObj.getFrameDuration();
@@ -1382,7 +1390,7 @@ classdef PAController < handle
         %> @brief Returns the total frame duration (i.e. hours and minutes) in aggregated minutes.
         %> @param obj Instance of PAData
         %> @retval curFrameDurationMin The current frame duration as total
-        %> minutes.        
+        %> minutes.
         % --------------------------------------------------------------------
         function aggregateDurationTotalMin = getAggregateDurationAsMinutes(obj)
             aggregateDurationTotalMin = obj.accelObj.getAggregateDurationInMinutes();
@@ -1393,22 +1401,22 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         %> @brief Returns the current study's duration as seconds.
         %> @param obj Instance of PAData
-        %> @retval curStudyDurationSec The duration of the current study in seconds.        
+        %> @retval curStudyDurationSec The duration of the current study in seconds.
         % --------------------------------------------------------------------
         function curStudyDurationSec = getStudyDurationSec(obj)
             curStudyDurationSec = obj.accelObj.durationSec;
         end
-
+        
         % --------------------------------------------------------------------
         %> @brief Returns the number of frames the study can be broken into based
         %> on the frame duration set in the GUI.
         %> @param obj Instance of PAController.
         %> @note The accelObj property must be set (i.e. a file must be
-        %> loaded for this function to work).        
+        %> loaded for this function to work).
         % --------------------------------------------------------------------
         function frameCount = getFrameCount(obj)
             frameCount = obj.accelObj.getFrameCount();
-        end        
+        end
         
         % --------------------------------------------------------------------
         %> @brief Calculates the mean lux value for a given number of sections.
@@ -1425,7 +1433,7 @@ classdef PAController < handle
         %> @retval startStopDatenums Nx2 matrix of datenum values whose
         %> rows correspond to the start/stop range that the meanLumens
         %> value (at the same row position) was derived from.
-        %> @note  Sections will not be calculated on equally lenghted        
+        %> @note  Sections will not be calculated on equally lenghted
         %> sections when numSections does not evenly divide the total number
         %> of samples.  In this case, the last section may be shorter or
         %> longer than the others.
@@ -1435,7 +1443,7 @@ classdef PAController < handle
                 numSections = 100;
             end
             if(nargin<3) ||isempty(paDataObj)
-               paDataObj = obj.accelObj; 
+                paDataObj = obj.accelObj;
             end
             luxData = paDataObj.lux;
             indices = ceil(linspace(1,numel(luxData),numSections+1));
@@ -1445,7 +1453,7 @@ classdef PAController < handle
                 meanLumens(i) = mean(luxData(indices(i):indices(i+1)));
                 startStopDatenums(i,:) = [paDataObj.dateTimeNum(indices(i)),paDataObj.dateTimeNum(indices(i+1))];
             end
-        end        
+        end
         
         % --------------------------------------------------------------------
         %> @brief Estimates daylight intensity across the study.
@@ -1465,18 +1473,18 @@ classdef PAController < handle
                 numSections = 100;
             end
             if(nargin<3) ||isempty(paDataObj)
-               paDataObj = obj.accelObj; 
+                paDataObj = obj.accelObj;
             end
             
             indices = ceil(linspace(1,numel(paDataObj.dateTimeNum),numSections+1));
             startStopDatenums = [paDataObj.dateTimeNum(indices(1:end-1)),paDataObj.dateTimeNum(indices(2:end))];
             [y,mo,d,H,MI,S] = datevec(mean(startStopDatenums,2));
             dayTime = [H,MI,S]*[1; 1/60; 1/3600];
-%             dayTime = [[H(:,1),MI(:,1),S(:,1)]*[1;1/60;1/3600], [H(:,2),MI(:,2),S(:,2)]*[1;1/60;1/3600]];
-     
+            %             dayTime = [[H(:,1),MI(:,1),S(:,1)]*[1;1/60;1/3600], [H(:,2),MI(:,2),S(:,2)]*[1;1/60;1/3600]];
+            
             % obtain the middle spot of the daytime chunk. --> this does
             % not work because the hours flip over at 24:00.
-%             dayTime = [H,MI,S]*[1;1;1/60;1/60;1/3600;1/3600]/2;
+            %             dayTime = [H,MI,S]*[1;1;1/60;1/60;1/3600;1/3600]/2;
             
             
             % linear model for daylight
@@ -1489,7 +1497,7 @@ classdef PAController < handle
             
             daylightVector= (cos(2*pi*(dayTime-12)/T)+1)/2;  %this is spread between 0 and 1; with 1 being brightest at noon.
             
-        end     
+        end
         
         % --------------------------------------------------------------------
         %> @brief Calculates a desired feature for a particular acceleration object's field value.
@@ -1497,7 +1505,7 @@ classdef PAController < handle
         %> @param obj Instance of PAController
         %> @param featureFcn Function name or handle to use to obtain
         %> features.
-        %> @param fieldName String name of the accelObj field to obtain data from.  
+        %> @param fieldName String name of the accelObj field to obtain data from.
         %> @note Data is obtained using dynamic indexing of
         %> accelObj instance variable (ie.. data = obj.accelObj.(fildName))
         %> @param numSections (optional) Number of patches to break the
@@ -1511,7 +1519,7 @@ classdef PAController < handle
         %> @retval startStopDatenums Nx2 matrix of datenum values whose
         %> rows correspond to the start/stop range that the feature vector
         %> value (at the same row position) was derived from.
-        %> @note  Sections will not be calculated on equally lenghted        
+        %> @note  Sections will not be calculated on equally lenghted
         %> sections when numSections does not evenly divide the total number
         %> of samples.  In this case, the last section may be shorter or
         %> longer than the others.
@@ -1521,11 +1529,11 @@ classdef PAController < handle
                 numSections = 100;
             end
             
-             if(nargin<5) ||isempty(paDataObj)
-                 paDataObj = obj.accelObj;
-             end
+            if(nargin<5) ||isempty(paDataObj)
+                paDataObj = obj.accelObj;
+            end
             
-             
+            
             featureVec = zeros(numSections,1);
             
             % Here we deal with features, which *should* already have the
@@ -1544,11 +1552,11 @@ classdef PAController < handle
                     otherwise
                         featureVec = featureStruct.psd_band_1;
                 end
-
+                
             else
                 timeSeriesStruct = paDataObj.getStruct('all','timeSeries');
                 fieldData = eval(['timeSeriesStruct.',fieldName]);
-            
+                
                 indices = ceil(linspace(1,numel(fieldData),numSections+1));
                 for i=1:numSections
                     featureVec(i) = feval(featureFcn,fieldData(indices(i):indices(i+1)));
@@ -1561,7 +1569,7 @@ classdef PAController < handle
         end
         
         
-        % Retrieves the start stop datenum pairs for the provided feature function and fieldName.  
+        % Retrieves the start stop datenum pairs for the provided feature function and fieldName.
         % Originally this function was implemented inside getFeatureFcn
         % with the thinking that it would degrade performance to call a
         % second for loop to calculate the startStopDatenums.  This was not
@@ -1577,7 +1585,7 @@ classdef PAController < handle
             if(nargin<5) ||isempty(paDataObj)
                 paDataObj = obj.accelObj;
             end
-           
+            
             startStopDatenums = zeros(numSections,2);
             
             if(strcmpi(featureFcn,'psd'))
@@ -1603,7 +1611,7 @@ classdef PAController < handle
         %> @param obj Instance of PAController
         %> @param featureFcn Function name or handle to use to obtain
         %> features.
-        %> @param fieldName String name of the accelObj field to obtain data from.  
+        %> @param fieldName String name of the accelObj field to obtain data from.
         %> @note Data is obtained using dynamic indexing of
         %> accelObj instance variable (ie.. data = obj.accelObj.(fildName))
         %> @param numSections (optional) Number of patches to break the
@@ -1617,544 +1625,28 @@ classdef PAController < handle
         %> @retval startStopDatenums Nx2 matrix of datenum values whose
         %> rows correspond to the start/stop range that the feature vector
         %> value (at the same row position) was derived from.
-        %> @note  Sections will not be calculated on equally lenghted        
+        %> @note  Sections will not be calculated on equally lenghted
         %> sections when numSections does not evenly divide the total number
         %> of samples.  In this case, the last section may be shorter or
         %> longer than the others.
         % --------------------------------------------------------------------
         function [usageVec, usageStates,startStopDatenums] = getUsageState(obj)
             paDataObj = obj.accelObj;
-            [usageVec, usageStates, startStopDatenums] = paDataObj.classifyUsageState();             
-        end
-                
-        %% context menu's for the view
-        
-        % =================================================================
-        %> @brief Configure contextmenu for view's primary axes.
-        %> @param obj instance of PAController.
-        %> @retval contextmenu_mainaxes_h A contextmenu handle.  This should
-        %> be assigned to the primary axes handle of PAView.
-        % =================================================================
-        function contextmenu_mainaxes_h = getPrimaryAxesContextmenuHandle(obj)
-            %%% reference line contextmenu            
-            contextmenu_mainaxes_h = uicontextmenu('parent',obj.figureH);
-            hideH =uimenu(contextmenu_mainaxes_h,'Label','Hide','tag','hide');
-            unhideH = uimenu(contextmenu_mainaxes_h,'Label','Unhide','tag','unhide');            
-            set(contextmenu_mainaxes_h,'callback',{@obj.contextmenu_primaryAxes_callback,hideH,unhideH});
-            
+            [usageVec, usageStates, startStopDatenums] = paDataObj.classifyUsageState();
         end
         
         % --------------------------------------------------------------------
-        function contextmenu_primaryAxes_callback(obj,hObject, eventdata, hide_uimenu_h, unhide_uimenu_h)
-            %configure sub contextmenus
-            obj.configure_contextmenu_unhideSignals(unhide_uimenu_h);
-            obj.configure_contextmenu_hideSignals(hide_uimenu_h);
-            
-        end
-        
-       % =================================================================
-       %> @brief configures a contextmenu selection to be hidden or to have
-       %> attached uimenus with labels of unhidden signals displayed for selection. (if seleceted, the signal is then hidden)  
-       %> @param obj instance of PAController.
-       %> @param contextmenu_h Handle of parent contextmenu to unhide
-       %> channels.
-       %> @param eventdata Unused.
-       % =================================================================
-       function configure_contextmenu_hideSignals(obj,contextmenu_h,eventdata)           
-       % --------------------------------------------------------------------          
-           % start with a clean slate
-           delete(get(contextmenu_h,'children'));
-           set(contextmenu_h,'enable','off');
-           lineHandles = obj.getDisplayableLineHandles();
-           hasVisibleSignals = false;
-           for h=1:numel(lineHandles)
-               lineH = lineHandles(h);               
-               if(~strcmpi(get(lineH,'visible'),'off'))
-                   tagLine = get(lineH,'tag');
-                   set(contextmenu_h,'enable','on');
-                   uimenu(contextmenu_h,'Label',tagLine,'separator','off','callback',{@obj.hideLineHandle_callback,lineH});
-                   hasVisibleSignals = true;
-               end;
-           end;
-           set(gco,'selected','off');
-           if(~hasVisibleSignals)
-               set(contextmenu_h,'visible','off');
-           else
-               set(contextmenu_h,'visible','on');
-           end
-           
-       end
-       
-        
-       % =================================================================
-       %> @brief configures a contextmenu selection to be hidden or to have
-       %> attached uimenus with labels of hidden signalss displayed.  
-       %> @param obj instance of PAController.
-       %> @param contextmenu_h Handle of parent contextmenu to unhide
-       %> channels.
-       %> @param eventdata Unused.
-       % =================================================================
-       function configure_contextmenu_unhideSignals(obj,contextmenu_h,eventdata)           
-       % --------------------------------------------------------------------          
-           % start with a clean slate
-           delete(get(contextmenu_h,'children'));
-           set(contextmenu_h,'enable','off');
-           lineHandles = obj.getDisplayableLineHandles();
-           hasHiddenSignals = false;
-           for h=1:numel(lineHandles)
-               lineH = lineHandles(h);               
-               if(strcmpi(get(lineH,'visible'),'off'))
-                   tagLine = get(lineH,'tag');
-                   set(contextmenu_h,'enable','on');
-                   uimenu(contextmenu_h,'Label',tagLine,'separator','off','callback',{@obj.showLineHandle_callback,lineH});
-                   hasHiddenSignals = true;
-               end;
-           end;
-           set(gco,'selected','off');
-           if(~hasHiddenSignals)
-               set(contextmenu_h,'visible','off');
-           else
-               set(contextmenu_h,'visible','on');
-           end
-           
-       end
-
-       % --------------------------------------------------------------------
-       %> @brief Set's the visible property for the specified line handle
-       %> and its associated reference and label handles to 'on'.
-       %> @param obj Instance of PAController
-       %> @param hObject Handle of the callback object.
-       %> @param eventdata Unused.
-       %> @param lineHandle Line handle to be shown.
-       % --------------------------------------------------------------------
-       function showLineHandle_callback(obj,hObject,eventdata,lineHandle)
-       % --------------------------------------------------------------------
-           lineTag = get(lineHandle,'tag');
-           tagHandles = findobj(get(lineHandle,'parent'),'tag',lineTag);
-           set(tagHandles,'visible','on','hittest','on')
-           obj.accelObj.setVisible(lineTag,'on');
-           set(gco,'selected','off');           
-       end
-       
-       % --------------------------------------------------------------------
-       %> @brief Set's the visible property for the specified line handle
-       %> and its associated reference and label handles to 'off'.
-       %> @param obj Instance of PAController
-       %> @param hObject Handle of the callback object.
-       %> @param eventdata Unused.
-       %> @param lineHandle Line handle to be shown.
-       % --------------------------------------------------------------------
-       function hideLineHandle_callback(obj,hObject,eventdata,lineHandle)
-       % --------------------------------------------------------------------
-           lineTag = get(lineHandle,'tag');
-           tagHandles = findobj(get(lineHandle,'parent'),'tag',lineTag);
-           set(tagHandles,'visible','off','hittest','off')
-           obj.accelObj.setVisible(lineTag,'off');
-           set(gco,'selected','off');           
-       end
-       
-       % =================================================================
-       %> @brief Configure contextmenu for signals that will be drawn in the view.
-       %> @param obj instance of PAController.
-       %> @retval uicontextmenu_handle A contextmenu handle.  This should
-       %> be assigned to the line handles drawn by the PAController and
-       %> PAView classes.
-       % =================================================================
-       function uicontextmenu_handle = getLineContextmenuHandle(obj)           
-       % --------------------------------------------------------------------
-           uicontextmenu_handle = uicontextmenu('callback',@obj.contextmenu_line_callback,'parent',obj.figureH);%,get(parentAxes,'parent'));
-           uimenu(uicontextmenu_handle,'Label','Resize','separator','off','callback',@obj.contextmenu_line_resize_callback);
-           uimenu(uicontextmenu_handle,'Label','Use Default Scale','separator','off','callback',@obj.contextmenu_line_defaultScale_callback,'tag','defaultScale');
-           uimenu(uicontextmenu_handle,'Label','Move','separator','off','callback',@obj.contextmenu_line_move_callback);
-           uimenu(uicontextmenu_handle,'Label','Change Color','separator','off','callback',@obj.contextmenu_line_color_callback);
-           %            uimenu(uicontextmenu_handle,'Label','Add Reference Line','separator','on','callback',@obj.contextmenu_line_referenceline_callback);
-           %            uimenu(uicontextmenu_handle,'Label','Align Channel','separator','off','callback',@obj.align_channels_on_axes);
-           uimenu(uicontextmenu_handle,'Label','Hide','separator','on','callback',@obj.contextmenu_line_hide_callback);
-           uimenu(uicontextmenu_handle,'Label','Copy window to clipboard','separator','off','callback',@obj.contextmenu_window2clipboard_callback,'tag','copy_window2clipboard');
-       end
-       
-       % =================================================================
-       %> @brief Configure contextmenu for feature line which is drawn in the secondary axes.
-       %> @param obj instance of PAController.
-       %> @retval uicontextmenu_handle A contextmenu handle.  This should
-       %> be assigned to the line handles drawn by the PAController and
-       %> PAView classes.
-       % =================================================================
-       function uicontextmenu_handle = getFeatureLineContextmenuHandle(obj)           
-           uicontextmenu_handle = uicontextmenu('parent',obj.figureH);%,get(parentAxes,'parent'));
-           uimenu(uicontextmenu_handle,'Label','Copy to clipboard','separator','off','callback',@obj.contextmenu_line2clipboard_callback,'tag','copy_window2clipboard');
-       end
-       
-       
-       % =================================================================
-       %> @brief Contextmenu callback for primary axes line handles
-       %> @param obj instance of PAController
-       %> @param hObject Handle of callback object (unused).
-       %> @param eventdata Unused.
-       % =================================================================
-       function contextmenu_line_callback(obj,hObject,eventdata)
-           %parent context menu that pops up before any of the children contexts are
-           %drawn...
-           %             handles = guidata(hObject);
-           %             parent_fig = get(hObject,'parent');
-           %             obj_handle = get(parent_fig,'currentobject');
-           obj.current_linehandle = gco;
-           set(gco,'selected','on');
-           
-           lineTag = get(gco,'tag');
-           set(obj.VIEW.texthandle.status,'string',lineTag);
-           
-           child_menu_handles = get(hObject,'children');  %this is all of the handles of the children menu options
-           default_scale_handle = child_menu_handles(find(~cellfun('isempty',strfind(get(child_menu_handles,'tag'),'defaultScale')),1));
-           
-           allScale = obj.accelObj.getScale();
-           curScale = eval(['allScale.',lineTag]);
-           
-           pStruct = PAData.getDefaultParameters;
-           defaultScale = eval(strcat('pStruct.scale.',lineTag));
-           
-           
-           if(curScale==defaultScale)
-               set(default_scale_handle,'Label',sprintf('Default Scale (%0.2f)',defaultScale))
-               set(default_scale_handle,'checked','on');
-           else
-               set(default_scale_handle,'Label',sprintf('Use Default Scale (%0.2f)',defaultScale))
-               set(default_scale_handle,'checked','off');
-           end;
-           
-           
-           %
-           %             %show/hide the show filter handle
-           %             if(isempty(channelObj.filter_data))
-           %                 set(show_filtered_handle,'visible','off');
-           %             else
-           %                 set(show_filtered_handle,'visible','on');
-           %                 if(channelObj.show_filtered)
-           %                     set(show_filtered_handle,'Label','Show Raw Data');
-           %                     %         set(show_filtered_handle,'checked','on');
-           %                 else
-           %                     set(show_filtered_handle,'Label','Show Filtered Data');
-           %                     %         set(show_filtered_handle,'checked','off');
-           %                 end
-           %             end
-           %             guidata(hObject,handles);
-       end
-       
-       % =================================================================
-       %> @brief A line handle's contextmenu 'move' callback.
-       %> @param obj instance of PAController.
-       %> @param hObject gui handle object
-       %> @param eventdata unused
-       % =================================================================
-       function contextmenu_line_move_callback(obj,hObject,eventdata)
-           y_lim = get(obj.VIEW.axeshandle.primary,'ylim');
-           
-           tagLine = get(gco,'tag');
-           set(obj.VIEW.figurehandle,'pointer','hand',...
-               'windowbuttonmotionfcn',...
-               {@obj.move_line_mouseFcnCallback,tagLine,y_lim}...
-               );
-       end;
-      
-       % =================================================================
-       %> @brief Channel contextmenu callback to move the selected
-       %> channel's position in the SEV.
-       %> @param obj instance of CLASS_channels_container.
-       %> @param hObject Handle of callback object (unused).
-       %> @param eventdata Unused.
-       %> @param lineTag The tag for the current selected linehandle.
-       %> @note lineTag = 'timeSeries.accelCount.x'
-       %> This is used for dynamic indexing into the accelObj's datastructs.
-       %> @param y_lim Y-axes limits; cannot move the channel above or below
-       %> these bounds.
-       %> @retval obj instance of CLASS_channels_container.
-       % =================================================================
-       function move_line_mouseFcnCallback(obj,hObject,eventdata,lineTag,y_lim)
-           %windowbuttonmotionfcn set by contextmenu_line_move_callback
-           %axes_h is the axes that the current object (channel_object) is in
-           pos = get(obj.VIEW.axeshandle.primary,'currentpoint');
-           curOffset = max(min(pos(1,2),y_lim(2)),y_lim(1));
-           obj.accelObj.setOffset(lineTag,curOffset);
-           obj.VIEW.draw();
-       end
-       
-       % =================================================================
-       %> @brief Resize callback for channel object contextmenu.
-       %> @param obj instance of CLASS_channels_container.
-       %> @param hObject Handle of callback object (unused).
-       %> @param eventdata Unused.
-       %> @retval obj instance of CLASS_channels_container.
-       % =================================================================
-       function contextmenu_line_resize_callback(obj,hObject,eventdata)
-           
-           lineTag = get(gco,'tag');
-           set(obj.VIEW.figurehandle,'pointer','crosshair','WindowScrollWheelFcn',...
-               {@obj.resize_WindowScrollWheelFcn,...
-               lineTag,obj.VIEW.texthandle.status});
-           
-           allScale = obj.accelObj.getScale();
-           curScale = eval(['allScale.',lineTag]);
-           
-           %show the current scale
-           click_str = sprintf('Scale: %0.2f',curScale);
-           set(obj.VIEW.texthandle.status,'string',click_str);
-           
-           %flush the draw queue
-           drawnow();
-       end;
-       
-       % =================================================================
-       %> @brief Contextmenu callback to set a line's default scale.
-       %> @param obj instance of PAController
-       %> @param hObject gui handle object
-       %> @param eventdata unused
-       % =================================================================
-       function contextmenu_line_defaultScale_callback(obj,hObject,eventdata)
-           
-           if(strcmp(get(hObject,'checked'),'off'))
-               set(hObject,'checked','on');
-               lineTag = get(gco,'tag');
-               
-               pStruct = PAData.getDefaultParameters;
-               defaultScale = eval(strcat('pStruct.scale.',lineTag));
-               
-               obj.accelObj.setScale(lineTag,defaultScale);
-               obj.VIEW.draw();
-           end;
-           set(gco,'selected','off');
-       end
-       
-       
-       % =================================================================
-       %> @brief Contextmenu callback to set a line's color.  MATLAB's
-       %> interactive dialog is used to obtain and set the color
-       %> (uisetcolor).
-       %> @param obj instance of PAController
-       %> @param hObject gui handle object
-       %> @param eventdata unused
-       % =================================================================
-       function contextmenu_line_color_callback(obj, hObject, eventdata)
-           lineTag = get(gco,'tag');
-           c = get(gco,'color');
-           c = uisetcolor(c);
-           if(numel(c)~=1)
-               obj.accelObj.setColor(lineTag,c);
-               tagHandles = findobj(get(gco,'parent'),'tag',lineTag);
-               set(tagHandles,'color',c);
-           end;
-           set(gco,'selected','off');
-       end
-       
-       % =================================================================
-       %> @brief Mouse wheel callback to resize the selected channel.
-       %> @param obj instance of PAController.
-       %> @param hObject Handle of callback object (unused).
-       %> @param eventdata Mouse scroll event data.
-       %> @param lineTag The tag for the current selected linehandle.
-       %> @note lineTag = 'timeSeries.accelCount.x'
-       %> This is used for dynamic indexing into the accelObj's datastructs.
-       %> @param text_h Text handle for outputing the channel's size/scale.
-       % =================================================================
-       function resize_WindowScrollWheelFcn(obj,hObject,eventdata,lineTag,text_h)
-           %the windowwheelscrollfcn set by contextmenu_line_resize_callback
-           %it is used to adjust the size of the selected channel object (channelObj)
-           scroll_step = 0.05;
-           lowerbound = 0.01;
-           
-           %kind of hacky
-           allScale = obj.accelObj.getScale();
-           curScale = eval(['allScale.',lineTag]);
-           
-           
-           newScale = max(lowerbound,curScale-eventdata.VerticalScrollCount*scroll_step);
-           obj.accelObj.setScale(lineTag,newScale);
-           obj.VIEW.draw();
-           
-           %update this text scale...
-           click_str = sprintf('Scale: %0.2f',newScale);
-           set(text_h,'string',click_str);
-       end
-       
-       
-        % =================================================================
-        %> @brief Copy the selected linehandle's ydata to the system
-        %> clipboard.
-        %> @param obj Instance of PAController
-        %> @param hObject Handle of callback object (unused).
-        %> @param eventdata Unused.
-        % =================================================================
-        function contextmenu_window2clipboard_callback(obj,hObject,eventdata)
-            data =get(obj.current_linehandle,'ydata');
-            clipboard('copy',data);
-            disp([num2str(numel(data)),' items copied to the clipboard.  Press Control-V to access data items, or type "str=clipboard(''paste'')"']);
-            set(gco,'selected','off');
-            obj.current_linehandle = [];
-        end
-        
-        % =================================================================
-        %> @brief Copy the selected (feature) linehandle's ydata to the system
-        %> clipboard.
-        %> @param obj Instance of PAController
-        %> @param hObject Handle of callback object (unused).
-        %> @param eventdata Unused.
-        % =================================================================
-        function contextmenu_line2clipboard_callback(obj,hObject,eventdata)
-            data = get(get(hObject,'parent'),'userdata');            
-            clipboard('copy',data);
-            disp([num2str(numel(data)),' items copied to the clipboard.  Press Control-V to access data items, or type "str=clipboard(''paste'')"']);
-        end
-        
-
-       
-        
-    end
-    
-    methods(Access=private)
-        
-        % --------------------------------------------------------------------
-        %> @brief Initializes the display for accelerometer data viewing
-        %> using instantiated instance
-        %> variables VIEW (PAView) and accelObj (PAData)
-        %> @param obj Instance of PAController
-        % --------------------------------------------------------------------
-        function initAccelDataView(obj)
-            
-            % accelObj has already been initialized with default/saved
-            % settings (i.e. obj.SETTINGS.DATA) and these are in turn
-            % passed along to the VIEW class here and used to initialize 
-            % many of the selected widgets.
-
-            obj.VIEW.showBusy('Initializing View','all');
-            
-            obj.initSignalSelectionMenu();
-            
-            if(strcmpi(obj.accelObj.accelType,'all'))
-                obj.accelTypeShown = 'raw';
-            else
-                obj.accelTypeShown = 'count';
-            end               
-            
-            
-            % Shows line labels after initWithAccelData
-            obj.VIEW.initWithAccelData(obj.accelObj);
-
-            
-            %set signal choice 
-            signalSelection = obj.setSignalSelection(obj.SETTINGS.CONTROLLER.signalTagLine); %internally sets to 1st in list if not found..
-            obj.setExtractorMethod(obj.SETTINGS.CONTROLLER.featureFcn);
-         
-            % Go ahead and extract features using current settings.  This
-            % is good because then we can use
-            obj.VIEW.showBusy('Calculating features','all');
-
-            obj.accelObj.extractFeature(signalSelection,'all');
-            
-            
-            % This was disabled until the first time features are
-            % calculated.
-            obj.VIEW.enableTimeSeriesRadioButton();
-            obj.VIEW.enableFeatureRadioButton();                
-            
-            % set the display to show time series data initially.
-            displayType = 'Time Series';
-            displayStructName = PAData.getStructNameFromDescription(displayType);
-            obj.setRadioButton(displayStructName);
-            
-            
-            % Now I am showing labels
-            obj.setDisplayType(displayStructName);
-            
-            
-            
-            %but not everything is shown...
-            
-            obj.setCurWindow(obj.accelObj.getCurWindow());
-            
-            % Update the secondary axes 
-            % Items to display = 8;
-            obj.numViewsInSecondaryDisplay = 8;
-            
-            % Items 1-5
-            % Starting from the bottom of the axes - display the features
-            % for x, y, z, vec magnitude, and 1-d values               
-            heightOffset = obj.updateSecondaryFeaturesDisplay();   
-
-            itemsToDisplay = 3; % usage state, mean lumens, daylight approx
-            remainingHeight = 1-heightOffset;
-            height = remainingHeight/itemsToDisplay;
-            if(obj.accelObj.getSampleRate()<=1)
-                [usageVec,usageState, startStopDatenums] = obj.getUsageState();
-                
-                vecHandles = obj.VIEW.addFeaturesVecToSecondaryAxes(usageVec,obj.accelObj.dateTimeNum,height,heightOffset);
-                %obj.VIEW.addOverlayToSecondaryAxes(usageState,startStopDatenums,1/numRegions,curRegion/numRegions);
-            else
-                vecHandles = [];
-            end            
-            % Next, add lumens intensity to secondary axes 
-            heightOffset = heightOffset+height;
-            maxLumens = 250;
-            numFrames = obj.getFrameCount(); 
-            [meanLumens,startStopDatenums] = obj.getMeanLumenPatches(numFrames);
-            obj.VIEW.addOverlayToSecondaryAxes(meanLumens,startStopDatenums,height,heightOffset,maxLumens);
-            %             [medianLumens,startStopDatenums] = obj.getMedianLumenPatches(1000);
-            %             obj.VIEW.addLumensOverlayToSecondaryAxes(meanLumens,startStopDatenums);
-            
-            % Finally Add daylight to the top.
-            heightOffset = heightOffset+height;            
-            maxDaylight = 1;
-            [daylight,startStopDatenums] = obj.getDaylight(numFrames);
-            obj.VIEW.addOverlayToSecondaryAxes(daylight,startStopDatenums,height-0.005,heightOffset,maxDaylight);
-            
-            obj.initCallbacks(); %initialize callbacks now that we have some data we can interact with.
-
-            obj.VIEW.showReady('all');
-
-        end
-        
-        % --------------------------------------------------------------------
-        %> @brief Initializes widgets for results view mode.  Widgets are
-        %> disabled if the resultsPathname does not exist or cannot be
-        %> found.
-        %> @param this Instance of PAController
-        %> @retval success A boolean value (true on successful initialization of the resultsPathname into padaco's view
-        % --------------------------------------------------------------------
-        function success = initResultsView(this)
-            success = false;
-            % this.VIEW.initWidgets('results',false);
-            if(isdir(this.resultsPathname))
-                if(~isempty(this.StatTool))                   
-                    this.StatTool.init();  %calls a plot refresh
-                else
-                    this.StatTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname,this.SETTINGS.StatTool);
-                end
-                success = this.StatTool.getCanPlot();                
-            end
-            
-            if(~success)
-                this.StatTool.disable();
-
-                this.StatTool = [];
-                responseButton = questdlg('Results output pathname is either not set or was not found.  Would you like to choose one now?','Find results output path?');
-                if(strcmpi(responseButton,'yes'))
-                    this.menuFileOpenResultsPathCallback();
-                end
-            else
-                this.VIEW.showReady();
-            end
-        end
-        
-        % --------------------------------------------------------------------
-        %> @brief Returns the display type instance variable.    
+        %> @brief Returns the display type instance variable.
         %> @param obj Instance of PAView.
         %> @retval structName Name of the field that matches the description of the current display type used.
         %> - @c timeSeries
         %> - @c bins
-        %> - @c features        
+        %> - @c features
         %> @note See PAData.getStructTypes()
         % --------------------------------------------------------------------
         function structName = getDisplayType(obj)
             structName = obj.VIEW.getDisplayType();
-        end       
+        end
         
         % ======================================================================
         %> @brief Returns a structure of PAControllers saveable parameters as a struct.
@@ -2171,8 +1663,10 @@ classdef PAController < handle
             % empty (don't know if were going to use count or raw data,
             % etc.  So, just stick with whatever we began with at time of construction.
             if(isempty(pStruct.signalTagLine))
-                pStruct.signalTagLine = obj.SETTINGS.CONTROLLER.signalTagLine;                
+                pStruct.signalTagLine = obj.SETTINGS.CONTROLLER.signalTagLine;
             end
+            
+            pStruct.useSmoothing = obj.VIEW.getUseSmoothing();
             pStruct.screenshotPathname = obj.screenshotPathname;
             pStruct.viewMode = obj.viewMode;
             pStruct.resultsPathname = obj.resultsPathname;
@@ -2185,26 +1679,144 @@ classdef PAController < handle
         %> showable in the primary axes (i.e. they are only not seen if the
         %user has set the line handle's 'visible' property to 'off'
         function lineHandles = getDisplayableLineHandles(obj)
-           lineHandleStruct = obj.VIEW.getLinehandle(obj.getDisplayType());             
-           lineHandles = PAData.struct2vec(lineHandleStruct);
+            lineHandleStruct = obj.VIEW.getLinehandle(obj.getDisplayType());
+            lineHandles = PAData.struct2vec(lineHandleStruct);
+        end        
+        
+        
+        
+        
+    end
+    
+    methods(Access=private)
+        
+        % --------------------------------------------------------------------
+        %> @brief Initializes the display for accelerometer data viewing
+        %> using instantiated instance
+        %> variables VIEW (PAView) and accelObj (PAData)
+        %> @param obj Instance of PAController
+        % --------------------------------------------------------------------
+        function initAccelDataView(obj)
+            
+            % accelObj has already been initialized with default/saved
+            % settings (i.e. obj.SETTINGS.DATA) and these are in turn
+            % passed along to the VIEW class here and used to initialize
+            % many of the selected widgets.
+            
+            obj.VIEW.showBusy('Initializing View','all');
+            
+            obj.initSignalSelectionMenu();
+            
+            if(strcmpi(obj.accelObj.accelType,'all'))
+                obj.accelTypeShown = 'raw';
+            else
+                obj.accelTypeShown = 'count';
+            end
+            
+            
+            % Shows line labels after initWithAccelData
+            obj.VIEW.initWithAccelData(obj.accelObj);
+            
+            
+            %set signal choice
+            signalSelection = obj.setSignalSelection(obj.SETTINGS.CONTROLLER.signalTagLine); %internally sets to 1st in list if not found..
+            obj.setExtractorMethod(obj.SETTINGS.CONTROLLER.featureFcn);
+            
+            % Go ahead and extract features using current settings.  This
+            % is good because then we can use
+            obj.VIEW.showBusy('Calculating features','all');
+            
+            obj.accelObj.extractFeature(signalSelection,'all');
+            
+            
+            % This was disabled until the first time features are
+            % calculated.
+            obj.VIEW.enableTimeSeriesRadioButton();
+            obj.VIEW.enableFeatureRadioButton();
+            
+            % set the display to show time series data initially.
+            displayType = 'Time Series';
+            displayStructName = PAData.getStructNameFromDescription(displayType);
+            obj.setRadioButton(displayStructName);
+            
+            % Now I am showing labels
+            obj.setDisplayType(displayStructName);
+            
+            %but not everything is shown...
+            
+            obj.setCurWindow(obj.accelObj.getCurWindow());
+            
+            % Update the secondary axes
+            % Items to display = 8;
+            obj.numViewsInSecondaryDisplay = 8;
+            
+            % Items 1-5
+            % Starting from the bottom of the axes - display the features
+            % for x, y, z, vec magnitude, and 1-d values
+            heightOffset = obj.updateSecondaryFeaturesDisplay();
+            
+            itemsToDisplay = 3; % usage state, mean lumens, daylight approx
+            remainingHeight = 1-heightOffset;
+            height = remainingHeight/itemsToDisplay;
+            if(obj.accelObj.getSampleRate()<=1)
+                [usageVec,usageState, startStopDatenums] = obj.getUsageState();
+                
+                vecHandles = obj.VIEW.addFeaturesVecToSecondaryAxes(usageVec,obj.accelObj.dateTimeNum,height,heightOffset);
+                %obj.VIEW.addOverlayToSecondaryAxes(usageState,startStopDatenums,1/numRegions,curRegion/numRegions);
+            else
+                vecHandles = [];
+            end
+            % Next, add lumens intensity to secondary axes
+            heightOffset = heightOffset+height;
+            maxLumens = 250;
+            numFrames = obj.getFrameCount();
+            [meanLumens,startStopDatenums] = obj.getMeanLumenPatches(numFrames);
+            obj.VIEW.addOverlayToSecondaryAxes(meanLumens,startStopDatenums,height,heightOffset,maxLumens);
+            %             [medianLumens,startStopDatenums] = obj.getMedianLumenPatches(1000);
+            %             obj.VIEW.addLumensOverlayToSecondaryAxes(meanLumens,startStopDatenums);
+            
+            % Finally Add daylight to the top.
+            heightOffset = heightOffset+height;
+            maxDaylight = 1;
+            [daylight,startStopDatenums] = obj.getDaylight(numFrames);
+            obj.VIEW.addOverlayToSecondaryAxes(daylight,startStopDatenums,height-0.005,heightOffset,maxDaylight);
+            
+            obj.initCallbacks(); %initialize callbacks now that we have some data we can interact with.
+            
+            obj.VIEW.showReady('all');
+            
         end
         
-        % =================================================================
-        %> @brief Channel contextmenu callback to hide the selected
-        %> channel.
-        %> @param hObject Handle of callback object (unused).
-        %> @param eventdata Unused.
-        % =================================================================
-        function contextmenu_line_hide_callback(obj,hObject,eventdata)
-            tagLine = get(gco,'tag');
-            parentH = get(gco,'parent');
-            obj.accelObj.setVisible(tagLine,'off');   
+        % --------------------------------------------------------------------
+        %> @brief Initializes widgets for results view mode.  Widgets are
+        %> disabled if the resultsPathname does not exist or cannot be
+        %> found.
+        %> @param this Instance of PAController
+        %> @retval success A boolean value (true on successful initialization of the resultsPathname into padaco's view
+        % --------------------------------------------------------------------
+        function success = initResultsView(this)
+            success = false;
+            % this.VIEW.initWidgets('results',false);
+            if(isdir(this.resultsPathname))
+                if(~isempty(this.StatTool))
+                    this.StatTool.init();  %calls a plot refresh
+                else
+                    this.StatTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname,this.SETTINGS.StatTool);
+                end
+                success = this.StatTool.getCanPlot();
+            end
             
-            % get the siblings handles with same tagLine (e.g. label and
-            % rereference line handles.
-            h = findobj(parentH,'tag',tagLine);
-            set(h,'visible','off','hittest','off'); % turn the hittest off so I can access contextmenus when clicking over the unseen line.
-            set(gco,'selected','off');
+            if(~success)
+                this.StatTool.disable();
+                
+                this.StatTool = [];
+                responseButton = questdlg('Results output pathname is either not set or was not found.  Would you like to choose one now?','Find results output path?');
+                if(strcmpi(responseButton,'yes'))
+                    this.menuFileOpenResultsPathCallback();
+                end
+            else
+                this.VIEW.showReady();
+            end
         end
         
         
@@ -2214,7 +1826,7 @@ classdef PAController < handle
         %> @param obj Instance of PAController
         %> @param paDataObject Instance of PAData
         %> @param featureFcn Extractor method for obtaining features from
-        %> curData.        
+        %> curData.
         %> @param img_filename Filename (full) to save the screenshot too.
         %> @note The image format is determined from img_filename's
         %> extension.
@@ -2236,10 +1848,10 @@ classdef PAController < handle
                 'toolbar','none','menubar','none');
             set(f,'units','normalized','renderer','zbuffer');
             set(axes_copy,'parent',f);
-
+            
             obj.drawOverlay(paDataObject,featureFcn,axes_copy);
             obj.cropFigure2Axes(f,axes_copy);
-
+            
             set(f,'visible','on');
             set(f,'clipping','off');
             print(f,imgFmt,'-r0',img_filename);
@@ -2253,7 +1865,7 @@ classdef PAController < handle
             numFrames = paDataObject.getFrameCount();
             maxLumens = 250;
             
-            % Modified - by adding paDataObject as secondary value.  
+            % Modified - by adding paDataObject as secondary value.
             [meanLumens,startStopDatenums] = obj.getMeanLumenPatches(numFrames,paDataObject);
             
             % Modified - by adding axesH as second argument
@@ -2265,8 +1877,8 @@ classdef PAController < handle
             
             % Modified - by adding axesH as last argument
             obj.VIEW.addOverlayToAxes(daylight,startStopDatenums,1/7-0.005,6/7,maxDaylight,axesH);
-
-            % updateSecondaryFeaturesDisplay 
+            
+            % updateSecondaryFeaturesDisplay
             signalTagLines = strcat('accel.',paDataObject.accelType,'.',{'x','y','z','vecMag'})';
             numViews = (numel(signalTagLines)+1)+2;
             height = 1/numViews;
@@ -2316,19 +1928,19 @@ classdef PAController < handle
             else
                 dateScale = 1; %show every 24 hours.
                 
-            end    
+            end
             if(dateScale >= 1/3)
                 timeDeltaSec = datenum(0,0,1)/24/3600;
                 studyDatenums = startStopDatenum(1):timeDeltaSec:startStopDatenum(2);
                 [~,~,~,hours,minutes,sec] = datevec(studyDatenums);
                 newDayIndices = mod([hours(:),minutes(:),sec(:)]*[1;1/60;1/3600],24)==0;
-%                 quarterDayIndices =  mod([hours(:),min(:),sec(:)]*[1;1/60;1/3600],24/4)==0;
-
+                %                 quarterDayIndices =  mod([hours(:),min(:),sec(:)]*[1;1/60;1/3600],24/4)==0;
+                
                 xTick = studyDatenums(newDayIndices);
                 axesProps.XGrid = 'on';
                 axesProps.XMinorGrid = 'off';
                 axesProps.XMinorTick = 'on';
-                                
+                
             else
                 timeDelta = datenum(0,0,1)*dateScale;
                 xTick = [startStopDatenum(1):timeDelta:startStopDatenum(2), startStopDatenum(2)];
@@ -2345,7 +1957,7 @@ classdef PAController < handle
             axesProps.XTick = xTick;
             axesProps.XTickLabel = datestr(xTick,'ddd HH:MM');
             
-           
+            
             fontReduction = min([4, floor(durationDays/4)]);
             axesProps.fontSize = 14-fontReduction;
             
@@ -2358,7 +1970,6 @@ classdef PAController < handle
         %> @param obj Instance of PAController
         % --------------------------------------------------------------------
         function figureScreenshot(obj)
-            
             
             filterspec = {'png','PNG';'jpeg','JPEG'};
             save_format = {'-dpng','-djpeg'};
@@ -2377,21 +1988,18 @@ classdef PAController < handle
                     end
                     fig_h = obj.VIEW.figurehandle;
                     axes_copy = copyobj(obj.VIEW.axeshandle.secondary,fig_h);
-
+                    
                     f = figure('visible','off','paperpositionmode','auto','inverthardcopy','on',...
                         'units',get(fig_h,'units'),'position',get(fig_h,'position'),...
                         'toolbar','none','menubar','none');
                     set(f,'units','normalized');
                     set(axes_copy,'parent',f);
                     
-
                     cropFigure2Axes(f,axes_copy);
-
+                    
                     set(f,'visible','on');
                     set(f,'clipping','off');
                     
-                    
-
                     print(f,save_format{filterindex},'-r0',fullfile(img_pathname,img_filename));
                     
                     %save the screenshot
@@ -2399,7 +2007,7 @@ classdef PAController < handle
                     %         print(f,fullfile(img_pathname,img_filename),['-d',filterspec{filterindex,1}]);
                     %         print(f,['-d',filterspec{filterindex,1}],fullfile(img_pathname,img_filename));
                     %         set(handles.axes1,'position',apos,'dataaspectratiomode','manual' ,'dataaspectratio',dataaspectratio,'parent',handles.sev_main_fig)
-                    delete(f);                    
+                    delete(f);
                     obj.screenshotPathname = img_pathname;
                 catch ME
                     showME(ME);
@@ -2409,8 +2017,471 @@ classdef PAController < handle
         end
         
         
+        %% context menu callbacks for channels
+        
+        % =================================================================
+        %> @brief Channel contextmenu callback to hide the selected
+        %> channel.
+        %> @param hObject Handle of callback object (unused).
+        %> @param eventdata Unused.
+        % =================================================================
+        function contextmenu_line_hide_callback(obj,hObject,eventdata)
+            tagLine = get(gco,'tag');
+            parentH = get(gco,'parent');
+            obj.accelObj.setVisible(tagLine,'off');
+            
+            % get the siblings handles with same tagLine (e.g. label and
+            % rereference line handles.
+            h = findobj(parentH,'tag',tagLine);
+            set(h,'visible','off','hittest','off'); % turn the hittest off so I can access contextmenus when clicking over the unseen line.
+            set(gco,'selected','off');
+        end
+        
+        %% context menus for the view
+        
+        % =================================================================
+        %> @brief Configure contextmenu for view's primary axes.
+        %> @param obj instance of PAController.
+        %> @retval contextmenu_mainaxes_h A contextmenu handle.  This should
+        %> be assigned to the primary axes handle of PAView.
+        % =================================================================
+        function contextmenu_mainaxes_h = getPrimaryAxesContextmenuHandle(obj)
+            %%% reference line contextmenu
+            contextmenu_mainaxes_h = uicontextmenu('parent',obj.figureH);
+            hideH =uimenu(contextmenu_mainaxes_h,'Label','Hide','tag','hide');
+            unhideH = uimenu(contextmenu_mainaxes_h,'Label','Unhide','tag','unhide');
+            set(contextmenu_mainaxes_h,'callback',{@obj.contextmenu_primaryAxes_callback,hideH,unhideH});
+            
+        end
+        
+        % --------------------------------------------------------------------
+        function contextmenu_primaryAxes_callback(obj,hObject, eventdata, hide_uimenu_h, unhide_uimenu_h)
+            %configure sub contextmenus
+            obj.configure_contextmenu_unhideSignals(unhide_uimenu_h);
+            obj.configure_contextmenu_hideSignals(hide_uimenu_h);
+        end
+        
+        % =================================================================
+        %> @brief Configure contextmenu for view's secondary axes.
+        %> @param obj instance of PAController.
+        %> @retval contextmenu_mainaxes_h A contextmenu handle.  This should
+        %> be assigned to the primary axes handle of PAView.
+        % =================================================================
+        function contextmenu_secondaryAxes_h = getSecondaryAxesContextmenuHandle(obj)
+            %%% reference line contextmenu
+            contextmenu_secondaryAxes_h = uicontextmenu('parent',obj.figureH);
+            menu_h = uimenu(contextmenu_secondaryAxes_h,'Label','Line Smoothing','tag','smoothing');
+            on_menu_h =uimenu(menu_h,'Label','On','tag','smoothing_on','callback',{@obj.contextmenu_featureSmoothing_callback,true});
+            off_menu_h = uimenu(menu_h,'Label','Off','tag','smoothing_off','callback',{@obj.contextmenu_featureSmoothing_callback,false});
+            set(menu_h,'callback',{@obj.configure_contextmenu_smoothing_callback,on_menu_h,off_menu_h});
+        end
+        
+        % =================================================================
+        %> @brief Configure Line Smoothing sub contextmenus for view's secondary axes.
+        %> @param obj instance of PAController.
+        %> @param hObject Handle to the Line Smoothing context menu
+        %> @param eventdata Not used
+        %> @param on_uimenu_h Handle to Smoothing on menu option
+        %> @param off_uimenu_h Handle to smoothing off menu option
+        %> @retval contextmenu_mainaxes_h A contextmenu handle.  This should
+        %> be assigned to the primary axes handle of PAView.
+        
+        % =================================================================
+        % --------------------------------------------------------------------
+        function configure_contextmenu_smoothing_callback(obj,hObject, eventdata, on_uimenu_h, off_uimenu_h)
+            %configure sub contextmenus
+            if(obj.VIEW.getUseSmoothing())
+                set(on_uimenu_h,'checked','on');
+                set(off_uimenu_h,'checked','off');
+            else
+                set(on_uimenu_h,'checked','off');
+                set(off_uimenu_h,'checked','on');                
+            end 
+        end
+        
+        % =================================================================
+        %> @brief Contextmenu selection callback for turning line smoothing 'on' or 'off'
+        %> in the secondary axes when looking at time series data.
+        %> @param obj instance of PAController.
+        %> @param contextmenu_h Handle of parent contextmenu to unhide
+        %> channels.
+        %> @param eventdata Unused.
+        %> @param useSmoothingState Boolean flag for smoothing state
+        %> - @c true  : Turn smoothing on (default)
+        %> - @c false : Turn smoothing off
+        % =================================================================
+        function contextmenu_featureSmoothing_callback(obj,contextmenu_h,eventdata,useSmoothing)
+            % --------------------------------------------------------------------
+            if(nargin<4)
+                useSmoothing = true;
+            end
+            obj.setSmoothingState(useSmoothing == true);
+        end
+        
+        function setSmoothingState(obj,smoothingState)
+            if(nargin>1 && ~isempty(smoothingState))                
+                obj.VIEW.setUseSmoothing(smoothingState);               
+                obj.updateSecondaryFeaturesDisplay();
+            end
+            
+        end
+        
+        
+        % =================================================================
+        %> @brief configures a contextmenu selection to be hidden or to have
+        %> attached uimenus with labels of unhidden signals displayed for selection. (if seleceted, the signal is then hidden)
+        %> @param obj instance of PAController.
+        %> @param contextmenu_h Handle of parent contextmenu to unhide
+        %> channels.
+        %> @param eventdata Unused.
+        % =================================================================
+        function configure_contextmenu_hideSignals(obj,contextmenu_h,eventdata)
+            % --------------------------------------------------------------------
+            % start with a clean slate
+            delete(get(contextmenu_h,'children'));
+            set(contextmenu_h,'enable','off');
+            lineHandles = obj.getDisplayableLineHandles();
+            hasVisibleSignals = false;
+            for h=1:numel(lineHandles)
+                lineH = lineHandles(h);
+                if(~strcmpi(get(lineH,'visible'),'off'))
+                    tagLine = get(lineH,'tag');
+                    set(contextmenu_h,'enable','on');
+                    uimenu(contextmenu_h,'Label',tagLine,'separator','off','callback',{@obj.hideLineHandle_callback,lineH});
+                    hasVisibleSignals = true;
+                end;
+            end;
+            set(gco,'selected','off');
+            if(~hasVisibleSignals)
+                set(contextmenu_h,'visible','off');
+            else
+                set(contextmenu_h,'visible','on');
+            end
+            
+        end
+        
+        
+        % =================================================================
+        %> @brief configures a contextmenu selection to be hidden or to have
+        %> attached uimenus with labels of hidden signalss displayed.
+        %> @param obj instance of PAController.
+        %> @param contextmenu_h Handle of parent contextmenu to unhide
+        %> channels.
+        %> @param eventdata Unused.
+        % =================================================================
+        function configure_contextmenu_unhideSignals(obj,contextmenu_h,eventdata)
+            % --------------------------------------------------------------------
+            % start with a clean slate
+            delete(get(contextmenu_h,'children'));
+            set(contextmenu_h,'enable','off');
+            lineHandles = obj.getDisplayableLineHandles();
+            hasHiddenSignals = false;
+            for h=1:numel(lineHandles)
+                lineH = lineHandles(h);
+                if(strcmpi(get(lineH,'visible'),'off'))
+                    tagLine = get(lineH,'tag');
+                    set(contextmenu_h,'enable','on');
+                    uimenu(contextmenu_h,'Label',tagLine,'separator','off','callback',{@obj.showLineHandle_callback,lineH});
+                    hasHiddenSignals = true;
+                end;
+            end;
+            set(gco,'selected','off');
+            if(~hasHiddenSignals)
+                set(contextmenu_h,'visible','off');
+            else
+                set(contextmenu_h,'visible','on');
+            end
+            
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Set's the visible property for the specified line handle
+        %> and its associated reference and label handles to 'on'.
+        %> @param obj Instance of PAController
+        %> @param hObject Handle of the callback object.
+        %> @param eventdata Unused.
+        %> @param lineHandle Line handle to be shown.
+        % --------------------------------------------------------------------
+        function showLineHandle_callback(obj,hObject,eventdata,lineHandle)
+            % --------------------------------------------------------------------
+            lineTag = get(lineHandle,'tag');
+            tagHandles = findobj(get(lineHandle,'parent'),'tag',lineTag);
+            set(tagHandles,'visible','on','hittest','on')
+            obj.accelObj.setVisible(lineTag,'on');
+            set(gco,'selected','off');
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Set's the visible property for the specified line handle
+        %> and its associated reference and label handles to 'off'.
+        %> @param obj Instance of PAController
+        %> @param hObject Handle of the callback object.
+        %> @param eventdata Unused.
+        %> @param lineHandle Line handle to be shown.
+        % --------------------------------------------------------------------
+        function hideLineHandle_callback(obj,hObject,eventdata,lineHandle)
+            % --------------------------------------------------------------------
+            lineTag = get(lineHandle,'tag');
+            tagHandles = findobj(get(lineHandle,'parent'),'tag',lineTag);
+            set(tagHandles,'visible','off','hittest','off')
+            obj.accelObj.setVisible(lineTag,'off');
+            set(gco,'selected','off');
+        end
+        
+        % =================================================================
+        %> @brief Configure contextmenu for signals that will be drawn in the view.
+        %> @param obj instance of PAController.
+        %> @retval uicontextmenu_handle A contextmenu handle.  This should
+        %> be assigned to the line handles drawn by the PAController and
+        %> PAView classes.
+        % =================================================================
+        function uicontextmenu_handle = getLineContextmenuHandle(obj)
+            % --------------------------------------------------------------------
+            uicontextmenu_handle = uicontextmenu('callback',@obj.contextmenu_line_callback,'parent',obj.figureH);%,get(parentAxes,'parent'));
+            uimenu(uicontextmenu_handle,'Label','Resize','separator','off','callback',@obj.contextmenu_line_resize_callback);
+            uimenu(uicontextmenu_handle,'Label','Use Default Scale','separator','off','callback',@obj.contextmenu_line_defaultScale_callback,'tag','defaultScale');
+            uimenu(uicontextmenu_handle,'Label','Move','separator','off','callback',@obj.contextmenu_line_move_callback);
+            uimenu(uicontextmenu_handle,'Label','Change Color','separator','off','callback',@obj.contextmenu_line_color_callback);
+            %            uimenu(uicontextmenu_handle,'Label','Add Reference Line','separator','on','callback',@obj.contextmenu_line_referenceline_callback);
+            %            uimenu(uicontextmenu_handle,'Label','Align Channel','separator','off','callback',@obj.align_channels_on_axes);
+            uimenu(uicontextmenu_handle,'Label','Hide','separator','on','callback',@obj.contextmenu_line_hide_callback);
+            uimenu(uicontextmenu_handle,'Label','Copy window to clipboard','separator','off','callback',@obj.contextmenu_window2clipboard_callback,'tag','copy_window2clipboard');
+        end
+        
+        % =================================================================
+        %> @brief Configure contextmenu for feature line which is drawn in the secondary axes.
+        %> @param obj instance of PAController.
+        %> @retval uicontextmenu_handle A contextmenu handle.  This should
+        %> be assigned to the line handles drawn by the PAController and
+        %> PAView classes.
+        % =================================================================
+        function uicontextmenu_handle = getFeatureLineContextmenuHandle(obj)
+            uicontextmenu_handle = uicontextmenu('parent',obj.figureH);%,get(parentAxes,'parent'));
+            uimenu(uicontextmenu_handle,'Label','Copy to clipboard','separator','off','callback',@obj.contextmenu_line2clipboard_callback,'tag','copy_window2clipboard');
+        end
+        
+        
+        % =================================================================
+        %> @brief Contextmenu callback for primary axes line handles
+        %> @param obj instance of PAController
+        %> @param hObject Handle of callback object (unused).
+        %> @param eventdata Unused.
+        % =================================================================
+        function contextmenu_line_callback(obj,hObject,eventdata)
+            %parent context menu that pops up before any of the children contexts are
+            %drawn...
+            %             handles = guidata(hObject);
+            %             parent_fig = get(hObject,'parent');
+            %             obj_handle = get(parent_fig,'currentobject');
+            obj.current_linehandle = gco;
+            set(gco,'selected','on');
+            
+            lineTag = get(gco,'tag');
+            set(obj.VIEW.texthandle.status,'string',lineTag);
+            
+            child_menu_handles = get(hObject,'children');  %this is all of the handles of the children menu options
+            default_scale_handle = child_menu_handles(find(~cellfun('isempty',strfind(get(child_menu_handles,'tag'),'defaultScale')),1));
+            
+            allScale = obj.accelObj.getScale();
+            curScale = eval(['allScale.',lineTag]);
+            
+            pStruct = PAData.getDefaultParameters;
+            defaultScale = eval(strcat('pStruct.scale.',lineTag));
+            
+            
+            if(curScale==defaultScale)
+                set(default_scale_handle,'Label',sprintf('Default Scale (%0.2f)',defaultScale))
+                set(default_scale_handle,'checked','on');
+            else
+                set(default_scale_handle,'Label',sprintf('Use Default Scale (%0.2f)',defaultScale))
+                set(default_scale_handle,'checked','off');
+            end;
+            
+            
+            %
+            %             %show/hide the show filter handle
+            %             if(isempty(channelObj.filter_data))
+            %                 set(show_filtered_handle,'visible','off');
+            %             else
+            %                 set(show_filtered_handle,'visible','on');
+            %                 if(channelObj.show_filtered)
+            %                     set(show_filtered_handle,'Label','Show Raw Data');
+            %                     %         set(show_filtered_handle,'checked','on');
+            %                 else
+            %                     set(show_filtered_handle,'Label','Show Filtered Data');
+            %                     %         set(show_filtered_handle,'checked','off');
+            %                 end
+            %             end
+            %             guidata(hObject,handles);
+        end
+        
+        % =================================================================
+        %> @brief A line handle's contextmenu 'move' callback.
+        %> @param obj instance of PAController.
+        %> @param hObject gui handle object
+        %> @param eventdata unused
+        % =================================================================
+        function contextmenu_line_move_callback(obj,hObject,eventdata)
+            y_lim = get(obj.VIEW.axeshandle.primary,'ylim');
+            
+            tagLine = get(gco,'tag');
+            set(obj.VIEW.figurehandle,'pointer','hand',...
+                'windowbuttonmotionfcn',...
+                {@obj.move_line_mouseFcnCallback,tagLine,y_lim}...
+                );
+        end;
+        
+        % =================================================================
+        %> @brief Channel contextmenu callback to move the selected
+        %> channel's position in the SEV.
+        %> @param obj instance of CLASS_channels_container.
+        %> @param hObject Handle of callback object (unused).
+        %> @param eventdata Unused.
+        %> @param lineTag The tag for the current selected linehandle.
+        %> @note lineTag = 'timeSeries.accelCount.x'
+        %> This is used for dynamic indexing into the accelObj's datastructs.
+        %> @param y_lim Y-axes limits; cannot move the channel above or below
+        %> these bounds.
+        %> @retval obj instance of CLASS_channels_container.
+        % =================================================================
+        function move_line_mouseFcnCallback(obj,hObject,eventdata,lineTag,y_lim)
+            %windowbuttonmotionfcn set by contextmenu_line_move_callback
+            %axes_h is the axes that the current object (channel_object) is in
+            pos = get(obj.VIEW.axeshandle.primary,'currentpoint');
+            curOffset = max(min(pos(1,2),y_lim(2)),y_lim(1));
+            obj.accelObj.setOffset(lineTag,curOffset);
+            obj.VIEW.draw();
+        end
+        
+        % =================================================================
+        %> @brief Resize callback for channel object contextmenu.
+        %> @param obj instance of CLASS_channels_container.
+        %> @param hObject Handle of callback object (unused).
+        %> @param eventdata Unused.
+        %> @retval obj instance of CLASS_channels_container.
+        % =================================================================
+        function contextmenu_line_resize_callback(obj,hObject,eventdata)
+            
+            lineTag = get(gco,'tag');
+            set(obj.VIEW.figurehandle,'pointer','crosshair','WindowScrollWheelFcn',...
+                {@obj.resize_WindowScrollWheelFcn,...
+                lineTag,obj.VIEW.texthandle.status});
+            
+            allScale = obj.accelObj.getScale();
+            curScale = eval(['allScale.',lineTag]);
+            
+            %show the current scale
+            click_str = sprintf('Scale: %0.2f',curScale);
+            set(obj.VIEW.texthandle.status,'string',click_str);
+            
+            %flush the draw queue
+            drawnow();
+        end;
+        
+        % =================================================================
+        %> @brief Contextmenu callback to set a line's default scale.
+        %> @param obj instance of PAController
+        %> @param hObject gui handle object
+        %> @param eventdata unused
+        % =================================================================
+        function contextmenu_line_defaultScale_callback(obj,hObject,eventdata)
+            
+            if(strcmp(get(hObject,'checked'),'off'))
+                set(hObject,'checked','on');
+                lineTag = get(gco,'tag');
+                
+                pStruct = PAData.getDefaultParameters;
+                defaultScale = eval(strcat('pStruct.scale.',lineTag));
+                
+                obj.accelObj.setScale(lineTag,defaultScale);
+                obj.VIEW.draw();
+            end;
+            set(gco,'selected','off');
+        end
+        
+        
+        % =================================================================
+        %> @brief Contextmenu callback to set a line's color.  MATLAB's
+        %> interactive dialog is used to obtain and set the color
+        %> (uisetcolor).
+        %> @param obj instance of PAController
+        %> @param hObject gui handle object
+        %> @param eventdata unused
+        % =================================================================
+        function contextmenu_line_color_callback(obj, hObject, eventdata)
+            lineTag = get(gco,'tag');
+            c = get(gco,'color');
+            c = uisetcolor(c);
+            if(numel(c)~=1)
+                obj.accelObj.setColor(lineTag,c);
+                tagHandles = findobj(get(gco,'parent'),'tag',lineTag);
+                set(tagHandles,'color',c);
+            end;
+            set(gco,'selected','off');
+        end
+        
+        % =================================================================
+        %> @brief Mouse wheel callback to resize the selected channel.
+        %> @param obj instance of PAController.
+        %> @param hObject Handle of callback object (unused).
+        %> @param eventdata Mouse scroll event data.
+        %> @param lineTag The tag for the current selected linehandle.
+        %> @note lineTag = 'timeSeries.accelCount.x'
+        %> This is used for dynamic indexing into the accelObj's datastructs.
+        %> @param text_h Text handle for outputing the channel's size/scale.
+        % =================================================================
+        function resize_WindowScrollWheelFcn(obj,hObject,eventdata,lineTag,text_h)
+            %the windowwheelscrollfcn set by contextmenu_line_resize_callback
+            %it is used to adjust the size of the selected channel object (channelObj)
+            scroll_step = 0.05;
+            lowerbound = 0.01;
+            
+            %kind of hacky
+            allScale = obj.accelObj.getScale();
+            curScale = eval(['allScale.',lineTag]);
+            
+            
+            newScale = max(lowerbound,curScale-eventdata.VerticalScrollCount*scroll_step);
+            obj.accelObj.setScale(lineTag,newScale);
+            obj.VIEW.draw();
+            
+            %update this text scale...
+            click_str = sprintf('Scale: %0.2f',newScale);
+            set(text_h,'string',click_str);
+        end
+        
+        
+        % =================================================================
+        %> @brief Copy the selected linehandle's ydata to the system
+        %> clipboard.
+        %> @param obj Instance of PAController
+        %> @param hObject Handle of callback object (unused).
+        %> @param eventdata Unused.
+        % =================================================================
+        function contextmenu_window2clipboard_callback(obj,hObject,eventdata)
+            data =get(obj.current_linehandle,'ydata');
+            clipboard('copy',data);
+            disp([num2str(numel(data)),' items copied to the clipboard.  Press Control-V to access data items, or type "str=clipboard(''paste'')"']);
+            set(gco,'selected','off');
+            obj.current_linehandle = [];
+        end
+        
+        % =================================================================
+        %> @brief Copy the selected (feature) linehandle's ydata to the system
+        %> clipboard.
+        %> @param obj Instance of PAController
+        %> @param hObject Handle of callback object (unused).
+        %> @param eventdata Unused.
+        % =================================================================
+        function contextmenu_line2clipboard_callback(obj,hObject,eventdata)
+            data = get(get(hObject,'parent'),'userdata');
+            clipboard('copy',data);
+            disp([num2str(numel(data)),' items copied to the clipboard.  Press Control-V to access data items, or type "str=clipboard(''paste'')"']);
+        end
+        
+        
     end
-
+    
     methods (Static)
         
         function cropFigure2Axes(fig_h,axes_h)
@@ -2436,7 +2507,6 @@ classdef PAController < handle
             set(axes_h,'position',[a_width*0.06,a_height*0.1,a_width,a_height]);
             set(fig_h,'position',[f_pos(1),f_pos(2),a_width*1.1,a_height*1.2]);
             
-            
             %reset units to original
             set(fig_h,'units',fig_units_in);
             set(axes_h,'units',axes_units_in);
@@ -2459,10 +2529,10 @@ classdef PAController < handle
             mPath = fileparts(mfilename('fullpath'));
             pStruct.screenshotPathname = mPath;
             pStruct.viewMode = 'timeseries';
-            
+            pStruct.useSmoothing = true;
             batchSettings = PABatchTool.getDefaultParameters();
             pStruct.resultsPathname = batchSettings.outputDirectory;
-        end        
+        end
     end
     
     

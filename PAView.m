@@ -14,6 +14,13 @@ classdef PAView < handle
         %> @li @c Features
         displayType; 
         
+        %> Boolean value: 
+        %> - @c true : Apply line smoothing when presenting features on the
+        %> secondary axes (Default).  
+        %> - @c false : Do not apply line smoothing when presenting features on the
+        %> secondary axes (show them in original form).
+        useSmoothing;        
+        
     end
     
     properties
@@ -103,8 +110,8 @@ classdef PAView < handle
         %> PAData instance
         dataObj;
         window_resolution;%struct of different time resolutions, field names correspond to the units of time represented in the field        
-        
     end
+
 
     methods
         
@@ -119,22 +126,30 @@ classdef PAView < handle
         %> VIEW's feature line handles.
         %> @retval obj Instance of PAView
         % --------------------------------------------------------------------
-        function obj = PAView(Padaco_fig_h,lineContextmenuHandle,primaryAxesContextmenuHandle,featureLineContextmenuHandle)
+        function obj = PAView(Padaco_fig_h,lineContextmenuHandle,primaryAxesContextmenuHandle,featureLineContextmenuHandle,secondaryAxesContextmenuHandle)
             if(ishandle(Padaco_fig_h))
-                if(nargin<3)
-                    primaryAxesContextmenuHandle = [];
-                    
-                    if(nargin<2)
-                        lineContextmenuHandle = [];
+                if(nargin<4)
+                    secondaryAxesContextmenuHandle = [];
+                    if(nargin<3)
+                        primaryAxesContextmenuHandle = [];
+                        
+                        if(nargin<2)
+                            lineContextmenuHandle = [];
+                        else
+                            if(ishandle(lineContextmenuHandle))
+                                set(lineContextmenuHandle,'parent',Padaco_fig_h);
+                            end
+                        end
                     else
-                        if(ishandle(lineContextmenuHandle))
-                            set(lineContextmenuHandle,'parent',Padaco_fig_h);
+                        if(ishandle(primaryAxesContextmenuHandle))
+                            set(primaryAxesContextmenuHandle,'parent',Padaco_fig_h);
                         end
                     end
                 else
-                    if(ishandle(primaryAxesContextmenuHandle))
-                        set(primaryAxesContextmenuHandle,'parent',Padaco_fig_h);
+                    if(ishandle(secondaryAxesContextmenuHandle))
+                        set(secondaryAxesContextmenuHandle,'parent',Padaco_fig_h);
                     end
+                    
                 end
                 
                 obj.figurehandle = Padaco_fig_h;
@@ -142,8 +157,11 @@ classdef PAView < handle
                 %                 set(obj.figurehandle,'renderer','OpenGL');
 
                 obj.contextmenuhandle.primaryAxes = primaryAxesContextmenuHandle;
+                obj.contextmenuhandle.secondaryAxes = secondaryAxesContextmenuHandle;
                 obj.contextmenuhandle.signals = lineContextmenuHandle;
                 obj.contextmenuhandle.featureLine = featureLineContextmenuHandle;
+                
+                obj.useSmoothing = true;
                 
                 obj.createView(); 
                 obj.disableWidgets();
@@ -154,7 +172,8 @@ classdef PAView < handle
             else
                 obj = [];
             end
-        end        
+        end 
+        
                 
         % --------------------------------------------------------------------
         %> @brief Creates line handles and maps figure tags to PAView instance variables.
@@ -262,10 +281,8 @@ classdef PAView < handle
             % Clear the figure and such.  
             obj.clearAxesHandles();
             obj.clearTextHandles(); 
-            obj.clearWidgets();
-            
+            obj.clearWidgets();            
         end
-        
         
         % --------------------------------------------------------------------
         %> @brief Sets padaco's view mode to either time series or results viewing.
@@ -294,7 +311,6 @@ classdef PAView < handle
             windowDurSec = userData(userChoice);
         end
         
-        
         % --------------------------------------------------------------------
         %> @brief Sets the window duration drop down menu's current value
         %> based on the input parameter (as seconds).  If the duration in
@@ -318,7 +334,6 @@ classdef PAView < handle
             end
             set(obj.menuhandle.windowDurSec,'value',userChoice);
         end
-        
         
         % --------------------------------------------------------------------
         %> @brief Retrieves the current window's edit box string value as a
@@ -383,7 +398,29 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         function setFrameDurationHours(obj,frameDurationHoursStr)
            set(obj.texthandle.frameDurationHours,'string',frameDurationHoursStr);            
-        end   
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Sets line smoothing state for feature vectors displayed on the secondary axes.
+        %> @param obj Instance of PAView.
+        %> @param smoothingState  Possible values include:
+        %> - @c true Smoothing is on.
+        %> - @c false Smoothing is off.
+        % --------------------------------------------------------------------
+        function setUseSmoothing(obj,smoothingState)
+            if(nargin<2 || isempty(smoothingState))
+                obj.useSmoothing = true;
+            else
+                obj.useSmoothing = smoothingState==true;
+            end           
+        end
+        
+        function smoothing = getUseSmoothing(obj)
+            smoothing = obj.useSmoothing;
+        end
+        
+           
+
         
         % --------------------------------------------------------------------
         %> @brief Sets display type instance variable.    
@@ -541,12 +578,12 @@ classdef PAView < handle
                 
                 axesProps.secondary = axesProps.primary;
                 
-                % want this on the secondary
-                axesProps.secondary.xminortick = 'off';
-                
-                % Don't want these to be on the secondary axes.
-                axesProps.primary.uicontextmenu = obj.contextmenuhandle.primaryAxes;
+                % Distinguish primary and secondary properties here:
                 axesProps.primary.xminortick='on';
+                axesProps.primary.uicontextmenu = obj.contextmenuhandle.primaryAxes;
+                
+                axesProps.secondary.xminortick = 'off';
+                axesProps.secondary.uicontextmenu = obj.contextmenuhandle.secondaryAxes;                
                 
             elseif(strcmpi(viewMode,'results'))
                 axesProps.primary.ylimmode = 'auto';
@@ -937,7 +974,7 @@ classdef PAView < handle
         %> @retval featureHandles Line handles created from the method.
         % --------------------------------------------------------------------
         function featureHandles = addFeaturesVecToSecondaryAxes(obj, featureVector, startStopDatenum, overlayHeight, overlayOffset)
-            featureHandles = obj.addFeaturesVecToAxes(featureVector, startStopDatenum, overlayHeight, overlayOffset,obj.axeshandle.secondary);
+            featureHandles = obj.addFeaturesVecToAxes(featureVector, startStopDatenum, overlayHeight, overlayOffset,obj.axeshandle.secondary, obj.getUseSmoothing());
 
         end
         
@@ -1484,17 +1521,26 @@ classdef PAView < handle
         %> @param overlayOffset The normalized y offset ([0, 1]) that is applied to
         %> the featureVector when displayed on the secondary axes.
         %> @param axesH The graphic handle to the axes.
+        %> @param useSmoothing Boolean flag to set if feature vector should
+        %> be applied (true) or not (false) before display.
         %> @retval featureHandles Line handles created from the method.
         % --------------------------------------------------------------------
-        function featureHandles = addFeaturesVecToAxes(featureVector, startStopDatenum, overlayHeight, overlayOffset, axesH)
+        function featureHandles = addFeaturesVecToAxes(featureVector, startStopDatenum, overlayHeight, overlayOffset, axesH, useSmoothing)
             if(overlayOffset>0)
                 featureHandles = nan(3,1);
             else
                 featureHandles = nan(2,1);
             end            
+
+                
             n = 10;
             b = repmat(1/n,1,n);
-            smoothY = filtfilt(b,1,featureVector);
+            
+            if(useSmoothing)
+                smoothY = filtfilt(b,1,featureVector);
+            else
+                smoothY = featureVector;
+            end
             normalizedY = smoothY/max(smoothY)*overlayHeight+overlayOffset;
             featureHandles(1) = line('parent',axesH,'ydata',normalizedY,'xdata',startStopDatenum(:,1),'color','b','hittest','off','userdata',featureVector);
             %draw some boundaries around our features - put in rails
