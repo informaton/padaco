@@ -1658,9 +1658,12 @@ classdef PAData < handle
                 % otherwise just use the original
             end
             
-            data = obj.getStruct('all');
-            data = eval(['data.',signalTagLine]);
-            
+            try
+                data = obj.getStruct('all');
+                data = eval(['data.',signalTagLine]);
+            catch me                
+                rethrow(me);  %this is just for debugging.
+            end
             obj.frames =  reshape(data(1:frameableSamples),[],obj.numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
             % Frames are stored in consecutive columns.  Thus the rows
             % represent the consecutive samples of data for that frame
@@ -2714,14 +2717,15 @@ classdef PAData < handle
         %> structs returned by getStruct.
         %======================================================================
         function [tagLines,labels] = getDefaultTagLineLabels()
-            tagLines = {'accel.raw.x';
+            tagLines = {
+                'accel.raw.vecMag';
+                'accel.raw.x';
                 'accel.raw.y';
                 'accel.raw.z';
-                'accel.raw.vecMag';
+                'accel.count.vecMag';
                 'accel.count.x';
                 'accel.count.y';
                 'accel.count.z';
-                'accel.count.vecMag';
                 'steps';
                 'lux';
                 'inclinometer.standing';
@@ -2729,14 +2733,15 @@ classdef PAData < handle
                 'inclinometer.lying';
                 'inclinometer.off';
                 };
-            labels = {'X (raw)';
+            labels = {
+                'Magnitude (raw)';
+                'X (raw)';
                 'Y (raw)';
                 'Z (raw)';
-                'Magnitude (raw)';
+                'Magnitude (count)';
                 'X (count)';
                 'Y (count)';
                 'Z (count)';
-                'Magnitude (count)';
                 'Steps';
                 'Luminance'
                 'inclinometer.standing';
