@@ -956,7 +956,7 @@ classdef PAView < handle
             if(ishandle(obj.linehandle.featureCumsum))
                 delete(obj.linehandle.featureCumsum);
             end
-            [obj.patchhandle.feature, obj.linehandle.feature, obj.linehandle.featureCumsum] = obj.addFeaturesVecAndOverlayToAxes( featureVector, startStopDatenum, overlayHeight, overlayOffset, obj.axeshandle.secondary, obj.contextmenuhandle.featureLine);
+            [obj.patchhandle.feature, obj.linehandle.feature, obj.linehandle.featureCumsum] = obj.addFeaturesVecAndOverlayToAxes( featureVector, startStopDatenum, overlayHeight, overlayOffset, obj.axeshandle.secondary, obj.getUseSmoothing(), obj.contextmenuhandle.featureLine);
         end
         
         % --------------------------------------------------------------------
@@ -1448,15 +1448,20 @@ classdef PAView < handle
         %> @param overlayOffset The normalized y offset ([0, 1]) that is applied to
         %> the featureVector when displayed on the axes. 
         %> @param axesH Handle of the axes to assign features to.
+        %> @param useSmoothing Boolean flag to set if feature vector should
+        %> be applied (true) or not (false) before display.
         %> @param contextmenuH Optional contextmenu handle.  Is assigned to the overlayLineH lines
         %> contextmenu callback when included.  
         %> @retval feature_patchH Patch handle of feature
         %> @retval feature_lineH Line handle of feature
         %> @retval feature_cumsumLineH Line handle of cumulative sum of feature        
         % --------------------------------------------------------------------
-        function [feature_patchH, feature_lineH, feature_cumsumLineH] = addFeaturesVecAndOverlayToAxes(featureVector, startStopDatenum, overlayHeight, overlayOffset, axesH, contextmenuH)
-            if(nargin<6)
+        function [feature_patchH, feature_lineH, feature_cumsumLineH] = addFeaturesVecAndOverlayToAxes(featureVector, startStopDatenum, overlayHeight, overlayOffset, axesH, useSmoothing,contextmenuH)
+            if(nargin<7)
                 contextmenuH = [];
+                if(nargin<6 || isempty(useSmoothing))
+                    useSmoothing = true;
+                end
             end
             
             yLim = get(axesH,'ylim');
@@ -1493,9 +1498,14 @@ classdef PAView < handle
             
             normalizedFeatureVector = featureVector/quantile(featureVector,0.99)*(overlayHeight/2);
             
-            n = 10;
-            b = repmat(1/n,1,n);
-            smoothY = filtfilt(b,1,normalizedFeatureVector);
+            if(useSmoothing)
+                n = 10;
+                b = repmat(1/n,1,n);
+                smoothY = filtfilt(b,1,normalizedFeatureVector);
+            else
+                smoothY = normalizedFeatureVector;
+            end
+            
             feature_lineH = line('parent',axesH,'ydata',smoothY+overlayOffset,'xdata',startStopDatenum(:,1),'color','b','hittest','on');
             
             if(~isempty(contextmenuH))

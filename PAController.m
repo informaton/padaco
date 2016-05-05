@@ -23,6 +23,11 @@ classdef PAController < handle
         %> updateSecondaryFeaturesDisplayCallback
         accelTypeShown;
         
+        %> String identifying Padaco's current view mode.  Values include
+        %> - @c timeseries
+        %> - @c results
+        viewMode;        
+        
     end
     properties
         %> acceleration activity object - instance of PAData
@@ -62,10 +67,7 @@ classdef PAController < handle
         %PABatchTool's getDefault
         batch;
         
-        %> String identifying Padaco's current view mode.  Values include
-        %> - @c timeseries
-        %> - @c results
-        viewMode;
+
         
         %> Foldername of most recent screenshot.
         screenshotPathname;
@@ -73,7 +75,7 @@ classdef PAController < handle
         resultsPathname;
         
         %> struct to keep track of various Padaco states
-        STATE;
+        %         STATE;  % commented out on 5/5/2016
         Padaco_loading_file_flag; %boolean set to true when initially loading a src file
         Padaco_mainaxes_ylim;
         Padaco_mainaxes_xlim;
@@ -127,8 +129,8 @@ classdef PAController < handle
                 
                 %  Apply this so that later we can retrieve useSmoothing
                 %  from obj.VIEW when it comes time to save parameters.
-                obj.VIEW.setUseSmoothing(obj.SETTINGS.CONTROLLER.useSmoothing);
-                
+                % obj.VIEW.setUseSmoothing(obj.SETTINGS.CONTROLLER.useSmoothing);
+                obj.setSmoothingState(obj.SETTINGS.CONTROLLER.useSmoothing);
                 
                 obj.initTimeSeriesWidgets();
                 
@@ -448,7 +450,8 @@ classdef PAController < handle
                 % save parameters to disk
                 obj.saveParameters();
                 
-                obj.setViewMode(obj.viewMode);
+                % Activate a refresh()
+                obj.setViewMode(obj.getViewMode());
             end
         end
         
@@ -1086,8 +1089,8 @@ classdef PAController < handle
             f=uigetfullfile({'*.csv;*.raw;*.bin','All (counts, raw accelerations)';'*.csv','Comma Separated Values';'*.bin','Raw Acceleration (binary format: firmwares 2.2.1, 2.5.0, and 3.1.0)';'*.raw','Raw Acceleration (comma separated values)';'*.gt3x','Raw GT3X binary'},'Select a file','off',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
             try
                 if(~isempty(f))
-                    if(~strcmpi(obj.viewMode,'timeseries'))
-                        obj.VIEW.setViewMode('timeseries'); % by pass the this.setViewMode() for now to avoid follow-up query that a file has not been loaded yet.
+                    if(~strcmpi(obj.getViewMode(),'timeseries'))
+                        obj.VIEW.setViewMode('timeseries'); % bypass the this.setViewMode() for now to avoid follow-up query that a file has not been loaded yet.
                     end
                     
                     
@@ -1099,7 +1102,7 @@ classdef PAController < handle
                     obj.accelObj = PAData(f,obj.SETTINGS.DATA);
                     
                     
-                    if(~strcmpi(obj.viewMode,'timeseries'))
+                    if(~strcmpi(obj.getViewMode(),'timeseries'))
                         obj.setViewMode('timeseries');
                     end
                     
@@ -1140,7 +1143,7 @@ classdef PAController < handle
                 % a problem occurred (i.e. no change took place).
                 obj.StatTool = [];
                 obj.resultsPathname = resultsPath;
-                if(~strcmpi(obj.viewMode,'results'))
+                if(~strcmpi(obj.getViewMode(),'results'))
                     obj.VIEW.showBusy('Switching to results view');
                     obj.setViewMode('results');
                 end
@@ -1284,6 +1287,10 @@ classdef PAController < handle
         end
         
         
+        function viewMode = getViewMode(obj)
+            viewMode = obj.viewMode;
+        end
+        
         function setViewModeCallback(this, hObject, eventData, viewMode)
             this.setViewMode(viewMode);
         end
@@ -1330,6 +1337,8 @@ classdef PAController < handle
             obj.VIEW.showReady();
             
         end
+        
+        
         
         % --------------------------------------------------------------------
         %> @brief Menubar callback for running the batch tool.
@@ -2119,13 +2128,37 @@ classdef PAController < handle
         end
         
         function setSmoothingState(obj,smoothingState)
-            if(nargin>1 && ~isempty(smoothingState))                
-                obj.VIEW.setUseSmoothing(smoothingState);               
-                obj.updateSecondaryFeaturesDisplay();
+            if(nargin>1 && ~isempty(smoothingState))  
+                obj.VIEW.setUseSmoothing(smoothingState); 
+                if(obj.isViewable('timeseries'))
+                    obj.VIEW.showBusy('Setting smoothing state','secondary');
+                    obj.updateSecondaryFeaturesDisplay();
+                    obj.VIEW.showReady('secondary');
+                end
             end
-            
         end
         
+        
+        %> @brief Check if I the viewing mode passed in is current, and if it is
+        %> displayable (i.e. has an accel or stat tool object)
+        %> @param obj Instance of PAController
+        %> @param viewingMode View mode to check.  Valid strings include:
+        %> - @c timeseries
+        %> - @c results
+        %> @retval viewable True/False
+        function viewable = isViewable(obj, viewingMode)
+            if(strcmpi(obj.getViewMode(),viewingMode))
+                if(strcmpi(viewingMode,'timeseries') && ~isempty(obj.accelObj))
+                    viewable = true;
+                elseif(strcmpi(viewingMode,'results') && ~isempty(obj.statTool))
+                    viewable = true;
+                else
+                    viewable = false;
+                end
+            else
+                viewable = false;
+            end
+        end
         
         % =================================================================
         %> @brief configures a contextmenu selection to be hidden or to have
