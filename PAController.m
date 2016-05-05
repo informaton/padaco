@@ -1637,16 +1637,54 @@ classdef PAController < handle
         % =================================================================
         function contextmenu_mainaxes_h = getPrimaryAxesContextmenuHandle(obj)
             %%% reference line contextmenu            
-            contextmenu_mainaxes_h = uicontextmenu('callback',@obj.contextmenu_primaryAxes_callback,'parent',obj.figureH);
-            uimenu(contextmenu_mainaxes_h,'Label','Unhide','tag','unhide');            
+            contextmenu_mainaxes_h = uicontextmenu('parent',obj.figureH);
+            hideH =uimenu(contextmenu_mainaxes_h,'Label','Hide','tag','hide');
+            unhideH = uimenu(contextmenu_mainaxes_h,'Label','Unhide','tag','unhide');            
+            set(contextmenu_mainaxes_h,'callback',{@obj.contextmenu_primaryAxes_callback,hideH,unhideH});
+            
         end
         
         % --------------------------------------------------------------------
-        function contextmenu_primaryAxes_callback(obj,hObject, eventdata)
+        function contextmenu_primaryAxes_callback(obj,hObject, eventdata, hide_uimenu_h, unhide_uimenu_h)
             %configure sub contextmenus
-            unhide_h = get(hObject,'children');
-            obj.configure_contextmenu_unhideSignals(unhide_h);
+            obj.configure_contextmenu_unhideSignals(unhide_uimenu_h);
+            obj.configure_contextmenu_hideSignals(hide_uimenu_h);
+            
         end
+        
+       % =================================================================
+       %> @brief configures a contextmenu selection to be hidden or to have
+       %> attached uimenus with labels of unhidden signals displayed for selection. (if seleceted, the signal is then hidden)  
+       %> @param obj instance of PAController.
+       %> @param contextmenu_h Handle of parent contextmenu to unhide
+       %> channels.
+       %> @param eventdata Unused.
+       % =================================================================
+       function configure_contextmenu_hideSignals(obj,contextmenu_h,eventdata)           
+       % --------------------------------------------------------------------          
+           % start with a clean slate
+           delete(get(contextmenu_h,'children'));
+           set(contextmenu_h,'enable','off');
+           lineHandles = obj.getDisplayableLineHandles();
+           hasVisibleSignals = false;
+           for h=1:numel(lineHandles)
+               lineH = lineHandles(h);               
+               if(~strcmpi(get(lineH,'visible'),'off'))
+                   tagLine = get(lineH,'tag');
+                   set(contextmenu_h,'enable','on');
+                   uimenu(contextmenu_h,'Label',tagLine,'separator','off','callback',{@obj.hideLineHandle_callback,lineH});
+                   hasVisibleSignals = true;
+               end;
+           end;
+           set(gco,'selected','off');
+           if(~hasVisibleSignals)
+               set(contextmenu_h,'visible','off');
+           else
+               set(contextmenu_h,'visible','on');
+           end
+           
+       end
+       
         
        % =================================================================
        %> @brief configures a contextmenu selection to be hidden or to have
@@ -1680,7 +1718,7 @@ classdef PAController < handle
            end
            
        end
-       
+
        % --------------------------------------------------------------------
        %> @brief Set's the visible property for the specified line handle
        %> and its associated reference and label handles to 'on'.
@@ -1695,6 +1733,23 @@ classdef PAController < handle
            tagHandles = findobj(get(lineHandle,'parent'),'tag',lineTag);
            set(tagHandles,'visible','on','hittest','on')
            obj.accelObj.setVisible(lineTag,'on');
+           set(gco,'selected','off');           
+       end
+       
+       % --------------------------------------------------------------------
+       %> @brief Set's the visible property for the specified line handle
+       %> and its associated reference and label handles to 'off'.
+       %> @param obj Instance of PAController
+       %> @param hObject Handle of the callback object.
+       %> @param eventdata Unused.
+       %> @param lineHandle Line handle to be shown.
+       % --------------------------------------------------------------------
+       function hideLineHandle_callback(obj,hObject,eventdata,lineHandle)
+       % --------------------------------------------------------------------
+           lineTag = get(lineHandle,'tag');
+           tagHandles = findobj(get(lineHandle,'parent'),'tag',lineTag);
+           set(tagHandles,'visible','off','hittest','off')
+           obj.accelObj.setVisible(lineTag,'off');
            set(gco,'selected','off');           
        end
        
