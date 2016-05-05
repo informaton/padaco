@@ -138,6 +138,7 @@ classdef PAStatTool < handle
                     this.databaseObj = feval(widgetSettings.databaseClass);
                     this.profileFields = this.databaseObj.getColumnNames('subjectInfo_t');
                     addpath('/users/unknown/Google Drive/work/Stanford - Pediatrics/code/models');
+                    addpath('/Users/unknown/Google Drive/work/Informaton/code/matlab/gee');
                 else
                     this.useDatabase = false;
                     this.databaseObj = [];
