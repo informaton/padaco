@@ -858,6 +858,8 @@ classdef PAController < handle
             selectionIndex = find(strcmpi(signalTagLines,signalTagLine)) ;
             if(isempty(selectionIndex))
                 selectionIndex = 1;
+                signalTagLine = signalTagLines{selectionIndex};
+                
             end
             
             set(obj.VIEW.menuhandle.signalSelection,'value',selectionIndex);
@@ -871,6 +873,8 @@ classdef PAController < handle
                     obj.accelTypeShown = v{1}{1};
                 end                
             end
+            
+            %             obj.SETTINGS.CONTROLLER.signalTagLine = signalTagLine;
         end
         
         % --------------------------------------------------------------------
@@ -2389,7 +2393,6 @@ classdef PAController < handle
             featureFcns = fieldnames(featureStruct);
             pStruct.featureFcn = featureFcns{1};
             pStruct.signalTagLine = tagLines{1};
-
             
             mPath = fileparts(mfilename('fullpath'));
             pStruct.screenshotPathname = mPath;

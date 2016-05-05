@@ -19,9 +19,9 @@ classdef  PASettings < handle
         %> is useful when saving the setting's file to make sure it is
         %> always saved in the same place and not in another directory
         %> (e.g. if the user moves about in MATLAB's editor).
-        rootpathname
+        rootpathname;
         %> @brief name of text file that stores the toolkit's settings
-        parameters_filename
+        parameters_filename;
         %> @brief cell of string names corresponding to the struct properties that
         %> contain settings  <b><i> {'DATA','VIEW', 'CONTROLLER','BATCH'}</i></b>
         fieldNames;
@@ -356,6 +356,9 @@ classdef  PASettings < handle
                     fprintf('\nWarning: Could not load parameters from file %s.  Will use default settings instead.\n\r',full_paramsFile);
                     
                 else
+                    % Here we go now...
+                    % obj = PAData.mergeStruct(obh,paramStruct);
+                    
                     fnames = fieldnames(paramStruct);
                     
                     if(isempty(fnames))
@@ -375,12 +378,16 @@ classdef  PASettings < handle
                                     if(~isfield(paramStruct.(cur_field),cur_sub_field))
                                         fprintf('\nSettings file may be corrupted or incomplete.  The %s.%s parameter is missing.  Using default setting for this paramter.\n\n', cur_field,cur_sub_field);
                                         continue;
+                                    elseif(isempty(paramStruct.(cur_field).(cur_sub_field)))
+                                        fprintf('\nSettings file may be corrupted or incomplete.  The %s.%s parameter is empty ('').  Using default setting for this paramter instead.\n\n', cur_field,cur_sub_field);
+                                        paramStruct.(cur_field).(cur_sub_field) = obj.(cur_field).(cur_sub_field);  % We'll take whatever came up from obj.setDefaults();
+                                        continue;
                                     end
                                 end
                             end
                         end
                         
-                        % Not that everything has been checked and we have
+                        % Now that everything has been checked and we have
                         % warned the groups of what we may be missing, we
                         % can continue.
                         for f=1:numel(fnames)
