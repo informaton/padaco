@@ -379,7 +379,7 @@ classdef  PASettings < handle
                                         fprintf('\nSettings file may be corrupted or incomplete.  The %s.%s parameter is missing.  Using default setting for this paramter.\n\n', cur_field,cur_sub_field);
                                         continue;
                                     elseif(isempty(paramStruct.(cur_field).(cur_sub_field)))
-                                        fprintf('\nSettings file may be corrupted or incomplete.  The %s.%s parameter is empty ('').  Using default setting for this paramter instead.\n\n', cur_field,cur_sub_field);
+                                        fprintf('\nSettings file may be corrupted or incomplete.  The %s.%s parameter is empty ('''').  Using default setting for this paramter instead.\n\n', cur_field,cur_sub_field);
                                         paramStruct.(cur_field).(cur_sub_field) = obj.(cur_field).(cur_sub_field);  % We'll take whatever came up from obj.setDefaults();
                                         continue;
                                     end

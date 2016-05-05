@@ -2111,6 +2111,13 @@ classdef PAController < handle
         function pStruct = getSaveParameters(obj)
             pStruct.featureFcn = obj.getExtractorMethod();
             pStruct.signalTagLine = obj.getSignalSelection();
+            
+            % If we did not load a file then our signal selection will be
+            % empty (don't know if were going to use count or raw data,
+            % etc.  So, just stick with whatever we began with at time of construction.
+            if(isempty(pStruct.signalTagLine))
+                pStruct.signalTagLine = obj.SETTINGS.CONTROLLER.signalTagLine;                
+            end
             pStruct.screenshotPathname = obj.screenshotPathname;
             pStruct.viewMode = obj.viewMode;
             pStruct.resultsPathname = obj.resultsPathname;
