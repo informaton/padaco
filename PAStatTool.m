@@ -1660,6 +1660,12 @@ classdef PAStatTool < handle
             %             hFig = ancestor(h,'figure');
             %             hFig = this.analysisFigureH;
             %             jFrame = get(hFig,'JavaFrame');
+            %             mde = com.mathworks.mde.desk.MLDesktop.getInstance;
+            %             figName = get(this.analysisFigureH,'name');
+            %             jFig = mde.getClient(figName); %Get the underlying JAVA object of the figure.
+            %             jFrame = jFig.getRootPane.getParent();
+            
+            warning off MATLAB:HandleGraphics:ObsoletedProperty:JavaFrame
             jFrame = get(this.analysisFigureH,'JavaFrame');
             jFigPanel = get(jFrame,'FigurePanelContainer');
 %             this.jhandles.table_centroidProfiles=jFigPanel.getComponent(0).getComponent(0).getComponent(0).getComponent(0).getComponent(0);
