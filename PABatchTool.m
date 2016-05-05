@@ -29,6 +29,14 @@ classdef PABatchTool < handle
         isRunning;
     end
     
+    methods(Access=private)
+        function disable(this)
+            disablehandles(this.figureH);
+        end
+        function enable(this)
+            enablehandles(this.figureH);
+        end
+    end
     methods
         
         %> @brief Class constructor.
@@ -193,6 +201,7 @@ classdef PABatchTool < handle
         % --------------------------------------------------------------------        
         function startBatchProcessCallback(obj,hObject,eventdata)
                         
+            obj.disable();
             dateMap.Sun = 0;
             dateMap.Mon = 1;
             dateMap.Tue = 2;
@@ -209,6 +218,7 @@ classdef PABatchTool < handle
             
             % Get batch processing settings from the GUI     
             handles = guidata(hObject);
+            
             
             obj.notify('BatchToolStarting',EventData_BatchTool(obj.settings));
             accelType = 'count';
@@ -539,6 +549,7 @@ classdef PABatchTool < handle
             end
             
             obj.isRunning = false;
+            obj.enable();
             
             %             obj.resultsPathname = obj.settings.outputDirectory;
         end
