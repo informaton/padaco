@@ -1170,7 +1170,7 @@ classdef PAStatTool < handle
             set(this.handles.check_normalizevalues,'value',this.previousState.normalizeValues,'enable','on');
             this.hideCentroidControls();
             
-            set(findall(this.handles.panel_plotCentroid,'enable','on'),'enable','off');            %  set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','off');
+            disablehandles(this.handles.panel_plotCentroid);
             set(this.handles.axes_secondary,'visible','off');
             set(this.figureH,'WindowKeyPressFcn',[]);
             set(this.analysisFigureH,'visible','off');
@@ -2081,6 +2081,7 @@ classdef PAStatTool < handle
             
             this.centroidObj = [];
             
+            this.disableCentroidControls();  % disable further interaction with our centroid panel
             if(this.calcFeatureStruct())            
                 % does not converge well if not normalized as we are no longer looking at the shape alone
                 
@@ -2175,7 +2176,6 @@ classdef PAStatTool < handle
             else
                 set(resultsTextH,'visible','off');
                 this.initRefreshCentroidButton('on');  % want to initialize the button again so they can try again perhaps.
-                this.disableCentroidControls();
             end
             this.showReady();
         end
@@ -2218,7 +2218,7 @@ classdef PAStatTool < handle
         
         %> @brief Does not change panel_plotCentroid controls.
         function enableCentroidControls(this)
-            set(findall(this.handles.panel_controlCentroid,'enable','off'),'enable','on');  
+            enablehandles(this.handles.panel_controlCentroid);  
             %             set(findall(this.handles.panel_plotCentroid,'enable','off'),'enable','on');
             
             % add a context menu now to primary axes
@@ -2239,8 +2239,7 @@ classdef PAStatTool < handle
         %> that they have excluded loadshapes and need to alter the settings
         %> to included them in a follow-on calculation.
         function disableCentroidControls(this)
-            
-            set(findall(this.handles.panel_controlCentroid,'enable','on'),'enable','off');
+            sethandles(this.handles.panel_controlCentroid,'enable','inactive');
             
             set(this.handles.text_resultsCentroid,'enable','on');
             % add a context menu now to primary axes           
