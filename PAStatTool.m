@@ -772,9 +772,15 @@ classdef PAStatTool < handle
 
             switch(key)
                 case 'rightarrow'
-                        this.showNextCentroid(toggleOn);
+                    set(this.handles.push_nextCentroid,'enable','off');
+                    this.showNextCentroid(toggleOn);
+                    set(this.handles.push_nextCentroid,'enable','on');
+                    drawnow();
                 case 'leftarrow'
-                    this.showPreviousCentroid(toggleOn);                        
+                    set(this.handles.push_previousCentroid,'enable','off');                    
+                    this.showPreviousCentroid(toggleOn);               
+                    set(this.handles.push_previousCentroid,'enable','on'); 
+                    drawnow();
                 case 'uparrow'
                     if(figH == this.analysisFigureH)
                         this.decreaseProfileFieldSelection();
