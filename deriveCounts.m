@@ -5,9 +5,14 @@
 % Load a .raw file within a PAData object.  This ensures that both .raw and
 % count values are read in.
 
-testingFilename = '/Users/hyatt4/Google Drive/work/Stanford - Pediatrics/sampledata/female child.raw';
-
-dataObject = PAData(testingFilename);
+testingPath = '/Users/unknown/Data/GOALS/Temp';
+sqlite_testFile = '704397t00c1_1sec.sql';  % SQLite format 3  : sqlite3 -> .open 704397t00c1_1sec.sql; .tables; select * from settings; .quit;  (ref: https://www.sqlite.org/cli.html)
+csv_testFile = '704397t00c1.csv';
+bin_testFile = 'activity.bin';  %firmware version 2.5.0
+raw_filename = fullfile(testingPath,bin_testFile);
+count_filename = fullfile(testingPath,csv_testFile);
+raw_dataObject = PAData(raw_filename);
+count_dataObject = PAData(count_filename);
 
 %raw - sampled at 40 Hz
 %count - 1 Hz -> though upsampled from file to 40Hz during data object
@@ -17,30 +22,41 @@ fs = 40;
 soi = 'x';
 
 numValuesToCheck = 75;
-firstNonZeroValue = find(dataObject.accel.count.(soi),1);
+firstNonZeroCountValue = find(count_dataObject.accel.count.(soi),1);
 
 
 %examine big spike of activitiy
 soi = 'x';
-firstNonZeroValue = 50279*fs+1;
-%let's start with a value of zero if we can.
-if(firstNonZeroValue>fs)
-    firstNonZeroValue = firstNonZeroValue-fs*50;
-end
+firstNonZeroCountValue_At_fs = (firstNonZeroCountValue-1)*fs+1;  
+% If FNZCV = 1; then FNCV_At_fs = 1.  If FNZCV = 2, then FNZCV_At_fs = (2-1)*40+1 = 41  q.e.d.
+
 % example conversion
 % Count - Samples   - Derivation
 %   1      1:40       0*40+1:1*40
 %   2     41:80       1*40+1:2*40
 %   n                 (n-1)*40+1:n*40
-countRange = (0:numValuesToCheck*fs-1)+firstNonZeroValue;
-rawRange = countRange;
-%rawRange = (countRange(1)-1)*fs+1:countRange(end)*fs;
 
 
-countShortData = dataObject.accel.count.(soi)(countRange(1:fs:end));
-countLongData = dataObject.accel.count.(soi)(countRange);
+%let's start with a value of zero if we can.
+numPreviousSamples = 5;
 
-rawData = dataObject.accel.raw.(soi)(rawRange);
+if(firstNonZeroCountValue_At_fs>fs*numPreviousSamples) % If FNCV = 11, then FNCV_At_Fs = 401;
+    firstNonZeroCountValue_At_fs = firstNonZeroCountValue_At_fs-fs*numPreviousSamples;  % If FNCV_At_Fs = 401-400 = 1;
+    firstNonZeroCountValue = firstNonZeroCountValue-numPreviousSamples;  % then FNCV = 11 - 10 = 1 q.e.d
+end
+
+samplesToCheck = numPreviousSamples + 5;
+
+
+countRange = firstNonZeroCountValue:firstNonZeroCountValue+samplesToCheck;
+rawRange = firstNonZeroCountValue_At_fs:firstNonZeroCountValue_At_fs+samplesToCheck*fs;
+
+countData = count_dataObject.accel.count.(soi)(countRange);
+rawData =   raw_dataObject.accel.raw.(soi)(rawRange);
+
+%countShortData = dataObject.accel.count.(soi)(countRange(1:fs:end));
+%countLongData = dataObject.accel.count.(soi)(countRange);
+
 
 % Now lets make some filters
 fc_low_Hz = 1;   % fs/10;  %1 is better than 4 and also 2
@@ -71,11 +87,6 @@ x=1:numel(rawData);SumRawFilterN = 10;SumFilterN = fs*1; sumFiltData = SumFilter
 
 
 x=1:numel(rawData);SumRawFilterN = 10;SumFilterN = fs*0.5; sumFiltData = fs/SumFilterN*(filtfilt(ones(SumFilterN,1),1,(filtData)));sumRawData = filtfilt(ones(SumRawFilterN,1),1,abs(rawData));close all;plot(x,rawData(x),'g',x,countLongData(x),'b',x,abs(filtData(x)),'r',x,sumFiltData(x),'k');
-
-
-
-
-
 
 
 

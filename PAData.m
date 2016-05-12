@@ -181,7 +181,7 @@ classdef PAData < handle
             obj.accelType = [];
             obj.startDatenums = [];
             
-            
+            obj.durationSec = 0;  %ensures we get valid, non-empty values from  getWindowCount() when we do not have any data loaded.
             % Can summarize these with defaults from below...last f(X) call.
             %            obj.aggregateDurMin = 1;
             %            obj.frameDurMin = 0;
@@ -1078,12 +1078,17 @@ classdef PAData < handle
                                 matlabDateTimeOffset = 365+1+1;  %367, 365 days for the first year + 1 day for the first month + 1 day for the first day of the month
                                 %start, stop and delta date nums
                                 binStartDatenum = str2double(infoStruct.Start_Date)/unitsTimePerDay+matlabDateTimeOffset;
-                                countStartDatenum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
                                 
-                                if(binStartDatenum~=countStartDatenum)
-                                    fprintf('There is a discrepancy between the start date-time in the count file and the binary file.  I''m not sure what is going to happen because of this.\n');
+                                if(~isempty(obj.startDate))
+                                    countStartDatenum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
+                                
+                                    if(binStartDatenum~=countStartDatenum)
+                                        fprintf('There is a discrepancy between the start date-time in the count file and the binary file.  I''m not sure what is going to happen because of this.\n');
+                                    end
+                                else
+                                    
                                 end
-                                
+                                    
                                 
                                 obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
                                 
