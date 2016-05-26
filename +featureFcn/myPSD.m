@@ -1,4 +1,4 @@
-function [psd, freq_vec, nfft] = getpsd(signal_x,Fs,PSD_settings,ZeroPad)
+function [psd, freq_vec, nfft] = myPSD(signal_x,Fs,PSD_settings,ZeroPad)
 %PSD_settings has the following fields
 % PSD.wintype = handles.user.wintype;
 % PSD.modified = handles.user.modified;

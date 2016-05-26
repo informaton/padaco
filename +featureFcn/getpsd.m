@@ -56,7 +56,7 @@ function [psd_vec, freq_vec, nfft] = getpsd(signal_x,Fs,PSD_settings,ZeroPad)
         
         if(nargin<3)
             PSD_settings = defaultSettings;
-            fprintf(1,'Warning: Default settings applied.');
+            fprintf(1,'Warning: Default settings applied.\n');
         end
         
         winlen = PSD_settings.FFT_window_sec;
