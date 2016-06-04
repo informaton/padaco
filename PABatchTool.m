@@ -75,6 +75,31 @@ classdef PABatchTool < handle
             set(batchHandles.text_sourcePath,'string',this.settings.sourceDirectory,'uicontextmenu',contextmenu_directory);
             %             set(batchHandles.check_usageState,'value',this.settings.classifyUsageState);
 
+            durationStr = {
+                %'1 second'
+                '15 seconds'
+                '30 seconds'
+                '1 minute'
+                '5 minutes'
+                '10 minutes'
+                '15 minutes'
+                '20 minutes'
+                '30 minutes'
+                '1 hour'};
+            durationVal = {
+                % 0  % 0 is used to represent 1 sample frames.
+                0.25
+                0.5
+                1
+                5
+                10
+                15
+                20
+                30};
+            
+            
+            set(batchHandles.allFrameDurationMinutes,'string',durationStr,'userdata',durationVal,'value',find(durationVal==15,1));
+
             
             set(batchHandles.button_go,'callback',@this.startBatchProcessCallback);
             
@@ -242,8 +267,9 @@ classdef PABatchTool < handle
             
             % determine frame aggreation size - size to calculate each
             % feature from
-            allFrameDurationMinutes = get(handles.menu_frameDurationMinutes,'userdata');
-            frameDurationMinutes = allFrameDurationMinutes(get(handles.menu_frameDurationMinutes,'value'));
+            %             allFrameDurationMinutes = get(handles.menu_frameDurationMinutes,'userdata');
+            %             frameDurationMinutes = allFrameDurationMinutes(get(handles.menu_frameDurationMinutes,'value'));
+            frameDurationMinutes = getSelectedMenuUserData(handles.menu_frameDurationMinutes);
             obj.settings.frameDurationMinutes = frameDurationMinutes;                           
 
             % features are grouped for all studies into one file per

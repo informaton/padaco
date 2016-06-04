@@ -132,5 +132,7 @@ title('zoom * 2','fontsize',14);
 set(gca,'xtick',xticks,'xticklabel',d)
 xlabel('n');
 
-set(gcf,'color',[1 1 1],'inverthardcopy','off')
+set(gcf,'color',[1 1 1],'inverthardcopy','off');
+
+
 

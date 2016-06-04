@@ -1807,7 +1807,6 @@ classdef PAData < handle
                 featureVec = featureStruct.(featureFcn);
                 
                 % get frame duration
-                
                 frameDurationVec = [0 0 0 obj.frameDurHour obj.frameDurMin 0];
                 
                 % find the first Start Time
@@ -1829,8 +1828,6 @@ classdef PAData < handle
                 alignedStartDateVecs = intervalStartDateVecs;
                 durationDateVec = [0 0 0 numIntervals*intervalDurationHours 0 0];
                 stopIndex = find(datenum(stopDateVecs)==datenum(startDateVec+durationDateVec),1,'first');
-                
-                
                 
                 % reshape the result and return as alignedFeatureVec
                 
@@ -1900,7 +1897,7 @@ classdef PAData < handle
             onBodyVsOffBodyCountsPerMinuteCutoff = 1; % exceeding the cutoff indicates on body (wear)
             
             % This is good for determining where the study has ended... using a 15 minute duration minimum
-            % (essentially 15 counts allowed per hundred samples.)
+            % (essentially 1 count allowed per minute or 15 counts per 900 samples )
             offBodyThreshold = longClassificationMinimumDurationOfMinutes*onBodyVsOffBodyCountsPerMinuteCutoff;
             
             longActiveThreshold = longClassificationMinimumDurationOfMinutes*(activeVsInactiveCountsPerSecondCutoff*60);
@@ -2779,7 +2776,7 @@ classdef PAData < handle
             pStruct.pathname = '.'; %directory of accelerometer data.
             pStruct.filename = ''; %last accelerometer data opened.
             pStruct.curWindow = 1;
-            pStruct.frameDurMin = 15;
+            pStruct.frameDurMin = 15;  % frame duration minute of 0 equates to frame sizes of 1 frame per sample (i.e. no aggregation)
             pStruct.frameDurHour = 0;
             pStruct.aggregateDurMin = 3;
             pStruct.windowDurSec = 60*60; % set to 1 hour
