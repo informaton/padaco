@@ -1807,7 +1807,6 @@ classdef PAData < handle
                 featureVec = featureStruct.(featureFcn);
                 
                 % get frame duration
-                
                 frameDurationVec = [0 0 0 obj.frameDurHour obj.frameDurMin 0];
                 
                 % find the first Start Time
@@ -1829,8 +1828,6 @@ classdef PAData < handle
                 alignedStartDateVecs = intervalStartDateVecs;
                 durationDateVec = [0 0 0 numIntervals*intervalDurationHours 0 0];
                 stopIndex = find(datenum(stopDateVecs)==datenum(startDateVec+durationDateVec),1,'first');
-                
-                
                 
                 % reshape the result and return as alignedFeatureVec
                 
@@ -1880,10 +1877,10 @@ classdef PAData < handle
             %            ACTIVE = 30;
             
             countActivity = obj.accel.count.vecMag;
-            longClassificationMinimumDurationOfMinutes = 15;%a 15 minute or 1/4 hour filter
-            samplesPerMinute = obj.getSampleRate()*60;
+            longClassificationMinimumDurationOfMinutes = 15; %a 15 minute or 1/4 hour filter
+            samplesPerMinute = obj.getSampleRate()*60; % samples per second * 60 seconds per minute
             
-            shortClassificationMinimumDurationOfMinutes = 5;%a 5 minute or 1/12 hour filter
+            shortClassificationMinimumDurationOfMinutes = 5; %a 5 minute or 1/12 hour filter
             
             longFilterLength = longClassificationMinimumDurationOfMinutes*samplesPerMinute;
             shortFilterLength = shortClassificationMinimumDurationOfMinutes*samplesPerMinute;
@@ -1897,11 +1894,11 @@ classdef PAData < handle
             
             awakeVsAsleepCountsPerSecondCutoff = 1;  % exceeding the cutoff means you are awake
             activeVsInactiveCountsPerSecondCutoff = 10; % exceeding the cutoff indicates active
-            onbodyVsOffBodyCountsPerMinuteCutoff = 1; % exceeding the cutoff indicates on body (wear)
+            onBodyVsOffBodyCountsPerMinuteCutoff = 1; % exceeding the cutoff indicates on body (wear)
             
             % This is good for determining where the study has ended... using a 15 minute duration minimum
-            % (essentially 15 counts allowed per hundred samples.)
-            offBodyThreshold = longClassificationMinimumDurationOfMinutes*onbodyVsOffBodyCountsPerMinuteCutoff;
+            % (essentially 1 count allowed per minute or 15 counts per 900 samples )
+            offBodyThreshold = longClassificationMinimumDurationOfMinutes*onBodyVsOffBodyCountsPerMinuteCutoff;
             
             longActiveThreshold = longClassificationMinimumDurationOfMinutes*(activeVsInactiveCountsPerSecondCutoff*60);
             
@@ -1916,7 +1913,7 @@ classdef PAData < handle
             sleepVec = obj.reprocessEventVector(sleepVec,sleepPeriodParams.min_dur_samples,sleepPeriodParams.merge_within_samples);
             
             % Examine rem sleep on a shorter time scale
-            shortOffBodyThreshold = shortClassificationMinimumDurationOfMinutes*onbodyVsOffBodyCountsPerMinuteCutoff;
+            shortOffBodyThreshold = shortClassificationMinimumDurationOfMinutes*onBodyVsOffBodyCountsPerMinuteCutoff;
             % shortActiveThreshold = shortClassificationMinimumDurationOfMinutes*(activeVsInactiveCountsPerSecondCutoff*60);
             shortNoActivityVec = shortRunningActivitySum<shortOffBodyThreshold;
             remSleepPeriodParams.merge_within_samples = 60*5*obj.getSampleRate();  %merge within 5 minutes
@@ -2779,7 +2776,7 @@ classdef PAData < handle
             pStruct.pathname = '.'; %directory of accelerometer data.
             pStruct.filename = ''; %last accelerometer data opened.
             pStruct.curWindow = 1;
-            pStruct.frameDurMin = 15;
+            pStruct.frameDurMin = 15;  % frame duration minute of 0 equates to frame sizes of 1 frame per sample (i.e. no aggregation)
             pStruct.frameDurHour = 0;
             pStruct.aggregateDurMin = 3;
             pStruct.windowDurSec = 60*60; % set to 1 hour

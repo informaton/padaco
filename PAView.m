@@ -1333,11 +1333,12 @@ classdef PAView < handle
             if(nargin<2 || isempty(displayTypeStr))
                 displayTypeStr = obj.displayType;
             end
+            yOffset = -30; %Trial and error
             dummyStruct = obj.dataObj.getStruct('dummy',displayTypeStr);
             offsetStruct = obj.dataObj.getStruct('displayoffset',displayTypeStr);
             labelPosStruct = PAData.structEval('calculateposition',dummyStruct,offsetStruct);
-            xOffset = 1/120*diff(get(obj.axeshandle.primary,'xlim'));            
-            offset = [xOffset, 15, 0];
+            xOffset = 1/250*diff(get(obj.axeshandle.primary,'xlim'));            
+            offset = [xOffset, yOffset, 0];
             labelPosStruct = PAData.structScalarEval('plus',labelPosStruct,offset);            
         end
 
