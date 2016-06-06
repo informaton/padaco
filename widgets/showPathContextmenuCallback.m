@@ -8,14 +8,3 @@ function showPathContextmenuCallback(hObject,~)
     end
     openDirectory(dirName);
 end
-
-function openDirectory(directory)
-    if(isempty(directory) || ~exist(directory,'dir'))
-        directory = pwd;
-    end
-    if(ispc)
-        dos(sprintf('explorer.exe %s',directory));
-    elseif(ismac)
-        system(sprintf('open -R "%s"',directory));
-    end
-end

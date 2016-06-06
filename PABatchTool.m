@@ -63,13 +63,11 @@ classdef PABatchTool < handle
                 label = 'Show in browser';
             end
             
-            isRunning = false;
+            obj.isRunning = false;
             uimenu(contextmenu_directory,'Label',label,'callback',@showPathContextmenuCallback);
             
             set(batchHandles.button_getSourcePath,'callback',{@this.getSourceDirectoryCallback,batchHandles.text_sourcePath,batchHandles.text_filesFound});  
             set(batchHandles.button_getOutputPath,'callback',{@this.getOutputDirectoryCallback,batchHandles.text_outputPath});
-            
-            
             
             set(batchHandles.text_outputPath,'string',this.settings.outputDirectory,'uicontextmenu',contextmenu_directory);
             set(batchHandles.text_sourcePath,'string',this.settings.sourceDirectory,'uicontextmenu',contextmenu_directory);
@@ -98,7 +96,7 @@ classdef PABatchTool < handle
                 30};
             
             
-            set(batchHandles.allFrameDurationMinutes,'string',durationStr,'userdata',durationVal,'value',find(durationVal==15,1));
+            set(batchHandles.menu_frameDurationMinutes,'string',durationStr,'userdata',durationVal,'value',find(cellfun(@(x)(x==15),durationVal)));
 
             
             set(batchHandles.button_go,'callback',@this.startBatchProcessCallback);
@@ -249,6 +247,28 @@ classdef PABatchTool < handle
             accelType = 'count';
             
             obj.isRunning = true;
+            
+            % Establish waitbar - do this early, otherwise the program
+            % appears to hang.
+
+            %             waitH = waitbar(pctDone,filenames{1},'name','Batch processing','visible','off');
+            
+            % Job security:
+            %             waitH = waitbar(pctDone,filenames{1},'name','Batch processing','visible','on','CreateCancelBtn',{@(hObject,eventData) feval(get(get(hObject,'parent'),'closerequestfcn'),get(hObject,'parent'),[])},'closerequestfcn',{@(varargin) delete(varargin{1})});
+           
+            % Program security:
+            waitH = waitbar(0,'Configuring rules and output file headers','name','Batch processing','visible','on','CreateCancelBtn',@obj.waitbarCancelCallback,'closerequestfcn',@obj.waitbarCloseRequestCallback);
+           
+            
+            % We have a cancel button and an axes handle on our waitbar
+            % window; so look for the one that has the title on it. 
+            titleH = get(findobj(get(waitH,'children'),'flat','-property','title'),'title');
+            set(titleH,'interpreter','none');  % avoid '_' being interpreted as subscript instruction
+            set(waitH,'visible','on');  %now show the results
+            drawnow;
+            
+            
+            
             % get feature settings
             % determine which feature to process
             
@@ -289,10 +309,10 @@ classdef PABatchTool < handle
             %signalNames = {strcat('accel.',obj.accelObj.accelType,'.','x')};
             
             startDateVec = [0 0 0 elapsedStartHour 0 0];
-            stopDateVec = startDateVec + [0 0 0 intervalDurationHours -frameDurationMinutes 0]; %-frameDurMin to prevent looping into the start of the next inteval.
+            stopDateVec = startDateVec + [0 0 0 intervalDurationHours -frameDurationMinutes 0]; %-frameDurMin to prevent looping into the start of the next interval.
             frameInterval = [0 0 0 0 frameDurationMinutes 0];
             timeAxis = datenum(startDateVec):datenum(frameInterval):datenum(stopDateVec);
-            timeAxisStr = datestr(timeAxis,'HH:MM');
+            timeAxisStr = datestr(timeAxis,'HH:MM:SS');
             
             logFid = obj.prepLogFile(obj.settings);
             fprintf(logFid,'File count:\t%u',fileCount);
@@ -347,21 +367,9 @@ classdef PABatchTool < handle
             % setup timers
             pctDone = 0;
             pctDelta = 1/fileCount;
-
-            %             waitH = waitbar(pctDone,filenames{1},'name','Batch processing','visible','off');
             
-            % Job security:
-            %             waitH = waitbar(pctDone,filenames{1},'name','Batch processing','visible','on','CreateCancelBtn',{@(hObject,eventData) feval(get(get(hObject,'parent'),'closerequestfcn'),get(hObject,'parent'),[])},'closerequestfcn',{@(varargin) delete(varargin{1})});
-           
-            % Program security:
-            waitH = waitbar(pctDone,filenames{1},'name','Batch processing','visible','on','CreateCancelBtn',@obj.waitbarCancelCallback,'closerequestfcn',@obj.waitbarCloseRequestCallback);
+            waitbar(pctDone,waitH,filenames{1});
             
-            % We have a cancel button and an axes handle on our waitbar
-            % window; so look for the one that has the title on it. 
-            titleH = get(findobj(get(waitH,'children'),'flat','-property','title'),'title');
-            set(titleH,'interpreter','none');  % avoid '_' being interpreted as subscript instruction
-            set(waitH,'visible','on');  %now show the results
-            drawnow;
             startTime = now;
             startClock = clock;
             
@@ -497,7 +505,7 @@ classdef PABatchTool < handle
                 userCanceledMsg = '';
             end
             
-            batchResultStr = sprintf(['%sProcessed %u files in %s.\n',...
+            batchResultStr = sprintf(['%sProcessed %u files in (hh:mm:ss)\t %s.\n',...
                 '\tSucceeded:\t%u\n',...
                 '\tSkipped:\t%u\n',...
                 '\tFailed:\t%u\n\n'],userCanceledMsg,fileCount,elapsedTimeStr,successCount,skipCount,failCount);
@@ -557,9 +565,9 @@ classdef PABatchTool < handle
                 defaultBtn = 'Show results';
                 options.Default = defaultBtn;
                 options.Interpreter = 'none';
-                buttonName = questdlg(batchResultStr,dlgName,'Show results','Return to batch tool',options);
+                buttonName = questdlg(batchResultStr,dlgName,'Show results','Show output folder','Return to batch tool',options);
                 switch buttonName
-                    case 'Show results'
+                    case 'Show results in PADACO'
                         % Close the batch mode
                         
                         % Set the results path to be that of the normal
@@ -567,6 +575,8 @@ classdef PABatchTool < handle
                         obj.notify('SwitchToResults',EventData_SwitchToResults);
                         obj.close();  % close this out, 'return',
                         return;       %  and go to the results view
+                    case 'Show output folder'
+                        openDirectory(obj.settings.outputDirectory)
                     case 'Return to batch tool'
                         % Bring the figure to the front/onscreen
                         movegui(obj.figureH);
@@ -621,7 +631,7 @@ classdef PABatchTool < handle
             fprintf(logFID,'Source directory:\t%s\n',settings.sourceDirectory);
             fprintf(logFID,'Output directory:\t%s\n',settings.outputDirectory);
             fprintf(logFID,'Features:\t%s\n',settings.featureLabel);
-            fprintf(logFID,'Frame duration (minutes):\t%u\n',settings.frameDurationMinutes);
+            fprintf(logFID,'Frame duration (minutes):\t%0.2f\n',settings.frameDurationMinutes);
             
             fprintf(logFID,'Alignment settings:\n');
             fprintf(logFID,'\tElapsed start (hours):\t%u\n',settings.alignment.elapsedStartHours);

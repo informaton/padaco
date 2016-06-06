@@ -87,7 +87,8 @@ function [psd_vec, freq_vec, nfft] = getpsd(signal_x,Fs,PSD_settings,ZeroPad)
             rows = 1;
         end
         % win = window(eval(['@' wintype]),nfft);
-        win = eval([wintype '(' num2str(nfft) ')']);
+        % win = eval([wintype '(' num2str(nfft) ')']);
+        win = window(wintype,nfft);
         U = win'*win;  %Window normalization
         
         % Calculate the numberof unique points
