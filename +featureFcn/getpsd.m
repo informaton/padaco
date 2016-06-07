@@ -88,7 +88,17 @@ function [psd_vec, freq_vec, nfft] = getpsd(signal_x,Fs,PSD_settings,ZeroPad)
         end
         % win = window(eval(['@' wintype]),nfft);
         % win = eval([wintype '(' num2str(nfft) ')']);
-        win = window(wintype,nfft);
+        
+        % for some reason, I cannot get hann to show up in the deployed
+        % version.  Most likely, I will need to add other methods like this
+        % manually with the deploytool application compiler.
+        if(strcmpi(wintype,'hann'))
+            win = hann(nfft);
+        else
+            win = window(wintype,nfft);
+        end
+        
+        
         U = win'*win;  %Window normalization
         
         % Calculate the numberof unique points
