@@ -66,7 +66,7 @@ classdef PABatchTool < handle
                 label = 'Show in browser';
             end
             
-            obj.isRunning = false;
+            this.isRunning = false;
             uimenu(contextmenu_directory,'Label',label,'callback',@showPathContextmenuCallback);
             
             set(this.handles.button_getSourcePath,'callback',@this.getSourceDirectoryCallback);  
@@ -104,11 +104,11 @@ classdef PABatchTool < handle
 
             % try and set the source and output paths.  In the event that
             % the path is not set, then revert to the empty ('') path.
-            if(~obj.setSourcePath(this.settings.sourceDirectory))
-                obj.setSourcePath('');
+            if(~this.setSourcePath(this.settings.sourceDirectory))
+                this.setSourcePath('');
             end
-            if(~obj.setOutputPath(this.settings.outputDirectory))
-                obj.setOutputPath('');
+            if(~this.setOutputPath(this.settings.outputDirectory))
+                this.setOutputPath('');
             end
             
             %             imgFmt = this.settings.images.format;
@@ -149,48 +149,48 @@ classdef PABatchTool < handle
         % --------------------------------------------------------------------
         %> @brief Batch figure button callback for getting a directory of
         %> actigraph files to process.
-        %> @param obj Instance of PAController
+        %> @param this Instance of PAController
         %> @param hObject    handle to buttont (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         % --------------------------------------------------------------------        
-        function getSourceDirectoryCallback(obj,hObject,eventdata)
+        function getSourceDirectoryCallback(this,hObject,eventdata)
         % --------------------------------------------------------------------
             displayMessage = 'Select the directory containing .raw or count actigraphy files';
             initPath = get(this.handles.text_sourcePath,'string');
             tmpSrcDirectory = uigetfulldir(initPath,displayMessage);
-            obj.setSourcePath(tmpSrcDirectory);
+            this.setSourcePath(tmpSrcDirectory);
         end        
  
         % --------------------------------------------------------------------
         %> @brief Batch figure button callback for getting a directory to
         %> save processed output files to.
-        %> @param obj Instance of PAController
+        %> @param this Instance of PAController
         %> @param hObject    handle to buttont (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         % --------------------------------------------------------------------
-        function getOutputDirectoryCallback(obj,hObject,eventdata)
+        function getOutputDirectoryCallback(this,hObject,eventdata)
             displayMessage = 'Select the output directory to place processed results.';
             initPath = get(this.handles.text_outputPath,'string');
             tmpOutputDirectory = uigetfulldir(initPath,displayMessage);
-            obj.setOutputPath(tmpOutputDirectory);
+            this.setOutputPath(tmpOutputDirectory);
         end
         
-        function didSet = setSourcePath(obj,tmpSrcPath)
+        function didSet = setSourcePath(this,tmpSrcPath)
             if(~isempty(tmpSrcPath) && isdir(tmpSrcPath))
                 %assign the settings directory variable
-                obj.settings.sourceDirectory = tmpSrcPath;
+                this.settings.sourceDirectory = tmpSrcPath;
                 set(this.handles.text_sourcePath,'string',tmpSrcPath);
-                obj.calculateFilesFound();
+                this.calculateFilesFound();
                 didSet = true;
             else
                 didSet = false;
             end            
         end
         
-        function didSet = setOutputPath(obj,tmpOutputPath)
+        function didSet = setOutputPath(this,tmpOutputPath)
             if(~isempty(tmpOutputPath) && isdir(tmpOutputPath))
                 %assign the settings directory variable
-                obj.settings.ouputDirectory = tmpOutputPath;
+                this.settings.ouputDirectory = tmpOutputPath;
                 set(this.handles.text_outputPath,'string',tmpOutputPath);
                 this.updateOutputLogs();
                 didSet = true;
@@ -202,20 +202,20 @@ classdef PABatchTool < handle
         % --------------------------------------------------------------------
         %> @brief Determines the number of actigraph files located in the
         %> specified source path and updates the GUI's count display.
-        %> @param obj Instance of PAController
+        %> @param this Instance of PAController
         %> @param text_sourcePath_h Text graphic handle for placing the path
         %> selected on the GUI display
         %> @param text_filesFound_h Text graphic handle to place the number
         %> of actigraph files found in the source directory.        
         % --------------------------------------------------------------------        
-        function calculateFilesFound(obj,sourcePathname,text_filesFound_h)
+        function calculateFilesFound(this,sourcePathname,text_filesFound_h)
         % --------------------------------------------------------------------
             
            %update the source path edit field with the source directory
            if(nargin<3)
                text_filesFound_h = this.handles.text_filesFound;
                if(nargin<2)
-                   sourcePathname = obj.settings.sourceDirectory;
+                   sourcePathname = this.settings.sourceDirectory;
                end
            end
           
@@ -242,43 +242,58 @@ classdef PABatchTool < handle
         % --------------------------------------------------------------------
         %> @brief Determines the number of actigraph files located in the
         %> specified source path and updates the GUI's count display.
-        %> @param obj Instance of PAController
+        %> @param this Instance of PAController
         %> @param outputPathname (optional) Pathname of output directory (string)
         %> @param text_outputLogs_h Text graphic handle to write results to.
         % --------------------------------------------------------------------        
-        function updateOutputLogs(obj,outputPathname,text_outputLogs_h)
+        function updateOutputLogs(this,outputPathname,text_outputLogs_h)
         % --------------------------------------------------------------------
             
            %update the source path edit field with the source directory
            if(nargin<3)
                text_outputLogs_h = this.handles.text_outputLogs;
                if(nargin<2)
-                   outputPathname = obj.settings.sourceDirectory;
+                   outputPathname = this.settings.sourceDirectory;
                end
            end
           
            set(text_outputLogs_h,'string','','hittest','off');
 
-           %get the log files and update the file count text field. 
-           rawFileCount = getFilenamesi(outputPathname,'.txt');
+           %get the log files with most recent ones first on the list.
+           sortNewestToOldest = true;
+           [filenames, fullfilenames, filedates] = getFilenamesi(outputPathname,'.txt',sortNewestToOldest);
 
-           msg = '';
-           if(rawFileCount==0 && csvFileCount==0)
-               msg = '0 files found.';
-               set(this.handles.button_go,'enable','off');
+           
+           newestIndex = find(strncmpi(filenames,'batchRun',numel('batchRun')),1);
+           if(~isempty(newestIndex))
+               logFilename = filenames{newestIndex};
+               logFullFilename = fullfilenames{newestIndex};
+               logDate = filedates(newestIndex);
+               logMsg = sprintf('Last log file: %s',logFilename);
+               %tooltip = '<html><body><h4>Click to view last batch run log file</h4></body></html>';
+               tooltip = 'Click to view.';
+               callbackFcn = {@viewTextFileCallback,logFullFilename};
+               enableState = 'inactive';  % This prevents the tooltip from being seen :(, but allows the buttondownfcn to work :)
+           else
+               logMsg = '';
+               tooltip = '';
+               callbackFcn = [];
+               enableState = 'on';
+               
            end
+           set(text_outputLogs_h,'string',logMsg,'tooltipstring',tooltip,'buttondownFcn',callbackFcn,'enable',enableState);
         end
         
         % --------------------------------------------------------------------        
         %> @brief Callback that starts a batch process based on batch gui
         %> paramters.
-        %> @param obj Instance of PAController
+        %> @param this Instance of PAController
         %> @param hObject MATLAB graphic handle of the callback object
         %> @param eventdata reserved by MATLAB, not used.
         % --------------------------------------------------------------------        
-        function startBatchProcessCallback(obj,hObject,eventdata)
+        function startBatchProcessCallback(this,hObject,eventdata)
                         
-            obj.disable();
+            this.disable();
             dateMap.Sun = 0;
             dateMap.Mon = 1;
             dateMap.Tue = 2;
@@ -288,7 +303,7 @@ classdef PABatchTool < handle
             dateMap.Sat = 6;
             
             % initialize batch processing file management
-            [filenames, fullFilenames] = getFilenamesi(obj.settings.sourceDirectory,'.csv');
+            [filenames, fullFilenames] = getFilenamesi(this.settings.sourceDirectory,'.csv');
             failedFiles = {};
             fileCount = numel(fullFilenames);
             fileCountStr = num2str(fileCount);
@@ -297,10 +312,10 @@ classdef PABatchTool < handle
             handles = guidata(hObject);
             
             
-            obj.notify('BatchToolStarting',EventData_BatchTool(obj.settings));
+            this.notify('BatchToolStarting',EventData_BatchTool(this.settings));
             accelType = 'count';
             
-            obj.isRunning = true;
+            this.isRunning = true;
             
             % Establish waitbar - do this early, otherwise the program
             % appears to hang.
@@ -311,7 +326,7 @@ classdef PABatchTool < handle
             %             waitH = waitbar(pctDone,filenames{1},'name','Batch processing','visible','on','CreateCancelBtn',{@(hObject,eventData) feval(get(get(hObject,'parent'),'closerequestfcn'),get(hObject,'parent'),[])},'closerequestfcn',{@(varargin) delete(varargin{1})});
            
             % Program security:
-            waitH = waitbar(0,'Configuring rules and output file headers','name','Batch processing','visible','on','CreateCancelBtn',@obj.waitbarCancelCallback,'closerequestfcn',@obj.waitbarCloseRequestCallback);
+            waitH = waitbar(0,'Configuring rules and output file headers','name','Batch processing','visible','on','CreateCancelBtn',@this.waitbarCancelCallback,'closerequestfcn',@this.waitbarCloseRequestCallback);
            
             
             % We have a cancel button and an axes handle on our waitbar
@@ -327,7 +342,7 @@ classdef PABatchTool < handle
             % determine which feature to process
             
             featureFcn = getMenuUserData(handles.menu_featureFcn);
-            obj.settings.featureLabel = getMenuString(handles.menu_featureFcn);
+            this.settings.featureLabel = getMenuString(handles.menu_featureFcn);
             
 %             userdata = get(handles.menu_featureFcn,'userdata');
 %             featureSelectionIndex = get(handles.menu_featureFcn,'value');
@@ -335,7 +350,7 @@ classdef PABatchTool < handle
 %             allFeatureDescriptions = userdata.featureDescriptions;
 %             allFeatureLabels = get(handles.menu_featureFcn,'string');
             
-%             obj.settings.featureLabel = featureLabel;  
+%             this.settings.featureLabel = featureLabel;  
 %             featureDescription = allFeatureDescriptions{featureSelectionIndex};
 %             featureFcn = allFeatureFcns{featureSelectionIndex};
             
@@ -344,23 +359,23 @@ classdef PABatchTool < handle
             %             allFrameDurationMinutes = get(handles.menu_frameDurationMinutes,'userdata');
             %             frameDurationMinutes = allFrameDurationMinutes(get(handles.menu_frameDurationMinutes,'value'));
             frameDurationMinutes = getSelectedMenuUserData(handles.menu_frameDurationMinutes);
-            obj.settings.frameDurationMinutes = frameDurationMinutes;                           
+            this.settings.frameDurationMinutes = frameDurationMinutes;                           
 
             % features are grouped for all studies into one file per
             % signal, place groupings into feature function directories
             
             
-            obj.settings.alignment.elapsedStartHours = 0; %when to start the first measurement
-            obj.settings.alignment.intervalLengthHours = 24;  %duration of each interval (in hours) once started
+            this.settings.alignment.elapsedStartHours = 0; %when to start the first measurement
+            this.settings.alignment.intervalLengthHours = 24;  %duration of each interval (in hours) once started
             
             % setup developer friendly variable names
-            elapsedStartHour  = obj.settings.alignment.elapsedStartHours;
-            intervalDurationHours = obj.settings.alignment.intervalLengthHours;
+            elapsedStartHour  = this.settings.alignment.elapsedStartHours;
+            intervalDurationHours = this.settings.alignment.intervalLengthHours;
             maxNumIntervals = 24/intervalDurationHours*7;  %set maximum to a week
-            %obj.settings.alignment.singalName = 'X';
+            %this.settings.alignment.singalName = 'X';
             
             signalNames = strcat('accel.',accelType,'.',{'x','y','z','vecMag'})';
-            %signalNames = {strcat('accel.',obj.accelObj.accelType,'.','x')};
+            %signalNames = {strcat('accel.',this.accelObj.accelType,'.','x')};
             
             startDateVec = [0 0 0 elapsedStartHour 0 0];
             stopDateVec = startDateVec + [0 0 0 intervalDurationHours -frameDurationMinutes 0]; %-frameDurMin to prevent looping into the start of the next interval.
@@ -368,7 +383,7 @@ classdef PABatchTool < handle
             timeAxis = datenum(startDateVec):datenum(frameInterval):datenum(stopDateVec);
             timeAxisStr = datestr(timeAxis,'HH:MM:SS');
             
-            logFid = obj.prepLogFile(obj.settings);
+            logFid = this.prepLogFile(this.settings);
             fprintf(logFid,'File count:\t%u',fileCount);
 
             %% Setup output folders
@@ -383,10 +398,10 @@ classdef PABatchTool < handle
                 outputFeatureLabels = struct2cell(featureStructWithPSDBands);  % leave it here for the sake of other coders; yes, you can assign this using a second output argument from getFeatureDescriptionWithPSDBands                
             else
                 outputFeatureFcns = {featureFcn};
-                outputFeatureLabels = {obj.settings.featureLabel};
+                outputFeatureLabels = {this.settings.featureLabel};
             end
             
-            outputFeaturePathnames =   strcat(fullfile(obj.settings.outputDirectory,'features'),filesep,outputFeatureFcns);
+            outputFeaturePathnames =   strcat(fullfile(this.settings.outputDirectory,'features'),filesep,outputFeatureFcns);
             
             
             for fn=1:numel(outputFeatureFcns)
@@ -429,14 +444,14 @@ classdef PABatchTool < handle
             
             % batch process
             f = 0;
-            while(f< fileCount && obj.isRunning)                
+            while(f< fileCount && this.isRunning)                
                 f = f+1;
                 %                 waitbar(pctDone,waitH,filenames{f});
                 ticStart = tic;
                 %for each featureFcnArray item as featureFcn                
                 try 
                     fprintf('Processing %s\n',filenames{f});
-                    curData = PAData(fullFilenames{f});%,obj.SETTINGS.DATA
+                    curData = PAData(fullFilenames{f});%,this.SETTINGS.DATA
                     
                     setFrameDurMin = curData.setFrameDurationMinutes(frameDurationMinutes);
                     if(frameDurationMinutes~=setFrameDurMin)
@@ -517,7 +532,7 @@ classdef PABatchTool < handle
                 elapsed_dur_total_sec = etime(clock,startClock);
                 avg_dur_sec = elapsed_dur_total_sec/num_files_completed;
                 
-                if(obj.isRunning)
+                if(this.isRunning)
                     remaining_dur_sec = avg_dur_sec*(fileCount-num_files_completed);
                     est_str = sprintf('%01ihrs %01imin %01isec',floor(mod(remaining_dur_sec/3600,24)),floor(mod(remaining_dur_sec/60,60)),floor(mod(remaining_dur_sec,60)));
                     
@@ -538,7 +553,7 @@ classdef PABatchTool < handle
             % Let the user have a glimplse of the most recent update -
             % otherwise they have been waiting for this point long enough
             % already because they pressed the 'cancel' button 
-            if(obj.isRunning)
+            if(this.isRunning)
                 pause(1);
             end
             
@@ -553,7 +568,7 @@ classdef PABatchTool < handle
             skipCount = fileCount - f;  %f is number of files processed.
             successCount = f-failCount;
             
-            if(~obj.isRunning)
+            if(~this.isRunning)
                 userCanceledMsg = sprintf('User canceled batch operation before completion.\n\n');
             else
                 userCanceledMsg = '';
@@ -626,33 +641,33 @@ classdef PABatchTool < handle
                         
                         % Set the results path to be that of the normal
                         % settings path.
-                        obj.notify('SwitchToResults',EventData_SwitchToResults);
-                        obj.close();  % close this out, 'return',
+                        this.notify('SwitchToResults',EventData_SwitchToResults);
+                        this.close();  % close this out, 'return',
                         return;       %  and go to the results view
                     case 'Show output folder'
-                        openDirectory(obj.settings.outputDirectory)
+                        openDirectory(this.settings.outputDirectory)
                     case 'Return to batch tool'
                         % Bring the figure to the front/onscreen
-                        movegui(obj.figureH);
+                        movegui(this.figureH);
                 end
                 
             end
             
-            obj.isRunning = false;
-            obj.enable();
+            this.isRunning = false;
+            this.enable();
             
-            %             obj.resultsPathname = obj.settings.outputDirectory;
+            %             this.resultsPathname = this.settings.outputDirectory;
         end
         
         
         % Helper functions for close request and such
-        function waitbarCloseRequestCallback(obj,hWaitbar, ~)
-            obj.isRunning = false;
+        function waitbarCloseRequestCallback(this,hWaitbar, ~)
+            this.isRunning = false;
             waitbar(100,hWaitbar,'Cancelling .... please wait while current iteration finishes.');
         end
         
-        function waitbarCancelCallback(obj,hCancelBtn, eventData) 
-            obj.waitbarCloseRequestCallback(get(hCancelBtn,'parent'),eventData);
+        function waitbarCancelCallback(this,hCancelBtn, eventData) 
+            this.waitbarCloseRequestCallback(get(hCancelBtn,'parent'),eventData);
         end
         
     end

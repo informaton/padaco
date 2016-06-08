@@ -55,8 +55,6 @@ function [filenames,fullfilenames, fileDatenums] = getFilenamesi(pathname,ext,so
         fileMatchesCell = regexpi(filenames,strcat('.*',ext,'$'));
     end
     
-    
-    
     fileMatchesVec = ~cellfun(@isempty,fileMatchesCell);
     % fileMatchesVec = false(size(fileMatchesCell));
     % %I really don't like MATLAB's regexp cell output format... ah well

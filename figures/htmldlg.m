@@ -6,9 +6,9 @@
 %> Thank you to Yair Altman and his blog post at http://undocumentedmatlab.com/blog/customizing-help-popup-contents
 %> which inspired this function.
 function htmldlg(varargin)
-    names = {'url','html'};
-    defaults = {[],[]};
-    [url, html] = parsepvpairs(names,defaults,varargin{:});
+    names = {'url','html','title'};
+    defaults = {[],[],'Padaco Help'};
+    [url, html,titleStr] = parsepvpairs(names,defaults,varargin{:});
     
     %> The following is taken from Yair Altman's blog post at http://undocumentedmatlab.com/blog/customizing-help-popup-contents
     % Find the Help popup window
@@ -37,7 +37,7 @@ function htmldlg(varargin)
     
     % Update the popup with selected HTML
     if (~isempty(jPopup) && (~isempty(url) || ~isempty(html)))
-        jPopup.setTitle('Padaco Help');
+        jPopup.setTitle(titleStr);
         contentPanel = jPopup.getContentPane.getComponent(0).getComponent(1);
         statusBar = jPopup.getContentPane.getComponent(1).getComponent(0);
         toolbar = jPopup.getContentPane.getComponent(0).getComponent(0);
