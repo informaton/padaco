@@ -24,6 +24,9 @@ classdef PABatchTool < handle
         %> Handle to the figure we create.  
         figureH;
         
+        %> result of guidata(figureH) at time of construction
+        handles;
+        
         %> Flag for determining if batch mode is running or not.  Can be
         %> changed to false by user cancelling.
         isRunning;
@@ -52,7 +55,7 @@ classdef PABatchTool < handle
             end
                         
             batchFig = batchTool('visible','off','name','','sizechangedfcn',[]);
-            batchHandles = guidata(batchFig);
+            this.handles = guidata(batchFig);
             
             contextmenu_directory = uicontextmenu('parent',batchFig);
             if(ismac)
@@ -66,12 +69,13 @@ classdef PABatchTool < handle
             obj.isRunning = false;
             uimenu(contextmenu_directory,'Label',label,'callback',@showPathContextmenuCallback);
             
-            set(batchHandles.button_getSourcePath,'callback',{@this.getSourceDirectoryCallback,batchHandles.text_sourcePath,batchHandles.text_filesFound});  
-            set(batchHandles.button_getOutputPath,'callback',{@this.getOutputDirectoryCallback,batchHandles.text_outputPath});
+            set(this.handles.button_getSourcePath,'callback',@this.getSourceDirectoryCallback);  
+            set(this.handles.button_getOutputPath,'callback',@this.getOutputDirectoryCallback);
             
-            set(batchHandles.text_outputPath,'string',this.settings.outputDirectory,'uicontextmenu',contextmenu_directory);
-            set(batchHandles.text_sourcePath,'string',this.settings.sourceDirectory,'uicontextmenu',contextmenu_directory);
-            %             set(batchHandles.check_usageState,'value',this.settings.classifyUsageState);
+            set(this.handles.text_outputPath,'string',this.settings.outputDirectory,'uicontextmenu',contextmenu_directory);
+            set(this.handles.text_sourcePath,'string','','uicontextmenu',contextmenu_directory);
+
+            %             set(this.handles.check_usageState,'value',this.settings.classifyUsageState);
 
             durationStr = {
                 %'1 second'
@@ -95,13 +99,17 @@ classdef PABatchTool < handle
                 20
                 30};
             
-            
-            set(batchHandles.menu_frameDurationMinutes,'string',durationStr,'userdata',durationVal,'value',find(cellfun(@(x)(x==15),durationVal)));
+            set(this.handles.menu_frameDurationMinutes,'string',durationStr,'userdata',durationVal,'value',find(cellfun(@(x)(x==15),durationVal)));
+            set(this.handles.button_go,'callback',@this.startBatchProcessCallback);
 
-            
-            set(batchHandles.button_go,'callback',@this.startBatchProcessCallback);
-            
-            this.calculateFilesFound(batchHandles.text_sourcePath,batchHandles.text_filesFound);
+            % try and set the source and output paths.  In the event that
+            % the path is not set, then revert to the empty ('') path.
+            if(~obj.setSourcePath(this.settings.sourceDirectory))
+                obj.setSourcePath('');
+            end
+            if(~obj.setOutputPath(this.settings.outputDirectory))
+                obj.setOutputPath('');
+            end
             
             %             imgFmt = this.settings.images.format;
             %             imageFormats = {'JPEG','PNG'};
@@ -109,7 +117,7 @@ classdef PABatchTool < handle
             %             if(isempty(imgSelection))
             %                 imgSelection = 1;
             %             end
-            %             set(batchHandles.menu_imageFormat,'string',imageFormats,'value',imgSelection);
+            %             set(this.handles.menu_imageFormat,'string',imageFormats,'value',imgSelection);
             %
             featureFcns = fieldnames(PAData.getFeatureDescriptionStruct()); %spits field-value pairs of feature names and feature description strings
             featureDesc = PAData.getExtractorDescriptions();  %spits out the string values      
@@ -123,7 +131,7 @@ classdef PABatchTool < handle
             if(isempty(featureSelection))
                 featureSelection =1;
             end
-            set(batchHandles.menu_featureFcn,'string',featureLabels,'value',featureSelection,'userdata',featureFcns);
+            set(this.handles.menu_featureFcn,'string',featureLabels,'value',featureSelection,'userdata',featureFcns);
 
             % Make visible
             this.figureH = batchFig;
@@ -144,23 +152,53 @@ classdef PABatchTool < handle
         %> @param obj Instance of PAController
         %> @param hObject    handle to buttont (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
-        %> @param text_sourcePathH Text graphic handle for placing the path
-        %> selected on the GUI display
-        %> @param text_filesFoundH Text graphic handle to place the number
-        %> of actigraph files found in the source directory.        
         % --------------------------------------------------------------------        
-        function getSourceDirectoryCallback(obj,hObject,eventdata,text_sourcePathH,text_filesFoundH)
+        function getSourceDirectoryCallback(obj,hObject,eventdata)
         % --------------------------------------------------------------------
             displayMessage = 'Select the directory containing .raw or count actigraphy files';
-            initPath = get(text_sourcePathH,'string');
+            initPath = get(this.handles.text_sourcePath,'string');
             tmpSrcDirectory = uigetfulldir(initPath,displayMessage);
-            if(~isempty(tmpSrcDirectory))
-                %assign the settings directory variable
-                obj.settings.sourceDirectory = tmpSrcDirectory;
-                obj.calculateFilesFound(text_sourcePathH,text_filesFoundH);
-            end
+            obj.setSourcePath(tmpSrcDirectory);
         end        
  
+        % --------------------------------------------------------------------
+        %> @brief Batch figure button callback for getting a directory to
+        %> save processed output files to.
+        %> @param obj Instance of PAController
+        %> @param hObject    handle to buttont (see GCBO)
+        %> @param eventdata  reserved - to be defined in a future version of MATLAB
+        % --------------------------------------------------------------------
+        function getOutputDirectoryCallback(obj,hObject,eventdata)
+            displayMessage = 'Select the output directory to place processed results.';
+            initPath = get(this.handles.text_outputPath,'string');
+            tmpOutputDirectory = uigetfulldir(initPath,displayMessage);
+            obj.setOutputPath(tmpOutputDirectory);
+        end
+        
+        function didSet = setSourcePath(obj,tmpSrcPath)
+            if(~isempty(tmpSrcPath) && isdir(tmpSrcPath))
+                %assign the settings directory variable
+                obj.settings.sourceDirectory = tmpSrcPath;
+                set(this.handles.text_sourcePath,'string',tmpSrcPath);
+                obj.calculateFilesFound();
+                didSet = true;
+            else
+                didSet = false;
+            end            
+        end
+        
+        function didSet = setOutputPath(obj,tmpOutputPath)
+            if(~isempty(tmpOutputPath) && isdir(tmpOutputPath))
+                %assign the settings directory variable
+                obj.settings.ouputDirectory = tmpOutputPath;
+                set(this.handles.text_outputPath,'string',tmpOutputPath);
+                this.updateOutputLogs();
+                didSet = true;
+            else
+                didSet = false;
+            end            
+        end
+                
         % --------------------------------------------------------------------
         %> @brief Determines the number of actigraph files located in the
         %> specified source path and updates the GUI's count display.
@@ -170,18 +208,24 @@ classdef PABatchTool < handle
         %> @param text_filesFound_h Text graphic handle to place the number
         %> of actigraph files found in the source directory.        
         % --------------------------------------------------------------------        
-        function calculateFilesFound(obj,text_sourcePath_h,text_filesFound_h)
+        function calculateFilesFound(obj,sourcePathname,text_filesFound_h)
         % --------------------------------------------------------------------
+            
            %update the source path edit field with the source directory
-           handles = guidata(text_sourcePath_h);
-           set(text_sourcePath_h,'string',obj.settings.sourceDirectory);
+           if(nargin<3)
+               text_filesFound_h = this.handles.text_filesFound;
+               if(nargin<2)
+                   sourcePathname = obj.settings.sourceDirectory;
+               end
+           end
+          
            %get the file count and update the file count text field. 
-           rawFileCount = numel(getFilenamesi(obj.settings.sourceDirectory,'.raw'));
-           csvFileCount = numel(getFilenamesi(obj.settings.sourceDirectory,'.csv'));
+           rawFileCount = numel(getFilenamesi(sourcePathname,'.raw'));
+           csvFileCount = numel(getFilenamesi(sourcePathname,'.csv'));
            msg = '';
            if(rawFileCount==0 && csvFileCount==0)
                msg = '0 files found.';
-               set(handles.button_go,'enable','off');
+               set(this.handles.button_go,'enable','off');
             
            else
               if(rawFileCount>0)
@@ -190,29 +234,39 @@ classdef PABatchTool < handle
               if(csvFileCount>0)
                   msg = sprintf('%s%u .csv file(s) found.',msg,csvFileCount);
               end
-              set(handles.button_go,'enable','on');
+              set(this.handles.button_go,'enable','on');
            end
            set(text_filesFound_h,'string',msg);
         end
                
         % --------------------------------------------------------------------
-        %> @brief Batch figure button callback for getting a directory to
-        %> save processed output files to.
+        %> @brief Determines the number of actigraph files located in the
+        %> specified source path and updates the GUI's count display.
         %> @param obj Instance of PAController
-        %> @param hObject    handle to buttont (see GCBO)
-        %> @param eventdata  reserved - to be defined in a future version of MATLAB
-        %> @param textH Text graphic handle for placing the output path
-        %> selected on the GUI display
+        %> @param outputPathname (optional) Pathname of output directory (string)
+        %> @param text_outputLogs_h Text graphic handle to write results to.
         % --------------------------------------------------------------------        
-        function getOutputDirectoryCallback(obj,hObject,eventdata,textH)
-            displayMessage = 'Select the output directory to place processed results.';
-            initPath = get(textH,'string');
-            tmpOutputDirectory = uigetfulldir(initPath,displayMessage);
-            if(~isempty(tmpOutputDirectory))
-                %assign the settings directory variable
-                obj.settings.outputDirectory = tmpOutputDirectory;
-                set(textH,'string',tmpOutputDirectory);
-            end
+        function updateOutputLogs(obj,outputPathname,text_outputLogs_h)
+        % --------------------------------------------------------------------
+            
+           %update the source path edit field with the source directory
+           if(nargin<3)
+               text_outputLogs_h = this.handles.text_outputLogs;
+               if(nargin<2)
+                   outputPathname = obj.settings.sourceDirectory;
+               end
+           end
+          
+           set(text_outputLogs_h,'string','','hittest','off');
+
+           %get the log files and update the file count text field. 
+           rawFileCount = getFilenamesi(outputPathname,'.txt');
+
+           msg = '';
+           if(rawFileCount==0 && csvFileCount==0)
+               msg = '0 files found.';
+               set(this.handles.button_go,'enable','off');
+           end
         end
         
         % --------------------------------------------------------------------        
