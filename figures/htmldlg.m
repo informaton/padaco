@@ -18,8 +18,12 @@ function htmldlg(varargin)
     %     jTextArea = jDesktop.getMainFrame.getFocusOwner;
     jTextArea= com.mathworks.mde.cmdwin.XCmdWndView.getInstance;
     jClassName = 'com.mathworks.mlwidgets.help.HelpPopup';
+    
+    % hint:  methods(jClassName)
+    %        methodsview(jClassName)
     jPosition = java.awt.Rectangle(0,0,900,600);
     helpTopic = [];
+    javaMethodEDT('setShowHelpBrowserPreference',jClassName,false);
     javaMethodEDT('showHelp',jClassName,jTextArea,[],jPosition,helpTopic);
     
     
@@ -30,7 +34,12 @@ function htmldlg(varargin)
 
             if jWindows(idx).isVisible
                 jPopup = jWindows(idx);
-                break;
+                fprintf('We have a visible frame at %i\n',idx);
+%                 break;
+            else
+                %jWindows(idx).show;
+                fprintf('We have a non visible frame at %i\n',idx);
+                
             end
         end
     end
@@ -38,6 +47,7 @@ function htmldlg(varargin)
     % Update the popup with selected HTML
     if (~isempty(jPopup) && (~isempty(url) || ~isempty(html)))
         jPopup.setTitle(titleStr);
+      
         contentPanel = jPopup.getContentPane.getComponent(0).getComponent(1);
         statusBar = jPopup.getContentPane.getComponent(1).getComponent(0);
         toolbar = jPopup.getContentPane.getComponent(0).getComponent(0);
@@ -47,8 +57,9 @@ function htmldlg(varargin)
         if(~isempty(html))
             contentPanel.setHtmlText(html);
         else
-            contentPanel.setCurrentLocation(url); 
+            contentPanel.setCurrentLocation(url);
         end
+        contentPanel.repaint();
     end
     
 end
