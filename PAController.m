@@ -8,7 +8,7 @@
 %> controller.
 classdef PAController < handle
     properties(Constant)
-        versionNum = 1.51;
+        versionNum = 1.6;
     end
     properties(Access=private)
         %> @brief Vector for keeping track of the feature handles that are
@@ -2499,23 +2499,25 @@ classdef PAController < handle
             obj.current_linehandle = [];
         end
         
-        % =================================================================
+
+        
+    end
+    
+    methods (Static)
+                % =================================================================
         %> @brief Copy the selected (feature) linehandle's ydata to the system
         %> clipboard.
         %> @param obj Instance of PAController
         %> @param hObject Handle of callback object (unused).
         %> @param eventdata Unused.
         % =================================================================
-        function contextmenu_line2clipboard_callback(obj,hObject,eventdata)
+        function contextmenu_line2clipboard_callback(hObject,eventdata)
             data = get(get(hObject,'parent'),'userdata');
             clipboard('copy',data);
             disp([num2str(numel(data)),' items copied to the clipboard.  Press Control-V to access data items, or type "str=clipboard(''paste'')"']);
         end
         
         
-    end
-    
-    methods (Static)
         
         function cropFigure2Axes(fig_h,axes_h)
             %places axes_h in middle of figure with handle fig_h
