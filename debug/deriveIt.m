@@ -22,7 +22,7 @@ function varargout = deriveIt(varargin)
     
     % Edit the above text to modify the response to help deriveIt
     
-    % Last Modified by GUIDE v2.5 16-Jun-2016 16:09:42
+    % Last Modified by GUIDE v2.5 16-Jun-2016 16:35:58
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -88,4 +88,52 @@ function menu_soi_CreateFcn(hObject, eventdata, handles)
     if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
         set(hObject,'BackgroundColor','white');
     end
+end
+
+
+function popupmenu3_Callback(hObject, eventdata, handles)
+
+
+function popupmenu3_CreateFcn(hObject, eventdata, handles)
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+function popupmenu4_Callback(hObject, eventdata, handles)
+
+
+function popupmenu4_CreateFcn(hObject, eventdata, handles)
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+function edit1_Callback(hObject, eventdata, handles)
+
+
+function edit1_CreateFcn(hObject, eventdata, handles)
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+function popupmenu2_Callback(hObject, eventdata, handles)
+
+
+function popupmenu2_CreateFcn(hObject, eventdata, handles)
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
 end
