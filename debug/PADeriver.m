@@ -9,9 +9,9 @@ classdef PADeriver < handle
         SOI_FIELDS = {'x','y','z','vecMag'};
         FILTER_NAMES = {'fir1' % FIR filter design using the window method.
             'fir2' % FIR arbitrary shape filter design using the frequency sampling method.
-            %'kaiserord' % FIR order estimator 
+            %'kaiserord' % FIR order estimator
             'fircls1' % Low & high pass FIR filter design by constrained least-squares.
-            'firls' % Linear-phase FIR filter design using least-squares error minimization.  FIR filter which has the best approximation to the desired frequency response described by F and A in the least squares sense. 
+            'firls' % Linear-phase FIR filter design using least-squares error minimization.  FIR filter which has the best approximation to the desired frequency response described by F and A in the least squares sense.
             'fircls' % Linear-phase FIR filter design by constrained least-squares.
             'cfirpm' % Complex and nonlinear phase equiripple FIR filter design.
             'firpm' % Parks-McClellan optimal equiripple FIR filter design.
@@ -20,7 +20,7 @@ classdef PADeriver < handle
             'cheby2' % Chebyshev Type II digital and analog filter design.
             'ellip' % Elliptic or Cauer digital and analog filter design.
             % 'besself' % Bessel analog filter design.  Note that Bessel filters are lowpass only.
-            } 
+            }
         WINDOW_OPTIONS = {
             @bartlett       ,'Bartlett window.';
             @barthannwin    ,'Modified Bartlett-Hanning window.';
@@ -86,7 +86,7 @@ classdef PADeriver < handle
     
     methods
         
-        function this =PADeriver()
+        function this = PADeriver()
             this.soi = 'x';
             this.filterOptions.start = 0.25;
             this.filterOptions.stop = 2.5;
@@ -98,60 +98,34 @@ classdef PADeriver < handle
             this.initGUI();
         end
         
+        function updatePlots(this)
+            this.disableControls();
+            
+            this.filterData();
+            this.countFilterData();
+            this.plotCounts();
+            
+            this.enableControls();
+            
+        end
+        
+    end
+        
+    methods(Access=private)
+        
+        %% Controls
         function plotCounts(this)
             line_tags = {'counts','rawCounts','rawFiltered','raw','error'};
             
             for l=1:numel(line_tags)
                 lineTag = line_tags{l};
+                axesTag = ['axes_',lineTag];
                 ydata = this.data.(lineTag);
                 xdata = 1:numel(ydata);
-                set(this.lines.(lineTag),'xdata',xdata,'ydata',ydata);
-            end
-            
-        end
-    end
-    
-    methods(Access=protected)
-    
-    end
-    
-    methods(Access=private)
-        
-        function initGUI(this)
-            this.figureH = deriveIt();
-            this.handles = guidata(this.figureH);
-            
-            this.disableControls();
-            
-            % File panel
-            set(this.handles.push_loadFile,'callback',@this.deriveIt_LoadFileCallbackFcn);
-            set(this.handles.menu_soi,'string',this.SOI_LABELS,'value',find(strcmpi(this.soi,this.SOI_FIELDS),1),'userdata',this.SOI_FIELDS,'callback',@this.menuSOICallbackFcn);
-            
-            % Filter panel
-            orderOptions = (0:99)';
-            set(this.handles.menu_filterName,'string',this.FILTER_NAMES,'value',find(strcmpi(this.FILTER_NAMES,this.filterOptions.name),1));
-            set(this.handles.menu_filterOrder,'string',num2str(orderOptions),'value',find(orderOptions==this.filterOptions.order,1));
-            
-            set(this.handles.edit_filterStartHz,'string',str2double(this.filterOptions.start));
-            set(this.handles.edit_filterStopHz,'string',str2double(this.filterOptions.stop));
-            
-            filtfiltFlag = strcmpi('filtfilt',this.filterOptions.type);
-            set(this.handles.radio_filtfilt,'value',filtfiltFlag);            
-            %             set(this.handles.radio_filter,'value',~filtfiltFlag);
-            
-            set(this.handles.push_update,'callback',@updatePlotsCallbackFcn);            
-            
-            this.initPlots();
-        end
-        
-        function initPlots(this)
-            line_tags = {'counts','rawCounts','rawFiltered','raw','error'};
-            for l=1:numel(line_tags)
-                lineTag = line_tags{l};
-                axesTag = ['axes_',lineTag];
-                this.lines.(lineTag) = line([],[],'parent',this.handles.(axesTag));
-            end
-            
+                stairs(this.handles.(axesTag),xdata,ydata);
+                %                 set(this.lines.(lineTag),'xdata',xdata,'ydata',ydata);
+                %                 stem(this.handles.(axesTag),xdata,ydata);
+            end 
         end
         
         function disableControls(this)
@@ -166,17 +140,91 @@ classdef PADeriver < handle
             set(this.handles.push_update,'enable','on');
         end
         
-        function menuSOICallbackFcn(this,hObject,~)
-            this.soi = getMenuUserData(hObject);
-        end
         
-        function updatePlotsCallbackFcn(this,hObject,eventdata)
-            this.updatePlots();
-        end
-        
-        function updatePlots(this)
+        %% Initializers
+        function initGUI(this)
+            this.figureH = deriveIt();
+            this.handles = guidata(this.figureH);
+            
             this.disableControls();
             
+            % File panel
+            set(this.handles.push_loadFile,'callback',@this.loadFileCallbackFcn);
+            set(this.handles.menu_soi,'string',this.SOI_LABELS,'value',find(strcmpi(this.soi,this.SOI_FIELDS),1),'userdata',this.SOI_FIELDS,'callback',@this.menuSOICallbackFcn);
+            
+            % Filter panel
+            orderOptions = (0:99)';
+            set(this.handles.menu_filterName,'string',this.FILTER_NAMES,'value',find(strcmpi(this.FILTER_NAMES,this.filterOptions.name),1));
+            set(this.handles.menu_filterOrder,'string',num2str(orderOptions),'value',find(orderOptions==this.filterOptions.order,1));
+            
+            set(this.handles.edit_filterStartHz,'string',num2str(this.filterOptions.start));
+            set(this.handles.edit_filterStopHz,'string',num2str(this.filterOptions.stop));
+            
+            filtfiltFlag = strcmpi('filtfilt',this.filterOptions.type);
+            set(this.handles.radio_filtfilt,'value',filtfiltFlag);
+            %             set(this.handles.radio_filter,'value',~filtfiltFlag);
+            
+            set(this.handles.push_update,'callback',@updatePlotsCallbackFcn);
+            
+            this.initPlots();
+        end
+        
+        function initPlots(this)
+            line_tags = {'counts','rawCounts','rawFiltered','raw','error'};
+            for l=1:numel(line_tags)
+                lineTag = line_tags{l};
+                axesTag = ['axes_',lineTag];
+                this.lines.(lineTag) = line([],[],'parent',this.handles.(axesTag));
+            end
+        end
+        
+        %% Modeling - accessors/mutators
+        function loadFile(this, count_filename)
+            [filePath, ~, ~] = fileparts(count_filename);
+            bin_testFile = 'activity.bin';  %firmware version 2.5.0
+            
+            raw_filename = fullfile(filePath,bin_testFile);
+            
+            
+            set(this.figureH,'name','Loading binary data ...');
+            drawnow();
+            this.dataObject.raw = PAData(raw_filename);
+            
+            set(this.figureH,'name','Loading count data ...');
+            drawnow();
+            this.dataObject.count = PAData(count_filename);
+            
+            %raw - sampled at 40 Hz
+            %count - 1 Hz -> though upsampled from file to 40Hz during data object
+            %loading.
+            
+            % update controls
+            %                     this.updateControls();
+            %                     function updateControls(this)
+            
+            
+            set(this.figureH,'name','Processing data ...');
+            drawnow();
+            
+            this.samplerate.raw = this.dataObject.raw.getSampleRate();
+            this.samplerate.counts = this.dataObject.count.getSampleRate();
+            set(this.handles.edit_samplerateCounts,'string',num2str(this.samplerate.counts));
+            set(this.handles.edit_samplerateRaw,'string',num2str(this.samplerate.raw));
+            
+            % example conversion
+            % Count - Samples   - Derivation
+            %   1      1:40       0*40+1:1*40
+            %   2     41:80       1*40+1:2*40
+            %   n                 (n-1)*40+1:n*40
+            
+            this.firstNZI = find(this.dataObject.count.accel.count.(this.soi),1); % firstNonZeroCountIndex
+            this.firstNZI_raw = (this.firstNZI-1)*this.samplerate.raw+1;
+            
+            this.updateDataStruct();
+            
+        end
+        
+        function updateDataStruct(this)
             %let's start with a value of zero if we can.
             numPreviousSeconds = 15;
             secondsToCheck = 30;
@@ -194,13 +242,10 @@ classdef PADeriver < handle
             
             this.data.raw = this.dataObject.raw.accel.raw.(this.soi)(rawRange);
             this.data.counts = this.dataObject.count.accel.count.(this.soi)(countRange);
-            
-            this.filterData();
-            this.countFilterData();
-            this.plotCounts();
-            
-            this.enableControls();
-            
+        end
+        
+        function filterData(this)
+            [this.data.filter, this.data.filtfilt] = this.acti_filter(this.data.raw,this.filterOptions.name,this.samplerate.raw,this.filterOptions.order, this.filterOptions.dB);
         end
         
         function countFilterData(this)
@@ -212,18 +257,18 @@ classdef PADeriver < handle
             
             samplesToCheck = 1:numel(this.data.raw);
             x=reshape(this.data.rawFiltered(samplesToCheck),this.samplerate.raw,[]);
-            this.data.rawCounts = sum(abs(x)); % sum down the columns            
+            this.data.rawCounts = sum(abs(x)); % sum down the columns
             
             this.data.error = this.data.counts(:) - this.data.rawCounts(:);
         end
         
-
+        function filtfiltFlag =  isFiltfilt(this)
+            filtfiltFlag = get(this.handles.radio_filtfilt,'value');
+        end
         
-        function deriveIt_LoadFileCallbackFcn(this,hObject, eventdata)
+        %% Callbacks
+        function loadFileCallbackFcn(this,hObject, eventdata)
             fName = get(this.figureH,'name');
-            
-            
-            
             
             testingPath = '/Users/unknown/Data/GOALS/Temp';
             % sqlite_testFile = '704397t00c1_1sec.sql';  % SQLite format 3  : sqlite3 -> .open 704397t00c1_1sec.sql; .tables; select * from settings; .quit;  (ref: https://www.sqlite.org/cli.html)
@@ -241,48 +286,9 @@ classdef PADeriver < handle
             if(~isempty(count_filename))
                 
                 try
-                    [filePath, ~, ~] = fileparts(count_filename);
-                    bin_testFile = 'activity.bin';  %firmware version 2.5.0
-                    
-                    raw_filename = fullfile(filePath,bin_testFile);
-                    
                     set(hObject,'enable','off');
-                    drawnow();
+                    this.loadFile(count_filename);
                     
-                    set(this.figureH,'name','Loading binary data ...');
-                    drawnow();
-                    this.dataObject.raw = PAData(raw_filename);
-                    
-                    set(this.figureH,'name','Loading count data ...');
-                    drawnow();
-                    this.dataObject.count = PAData(count_filename);
-                    
-                    %raw - sampled at 40 Hz
-                    %count - 1 Hz -> though upsampled from file to 40Hz during data object
-                    %loading.
-                    
-                    % update controls
-                    %                     this.updateControls();
-                    %                     function updateControls(this)
-                    
-                    
-                    set(this.figureH,'name','Processing data ...');
-                    drawnow();
-                    
-                    this.samplerate.raw = this.dataObject.raw.getSampleRate();
-                    this.samplerate.counts = this.dataObject.count.getSampleRate();
-                    set(this.handles.edit_samplerateCounts,'string',num2str(this.samplerate.counts));
-                    set(this.handles.edit_samplerateRaw,'string',num2str(this.samplerate.raw));
-
-                    % example conversion
-                    % Count - Samples   - Derivation
-                    %   1      1:40       0*40+1:1*40
-                    %   2     41:80       1*40+1:2*40
-                    %   n                 (n-1)*40+1:n*40
-
-                    this.firstNZI = find(this.dataObject.count.accel.count.(this.soi),1); % firstNonZeroCountIndex
-                    this.firstNZI_raw = (this.firstNZI-1)*this.samplerate.raw+1;
-
                     this.updatePlots();
                     
                 catch me
@@ -295,38 +301,27 @@ classdef PADeriver < handle
             end
             
             set(this.figureH,'name',fName);
-                
-            
-            
         end
         
-        function filterData(this)
-            [this.data.filter, this.data.filtfilt] = this.acti_filter(this.data.raw,this.filterOptions.name,this.samplerate.raw,this.filterOptions.order, this.filterOptions.dB);
+        function menuSOICallbackFcn(this,hObject,~)
+            this.soi = getMenuUserData(hObject);
         end
         
-        function filtfiltFlag =  isFiltfilt(this)
-            filtfiltFlag = get(this.handles.radio_filtfilt,'value');
+        function updatePlotsCallbackFcn(this,hObject,eventdata)
+            this.updatePlots();
         end
         
-        function countData(this)
-            
-        end
-
-
-    
     end
     
     methods(Static)
-       function [filt_sigOut, filtfilt_sigOut] = acti_filter(sigIn,filterName, fs, n_order,peak2peakDB)
+        function [filt_sigOut, filtfilt_sigOut] = acti_filter(sigIn,filterName, fs, n_order,peak2peakDB)
             
             if(nargin<5 || isempty(peak2peakDB))
                 peak2peakDB = 3;  % reduces by 1/2
                 %peak2peakDB = .1;
-                
             end
             
             if(nargin<4 || isempty(n_order))
-                
                 n_order = 2;
             end
             
@@ -337,27 +332,25 @@ classdef PADeriver < handle
             
             switch(filterName)
                 case 'cheby1'
-                    [h_a,h_b] = cheby1(n_order, peak2peakDB, Wpass, 'bandpass');
+                    [h_b,h_a] = cheby1(n_order, peak2peakDB, Wpass, 'bandpass');
                 case 'fir1'
                     h_b = fir1(n_order, Wpass,'bandpass');
-                    h_a = 1;  
+                    h_a = 1;
                     %                     B = fir1(N,Wn,kaiser(N+1,4))
                     %                         uses a Kaiser window with beta=4. B = fir1(N,Wn,'high',chebwin(N+1,R))
                     %                         uses a Chebyshev window with R decibels of relative sidelobe
                     %                         attenuation.
                     
+                case 'butter' % IIR design
                 otherwise
-                        [h_a,h_b] = cheby1(n_order, peak2peakDB, Wpass, 'bandpass');
+                    [h_b,h_a] = cheby1(n_order, peak2peakDB, Wpass, 'bandpass');
             end
             
             % Filter data
-            filt_sigOut = filter(h_a,h_b, sigIn);
+            filt_sigOut = filter(h_b,h_a, sigIn);            
+            filtfilt_sigOut = filtfilt(h_b,h_a, sigIn);
             
-            filtfilt_sigOut = filtfilt(h_a,h_b, sigIn);
-            
-           
-        
-        end 
+        end
         
     end
     
