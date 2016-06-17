@@ -22,7 +22,7 @@ function varargout = deriveIt(varargin)
     
     % Edit the above text to modify the response to help deriveIt
     
-    % Last Modified by GUIDE v2.5 16-Jun-2016 16:35:58
+    % Last Modified by GUIDE v2.5 17-Jun-2016 11:43:24
     
     % Begin initialization code - DO NOT EDIT
     gui_Singleton = 1;
@@ -42,9 +42,9 @@ function varargout = deriveIt(varargin)
         gui_mainfcn(gui_State, varargin{:});
     end
     % End initialization code - DO NOT EDIT
-end
-
-% --- Executes just before deriveIt is made visible.
+    
+    
+    % --- Executes just before deriveIt is made visible.
 function deriveIt_OpeningFcn(hObject, eventdata, handles, varargin)
     % This function has no output args, see OutputFcn.
     % hObject    handle to figure
@@ -62,10 +62,10 @@ function deriveIt_OpeningFcn(hObject, eventdata, handles, varargin)
     
     
     % UIWAIT makes deriveIt wait for user response (see UIRESUME)
-    % uiwait(handles.figure1);
-end
-
-% --- Outputs from this function are returned to the command line.
+    % uiwait(handles.figure_countsDeriver);
+    
+    
+    % --- Outputs from this function are returned to the command line.
 function varargout = deriveIt_OutputFcn(hObject, eventdata, handles)
     % varargout  cell array for returning output args (see VARARGOUT);
     % hObject    handle to figure
@@ -75,12 +75,11 @@ function varargout = deriveIt_OutputFcn(hObject, eventdata, handles)
     % Get default command line output from handles structure
     varargout{1} = handles.output;
     
-end
-
-
     
-
-
+    
+    
+    
+    
 function menu_soi_CreateFcn(hObject, eventdata, handles)
     
     % Hint: popupmenu controls usually have a white background on Windows.
@@ -88,37 +87,70 @@ function menu_soi_CreateFcn(hObject, eventdata, handles)
     if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
         set(hObject,'BackgroundColor','white');
     end
-end
+    
+    
+function menu_filterName_CreateFcn(hObject, eventdata, handles)
+    
+    % Hint: popupmenu controls usually have a white background on Windows.
+    %       See ISPC and COMPUTER.
+    if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+        set(hObject,'BackgroundColor','white');
+    end
+    
+    
+    
+function menu_filterOrder_CreateFcn(hObject, eventdata, handles)
+    
+    % Hint: popupmenu controls usually have a white background on Windows.
+    %       See ISPC and COMPUTER.
+    if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+        set(hObject,'BackgroundColor','white');
+    end
+    
+    
+    
+function edit_samplerate_CreateFcn(hObject, eventdata, handles)
+    
+    % Hint: edit controls usually have a white background on Windows.
+    %       See ISPC and COMPUTER.
+    if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+        set(hObject,'BackgroundColor','white');
+    end
+    
+    
+    
+    
+function popupmenu2_CreateFcn(hObject, eventdata, handles)
+    
+    % Hint: popupmenu controls usually have a white background on Windows.
+    %       See ISPC and COMPUTER.
+    if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+        set(hObject,'BackgroundColor','white');
+    end
+    
+    
+    
+function edit_filterStartHz_CreateFcn(hObject, eventdata, handles)
+    
+    % Hint: edit controls usually have a white background on Windows.
+    %       See ISPC and COMPUTER.
+    if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+        set(hObject,'BackgroundColor','white');
+    end
+    
+    
+function edit_filterStopHz_CreateFcn(hObject, eventdata, handles)
+    
+    % Hint: edit controls usually have a white background on Windows.
+    %       See ISPC and COMPUTER.
+    if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+        set(hObject,'BackgroundColor','white');
+    end
+    
 
 
-function popupmenu3_Callback(hObject, eventdata, handles)
 
-
-function popupmenu3_CreateFcn(hObject, eventdata, handles)
-
-% Hint: popupmenu controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-function popupmenu4_Callback(hObject, eventdata, handles)
-
-
-function popupmenu4_CreateFcn(hObject, eventdata, handles)
-
-% Hint: popupmenu controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
-function edit1_Callback(hObject, eventdata, handles)
-
-
-function edit1_CreateFcn(hObject, eventdata, handles)
+function edit_samplerateCounts_CreateFcn(hObject, eventdata, handles)
 
 % Hint: edit controls usually have a white background on Windows.
 %       See ISPC and COMPUTER.
@@ -127,10 +159,18 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
-function popupmenu2_Callback(hObject, eventdata, handles)
+
+function edit_samplerateRaw_CreateFcn(hObject, eventdata, handles)
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
 
 
-function popupmenu2_CreateFcn(hObject, eventdata, handles)
+
+function menu_filterWindow_CreateFcn(hObject, eventdata, handles)
 
 % Hint: popupmenu controls usually have a white background on Windows.
 %       See ISPC and COMPUTER.

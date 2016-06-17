@@ -55,11 +55,11 @@ function [countData, rawData, filter_rawData, filtfilt_rawData, acti_ubit12, raw
     acti_ubit12 = acti_double2ubit12(rawData);
     rawData_ubit12 = double2ubit12(rawData);
     
-    [filter_rawData, filtfilt_rawData] = acti_iir_filter(rawData,fs);
+%     [filter_rawData, filtfilt_rawData] = acti_iir_filter(rawData,fs);
     
     [filter_rawData, filtfilt_rawData] = acti_fir_filter(rawData,fs);
     
-    [filter_rawData, filtfilt_rawData] = acti_filter(abs(rawData),fs);subplot(2,1,1);plot((conv(((filtfilt_rawData)),ones(1,40))));xlim([1 1200]);subplot(2,1,2);plot(abs(conv(((filtfilt_rawData)),ones(1,40))));xlim([1 1200]);
+%     [filter_rawData, filtfilt_rawData] = acti_filter(abs(rawData),fs);subplot(2,1,1);plot((conv(((filtfilt_rawData)),ones(1,40))));xlim([1 1200]);subplot(2,1,2);plot(abs(conv(((filtfilt_rawData)),ones(1,40))));xlim([1 1200]);
     x=reshape(filtfilt_rawData(1:samplesToCheck),fs,[]);
     counts = sum(abs(x)); % sum down the columns
     plot(counts);
