@@ -101,6 +101,7 @@ classdef PADeriver < handle
         function updatePlots(this)
             this.disableControls();
             
+            this.syncToUI();
             this.filterData();
             this.countFilterData();
             this.plotCounts();
@@ -113,7 +114,14 @@ classdef PADeriver < handle
         
     methods(Access=private)
         
-        %% Controls
+        %% Controls - load UI configuration into object parameters.
+        function syncToUI(this)
+            this.soi = getMenuUserData(this.handles.menu_soi);
+            this.filterOptions.name = getMenuUserData(this.handles.menu_filterName);
+            this.filterOptions.order = getMenuUserData(this.handles.menu_filterOrder);
+            this.filterOptions.startHz = str2double(get(this.handles.edit_filterStartHz,'string'));
+            this.filterOptions.stopHz = str2double(get(this.handles.edit_filterStopHz,'string'));
+        end
         function plotCounts(this)
             line_tags = {'counts','rawCounts','rawFiltered','raw','error'};
             
@@ -123,6 +131,7 @@ classdef PADeriver < handle
                 ydata = this.data.(lineTag);
                 xdata = 1:numel(ydata);
                 stairs(this.handles.(axesTag),xdata,ydata);
+                ylabel(this.handles.(axesTag),line_tags{l});
                 %                 set(this.lines.(lineTag),'xdata',xdata,'ydata',ydata);
                 %                 stem(this.handles.(axesTag),xdata,ydata);
             end 
@@ -154,27 +163,39 @@ classdef PADeriver < handle
             
             % Filter panel
             orderOptions = (0:99)';
-            set(this.handles.menu_filterName,'string',this.FILTER_NAMES,'value',find(strcmpi(this.FILTER_NAMES,this.filterOptions.name),1));
-            set(this.handles.menu_filterOrder,'string',num2str(orderOptions),'value',find(orderOptions==this.filterOptions.order,1));
+            set(this.handles.menu_filterName,'string',this.FILTER_NAMES,'userdata',this.FILTER_NAMES,'value',find(strcmpi(this.FILTER_NAMES,this.filterOptions.name),1));
+            set(this.handles.menu_filterOrder,'string',num2str(orderOptions),'userdata',orderOptions,'value',find(orderOptions==this.filterOptions.order,1));
             
-            set(this.handles.edit_filterStartHz,'string',num2str(this.filterOptions.start));
-            set(this.handles.edit_filterStopHz,'string',num2str(this.filterOptions.stop));
+            set(this.handles.edit_filterStartHz,'string',num2str(this.filterOptions.start),'callback',@this.edit_positiveNumericCallbackFcn);
+            set(this.handles.edit_filterStopHz,'string',num2str(this.filterOptions.stop),'callback',@this.edit_positiveNumericCallbackFcn);
             
             filtfiltFlag = strcmpi('filtfilt',this.filterOptions.type);
             set(this.handles.radio_filtfilt,'value',filtfiltFlag);
             %             set(this.handles.radio_filter,'value',~filtfiltFlag);
             
-            set(this.handles.push_update,'callback',@updatePlotsCallbackFcn);
+            set(this.handles.push_update,'callback',@this.updatePlotsCallbackFcn);
             
             this.initPlots();
         end
         
         function initPlots(this)
-            line_tags = {'counts','rawCounts','rawFiltered','raw','error'};
-            for l=1:numel(line_tags)
-                lineTag = line_tags{l};
-                axesTag = ['axes_',lineTag];
-                this.lines.(lineTag) = line([],[],'parent',this.handles.(axesTag));
+            this.labelPlots();
+
+            %             line_tags = {'counts','rawCounts','rawFiltered','raw','error'};
+            %             for l=1:numel(line_tags)
+            %                 lineTag = line_tags{l};
+            %                 axesTag = ['axes_',lineTag];
+            %                 this.lines.(lineTag) = line([],[],'parent',this.handles.(axesTag));
+            %                 ylabel(this.handles.(axesTag),lineTag);
+            %             end
+        end
+        
+        
+        function labelPlots(this)
+            tags = {'counts','rawCounts','rawFiltered','raw','error'};
+            axesTags = strcat('axes_',tags);
+            for t=1:numel(tags)
+                ylabel(this.handles.(axesTags{t}),tags{t});
             end
         end
         
@@ -349,6 +370,16 @@ classdef PADeriver < handle
             % Filter data
             filt_sigOut = filter(h_b,h_a, sigIn);            
             filtfilt_sigOut = filtfilt(h_b,h_a, sigIn);
+            
+        end
+        
+        function edit_positiveNumericCallbackFcn(hObject,eventdata)
+            newValue = str2double(get(hObject,'string'));
+            if(isempty(newValue) || isnan(newValue) || newValue<0)
+                fprintf(1,'Bad value entered!');
+            else
+                fprintf(1,'Good value entered');
+            end
             
         end
         
