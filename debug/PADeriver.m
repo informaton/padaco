@@ -5,15 +5,16 @@
 classdef PADeriver < handle
     
     properties(Constant)
+        FIGURE_NAME = 'Counts derivation tool';
         SOI_LABELS = {'X','Y','Z','Magnitude'};
         SOI_FIELDS = {'x','y','z','vecMag'};
         FILTER_NAMES = {'fir1' % FIR filter design using the window method.
             'fir2' % FIR arbitrary shape filter design using the frequency sampling method.
             %'kaiserord' % FIR order estimator
-            'fircls1' % Low & high pass FIR filter design by constrained least-squares.
+            % 'fircls1' % Low & high pass FIR filter design by constrained least-squares.
             'firls' % Linear-phase FIR filter design using least-squares error minimization.  FIR filter which has the best approximation to the desired frequency response described by F and A in the least squares sense.
-            'fircls' % Linear-phase FIR filter design by constrained least-squares.
-            'cfirpm' % Complex and nonlinear phase equiripple FIR filter design.
+            %'fircls' % Linear-phase FIR filter design by constrained least-squares.
+            %'cfirpm' % Complex and nonlinear phase equiripple FIR filter design.
             'firpm' % Parks-McClellan optimal equiripple FIR filter design.
             'butter' % Butterworth digital and analog filter design.
             'cheby1' % Chebyshev Type I digital and analog filter design.
@@ -99,15 +100,39 @@ classdef PADeriver < handle
         end
         
         function updatePlots(this)
-            this.disableControls();
-            
-            this.syncToUI();
-            this.filterData();
-            this.countFilterData();
-            this.plotCounts();
+            this.showBusy('Updating plot');
+            try
+                this.disableControls();
+                
+                this.syncToUI();
+                this.filterData();
+                this.countFilterData();
+                this.plotCounts();
+            catch me
+                showME(me);
+            end
             
             this.enableControls();
+            this.showReady();
             
+        end
+        
+        function filterPassRange = getFilterRange(this)
+            fStartPass = str2double(get(this.handles.edit_filterStartHz,'string'));
+            fStopPass = str2double(get(this.handles.edit_filterStopHz,'string'));
+            filterPassRange = [fStartPass, fStopPass];
+        end
+        
+        function absFlag =isFilterInputAbs(this)
+            absFlag = get(this.handles.check_filterAbsInput,'value');
+        end
+        
+        function absFlag =isFilterOutputAbs(this)
+            absFlag = get(this.handles.check_filterAbsOutput,'value');
+        end
+        
+        function shiftFlag = isFilterDelayShifted(this)
+            shiftFlag = get(this.handles.check_filterShiftDelay,'value');
         end
         
     end
@@ -266,7 +291,30 @@ classdef PADeriver < handle
         end
         
         function filterData(this)
-            [this.data.filter, this.data.filtfilt] = this.acti_filter(this.data.raw,this.filterOptions.name,this.samplerate.raw,this.filterOptions.order, this.filterOptions.dB);
+            
+            if(this.isFilterInputAbs)
+                inputData = abs(this.data.raw);
+            else
+                inputData = this.data.raw;
+            end
+            
+            fMax = this.samplerate.raw/2;
+            
+            fPass = this.getFilterRange();
+            wPass = fPass/fMax;  %normalized frequency
+            
+            [this.data.filter, this.data.filtfilt] = this.acti_filter(inputData,this.filterOptions.name,this.filterOptions.order, wPass, this.filterOptions.dB);
+            
+            if(this.isFilterDelayShifted())
+             [this.data.filter, this.data.filtfilt] = adjustFilterOrderDelay(this.filterOptions.order, this.data.filter, this.data.filtfilt);
+            end
+            
+            
+            if(this.isFilterOutputAbs)
+                this.data.filter = abs(this.data.filter);
+                this.data.filtfilt = abs(this.data.filtfilt);
+            end
+            
         end
         
         function countFilterData(this)
@@ -289,7 +337,7 @@ classdef PADeriver < handle
         
         %% Callbacks
         function loadFileCallbackFcn(this,hObject, eventdata)
-            fName = get(this.figureH,'name');
+            
             
             testingPath = '/Users/unknown/Data/GOALS/Temp';
             % sqlite_testFile = '704397t00c1_1sec.sql';  % SQLite format 3  : sqlite3 -> .open 704397t00c1_1sec.sql; .tables; select * from settings; .quit;  (ref: https://www.sqlite.org/cli.html)
@@ -307,7 +355,9 @@ classdef PADeriver < handle
             if(~isempty(count_filename))
                 
                 try
+                    this.showBusy();
                     set(hObject,'enable','off');
+                    
                     this.loadFile(count_filename);
                     
                     this.updatePlots();
@@ -319,9 +369,10 @@ classdef PADeriver < handle
                 set(hObject,'enable','on');
                 drawnow();
                 
+                
             end
             
-            set(this.figureH,'name',fName);
+            this.showReady();
         end
         
         function menuSOICallbackFcn(this,hObject,~)
@@ -332,10 +383,51 @@ classdef PADeriver < handle
             this.updatePlots();
         end
         
+        %% Misc support
+                % --------------------------------------------------------------------
+        %> @brief Shows busy status (mouse becomes a watch).
+        %> @param obj Instance of PAView  
+        %> @param status_label Optional string which, if included, is displayed
+        %> in the figure's status text field (currently at the top right of
+        %> the view).
+        %> @param axesTag Optional tag, that if set will set the axes tag's
+        %> state to 'busy'.  See setAxesState method.
+        % --------------------------------------------------------------------
+        function showBusy(this,status_label)
+            set(this.figureH,'pointer','watch');
+            if(nargin>1)
+                set(this.figureH,'name',status_label);
+            end
+            drawnow();
+        end  
+        
+        % --------------------------------------------------------------------
+        %> @brief Shows ready status (mouse becomes the default pointer).
+        %> @param axesTag Optional tag, that if set will set the axes tag's
+        %> state to 'ready'.  See setAxesState method.
+        %> @param obj Instance of PAView        
+        % --------------------------------------------------------------------
+        function showReady(this)
+            set(this.figureH,'pointer','arrow');
+            set(this.figureH,'name',this.FIGURE_NAME);
+            drawnow();
+        end
+        
     end
     
     methods(Static)
-        function [filt_sigOut, filtfilt_sigOut] = acti_filter(sigIn,filterName, fs, n_order,peak2peakDB)
+        function varargout = adjustFilterOrderDelay(n_order, varargin)
+            varargout = cell(size(varargin));
+            delay = floor(n_order/2);
+            %account for the delay...
+            
+            for v=1:numel(varargin)
+                curSig = varargin{v};
+                varargout{v} = [curSig(delay+1:end); zeros(delay,1)];
+            end
+        end
+        
+        function [filt_sigOut, filtfilt_sigOut] = acti_filter(sigIn, filterName, n_order, wPass, peak2peakDB)
             
             if(nargin<5 || isempty(peak2peakDB))
                 peak2peakDB = 3;  % reduces by 1/2
@@ -346,25 +438,48 @@ classdef PADeriver < handle
                 n_order = 2;
             end
             
-            Fmax = fs/2;
-            Fpass = [0.25 2.5];
             
-            Wpass = Fpass/Fmax;  %normalized frequency
-            
+            h_a = 1;
+            bandPassMag = [0 1 1 0];
             switch(filterName)
-                case 'cheby1'
-                    [h_b,h_a] = cheby1(n_order, peak2peakDB, Wpass, 'bandpass');
                 case 'fir1'
-                    h_b = fir1(n_order, Wpass,'bandpass');
+                    h_b = fir1(n_order, wPass,'bandpass');
                     h_a = 1;
                     %                     B = fir1(N,Wn,kaiser(N+1,4))
                     %                         uses a Kaiser window with beta=4. B = fir1(N,Wn,'high',chebwin(N+1,R))
                     %                         uses a Chebyshev window with R decibels of relative sidelobe
-                    %                         attenuation.
+                    %                         attenuation.                    
+                case 'fir2' % FIR arbitrary shape filter design using the frequency sampling method.            
+                    wPass = [0 wPass 1];
+                    h_b = fir2(n_order, wPass,bandPassMag);
+                    h_a = 1;
+
+                % case 'fircls1' % Low & high pass FIR filter design by constrained least-squares.
+                case 'firls' % Linear-phase FIR filter design using least-squares error minimization.  FIR filter which has the best approximation to the desired frequency response described by F and A in the least squares sense.
+                    wPass = [0 wPass 1];
+                    h_b = firls(n_order, wPass, bandPassMag);
                     
-                case 'butter' % IIR design
+                % case 'fircls' % Linear-phase FIR filter design by constrained least-squares.
+                % case 'cfirpm' % Complex and nonlinear phase equiripple FIR filter design.
+                
+                % Optimal equiripple
+                case 'firpm' % Parks-McClellan optimal equiripple FIR filter design.
+                     wPass = [0 wPass 1];
+                    h_b = firls(n_order, wPass, bandPassMag);
+                    
+                    % IIR design
+                case 'butter' % Butterworth digital and analog filter design.
+                    [h_b,h_a] = butter(n_order, wPass);
+                case 'cheby1'  % Chebyshev Type I digital and analog filter design.
+                    [h_b,h_a] = cheby1(n_order, peak2peakDB, wPass, 'bandpass');
+                case 'cheby2' % Chebyshev Type II digital and analog filter design.
+                    [h_b,h_a] = cheby2(n_order, peak2peakDB, wPass, 'bandpass');
+                case 'ellip' % Elliptic or Cauer digital and analog filter design.    
+                    RippleStop = 50;  %Minimum stop band attenuation
+                     % peak2peakDB = peak-to-peak ripple.
+                    [h_b, h_a] = ellip(n_order, peak2peakDB, RippleStop, wPass);
                 otherwise
-                    [h_b,h_a] = cheby1(n_order, peak2peakDB, Wpass, 'bandpass');
+                    [h_b,h_a] = cheby1(n_order, peak2peakDB, wPass, 'bandpass');
             end
             
             % Filter data
@@ -376,9 +491,9 @@ classdef PADeriver < handle
         function edit_positiveNumericCallbackFcn(hObject,eventdata)
             newValue = str2double(get(hObject,'string'));
             if(isempty(newValue) || isnan(newValue) || newValue<0)
-                fprintf(1,'Bad value entered!');
+                fprintf(1,'Bad value entered!\n');
             else
-                fprintf(1,'Good value entered');
+                %fprintf(1,'Good value entered\n');
             end
             
         end
