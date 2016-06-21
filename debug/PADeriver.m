@@ -58,6 +58,11 @@ classdef PADeriver < handle
         %> - filter
         %> - filtfilt
         data;
+        
+        %> Struct with fields
+        %> - raw
+        %> - count
+        range;
         %> Struct with fields
         %> - raw Sample rate of raw acceleration
         %> - counts Number of epochs per second
@@ -117,6 +122,31 @@ classdef PADeriver < handle
             
         end
         
+        function dataInRange =  getDataInRange(this,label)
+            
+            switch(lower(label))
+                case 'raw'
+                    shiftBy = this.getShiftBy('raw');
+                    dataInRange = this.dataObject.raw.accel.raw.(this.soi)(this.range.raw - shiftBy);
+                case 'counts'
+                    dataInRange = this.dataObject.count.accel.count.(this.soi)(this.range.count);
+                otherwise
+                    shiftBy = this.getShiftBy('raw');
+                    dataInRange = this.dataObject.raw.accel.raw.(this.soi)(this.range.raw - shiftBy);
+            end
+        end
+        
+        function shiftSamples = getShiftBy(this,label)
+             switch(lower(label))
+                case 'raw'
+                    shiftSamples = getMenuUserData(this.handles.menu_shiftRaw);
+                case 'filtered'
+                    shiftSamples = getMenuUserData(this.handles.menu_shiftFiltered);
+                otherwise
+                    shiftSamples = this.dataObject.raw.accel.raw.(this.soi)(this.range.raw - shiftBy);
+             end            
+        end
+        
         function filterPassRange = getFilterRange(this)
             fStartPass = str2double(get(this.handles.edit_filterStartHz,'string'));
             fStopPass = str2double(get(this.handles.edit_filterStopHz,'string'));
@@ -135,6 +165,7 @@ classdef PADeriver < handle
             shiftFlag = get(this.handles.check_filterShiftDelay,'value');
         end
         
+
     end
         
     methods(Access=private)
@@ -164,12 +195,16 @@ classdef PADeriver < handle
         
         function disableControls(this)
             disablehandles(this.handles.panel_filterOptions);
-            set(this.handles.menu_soi,'enable','off');
+            disablehandles(this.handles.panel_signalFlow);
+            
+            %             set(this.handles.menu_soi,'enable','off');
             set(this.handles.push_update,'enable','off');
         end
         
         function enableControls(this)
             enablehandles(this.handles.panel_filterOptions);
+            enablehandles(this.handles.panel_signalFlow);
+            
             set(this.handles.menu_soi,'enable','on');
             set(this.handles.push_update,'enable','on');
         end
@@ -184,7 +219,6 @@ classdef PADeriver < handle
             
             % File panel
             set(this.handles.push_loadFile,'callback',@this.loadFileCallbackFcn);
-            set(this.handles.menu_soi,'string',this.SOI_LABELS,'value',find(strcmpi(this.soi,this.SOI_FIELDS),1),'userdata',this.SOI_FIELDS,'callback',@this.menuSOICallbackFcn);
             
             % Filter panel
             orderOptions = (0:99)';
@@ -194,14 +228,27 @@ classdef PADeriver < handle
             set(this.handles.edit_filterStartHz,'string',num2str(this.filterOptions.start),'callback',@this.edit_positiveNumericCallbackFcn);
             set(this.handles.edit_filterStopHz,'string',num2str(this.filterOptions.stop),'callback',@this.edit_positiveNumericCallbackFcn);
             
+            % Signal flow panel
+            set(this.handles.menu_soi,'string',this.SOI_LABELS,'value',find(strcmpi(this.soi,this.SOI_FIELDS),1),'userdata',this.SOI_FIELDS,'callback',@this.updateSOICallbackFcn);
             filtfiltFlag = strcmpi('filtfilt',this.filterOptions.type);
             set(this.handles.radio_filtfilt,'value',filtfiltFlag);
+            set(this.handles.buttongroup_filterType,'SelectionChangedFcn',@this.updatePlotsCallbackFcn);
             %             set(this.handles.radio_filter,'value',~filtfiltFlag);
+            
+            set(this.handles.check_filterAbsInput,'callback',@this.check_filterAbsInputCallback);
+            set(this.handles.check_filterAbsOutput,'callback',@this.updatePlotsCallbackFcn);
+            
+            shiftVector = (-100:5:100)';
+            shiftStr = num2str(shiftVector);
+            shiftValue = find(shiftVector==0,1);
+            set([this.handles.menu_shiftRaw;
+                 this.handles.menu_shiftFiltered],'string',shiftStr,'userdata',shiftVector,'value',shiftValue,'callback',@this.menu_shiftByCallback);
             
             set(this.handles.push_update,'callback',@this.updatePlotsCallbackFcn);
             
             this.initPlots();
         end
+        
         
         function initPlots(this)
             this.labelPlots();
@@ -231,13 +278,14 @@ classdef PADeriver < handle
             
             raw_filename = fullfile(filePath,bin_testFile);
             
-            
-            set(this.figureH,'name','Loading binary data ...');
-            drawnow();
+            this.showBusy('Loading binary data ...');
+            %             set(this.figureH,'name','Loading binary data ...');
+            %             drawnow();
             this.dataObject.raw = PAData(raw_filename);
             
-            set(this.figureH,'name','Loading count data ...');
-            drawnow();
+            this.showBusy('Loading count data ...');
+            %             set(this.figureH,'name','Loading count data ...');
+            %             drawnow();
             this.dataObject.count = PAData(count_filename);
             
             %raw - sampled at 40 Hz
@@ -283,12 +331,14 @@ classdef PADeriver < handle
                 count_start = 1;
             end
             
-            rawRange = raw_start:(raw_start-1)+secondsToCheck*this.samplerate.raw;
-            countRange = (0:secondsToCheck*this.samplerate.counts-1)+count_start;
+            this.range.raw = raw_start:(raw_start-1)+secondsToCheck*this.samplerate.raw;
+            this.range.count = (0:secondsToCheck*this.samplerate.counts-1)+count_start;
             
-            this.data.raw = this.dataObject.raw.accel.raw.(this.soi)(rawRange);
-            this.data.counts = this.dataObject.count.accel.count.(this.soi)(countRange);
+            this.data.raw = this.getDataInRange('raw');
+            this.data.counts = this.getDataInRange('counts');
         end
+        
+
         
         function filterData(this)
             
@@ -306,7 +356,7 @@ classdef PADeriver < handle
             [this.data.filter, this.data.filtfilt] = this.acti_filter(inputData,this.filterOptions.name,this.filterOptions.order, wPass, this.filterOptions.dB);
             
             if(this.isFilterDelayShifted())
-             [this.data.filter, this.data.filtfilt] = adjustFilterOrderDelay(this.filterOptions.order, this.data.filter, this.data.filtfilt);
+                [this.data.filter, this.data.filtfilt] = this.adjustFilterOrderDelay(this.filterOptions.order, this.data.filter, this.data.filtfilt);
             end
             
             
@@ -326,7 +376,7 @@ classdef PADeriver < handle
             
             samplesToCheck = 1:numel(this.data.raw);
             x=reshape(this.data.rawFiltered(samplesToCheck),this.samplerate.raw,[]);
-            this.data.rawCounts = sum(abs(x)); % sum down the columns
+            this.data.rawCounts = sum(x); % sum down the columns
             
             this.data.error = this.data.counts(:) - this.data.rawCounts(:);
         end
@@ -336,6 +386,14 @@ classdef PADeriver < handle
         end
         
         %% Callbacks
+        function updateSOICallbackFcn(this, hObject, eventdata)
+            this.soi = getMenuUserData(hObject);
+            this.data.raw = this.getDataInRange('raw');
+            this.data.counts = this.getDataInRange('counts');
+            this.updatePlots();
+        end
+        
+        
         function loadFileCallbackFcn(this,hObject, eventdata)
             
             
@@ -375,11 +433,20 @@ classdef PADeriver < handle
             this.showReady();
         end
         
-        function menuSOICallbackFcn(this,hObject,~)
-            this.soi = getMenuUserData(hObject);
+        function updatePlotsCallbackFcn(this,hObject,eventdata)
+            this.updatePlots();
         end
         
-        function updatePlotsCallbackFcn(this,hObject,eventdata)
+        function menu_shiftByCallback(this,hObject,eventData)        
+            this.data.raw = this.getDataInRange('raw');
+            this.updatePlots();
+        end
+
+        function check_filterAbsInputCallback(this,hObject,eventdata)
+            this.data.raw = this.getDataInRange('raw');
+            if(this.isFilterInputAbs())
+                this.data.raw = abs(this.data.raw);
+            end
             this.updatePlots();
         end
         
@@ -395,6 +462,7 @@ classdef PADeriver < handle
         % --------------------------------------------------------------------
         function showBusy(this,status_label)
             set(this.figureH,'pointer','watch');
+            
             if(nargin>1)
                 set(this.figureH,'name',status_label);
             end

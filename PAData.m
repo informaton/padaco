@@ -2406,6 +2406,7 @@ classdef PAData < handle
                             obj.accel.raw.x = axesFloatData(:,1);
                             obj.accel.raw.y = axesFloatData(:,2);
                             obj.accel.raw.z = axesFloatData(:,3);
+                            obj.accel.raw.vecMag = sqrt(obj.accel.raw.x.^2+obj.accel.raw.y.^2+obj.accel.raw.z.^2);
                             recordCount = size(axesFloatData,1);
                             obj.durSamples = recordCount;
                             
