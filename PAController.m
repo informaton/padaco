@@ -152,6 +152,9 @@ classdef PAController < handle
         %% Shutdown functions
         %> Destructor
         function close(obj)
+            
+            % Overwrite the current SETTINGS.DATA if we have an accelObj
+            % instantiated.
             if(~isempty(obj.accelObj))
                 obj.SETTINGS.DATA = obj.accelObj.getSaveParameters();
             end
@@ -349,6 +352,7 @@ classdef PAController < handle
             % settings and about
             set(handles.menu_file_about,'callback',@obj.menuFileAboutCallback);
             set(handles.menu_file_settings,'callback',@obj.menuFileSettingsCallback);
+            set(handles.menu_file_usageRules,'callback',@obj.menuFileUsageRulesCallback);
             
             %  open
             set(handles.menu_file_open,'callback',@obj.menuFileOpenCallback);
@@ -455,6 +459,53 @@ classdef PAController < handle
             end
         end
         
+        % --------------------------------------------------------------------
+        %> @brief Assign values for usage state classifier rules.
+        %> Called internally during class construction.
+        %> @param obj Instance of PAController
+        %> @param hObject
+        %> @param eventdata
+        %> @param optionalSettingsName String specifying the settings to
+        %> update (optional)
+        % --------------------------------------------------------------------
+        function menuFileUsageRulesCallback(obj,hObject,eventdata)
+            
+            if(~isempty(obj.accelObj))
+                usageRules= obj.accelObj.usageStateRules;
+            else
+                usageRules = obj.SETTINGS.DATA.usageStateRules;
+            end
+            usageRules.fieldNames = fieldnames(usageRules);
+            inputStruct.usageRules = usageRules;
+            inputStruct.fieldNames = {'usageRules'};
+            defaultParams = PAData.getDefaultParameters();
+            defaultParams = defaultParams.usageStateRules;
+            inputStruct.setDefaults = @(this,usageRulesStr) this.usageRules = defaultParams;
+            %             tmp_obj.StatTool = rmfield(tmp_obj.StatTool,'customDaysOfWeek');  % get rid of fields that contain arrays of values, since I don't actually know how to handle this
+            inputStruct = pair_value_dlg(inputStruct);
+            
+            if(~isempty(inputStruct))
+                usageRules = inputStruct.usageRules;
+                if(~isempty(obj.accelObj))
+                    obj.accelObj.useStateRules = usageRules;
+                else
+                    obj.SETTINGS.DATA.usageStateRules = usageRules;
+                end
+                
+                
+                if(isa(obj.StatTool,'PAStatTool'))
+                    obj.StatTool.setWidgetSettings(obj.SETTINGS.StatTool);
+                end
+                fprintf('Settings have been updated.\n');
+                
+                % save parameters to disk
+                obj.saveParameters();
+                
+                % Activate a refresh()
+                obj.setViewMode(obj.getViewMode());
+                
+            end
+        end 
         
         function initTimeSeriesWidgets(obj)
             

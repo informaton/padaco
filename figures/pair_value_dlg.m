@@ -196,10 +196,15 @@ function tabgroup_callback(hObject,eventdata)
             value_tag = sprintf('%s%u',handles.user.edit_prefix,f);
             set(handles.(text_tag),'string',fnames{f});
             curValue = handles.user.settings_obj.(tabName).(fnames{f});
-            if(~isnan(num2str(curValue)))
-                curValue = num2str(curValue);
+            
+            if(~isstruct(curValue))
+                if(~isnan(num2str(curValue)))
+                    curValue = num2str(curValue);
+                end
+                set(handles.(value_tag),'string',curValue);
+            else
+               fprintf(1,'Structures are not handled here.\n'); 
             end
-            set(handles.(value_tag),'string',curValue);
         end
         
     catch me
