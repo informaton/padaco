@@ -1,4 +1,4 @@
-classdef PASimpleSettings
+classdef PASimpleSettings < handle
    properties
        fieldNames;
        inputStruct;
@@ -16,21 +16,23 @@ classdef PASimpleSettings
            this.defaultStruct = defaultStruct;
            this.inputStruct = inputStruct;
            
-           
            this.Settings = this.inputStruct;
            
            this.fieldNames = {'Settings'};
+           this.outputStruct = [];
            
+           this.runEditor();
+           
+       end
+    
+       function runEditor(this)
            tmp = pair_value_dlg(this);
            if(~isempty(tmp))
                this.outputStruct = tmp.Settings;
                this.Settings = tmp.Settings;
            end
-           
-           
-           
        end
-    
+       
        function didSet = setDefaults(this,fieldToChange)
            try
                fnames = fieldnames(this.(fieldToChange));
@@ -46,10 +48,15 @@ classdef PASimpleSettings
            catch me
                showME(me);
                didSet = false;
-           end
-           
+           end 
        end
-    
+   end
+   
+   methods(Static)
+       function structOut = editor(varargin)
+           this = PASimpleSettings(varargin{:});
+           structOut = this.outputStruct;           
+       end       
    end
     
 end

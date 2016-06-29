@@ -352,6 +352,27 @@ classdef PAData < handle
             fs = obj.sampleRate;
         end
         
+        
+        function usageRules = getUsageClassificationRules(this)
+            usageRules = this.usageStateRules();
+        end
+        
+        %> @brief Updates the usage state rules with an input struct.  
+        %> @param
+        %> @param
+        function didSet = setUsageClassificationRules(this, ruleStruct)
+            didSet = false;
+            try
+                if(isstruct(ruleStruct))
+                    this.usageStateRules = this.updateStructWithStruct(this.usageStateRules, ruleStruct);
+                    didSet = true;
+                end
+            catch me
+                showME(me);
+                didSet = false;
+            end            
+        end
+        
         % --------------------------------------------------------------------
         %> @brief Returns the frame rate in units of frames/second.
         %> @param obj Instance of PAData
@@ -3378,6 +3399,37 @@ classdef PAData < handle
                 curField = dataStruct.(fnames{f});
                 structMinmax.(fnames{f}) = minmax(PAData.getRecurseMinmax(curField));
             end
+        end
+        
+        function structToUpdate = updateStructWithStruct(structToUpdate, structToUpdateWith)
+            
+            if(isstruct(rtStruct))
+                fnames = fieldnames(rtStruct);
+                for f=1:numel(fnames)
+                    curField = fnames{f};
+                    if(isstruct(rtStruct.(curField)))
+                        if(isfield(ltStruct,curField))
+                            ltStruct.(curField) = PAData.mergeStruct(ltStruct.(curField),rtStruct.(curField));
+                        else
+                            ltStruct.(curField) = rtStruct.(curField);
+                        end
+                    else
+                        ltStruct.(curField) = rtStruct.(curField);
+                    end
+                end
+            end
+            
+            
+            if(isstruct(ruleStruct))
+                ruleFields = fieldnames(this.usageStateRules);
+                for f=1:numel(ruleFields)
+                    curField = ruleFields{f};
+                    if(hasfield(ruleStruct,curField) && class(ruleStruct.(curField)) == class(this.usageStateRules.(curField)))
+                        this.usageStateRules.(curField) = ruleStruct.(curField);
+                    end
+                end
+            end
+            
         end
         
         % ======================================================================

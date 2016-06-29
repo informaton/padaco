@@ -475,23 +475,16 @@ classdef PAController < handle
             else
                 usageRules = obj.SETTINGS.DATA.usageStateRules;
             end
-            usageRules.fieldNames = fieldnames(usageRules);
-            inputStruct.usageRules = usageRules;
-            inputStruct.fieldNames = {'usageRules'};
-            defaultParams = PAData.getDefaultParameters();
-            defaultParams = defaultParams.usageStateRules;
-            inputStruct.setDefaults = @(this,usageRulesStr) this.usageRules = defaultParams;
-            %             tmp_obj.StatTool = rmfield(tmp_obj.StatTool,'customDaysOfWeek');  % get rid of fields that contain arrays of values, since I don't actually know how to handle this
-            inputStruct = pair_value_dlg(inputStruct);
+            defaultRules = PAData.getDefaultParameters();
+            defaultRules = defaultRules.usageStateRules;
+            updatedRules = simpleEdit(usageRules,defaultRules);
             
-            if(~isempty(inputStruct))
-                usageRules = inputStruct.usageRules;
+            if(~isempty(updatedRules))
                 if(~isempty(obj.accelObj))
-                    obj.accelObj.useStateRules = usageRules;
+                    obj.accelObj.usageStateRules = updatedRules;
                 else
-                    obj.SETTINGS.DATA.usageStateRules = usageRules;
+                    obj.SETTINGS.DATA.usageStateRules = updatedRules;
                 end
-                
                 
                 if(isa(obj.StatTool,'PAStatTool'))
                     obj.StatTool.setWidgetSettings(obj.SETTINGS.StatTool);
