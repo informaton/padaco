@@ -85,6 +85,8 @@ classdef PAData < handle
         yDelta;
         
         
+
+        
         %> @brief Identifier (string) for the file data that was loaded.
         %> @note See getStudyIDFromBasename()
         studyID;
@@ -143,6 +145,10 @@ classdef PAData < handle
         %> @brief Mode of usage state vector (i.e. taken from getUsageActivity) for current frame rate.
         usageFrames;
         
+        
+        %> @brief Struct of rules for classifying usage state.
+        %> See getDefaultParameters for initial values.
+        usageStateRules;        
         
         %> @brief Number of frames that the time series data can be aggregated
         %> into.  It is calculated as the ceiling of the study's duration in
@@ -344,6 +350,27 @@ classdef PAData < handle
         % --------------------------------------------------------------------
         function fs = getSampleRate(obj)
             fs = obj.sampleRate;
+        end
+        
+        
+        function usageRules = getUsageClassificationRules(this)
+            usageRules = this.usageStateRules();
+        end
+        
+        %> @brief Updates the usage state rules with an input struct.  
+        %> @param
+        %> @param
+        function didSet = setUsageClassificationRules(this, ruleStruct)
+            didSet = false;
+            try
+                if(isstruct(ruleStruct))
+                    this.usageStateRules = this.updateStructWithStruct(this.usageStateRules, ruleStruct);
+                    didSet = true;
+                end
+            catch me
+                showME(me);
+                didSet = false;
+            end            
         end
         
         % --------------------------------------------------------------------
@@ -1876,25 +1903,28 @@ classdef PAData < handle
             %            INACTIVE = 25;
             %            ACTIVE = 30;
             
-            countActivity = obj.accel.count.vecMag;
-            longClassificationMinimumDurationOfMinutes = 15; %a 15 minute or 1/4 hour filter
-            samplesPerMinute = obj.getSampleRate()*60; % samples per second * 60 seconds per minute
+            longClassificationMinimumDurationOfMinutes = obj.usageStateRules.longClassificationMinimumDurationOfMinutes; %15; %a 15 minute or 1/4 hour filter
+            shortClassificationMinimumDurationOfMinutes = obj.usageStateRules.shortClassificationMinimumDurationOfMinutes; %5; %a 5 minute or 1/12 hour filter
             
-            shortClassificationMinimumDurationOfMinutes = 5; %a 5 minute or 1/12 hour filter
+            awakeVsAsleepCountsPerSecondCutoff = obj.usageStateRules.awakeVsAsleepCountsPerSecondCutoff;  %1;  % exceeding the cutoff means you are awake
+            activeVsInactiveCountsPerSecondCutoff = obj.usageStateRules.activeVsInactiveCountsPerSecondCutoff; %10; % exceeding the cutoff indicates active
+            onBodyVsOffBodyCountsPerMinuteCutoff = obj.usageStateRules.onBodyVsOffBodyCountsPerMinuteCutoff; %1; % exceeding the cutoff indicates on body (wear)
+
+            countActivity = obj.accel.count.vecMag;            
+                        
+            samplesPerMinute = obj.getSampleRate()*60; % samples per second * 60 seconds per minute
+            samplesPerHour = 60*samplesPerMinute;
+            
             
             longFilterLength = longClassificationMinimumDurationOfMinutes*samplesPerMinute;
             shortFilterLength = shortClassificationMinimumDurationOfMinutes*samplesPerMinute;
-            tic;
+            
             longRunningActivitySum = obj.movingSummer(countActivity,longFilterLength);
             shortRunningActivitySum = obj.movingSummer(countActivity,shortFilterLength);
-            toc;
             
             %            usageVec = zeros(size(obj.dateTimeNum));
             usageVec = repmat(UNKNOWN,(size(obj.dateTimeNum)));
             
-            awakeVsAsleepCountsPerSecondCutoff = 1;  % exceeding the cutoff means you are awake
-            activeVsInactiveCountsPerSecondCutoff = 10; % exceeding the cutoff indicates active
-            onBodyVsOffBodyCountsPerMinuteCutoff = 1; % exceeding the cutoff indicates on body (wear)
             
             % This is good for determining where the study has ended... using a 15 minute duration minimum
             % (essentially 1 count allowed per minute or 15 counts per 900 samples )
@@ -1908,16 +1938,19 @@ classdef PAData < handle
             inactiveVec = awakeVsAsleepVec&~activeVec; %awake, but not active
             sleepVec = ~awakeVsAsleepVec; % not awake
             
-            sleepPeriodParams.merge_within_samples = 3600*2*obj.getSampleRate();
-            sleepPeriodParams.min_dur_samples = 3600*4*obj.getSampleRate();
+            sleepPeriodParams.merge_within_samples = obj.usageStateRules.mergeWithinHoursForSleep*samplesPerHour; % 3600*2*obj.getSampleRate();
+            sleepPeriodParams.min_dur_samples = obj.usageStateRules.minHoursForSleep*samplesPerHour; %3600*4*obj.getSampleRate();
             sleepVec = obj.reprocessEventVector(sleepVec,sleepPeriodParams.min_dur_samples,sleepPeriodParams.merge_within_samples);
             
+            
+            %% Short vector sum - applied to sleep states
             % Examine rem sleep on a shorter time scale
             shortOffBodyThreshold = shortClassificationMinimumDurationOfMinutes*onBodyVsOffBodyCountsPerMinuteCutoff;
             % shortActiveThreshold = shortClassificationMinimumDurationOfMinutes*(activeVsInactiveCountsPerSecondCutoff*60);
             shortNoActivityVec = shortRunningActivitySum<shortOffBodyThreshold;
-            remSleepPeriodParams.merge_within_samples = 60*5*obj.getSampleRate();  %merge within 5 minutes
-            remSleepPeriodParams.min_dur_samples = 60*20*obj.getSampleRate();   %require minimum of 20 minutes
+            
+            remSleepPeriodParams.merge_within_samples = obj.usageStateRules.mergeWithinMinutesForREM*samplesPerMinute;  %merge within 5 minutes
+            remSleepPeriodParams.min_dur_samples = obj.usageStateRules.minMinutesForREM*samplesPerMinute;   %require minimum of 20 minutes
             remSleepVec = obj.reprocessEventVector(sleepVec&shortNoActivityVec,remSleepPeriodParams.min_dur_samples,remSleepPeriodParams.merge_within_samples);
             
             
@@ -1925,8 +1958,8 @@ classdef PAData < handle
             longNoActivityVec = longRunningActivitySum<offBodyThreshold;
             candidate_nonwear_events= obj.thresholdcrossings(longNoActivityVec,0);
             
-            params.merge_within_sec = 3600*4;
-            params.min_dur_sec = 3600*4;
+            params.merge_within_sec = obj.usageStateRules.mergeWithinHoursForNonWear*samplesPerHour; %4;
+            params.min_dur_sec = obj.usageStateRules.minHoursForNonWear*samplesPerHour; %4;
             
             %            params.merge_within_sec = 3600*1;
             %            params.min_dur_sec = 3600*1;
@@ -1943,8 +1976,8 @@ classdef PAData < handle
                     nonwear_events = candidate_nonwear_events(diff_sec>=params.min_dur_sec,:);
                 end
                 
-                studyOverParams.merge_within_sec = 3600*6; %-> group within 6 hours ..
-                studyOverParams.min_dur_sec = 3600*12;% -> this is for classifying state as over.
+                studyOverParams.merge_within_sec = obj.usageStateRules.mergeWithinHoursForStudyOver*samplesPerHour; %-> group within 6 hours ..
+                studyOverParams.min_dur_sec = obj.usageStateRules.minHoursForStudyOver*samplesPerHour;%12;% -> this is for classifying state as over.
                 merge_distance = round(studyOverParams.merge_within_sec*obj.getSampleRate());
                 candidate_studyover_events = obj.merge_nearby_events(nonwear_events,merge_distance);
                 diff_sec = (candidate_studyover_events(:,2)-candidate_studyover_events(:,1))/obj.getSampleRate();
@@ -1960,8 +1993,8 @@ classdef PAData < handle
             % the study is clearly not over then (i.e. there is more
             % activity being presented).
             if(~isempty(studyover_events))
-                diff_hours = (obj.durationSamples()-studyover_events(end))/obj.getSampleRate()/3600;
-                if(diff_hours<=4)
+                diff_hours = (obj.durationSamples()-studyover_events(end))/samplesPerHour; %      obj.getSampleRate()/3600;
+                if(diff_hours<=obj.usageStateRules.mergeWithinHoursForStudyOver)
                     studyover_events(end) = obj.durationSamples();
                 end
             end
@@ -2237,6 +2270,7 @@ classdef PAData < handle
                 'color';
                 'yDelta';
                 'visible'
+                'usageStateRules'
                 };
             %            fields = fieldnames(obj.getDefaultParameters());
             pStruct = struct();
@@ -2406,6 +2440,7 @@ classdef PAData < handle
                             obj.accel.raw.x = axesFloatData(:,1);
                             obj.accel.raw.y = axesFloatData(:,2);
                             obj.accel.raw.z = axesFloatData(:,3);
+                            obj.accel.raw.vecMag = sqrt(obj.accel.raw.x.^2+obj.accel.raw.y.^2+obj.accel.raw.z.^2);
                             recordCount = size(axesFloatData,1);
                             obj.durSamples = recordCount;
                             
@@ -2770,7 +2805,11 @@ classdef PAData < handle
         %> - @c offset
         %> - @c color
         %> - @c visible
+        %> - @c usageState Struct defining usage state classification
+        %> thresholds and parameters.
         %> @note This is useful with the PASettings companion class.
+        %> @note When adding default parameters, be sure to match saveable
+        %> parameters in getSaveParameters()
         %======================================================================
         function pStruct = getDefaultParameters()
             pStruct.pathname = '.'; %directory of accelerometer data.
@@ -2780,6 +2819,27 @@ classdef PAData < handle
             pStruct.frameDurHour = 0;
             pStruct.aggregateDurMin = 3;
             pStruct.windowDurSec = 60*60; % set to 1 hour
+            
+            usageState.longClassificationMinimumDurationOfMinutes=15;
+            usageState.shortClassificationMinimumDurationOfMinutes = 5;
+            usageState.awakeVsAsleepCountsPerSecondCutoff = 1;  % exceeding the cutoff means you are awake
+            usageState.activeVsInactiveCountsPerSecondCutoff = 10; % exceeding the cutoff indicates active
+            usageState.onBodyVsOffBodyCountsPerMinuteCutoff = 1; % exceeding the cutoff indicates on body (wear)
+            
+            usageState.mergeWithinHoursForSleep = 2;
+            usageState.minHoursForSleep = 4;
+            
+            usageState.mergeWithinMinutesForREM = 5;
+            usageState.minMinutesForREM = 20;
+            
+            usageState.mergeWithinHoursForNonWear = 4;
+            usageState.minHoursForNonWear = 4;
+            
+            usageState.mergeWithinHoursForStudyOver = 6;
+            usageState.minHoursForStudyOver = 12;% -> this is for classifying state as over.
+            usageState.mergeWithinFinalHoursOfStudy = 4;
+            
+            pStruct.usageStateRules = usageState;
             
             featureStruct = PAData.getFeatureDescriptionStruct();
             fnames = fieldnames(featureStruct);
@@ -3339,6 +3399,37 @@ classdef PAData < handle
                 curField = dataStruct.(fnames{f});
                 structMinmax.(fnames{f}) = minmax(PAData.getRecurseMinmax(curField));
             end
+        end
+        
+        function structToUpdate = updateStructWithStruct(structToUpdate, structToUpdateWith)
+            
+            if(isstruct(rtStruct))
+                fnames = fieldnames(rtStruct);
+                for f=1:numel(fnames)
+                    curField = fnames{f};
+                    if(isstruct(rtStruct.(curField)))
+                        if(isfield(ltStruct,curField))
+                            ltStruct.(curField) = PAData.mergeStruct(ltStruct.(curField),rtStruct.(curField));
+                        else
+                            ltStruct.(curField) = rtStruct.(curField);
+                        end
+                    else
+                        ltStruct.(curField) = rtStruct.(curField);
+                    end
+                end
+            end
+            
+            
+            if(isstruct(ruleStruct))
+                ruleFields = fieldnames(this.usageStateRules);
+                for f=1:numel(ruleFields)
+                    curField = ruleFields{f};
+                    if(hasfield(ruleStruct,curField) && class(ruleStruct.(curField)) == class(this.usageStateRules.(curField)))
+                        this.usageStateRules.(curField) = ruleStruct.(curField);
+                    end
+                end
+            end
+            
         end
         
         % ======================================================================
