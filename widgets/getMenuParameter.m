@@ -4,9 +4,13 @@ function parameter = getMenuParameter(menu_h, parameterStr)
     if(isempty(selectionIndex))
         parameter = [];
     else
-        if(~iscell(parameters))
-            parameters = {parameters};
+        if(isnumeric(parameters))
+            parameter = parameters(selectionIndex);
+        else
+            if(~iscell(parameters))
+                parameters = {parameters};
+            end
+            parameter = parameters{selectionIndex};
         end
-        parameter = parameters{selectionIndex};
     end
 end

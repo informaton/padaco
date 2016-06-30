@@ -427,7 +427,7 @@ classdef  PASettings < handle
             
             tmp_obj.fieldNames = lite_fieldNames;
             
-%             tmp_obj.StatTool = rmfield(tmp_obj.StatTool,'customDaysOfWeek');  % get rid of fields that contain arrays of values, since I don't actually know how to handle this
+            %             tmp_obj.StatTool = rmfield(tmp_obj.StatTool,'customDaysOfWeek');  % get rid of fields that contain arrays of values, since I don't actually know how to handle this
             tmp_obj = pair_value_dlg(tmp_obj);
             
             

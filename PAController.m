@@ -8,7 +8,7 @@
 %> controller.
 classdef PAController < handle
     properties(Constant)
-        versionNum = 1.51;
+        versionNum = 1.6;
     end
     properties(Access=private)
         %> @brief Vector for keeping track of the feature handles that are
@@ -152,6 +152,9 @@ classdef PAController < handle
         %% Shutdown functions
         %> Destructor
         function close(obj)
+            
+            % Overwrite the current SETTINGS.DATA if we have an accelObj
+            % instantiated.
             if(~isempty(obj.accelObj))
                 obj.SETTINGS.DATA = obj.accelObj.getSaveParameters();
             end
@@ -349,6 +352,7 @@ classdef PAController < handle
             % settings and about
             set(handles.menu_file_about,'callback',@obj.menuFileAboutCallback);
             set(handles.menu_file_settings,'callback',@obj.menuFileSettingsCallback);
+            set(handles.menu_file_usageRules,'callback',@obj.menuFileUsageRulesCallback);
             
             %  open
             set(handles.menu_file_open,'callback',@obj.menuFileOpenCallback);
@@ -455,6 +459,46 @@ classdef PAController < handle
             end
         end
         
+        % --------------------------------------------------------------------
+        %> @brief Assign values for usage state classifier rules.
+        %> Called internally during class construction.
+        %> @param obj Instance of PAController
+        %> @param hObject
+        %> @param eventdata
+        %> @param optionalSettingsName String specifying the settings to
+        %> update (optional)
+        % --------------------------------------------------------------------
+        function menuFileUsageRulesCallback(obj,hObject,eventdata)
+            
+            if(~isempty(obj.accelObj))
+                usageRules= obj.accelObj.usageStateRules;
+            else
+                usageRules = obj.SETTINGS.DATA.usageStateRules;
+            end
+            defaultRules = PAData.getDefaultParameters();
+            defaultRules = defaultRules.usageStateRules;
+            updatedRules = simpleEdit(usageRules,defaultRules);
+            
+            if(~isempty(updatedRules))
+                if(~isempty(obj.accelObj))
+                    obj.accelObj.usageStateRules = updatedRules;
+                else
+                    obj.SETTINGS.DATA.usageStateRules = updatedRules;
+                end
+                
+                if(isa(obj.StatTool,'PAStatTool'))
+                    obj.StatTool.setWidgetSettings(obj.SETTINGS.StatTool);
+                end
+                fprintf('Settings have been updated.\n');
+                
+                % save parameters to disk
+                obj.saveParameters();
+                
+                % Activate a refresh()
+                obj.setViewMode(obj.getViewMode());
+                
+            end
+        end 
         
         function initTimeSeriesWidgets(obj)
             
@@ -2499,23 +2543,25 @@ classdef PAController < handle
             obj.current_linehandle = [];
         end
         
-        % =================================================================
+
+        
+    end
+    
+    methods (Static)
+                % =================================================================
         %> @brief Copy the selected (feature) linehandle's ydata to the system
         %> clipboard.
         %> @param obj Instance of PAController
         %> @param hObject Handle of callback object (unused).
         %> @param eventdata Unused.
         % =================================================================
-        function contextmenu_line2clipboard_callback(obj,hObject,eventdata)
+        function contextmenu_line2clipboard_callback(hObject,eventdata)
             data = get(get(hObject,'parent'),'userdata');
             clipboard('copy',data);
             disp([num2str(numel(data)),' items copied to the clipboard.  Press Control-V to access data items, or type "str=clipboard(''paste'')"']);
         end
         
         
-    end
-    
-    methods (Static)
         
         function cropFigure2Axes(fig_h,axes_h)
             %places axes_h in middle of figure with handle fig_h
