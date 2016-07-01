@@ -481,14 +481,14 @@ classdef PAController < handle
             
             if(~isempty(updatedRules))
                 if(~isempty(obj.accelObj))
-                    obj.accelObj.usageStateRules = updatedRules;
+                    obj.accelObj.setUsageClassificationRules(updatedRules);
                 else
                     obj.SETTINGS.DATA.usageStateRules = updatedRules;
                 end
                 
-                if(isa(obj.StatTool,'PAStatTool'))
-                    obj.StatTool.setWidgetSettings(obj.SETTINGS.StatTool);
-                end
+                %                 if(isa(obj.StatTool,'PAStatTool'))
+                %                     obj.StatTool.setWidgetSettings(obj.SETTINGS.StatTool);
+                %                 end
                 fprintf('Settings have been updated.\n');
                 
                 % save parameters to disk
