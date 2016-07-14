@@ -274,6 +274,18 @@ classdef PABatchTool < handle
                tooltip = 'Click to view.';
                callbackFcn = {@viewTextFileCallback,logFullFilename};
                enableState = 'inactive';  % This prevents the tooltip from being seen :(, but allows the buttondownfcn to work :)
+               
+               fid = fopen(logFullFilename,'r');
+               if(fid>0)
+                   fopen(fid);
+                   tooltip = fread(fid,'uint8=>char')';
+                   fclose(fid);
+                   enableState = 'on';
+               
+               else
+                   tooltip = '';                   
+               end
+               
            else
                logMsg = '';
                tooltip = '';
@@ -402,7 +414,6 @@ classdef PABatchTool < handle
             end
             
             outputFeaturePathnames =   strcat(fullfile(this.settings.outputDirectory,'features'),filesep,outputFeatureFcns);
-            
             
             for fn=1:numel(outputFeatureFcns)
                 
