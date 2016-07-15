@@ -28,6 +28,13 @@ classdef PAData < handle
         %> @li vecMag vectorMagnitude
         accel;
         
+        %> @brief Structure of usage states determined from the following axes counts:
+        %> @li x x-axis
+        %> @li y y-axis
+        %> @li z z-axis
+        %> @li vecMag vectorMagnitude
+        usage;
+        
         %> @brief Structure of power spectral densities for count and raw accelerations structs (x,y,z).  Fields are:
         %> - @c frames PSD of the data currently in the @c @b frames member
         %> variable.
@@ -84,9 +91,6 @@ classdef PAData < handle
         visible;
         yDelta;
         
-        
-
-        
         %> @brief Identifier (string) for the file data that was loaded.
         %> @note See getStudyIDFromBasename()
         studyID;
@@ -123,8 +127,7 @@ classdef PAData < handle
         %> @brief Frame duration hour's units.  Features are extracted from frames.
         %> @note  Frame duration is calculated as
         %> obj.frameDurMin+obj.frameDurHour*60
-        frameDurHour;
-        
+        frameDurHour;        
         
         %> @brief Number of bins that the time series data can be aggregated
         %> into.  It is calculated as the ceiling of the study's duration in
@@ -1064,15 +1067,17 @@ classdef PAData < handle
                     fullCountFilename = fullfile(pathName,strcat(baseName,'.csv'));
                     
                     if(exist(fullCountFilename,'file'))
-                        tic
+                        
                         obj.loadCountFile(fullCountFilename);
-                        toc
+                        
                         obj.accelType = 'count'; % this is modified, below, to 'all' if a
                         % a raw acceleration file (.csv or
                         % .bin) is being loaded, in which
                         % case the count data is replaced
                         % with the raw data.
+                        obj.classifyUsageForAllAxes();
                     end
+                    
                     % For .raw files, load the count data first so that it can
                     % then be reshaped by the sampling rate found in .raw
                     if(strcmpi(ext,'.raw'))
@@ -1500,6 +1505,7 @@ classdef PAData < handle
         end
         
         
+        
         % ======================================================================
         %> @brief Resamples previously loaded 'count' data to match sample rate of
         %> raw accelerometer data that has been loaded in a following step (see loadFile()).
@@ -1639,7 +1645,6 @@ classdef PAData < handle
         %> - c mode
         %> - c usagestate
         %> - c psd
-        
         % ======================================================================
         function obj = extractFeature(obj,signalTagLine,method)
             if(nargin<3 || isempty(method))
@@ -1647,6 +1652,16 @@ classdef PAData < handle
                 if(nargin<2 || isempty(signalTagLine))
                     signalTagLine = 'accel.count.vecMag';
                 end
+            end
+            
+            try
+                data = obj.getStruct('all');
+                data = eval(['data.',signalTagLine]);
+                tagParts = strsplit(signalTagLine,'.');  %break it up and give me the 'vecMag' in the default case.
+                axisName = tagParts{end};
+                usageVec = obj.usage.(axisName);
+            catch me                
+                rethrow(me);  %this is just for debugging.
             end
             
             currentNumFrames = obj.getFrameCount();
@@ -1658,14 +1673,6 @@ classdef PAData < handle
                 
                 numColumns = frameableSamples/obj.numFrames;  % This could go replace the '[]' in the reshape() methods below
                 
-                % Not efficient to calculate usageFrames each time if it is
-                % not requested, but it avoids having to program a variety
-                % of case statements for when a non 'all' or 'usagestate' was selected the
-                % frist time, etc.
-                %                if(any(strcmpi(method,{'all','usagestate'})))
-                [usageVec, ~,~] = obj.classifyUsageState();
-                obj.usageFrames =  reshape(usageVec(1:frameableSamples),[],obj.numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
-                %                end
                 
                 obj.features = [];
                 dateNumIndices = 1:numColumns:frameableSamples;
@@ -1690,12 +1697,10 @@ classdef PAData < handle
                 % otherwise just use the original
             end
             
-            try
-                data = obj.getStruct('all');
-                data = eval(['data.',signalTagLine]);
-            catch me                
-                rethrow(me);  %this is just for debugging.
-            end
+            
+            obj.usageFrames =  reshape(usageVec(1:frameableSamples),[],obj.numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
+                
+            
             obj.frames =  reshape(data(1:frameableSamples),[],obj.numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
             % Frames are stored in consecutive columns.  Thus the rows
             % represent the consecutive samples of data for that frame
@@ -1706,6 +1711,7 @@ classdef PAData < handle
             
             switch(lower(method))
                 case 'none'
+                    
                 case 'all'
                     obj.features.rms = sqrt(mean(data.^2))';
                     obj.features.median = median(data)';
@@ -1717,6 +1723,7 @@ classdef PAData < handle
                     obj.features.usagestate = mode(obj.usageFrames)';
                     obj.calculatePSD(signalTagLine);
                     %                    obj.features.count = obj.getCount(data)';
+                    
                 case 'rms'
                     obj.features.rms = sqrt(mean(data.^2))';
                 case 'median'
@@ -1864,11 +1871,33 @@ classdef PAData < handle
             
         end
         
+        % ======================================================================
+        %> @brief Classifies the usage state for each axis using count data from
+        %> each axis.
+        %> @param obj Instance of PAData.
+        %> @retval didClassify True/False depending on success.
+        % ======================================================================        
+        function didClassify = classifyUsageForAllAxes(obj)
+            try
+                countStruct = obj.getStruct('all');
+                axesNames = fieldnames(countStruct.count);
+                for a=1:numel(axesNames)
+                    axesName=axesName{a};
+                    obj.usage.(axesName) = obj.classifyUsageState(countStruct.count.(axesName));
+                end
+                didClassify=true;
+            catch me
+                showMe(me);
+                didClassify=false;
+            end
+        end
         
         % ======================================================================
         %> @brief Categorizes the study's usage state.
-        %> @note This is not yet implemented.
         %> @param obj Instance of PAData.
+        %> @param vector of count activity to apply classification rules
+        %> too.  If not provided, then the vector magnitude is used by
+        %> default.
         %> @retval usageVec A vector of length obj.dateTimeNum whose values
         %> represent the usage category at each sample instance specified by
         %> @b dateTimeNum.
@@ -1890,8 +1919,12 @@ classdef PAData < handle
         %> @retval startStopDatenums Start and stop datenums for each usage
         %> state row entry of usageState.
         % ======================================================================
-        function [usageVec, usageState, startStopDateNums] = classifyUsageState(obj)
-            % activity determined from vector magnitude signal
+        function [usageVec, usageState, startStopDateNums] = classifyUsageState(obj, countActivity)
+            
+            % By default activity determined from vector magnitude signal
+            if(nargin<2 || isempty(countActivity))
+                countActivity = obj.accel.count.vecMag;
+            end
             
             UNKNOWN = -1;
             NONWEAR = 5;
@@ -1910,7 +1943,10 @@ classdef PAData < handle
             activeVsInactiveCountsPerSecondCutoff = obj.usageStateRules.activeVsInactiveCountsPerSecondCutoff; %10; % exceeding the cutoff indicates active
             onBodyVsOffBodyCountsPerMinuteCutoff = obj.usageStateRules.onBodyVsOffBodyCountsPerMinuteCutoff; %1; % exceeding the cutoff indicates on body (wear)
 
-            countActivity = obj.accel.count.vecMag;            
+
+            
+            
+            
                         
             samplesPerMinute = obj.getSampleRate()*60; % samples per second * 60 seconds per minute
             samplesPerHour = 60*samplesPerMinute;
