@@ -67,8 +67,6 @@ classdef PAController < handle
         %PABatchTool's getDefault
         batch;
         
-
-        
         %> Foldername of most recent screenshot.
         screenshotPathname;
         %> Foldername of most recent results output pathname used.
@@ -356,6 +354,8 @@ classdef PAController < handle
             
             %  open
             set(handles.menu_file_open,'callback',@obj.menuFileOpenCallback);
+            set(handles.menu_file_openFitBit,'callback',@obj.menuFileOpenFitBitCallback);
+            
             set(handles.menu_file_open_resultspath,'callback',@obj.menuFileOpenResultsPathCallback);
             
             % screeshots
@@ -1133,9 +1133,9 @@ classdef PAController < handle
             f=uigetfullfile({'*.csv;*.raw;*.bin','All (counts, raw accelerations)';'*.csv','Comma Separated Values';'*.bin','Raw Acceleration (binary format: firmwares 2.2.1, 2.5.0, and 3.1.0)';'*.raw','Raw Acceleration (comma separated values)';'*.gt3x','Raw GT3X binary'},'Select a file','off',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
             try
                 if(~isempty(f))
-                    if(~strcmpi(obj.getViewMode(),'timeseries'))
-                        obj.VIEW.setViewMode('timeseries'); % bypass the this.setViewMode() for now to avoid follow-up query that a file has not been loaded yet.
-                    end
+                    %                     if(~strcmpi(obj.getViewMode(),'timeseries'))
+                    %                         obj.VIEW.setViewMode('timeseries'); % bypass the this.setViewMode() for now to avoid follow-up query that a file has not been loaded yet.
+                    %                     end
                     
                     
                     obj.VIEW.showBusy('Loading','all');
@@ -1168,6 +1168,51 @@ classdef PAController < handle
             end
         end
         
+        
+        % --------------------------------------------------------------------
+        %> @brief Menubar callback for opening a fitbit file.
+        %> @param obj Instance of PAController
+        %> @param hObject  handle to menu_file_open (see GCBO)
+        %> @param eventdata Required by MATLAB, but not used.
+        % --------------------------------------------------------------------
+        function menuFileOpenFitBitCallback(obj,hObject,eventdata)
+            
+            f=uigetfullfile({'*.txt;*.fbit','Fitbit';'*.csv','Comma Separated Values'},'Select a file','off',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
+            try
+                if(~isempty(f))
+
+                    
+                    
+                    obj.VIEW.showBusy('Loading','all');
+                    [pathname,basename, baseext] = fileparts(f);
+                    obj.SETTINGS.DATA.pathname = pathname;
+                    obj.SETTINGS.DATA.filename = strcat(basename,baseext);
+                    
+                    obj.accelObj = PAData(f,obj.SETTINGS.DATA);
+                    
+                    
+                    if(~strcmpi(obj.getViewMode(),'timeseries'))
+                        obj.setViewMode('timeseries');
+                    end
+                    
+                    %initialize the PAData object's visual properties
+                    obj.initAccelDataView(); %calls show obj.VIEW.showReady() Ready...
+                    
+                    % For testing/debugging
+                    %                     featureFcn = 'mean';
+                    %                     elapsedStartHour = 0;
+                    %                     intervalDurationHours = 24;
+                    %                     signalTagLine = obj.getSignalSelection(); %'accel.count.x';
+                    %                     obj.accelObj.getAlignedFeatureVecs(featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours);
+                    
+                    
+                end
+            catch me
+                showME(me);
+                obj.VIEW.showReady('all');
+            end
+            
+        end
         
         % --------------------------------------------------------------------
         %> @brief Menubar callback for opening a results path for use with

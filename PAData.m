@@ -1880,14 +1880,15 @@ classdef PAData < handle
         function didClassify = classifyUsageForAllAxes(obj)
             try
                 countStruct = obj.getStruct('all');
-                axesNames = fieldnames(countStruct.count);
+                countStruct = countStruct.accel.count;
+                axesNames = fieldnames(countStruct);
                 for a=1:numel(axesNames)
-                    axesName=axesName{a};
-                    obj.usage.(axesName) = obj.classifyUsageState(countStruct.count.(axesName));
+                    axesName=axesNames{a};
+                    obj.usage.(axesName) = obj.classifyUsageState(countStruct.(axesName));
                 end
                 didClassify=true;
             catch me
-                showMe(me);
+                showME(me);
                 didClassify=false;
             end
         end
