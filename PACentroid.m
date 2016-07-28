@@ -381,6 +381,17 @@ classdef PACentroid < handle
                 this.coiToggleOrder(:) = false;
                 this.coiToggleOrder(sortOrder) = true;
                 didChange = true;
+                
+            % handle corner case at the edges when we are trying to
+            % increase the sort order past the maximum value, which is not
+            % allowed, but have multiple centroids shown currently (which
+            % is allowed) and want the centroids to be deselected (Which is
+            % allowed) except for the most current one (this.coiSortOrder).
+            elseif(sum(this.coiToggleOrder(:)==true)>1)
+                this.coiToggleOrder(:) = false;
+                this.coiToggleOrder(this.coiSortOrder)=true;
+                didChange = true;
+                
             else
                 didChange = false;
             end

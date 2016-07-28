@@ -1994,11 +1994,14 @@ classdef PAStatTool < handle
             end
             if(~isempty(this.centroidObj))
                 if(toggleOn)
-                    this.centroidObj.toggleOnNextCOI();
+                    didChange = this.centroidObj.toggleOnNextCOI();
                 else
-                    this.centroidObj.increaseCOISortOrder();
+                    didChange = this.centroidObj.increaseCOISortOrder();
+                    
                 end
-                this.plotCentroids();
+                if(didChange)
+                    this.plotCentroids();
+                end
             end
         end
         
@@ -2026,11 +2029,14 @@ classdef PAStatTool < handle
                 toggleOn = false;
             end
             if(toggleOn)
-                this.centroidObj.toggleOnPreviousCOI();
+                didChange = this.centroidObj.toggleOnPreviousCOI();
             else
-                this.centroidObj.decreaseCOISortOrder();
+                didChange = this.centroidObj.decreaseCOISortOrder();
             end
-            this.plotCentroids();
+            % Don't refresh if there was no change.
+            if(didChange)
+                this.plotCentroids();
+            end
         end
         
 
