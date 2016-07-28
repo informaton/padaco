@@ -85,7 +85,12 @@ classdef PABatchTool < handle
             
             set(this.handles.text_outputPath,'string',this.settings.outputDirectory,'uicontextmenu',contextmenu_directory);
             set(this.handles.text_sourcePath,'string','','uicontextmenu',contextmenu_directory);
-
+            
+            set(this.handles.check_linkInOutPaths,'callback',@this.toggleOutputToInputPathLinkageCallbackFcn,'value',batchSettings.isOutputPathLinked);
+            
+            % Send a refresh to the widgets that may be effected by the
+            % current value of the linkage checkbox.
+            this.toggleOutputToInputPathLinkageCallbackFcn(this.handles.check_linkInOutPaths,[]);            
             %             set(this.handles.check_usageState,'value',this.settings.classifyUsageState);
 
             durationStr = {
@@ -186,16 +191,40 @@ classdef PABatchTool < handle
             this.setOutputPath(tmpOutputDirectory);
         end
         
+        
+        function didUpdate = toggleOutputToInputPathLinkageCallbackFcn(this, checkboxHandle, eventData)
+            try
+                if(this.isOutputPathLinkedToInputPath())
+                    this.setOutputPath(this.getSourcePath());
+                    set(this.handles.button_getOutputPath,'enable','off');
+                else
+                    set(this.handles.button_getOutputPath,'enable','on');                    
+                end
+                didUpdate = true;
+            catch me
+                showME(me);
+                didUpdate = false;
+            end
+        end
+        
         function didSet = setSourcePath(this,tmpSrcPath)
             if(~isempty(tmpSrcPath) && isdir(tmpSrcPath))
                 %assign the settings directory variable
                 this.settings.sourceDirectory = tmpSrcPath;
                 set(this.handles.text_sourcePath,'string',tmpSrcPath);
-                this.calculateFilesFound();
-                didSet = true;
+                this.calculateFilesFound();                
+                if(this.isOutputPathLinkedToInputPath())
+                    didSet = this.setOutputPath(tmpSrcPath);
+                else
+                    didSet = true;
+                end
             else
                 didSet = false;
             end            
+        end
+        
+        function isLinked = isOutputPathLinkedToInputPath(this)
+            isLinked = get(this.handles.check_linkInOutPaths,'value');
         end
         
         function didSet = setOutputPath(this,tmpOutputPath)
@@ -209,7 +238,15 @@ classdef PABatchTool < handle
                 didSet = false;
             end            
         end
-                
+        
+        function pathName = getOutputPath(this)
+            pathName = this.settings.outputDirectory;
+        end
+        
+        function pathName = getSourcePath(this)
+            pathName = this.settings.sourceDirectory;
+        end
+                        
         % --------------------------------------------------------------------
         %> @brief Determines the number of actigraph files located in the
         %> specified source path and updates the GUI's count display.
@@ -226,7 +263,7 @@ classdef PABatchTool < handle
            if(nargin<3)
                text_filesFound_h = this.handles.text_filesFound;
                if(nargin<2)
-                   sourcePathname = this.settings.sourceDirectory;
+                   sourcePathname = this.getSourcePath();
                end
            end
           
@@ -263,7 +300,7 @@ classdef PABatchTool < handle
            if(nargin<3)
                text_outputLogs_h = this.handles.text_outputLogs;
                if(nargin<2)
-                   outputPathname = this.settings.outputDirectory;
+                   outputPathname = this.getOutputPath();
                end
            end
           
@@ -325,7 +362,7 @@ classdef PABatchTool < handle
             dateMap.Sat = 6;
             
             % initialize batch processing file management
-            [filenames, fullFilenames] = getFilenamesi(this.settings.sourceDirectory,'.csv');
+            [filenames, fullFilenames] = getFilenamesi(this.getSourcePath(),'.csv');
             failedFiles = {};
             fileCount = numel(fullFilenames);
             fileCountStr = num2str(fileCount);
@@ -423,7 +460,7 @@ classdef PABatchTool < handle
                 outputFeatureLabels = {this.settings.featureLabel};
             end
             
-            outputFeaturePathnames =   strcat(fullfile(this.settings.outputDirectory,'features'),filesep,outputFeatureFcns);
+            outputFeaturePathnames =   strcat(fullfile(this.getOutputPath(),'features'),filesep,outputFeatureFcns);
             
             for fn=1:numel(outputFeatureFcns)
                 
@@ -669,7 +706,7 @@ classdef PABatchTool < handle
                         this.close();  % close this out, 'return',
                         return;       %  and go to the results view
                     case showOutputFolderStr
-                        openDirectory(this.settings.outputDirectory)
+                        openDirectory(this.getOutputPath())
                     case returnToBatchToolStr
                         % Bring the figure to the front/onscreen
                         movegui(this.figureH);
@@ -680,7 +717,7 @@ classdef PABatchTool < handle
             this.isRunning = false;
             this.enable();
             
-            %             this.resultsPathname = this.settings.outputDirectory;
+            %             this.resultsPathname = this.getOutputPath();
         end
         
         
@@ -713,16 +750,17 @@ classdef PABatchTool < handle
             pStruct.alignment.intervalLengthHours = 24;  %duration of each interval (in hours) once started
             pStruct.frameDurationMinutes = 15;
             pStruct.featureLabel = 'All';
-            pStruct.logFilename = 'batchRun_@TIMESTAMP.txt';  
+            pStruct.logFilename = 'batchRun_@TIMESTAMP.txt'; 
+            pStruct.isOutputPathLinked = false;  
         end            
         
         function logFID = prepLogFile(settings)
             startDateTime = datestr(now);            
             logFilename = strrep(settings.logFilename,'@TIMESTAMP',startDateTime);
-            logFID = fopen(fullfile(settings.outputDirectory,logFilename),'w');
+            logFID = fopen(fullfile(this.getOutputPath(),logFilename),'w');
             fprintf(logFID,'Padaco batch processing log\nStart time:\t%s\n',startDateTime);
-            fprintf(logFID,'Source directory:\t%s\n',settings.sourceDirectory);
-            fprintf(logFID,'Output directory:\t%s\n',settings.outputDirectory);
+            fprintf(logFID,'Source directory:\t%s\n',this.getSourcePath());
+            fprintf(logFID,'Output directory:\t%s\n',this.getOutputPath());
             fprintf(logFID,'Features:\t%s\n',settings.featureLabel);
             fprintf(logFID,'Frame duration (minutes):\t%0.2f\n',settings.frameDurationMinutes);
             
