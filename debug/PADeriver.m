@@ -22,24 +22,25 @@ classdef PADeriver < handle
             'ellip' % Elliptic or Cauer digital and analog filter design.
             % 'besself' % Bessel analog filter design.  Note that Bessel filters are lowpass only.
             }
+        
         WINDOW_OPTIONS = {
-            @bartlett       ,'Bartlett window.';
-            @barthannwin    ,'Modified Bartlett-Hanning window.';
-            @blackman       ,'Blackman window.';
-            @blackmanharris ,'Minimum 4-term Blackman-Harris window.';
-            @bohmanwin      ,'Bohman window.';
-            @chebwin        ,'Chebyshev window.';
-            @flattopwin     ,'Flat Top window.';
-            @gausswin       ,'Gaussian window.';
-            @hamming        ,'Hamming window.';
-            @hann           ,'Hann window.';
-            @kaiser         ,'Kaiser window.';
-            @nuttallwin     ,'Nuttall defined minimum 4-term Blackman-Harris window.';
-            @parzenwin      ,'Parzen (de la Valle-Poussin) window.';
-            @rectwin        ,'Rectangular window.';
-            @taylorwin      ,'Taylor window.';
-            @tukeywin       ,'Tukey window.';
-            @triang         ,'Triangular window.';
+            'Bartlett',@bartlett       ,'Bartlett window.';
+            'Bartlett-Hanning',@barthannwin    ,'Modified Bartlett-Hanning window.';
+            'Blackman',@blackman       ,'Blackman window.';
+            'Blackman-Harris',@blackmanharris ,'Minimum 4-term Blackman-Harris window.';
+            'Bohman',@bohmanwin      ,'Bohman window.';
+            'Chebyshev',@chebwin        ,'Chebyshev window.';
+            'Flat Top',@flattopwin     ,'Flat Top window.';
+            'Gaussian',@gausswin       ,'Gaussian window.';
+            'Hamming',@hamming        ,'Hamming window.';
+            'Hann',@hann           ,'Hann window.';
+            'Kaiser',@kaiser         ,'Kaiser window.';
+            'Nuttall',@nuttallwin     ,'Nuttall defined minimum 4-term Blackman-Harris window.';
+            'Parzen',@parzenwin      ,'Parzen (de la Valle-Poussin) window.';
+            'Rectangular',@rectwin        ,'Rectangular window.';
+            'Taylor',@taylorwin      ,'Taylor window.';
+            'Tukey',@tukeywin       ,'Tukey window.';
+            'Triangular',@triang         ,'Triangular window.';
             }
     end
     
@@ -100,7 +101,7 @@ classdef PADeriver < handle
             this.filterOptions.name = 'fir1';
             this.filterOptions.type = 'filtfilt';
             this.filterOptions.dB = 3;  % peak-to-peak decibals
-            this.filterOptions.window = 'hamming';
+            this.filterOptions.windowFcn = this.WINDOW_OPTIONS{1,2};
             this.initGUI();
         end
         
@@ -224,7 +225,7 @@ classdef PADeriver < handle
             orderOptions = (0:99)';
             set(this.handles.menu_filterName,'string',this.FILTER_NAMES,'userdata',this.FILTER_NAMES,'value',find(strcmpi(this.FILTER_NAMES,this.filterOptions.name),1));
             set(this.handles.menu_filterOrder,'string',num2str(orderOptions),'userdata',orderOptions,'value',find(orderOptions==this.filterOptions.order,1));
-            
+            set(this.handles.menu_filterWindow,'string',this.WINDOW_OPTIONS(:,1),'value',1,'userdata',this.WINDOW_OPTIONS(:,3),'tooltipstring',this.WINDOW_OPTIONS{1,3},'callback',@this.menuWindowChangeCallbackFcn);
             set(this.handles.edit_filterStartHz,'string',num2str(this.filterOptions.start),'callback',@this.edit_positiveNumericCallbackFcn);
             set(this.handles.edit_filterStopHz,'string',num2str(this.filterOptions.stop),'callback',@this.edit_positiveNumericCallbackFcn);
             
@@ -248,6 +249,7 @@ classdef PADeriver < handle
             
             this.initPlots();
         end
+        
         
         
         function initPlots(this)
@@ -353,7 +355,7 @@ classdef PADeriver < handle
             fPass = this.getFilterRange();
             wPass = fPass/fMax;  %normalized frequency
             
-            [this.data.filter, this.data.filtfilt] = this.acti_filter(inputData,this.filterOptions.name,this.filterOptions.order, wPass, this.filterOptions.dB);
+            [this.data.filter, this.data.filtfilt] = this.acti_filter(inputData,this.filterOptions.name,this.filterOptions.order, this.filterOptions.windowFcn,wPass, this.filterOptions.dB);
             
             if(this.isFilterDelayShifted())
                 [this.data.filter, this.data.filtfilt] = this.adjustFilterOrderDelay(this.filterOptions.order, this.data.filter, this.data.filtfilt);
@@ -390,6 +392,12 @@ classdef PADeriver < handle
             this.soi = getMenuUserData(hObject);
             this.data.raw = this.getDataInRange('raw');
             this.data.counts = this.getDataInRange('counts');
+            this.updatePlots();
+        end
+        
+        function menuWindowChangeCallbackFcn(this, hObject, eventdata)
+            set(hObject,'tooltipstring',getMenuUserData(hObject));
+            this.filterOptions.windowFcn = this.WINDOW_OPTIONS{get(hObject,'value'),2};
             this.updatePlots();
         end
         
@@ -495,7 +503,7 @@ classdef PADeriver < handle
             end
         end
         
-        function [filt_sigOut, filtfilt_sigOut] = acti_filter(sigIn, filterName, n_order, wPass, peak2peakDB)
+        function [filt_sigOut, filtfilt_sigOut] = acti_filter(sigIn, filterName, n_order, windowFcn, wPass, peak2peakDB)
             
             if(nargin<5 || isempty(peak2peakDB))
                 peak2peakDB = 3;  % reduces by 1/2
@@ -506,26 +514,33 @@ classdef PADeriver < handle
                 n_order = 2;
             end
             
-            
             h_a = 1;
             bandPassMag = [0 1 1 0];
             switch(filterName)
                 case 'fir1'
-                    h_b = fir1(n_order, wPass,'bandpass');
+                    wind = windowFcn(n_order+1);
+
+                    h_b = fir1(n_order, wPass, wind,'scale');
                     h_a = 1;
                     %                     B = fir1(N,Wn,kaiser(N+1,4))
                     %                         uses a Kaiser window with beta=4. B = fir1(N,Wn,'high',chebwin(N+1,R))
                     %                         uses a Chebyshev window with R decibels of relative sidelobe
                     %                         attenuation.                    
                 case 'fir2' % FIR arbitrary shape filter design using the frequency sampling method.            
+                    wind = windowFcn(n_order+1);
+
                     wPass = [0 wPass 1];
-                    h_b = fir2(n_order, wPass,bandPassMag);
+                    h_b = fir2(n_order, wPass,bandPassMag,wind);
                     h_a = 1;
 
                 % case 'fircls1' % Low & high pass FIR filter design by constrained least-squares.
                 case 'firls' % Linear-phase FIR filter design using least-squares error minimization.  FIR filter which has the best approximation to the desired frequency response described by F and A in the least squares sense.
                     wPass = [0 wPass 1];
                     h_b = firls(n_order, wPass, bandPassMag);
+                    
+                    %                     h_b = firls(n_order, wPass, bandPassMag,'hilbert');
+                    %
+                    %                     h_b = firls(n_order, wPass, bandPassMag,'differentiator');
                     
                 % case 'fircls' % Linear-phase FIR filter design by constrained least-squares.
                 % case 'cfirpm' % Complex and nonlinear phase equiripple FIR filter design.

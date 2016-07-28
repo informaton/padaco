@@ -190,7 +190,7 @@ classdef PABatchTool < handle
         function didSet = setOutputPath(this,tmpOutputPath)
             if(~isempty(tmpOutputPath) && isdir(tmpOutputPath))
                 %assign the settings directory variable
-                this.settings.ouputDirectory = tmpOutputPath;
+                this.settings.outputDirectory = tmpOutputPath;
                 set(this.handles.text_outputPath,'string',tmpOutputPath);
                 this.updateOutputLogs();
                 didSet = true;
@@ -226,7 +226,6 @@ classdef PABatchTool < handle
            if(rawFileCount==0 && csvFileCount==0)
                msg = '0 files found.';
                set(this.handles.button_go,'enable','off');
-            
            else
               if(rawFileCount>0)
                   msg = sprintf('%u .raw file(s) found.\n',rawFileCount);
@@ -253,7 +252,7 @@ classdef PABatchTool < handle
            if(nargin<3)
                text_outputLogs_h = this.handles.text_outputLogs;
                if(nargin<2)
-                   outputPathname = this.settings.sourceDirectory;
+                   outputPathname = this.settings.outputDirectory;
                end
            end
           
@@ -274,6 +273,18 @@ classdef PABatchTool < handle
                tooltip = 'Click to view.';
                callbackFcn = {@viewTextFileCallback,logFullFilename};
                enableState = 'inactive';  % This prevents the tooltip from being seen :(, but allows the buttondownfcn to work :)
+               
+               fid = fopen(logFullFilename,'r');
+               if(fid>0)
+                   fopen(fid);
+                   tooltip = fread(fid,'uint8=>char')';
+                   fclose(fid);
+                   enableState = 'on';
+               
+               else
+                   tooltip = '';                   
+               end
+               
            else
                logMsg = '';
                tooltip = '';
@@ -402,7 +413,6 @@ classdef PABatchTool < handle
             end
             
             outputFeaturePathnames =   strcat(fullfile(this.settings.outputDirectory,'features'),filesep,outputFeatureFcns);
-            
             
             for fn=1:numel(outputFeatureFcns)
                 

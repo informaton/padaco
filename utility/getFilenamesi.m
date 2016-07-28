@@ -29,20 +29,17 @@ function [filenames,fullfilenames, fileDatenums] = getFilenamesi(pathname,ext,so
     dirPull = dir(pathname);
     
     datenums = datenum(cells2mat(dirPull.date));
-    if(sortByDateFlag)
-        [datenums, sortInd] = sort(datenums,'descend');
-        fields = fieldnames(dirPull);
-        
-        % sort the structure
-        for f=1:numel(fields)
-            dirPull.(fields{f}) = dirPull.(fields{f})(sortInd);
-        end
-    end
+    
     
     directory_flag = cells2mat(dirPull.isdir);
     names = cells2cell(dirPull.name);
     filenames = names(~directory_flag);
     datenums = datenums(~directory_flag);
+    
+    if(sortByDateFlag)
+        [datenums, sortInd] = sort(datenums,'descend');
+        filenames = filenames(sortInd);
+    end
     
     if(~isempty(ext) && ext(1)=='.')
         ext(1)=[];
