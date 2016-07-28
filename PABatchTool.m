@@ -39,7 +39,18 @@ classdef PABatchTool < handle
         function enable(this)
             enablehandles(this.figureH);
         end
+        
+        function hide(this)
+            set(this.figureH,'visible','off');
+        end
+        function show(this)
+            this.unhide();
+        end
+        function unhide(this)
+            set(this.figureH,'visible','on');
+        end
     end
+    
     methods
         
         %> @brief Class constructor.
@@ -641,22 +652,25 @@ classdef PABatchTool < handle
                 fclose(logFid);
                 
                 dlgName = 'Batch complete';
-                defaultBtn = 'Show results';
-                options.Default = defaultBtn;
+                showResultsStr = 'Switch to results';
+                showOutputFolderStr = 'Open output folder';
+                returnToBatchToolStr = 'Return to batch tool';
+                options.Default = showResultsStr;
                 options.Interpreter = 'none';
-                buttonName = questdlg(batchResultStr,dlgName,'Show results','Show output folder','Return to batch tool',options);
+                buttonName = questdlg(batchResultStr,dlgName,showResultsStr,showOutputFolderStr,returnToBatchToolStr,options);
                 switch buttonName
-                    case 'Show results in PADACO'
+                    case showResultsStr
                         % Close the batch mode
                         
                         % Set the results path to be that of the normal
                         % settings path.
+                        this.hide();
                         this.notify('SwitchToResults',EventData_SwitchToResults);
                         this.close();  % close this out, 'return',
                         return;       %  and go to the results view
-                    case 'Show output folder'
+                    case showOutputFolderStr
                         openDirectory(this.settings.outputDirectory)
-                    case 'Return to batch tool'
+                    case returnToBatchToolStr
                         % Bring the figure to the front/onscreen
                         movegui(this.figureH);
                 end

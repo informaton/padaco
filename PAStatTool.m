@@ -665,7 +665,7 @@ classdef PAStatTool < handle
                 set(resultPanels,'visible','on');
             else
                 set(resultPanels(1),'visible','on');
-                set(resultPanels(2:3),'visible','off');
+                set(resultPanels(2),'visible','off');
             end
         end
         
