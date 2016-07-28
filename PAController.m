@@ -1223,7 +1223,7 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function menuFileOpenResultsPathCallback(obj,hObject,eventdata)
             initialPath = obj.resultsPathname;
-            resultsPath = uigetfulldir(initialPath, 'Select path containing padaco results output directories');
+            resultsPath = uigetfulldir(initialPath, 'Select path containing PADACO''s features directory');
             if(~isempty(resultsPath))
                 % Say good bye to your old stat tool if you selected a
                 % directory.  This ensures that if a breakdown occurs in
@@ -1284,9 +1284,7 @@ classdef PAController < handle
                     obj.screenshotPathname = screencap(handle,[],obj.screenshotPathname);
                 end
             end
-            
         end
-        
         
         % --------------------------------------------------------------------
         %> @brief Menubar callback for quitting the program.

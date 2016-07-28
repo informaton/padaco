@@ -182,11 +182,17 @@ classdef PAStatTool < handle
             if(isdir(resultsPathname))
                 this.resultsDirectory = resultsPathname;
                 featuresPath = fullfile(resultsPathname,'features');
-                if(isdir(featuresPath))
-                    this.featuresDirectory = featuresPath;
-                else
-                    fprintf('Features pathname (%s) does not exist!\n',featuresPath);
+                
+                % We are allowing user to pick a folder that contains
+                % 'features' as a subfolder, or the folder whose subfolders
+                % are in fact the feature subfolders.  This will give a
+                % little more flexibility to the user and hopefully hide
+                % some of the more mundane parts of loading a path.
+                if(~isdir(featuresPath))
+                    featuresPath = resultsPathname;
+                    % fprintf('Assuming features pathFeatures pathname (%s) does not exist!\n',featuresPath);
                 end
+                this.featuresDirectory = featuresPath;
                 
                 this.initWidgets(widgetSettings);  %initializes previousstate.plotType on success
 
@@ -2136,6 +2142,12 @@ classdef PAStatTool < handle
                 this.showCentroidControls();
                 
                 drawnow();
+                
+                % This means we will create the centroid object, but not
+                % calculate the centroids in the constructor.  The reason
+                % for this is because I want to register a mouse listener
+                % so users can cancel.  And I chose to do that here, rather
+                % than in the constructor.
                 delayedStart = true;
                 tmpCentroidObj = PACentroid(this.featureStruct.features,pSettings,this.handles.axes_primary,resultsTextH,this.featureStruct.studyIDs, this.featureStruct.startDaysOfWeek, delayedStart);
                 this.addlistener('UserCancel_Event',@tmpCentroidObj.cancelCalculations);
@@ -2147,11 +2159,18 @@ classdef PAStatTool < handle
                 if(this.centroidObj.failedToConverge())
                     warnMsg = {'Failed to converge',[]};
                     if(isempty(this.featureStruct.features))
-                        warnMsg{end} = 'No features found.  Try altering input settings (e.g. days of week)';
+                        warnMsg = {[warnMsg{1}, 'No features found.'];
+                                '';
+                                '  Hint: Try altering input settings:';
+                                '';
+                                '  - Changing days of week for analysis';
+                                '  - Reduce minimum number of clusters';
+                                '  - Include non-wear sections instead of discarding them';
+                                ''};
                     else
                         warnMsg{end} = 'See console for possible explanations';
                     end
-                    warndlg(warnMsg);
+                    warndlg(warnMsg,'Warning','modal');
                     this.centroidObj = [];
                 else
                     this.refreshGlobalProfile();
