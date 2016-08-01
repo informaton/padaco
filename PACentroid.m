@@ -177,7 +177,7 @@ classdef PACentroid < handle
                 settings.minClusters = 10;
                 settings.maxClusters = ceil(N/2);
                 settings.clusterThreshold = 0.2;
-                settings.method = 'kmeans';
+                settings.clusterMethod = 'kmeans';
             end
             if(~isempty(textHandle) && ishandle(textHandle) && strcmpi(get(textHandle,'type'),'uicontrol') && strcmpi(get(textHandle,'style'),'text'))
                 this.statusTextHandle = textHandle;
@@ -206,7 +206,8 @@ classdef PACentroid < handle
             this.performanceMeasure = [];
             this.settings.thresholdScale = settings.clusterThreshold;
             %/ Do not let K start off higher than 
-            this.settings.minClusters = min(floor(size(loadShapes,1)/2),settings.minClusters);
+            % And don't let it fall to less than 1.
+            this.settings.minClusters = max(1,min(floor(size(loadShapes,1)/2),settings.minClusters));
             
             if(isfield(settings,'maxCluster'))                
                 maxClusters = settings.maxClusters;
@@ -214,11 +215,11 @@ classdef PACentroid < handle
                 maxClusters = ceil(size(loadShapes,1)/2);
             end
             
-            if(~isfield(settings,'method'))
-                settings.method = 'kmeans';
+            if(~isfield(settings,'clusterMethod'))
+                settings.clusterMethod = 'kmeans';
             end
             
-            this.settings.method = settings.method;
+            this.settings.clusterMethod = settings.clusterMethod;
             this.settings.maxClusters = maxClusters;
             this.loadShapes = loadShapes;
             this.loadShapeIDs = loadShapeIDs;
@@ -380,6 +381,17 @@ classdef PACentroid < handle
                 this.coiToggleOrder(:) = false;
                 this.coiToggleOrder(sortOrder) = true;
                 didChange = true;
+                
+            % handle corner case at the edges when we are trying to
+            % increase the sort order past the maximum value, which is not
+            % allowed, but have multiple centroids shown currently (which
+            % is allowed) and want the centroids to be deselected (Which is
+            % allowed) except for the most current one (this.coiSortOrder).
+            elseif(sum(this.coiToggleOrder(:)==true)>1)
+                this.coiToggleOrder(:) = false;
+                this.coiToggleOrder(this.coiSortOrder)=true;
+                didChange = true;
+                
             else
                 didChange = false;
             end
@@ -578,19 +590,19 @@ classdef PACentroid < handle
             end
             useDefaultRandomizerSeed = true;
             
-            %             inputSettings.method = 'kmedians';
-            % inputSettings.method = 'kmedoids';
-            if(strcmpi(inputSettings.method,'kmedians'))
+            %             inputSettings.clusterMethod = 'kmedians';
+            % inputSettings.clusterMethod = 'kmedoids';
+            if(strcmpi(inputSettings.clusterMethod,'kmedians'))
                 if(ishandle(this.statusTextHandle))
                     set(this.statusTextHandle ,'string',{sprintf('Performing accelerated k-medians clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.thresholdScale)});
                 end
                 [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression] = deal([],[],[],[]);
-            elseif(strcmpi(inputSettings.method,'kmedoids'))
+            elseif(strcmpi(inputSettings.clusterMethod,'kmedoids'))
                 if(ishandle(this.statusTextHandle))
                     set(this.statusTextHandle ,'string',{sprintf('Performing adaptive k-medoids clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.thresholdScale)});
                 end
                 [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression] = this.adaptiveKmedoids(inputLoadShapes,inputSettings, useDefaultRandomizerSeed,this.performanceAxesHandle,this.statusTextHandle);
-            elseif(strcmpi(inputSettings.method,'kmeans'))
+            elseif(strcmpi(inputSettings.clusterMethod,'kmeans'))
                 
                 if(ishandle(this.statusTextHandle))
                     set(this.statusTextHandle ,'string',{sprintf('Performing adaptive k-means clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.thresholdScale)});
@@ -724,7 +736,7 @@ classdef PACentroid < handle
                             settings.minClusters = 40;
                             settings.maxClusters = size(loadShapes,1)/2;
                             settings.thresholdScale = 5; %higher threshold equates to fewer clusters.
-                            settings.method = 'kmedoids';
+                            settings.clusterMethod = 'kmedoids';
                         end
                     end
                 end
@@ -995,7 +1007,7 @@ classdef PACentroid < handle
                             settings.minClusters = 40;
                             settings.maxClusters = size(loadShapes,1)/2;
                             settings.thresholdScale = 5; %higher threshold equates to fewer clusters.
-                            settings.method = 'kmeans';
+                            settings.clusterMethod = 'kmeans';
                         end
                     end
                 end
