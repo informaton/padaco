@@ -1927,9 +1927,11 @@ classdef PAData < handle
                 countActivity = obj.accel.count.vecMag;
             end
             
-            UNKNOWN = -1;
-            NONWEAR = 5;
-            WEAR = 10;
+            tagStruct = obj.getActivityTags();
+
+            %             UNKNOWN = -1;
+            %             NONWEAR = 5;
+            %             WEAR = 10;
             %            STUDYOVER=0;
             %            REMS = 10;
             %            NREMS = 15;
@@ -1960,7 +1962,7 @@ classdef PAData < handle
             shortRunningActivitySum = obj.movingSummer(countActivity,shortFilterLength);
             
             %            usageVec = zeros(size(obj.dateTimeNum));
-            usageVec = repmat(UNKNOWN,(size(obj.dateTimeNum)));
+            usageVec = repmat(tagStruct.UNKNOWN,(size(obj.dateTimeNum)));
             
             
             % This is good for determining where the study has ended... using a 15 minute duration minimum
@@ -2053,19 +2055,18 @@ classdef PAData < handle
             else
                 nonwearStartStopDateNums = [];
             end
-            nonwearState = repmat(NONWEAR,size(nonwear_events,1),1);
+            nonwearState = repmat(tagStruct.NONWEAR,size(nonwear_events,1),1);
             
             %            wearVec = runningActivitySum>=offBodyThreshold;
             wearVec = ~nonwearVec;
             wear = obj.thresholdcrossings(wearVec,0);
             wearStartStopDateNums = [obj.dateTimeNum(wear(:,1)),obj.dateTimeNum(wear(:,2))];
-            wearState = repmat(WEAR,size(wear,1),1);
+            wearState = repmat(tagStruct.WEAR,size(wear,1),1);
             
             usageState = [nonwearState;wearState];
             [startStopDateNums, sortIndex] = sortrows([nonwearStartStopDateNums;wearStartStopDateNums]);
             usageState = usageState(sortIndex);
             
-            tagStruct = obj.getActivityTags();
             
             %usageVec(awakeVsAsleepVec) = 20;
             %usageVec(wearVec) = 10;   %        This is covered
