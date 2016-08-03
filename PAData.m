@@ -3815,8 +3815,12 @@ classdef PAData < handle
             tagStruct.NAP  = 20;
             tagStruct.NREM =  15;
             tagStruct.REMS = 10;
+            tagStruct.WEAR = 10;
             tagStruct.NONWEAR = 5;
             tagStruct.STUDYOVER = 0;
+            tagStruct.UNKNOWN = -1;
+            
+            
         end
         
         function bandNamesAsCell = getPSDBandNames()
