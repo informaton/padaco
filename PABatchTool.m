@@ -371,7 +371,6 @@ classdef PABatchTool < handle
             fileCountStr = num2str(fileCount);
             
             % Get batch processing settings from the GUI     
-            handles = guidata(hObject);
             
             
             this.notify('BatchToolStarting',EventData_BatchTool(this.settings));
@@ -403,24 +402,15 @@ classdef PABatchTool < handle
             % get feature settings
             % determine which feature to process
             
-            featureFcn = getMenuUserData(handles.menu_featureFcn);
-            this.settings.featureLabel = getMenuString(handles.menu_featureFcn);
+            featureFcn = getMenuUserData(this.handles.menu_featureFcn);
+            this.settings.featureLabel = getMenuString(this.handles.menu_featureFcn);
             
-%             userdata = get(handles.menu_featureFcn,'userdata');
-%             featureSelectionIndex = get(handles.menu_featureFcn,'value');
-%             allFeatureFcns = userdata.featureFunctions;
-%             allFeatureDescriptions = userdata.featureDescriptions;
-%             allFeatureLabels = get(handles.menu_featureFcn,'string');
-            
-%             this.settings.featureLabel = featureLabel;  
-%             featureDescription = allFeatureDescriptions{featureSelectionIndex};
-%             featureFcn = allFeatureFcns{featureSelectionIndex};
             
             % determine frame aggreation size - size to calculate each
             % feature from
             %             allFrameDurationMinutes = get(handles.menu_frameDurationMinutes,'userdata');
             %             frameDurationMinutes = allFrameDurationMinutes(get(handles.menu_frameDurationMinutes,'value'));
-            frameDurationMinutes = getSelectedMenuUserData(handles.menu_frameDurationMinutes);
+            frameDurationMinutes = getSelectedMenuUserData(this.handles.menu_frameDurationMinutes);
             this.settings.frameDurationMinutes = frameDurationMinutes;                           
 
             % features are grouped for all studies into one file per
