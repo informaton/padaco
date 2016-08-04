@@ -318,10 +318,10 @@ classdef PABatchTool < handle
            if(~isempty(newestIndex))
                logFilename = filenames{newestIndex};
                logFullFilename = fullfilenames{newestIndex};
-               logDate = filedates(newestIndex);
+               % logDate = filedates(newestIndex);
                logMsg = sprintf('Last log file: %s',logFilename);
                %tooltip = '<html><body><h4>Click to view last batch run log file</h4></body></html>';
-               tooltip = 'Click to view.';
+               % tooltip = 'Click to view.';
                callbackFcn = {@viewTextFileCallback,logFullFilename};
                enableState = 'inactive';  % This prevents the tooltip from being seen :(, but allows the buttondownfcn to work :)
                
@@ -371,7 +371,6 @@ classdef PABatchTool < handle
             fileCountStr = num2str(fileCount);
             
             % Get batch processing settings from the GUI     
-            handles = guidata(hObject);
             
             
             this.notify('BatchToolStarting',EventData_BatchTool(this.settings));
@@ -403,24 +402,15 @@ classdef PABatchTool < handle
             % get feature settings
             % determine which feature to process
             
-            featureFcn = getMenuUserData(handles.menu_featureFcn);
-            this.settings.featureLabel = getMenuString(handles.menu_featureFcn);
+            featureFcn = getMenuUserData(this.handles.menu_featureFcn);
+            this.settings.featureLabel = getMenuString(this.handles.menu_featureFcn);
             
-%             userdata = get(handles.menu_featureFcn,'userdata');
-%             featureSelectionIndex = get(handles.menu_featureFcn,'value');
-%             allFeatureFcns = userdata.featureFunctions;
-%             allFeatureDescriptions = userdata.featureDescriptions;
-%             allFeatureLabels = get(handles.menu_featureFcn,'string');
-            
-%             this.settings.featureLabel = featureLabel;  
-%             featureDescription = allFeatureDescriptions{featureSelectionIndex};
-%             featureFcn = allFeatureFcns{featureSelectionIndex};
             
             % determine frame aggreation size - size to calculate each
             % feature from
             %             allFrameDurationMinutes = get(handles.menu_frameDurationMinutes,'userdata');
             %             frameDurationMinutes = allFrameDurationMinutes(get(handles.menu_frameDurationMinutes,'value'));
-            frameDurationMinutes = getSelectedMenuUserData(handles.menu_frameDurationMinutes);
+            frameDurationMinutes = getSelectedMenuUserData(this.handles.menu_frameDurationMinutes);
             this.settings.frameDurationMinutes = frameDurationMinutes;                           
 
             % features are grouped for all studies into one file per
@@ -445,7 +435,7 @@ classdef PABatchTool < handle
             timeAxis = datenum(startDateVec):datenum(frameInterval):datenum(stopDateVec);
             timeAxisStr = datestr(timeAxis,'HH:MM:SS');
             
-            logFid = this.prepLogFile(this.settings);
+            [logFid, logFullFilename] = this.prepLogFile(this.settings);
             fprintf(logFid,'File count:\t%u',fileCount);
 
             %% Setup output folders
@@ -686,10 +676,26 @@ classdef PABatchTool < handle
                             delete(h);
                         end
                     end;
+                    
+                    dlgName = 'Errors found';
+                    options.Default = showResultsStr;
+                    showLogFileStr = 'Open log file';
+                    returnToBatchToolStr = 'Return to batch tool';
+                    options.Interpreter = 'none';
+                    buttonName = questdlg(batchResultStr,dlgName,showLogFileStr,returnToBatchToolStr,options);
+                    switch buttonName
+                        case returnToBatchToolStr
+                            % Bring the figure to the front/onscreen
+                            movegui(this.figureH);
+                        case showLogFileStr
+                            textFileViewer(logFullFilename);
+                        otherwise
+                    end
+                
                 end
             else
-                
                 fclose(logFid);
+                
                 
                 dlgName = 'Batch complete';
                 showResultsStr = 'Switch to results';
@@ -699,6 +705,9 @@ classdef PABatchTool < handle
                 options.Interpreter = 'none';
                 buttonName = questdlg(batchResultStr,dlgName,showResultsStr,showOutputFolderStr,returnToBatchToolStr,options);
                 switch buttonName
+                    case returnToBatchToolStr
+                        % Bring the figure to the front/onscreen
+                        movegui(this.figureH);
                     case showResultsStr
                         % Close the batch mode
                         
@@ -710,12 +719,10 @@ classdef PABatchTool < handle
                         return;       %  and go to the results view
                     case showOutputFolderStr
                         openDirectory(this.getOutputPath())
-                    case returnToBatchToolStr
-                        % Bring the figure to the front/onscreen
-                        movegui(this.figureH);
+                    otherwise
                 end
-                
             end
+            
             
             this.isRunning = false;
             this.enable();
@@ -764,11 +771,12 @@ classdef PABatchTool < handle
         %> @retval logFID The <i>open</i> file identifier of the created
         %> log file.
         % --------------------------------------------------------------------        
-        function logFID = prepLogFile(settings)
+        function [logFID, logFullFilename] = prepLogFile(settings)
         % --------------------------------------------------------------------        
             startDateTime = datestr(now);            
             logFilename = strrep(settings.logFilename,'@TIMESTAMP',startDateTime);
-            logFID = fopen(fullfile(settings.outputDirectory,logFilename),'w');
+            logFullFilename = fullfile(settings.outputDirectory,logFilename);
+            logFID = fopen(logFullFilename,'w');
             fprintf(logFID,'Padaco batch processing log\nStart time:\t%s\n',startDateTime);
             fprintf(logFID,'Source directory:\t%s\n',settings.sourceDirectory);
             fprintf(logFID,'Output directory:\t%s\n',settings.outputDirectory);
