@@ -285,6 +285,9 @@ classdef PABatchTool < handle
            end
            set(text_filesFound_h,'string',msg);
         end
+        
+                
+
                
         % --------------------------------------------------------------------
         %> @brief Determines the number of actigraph files located in the
@@ -754,13 +757,21 @@ classdef PABatchTool < handle
             pStruct.isOutputPathLinked = false;  
         end            
         
+        % --------------------------------------------------------------------
+        %> @brief Prepares the current run's log file.
+        %> @param this Instance of PABatchTool
+        %> @param settings
+        %> @retval logFID The <i>open</i> file identifier of the created
+        %> log file.
+        % --------------------------------------------------------------------        
         function logFID = prepLogFile(settings)
+        % --------------------------------------------------------------------        
             startDateTime = datestr(now);            
             logFilename = strrep(settings.logFilename,'@TIMESTAMP',startDateTime);
-            logFID = fopen(fullfile(this.getOutputPath(),logFilename),'w');
+            logFID = fopen(fullfile(settings.outputDirectory,logFilename),'w');
             fprintf(logFID,'Padaco batch processing log\nStart time:\t%s\n',startDateTime);
-            fprintf(logFID,'Source directory:\t%s\n',this.getSourcePath());
-            fprintf(logFID,'Output directory:\t%s\n',this.getOutputPath());
+            fprintf(logFID,'Source directory:\t%s\n',settings.sourceDirectory);
+            fprintf(logFID,'Output directory:\t%s\n',settings.outputDirectory);
             fprintf(logFID,'Features:\t%s\n',settings.featureLabel);
             fprintf(logFID,'Frame duration (minutes):\t%0.2f\n',settings.frameDurationMinutes);
             
@@ -768,6 +779,7 @@ classdef PABatchTool < handle
             fprintf(logFID,'\tElapsed start (hours):\t%u\n',settings.alignment.elapsedStartHours);
             fprintf(logFID,'\tInterval length (hours):\t%u\n',settings.alignment.intervalLengthHours);
         end
+                
         
     end
 end
