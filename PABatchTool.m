@@ -748,14 +748,26 @@ classdef PABatchTool < handle
         %> @brief Returns a structure of PABatchTool default, saveable parameters as a struct.
         %> @retval pStruct A structure of parameters which include the following
         %> fields
-        %> - @c featureFcn
+        %> - @c sourceDirectory
+        %> - @c outputDirectory
+        %> - @c alignment.elapsedStartHours when to start the first measurement
+        %> - @c alignment.intervalLengthHours  duration of each interval (in hours) once started
+        %> - @c frameDurationMinutes
+        %> - @c featureLabel;
+        %> - @c logFilename
+        %> - @c isOutputPathLinked
         %> - @c signalTagLine
         % ======================================================================
         function pStruct = getDefaultParameters()
-            mPath = fileparts(mfilename('fullpath'));
-
-            pStruct.sourceDirectory = mPath;
-            pStruct.outputDirectory = mPath;
+            try
+                docPath = findpath('docs');
+            catch
+                docPath = fileparts(mfilename('fullpath'));
+            end
+            
+            pStruct.sourceDirectory = docPath;
+            pStruct.outputDirectory = docPath;
+            
             pStruct.alignment.elapsedStartHours = 0; %when to start the first measurement
             pStruct.alignment.intervalLengthHours = 24;  %duration of each interval (in hours) once started
             pStruct.frameDurationMinutes = 15;
