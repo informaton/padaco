@@ -1,5 +1,8 @@
 function [img_pathname, img_fmt] = screencap(graphic_h,img_fmt,img_pathname,img_filename)
 % screencap(graphic_h,img_fmt,img_pathname,img_filename)
+% screencap(graphic_h,full_image_filename) - in this case: img_fmt,
+%        img_pathname, and img_filename are taken from parsing
+%        full_image_filename
 %  graphic_h may be a figure or axes handle
 %  img_fmt can be any format available to matlab's print function (help
 %  print)
@@ -11,14 +14,19 @@ function [img_pathname, img_fmt] = screencap(graphic_h,img_fmt,img_pathname,img_
 
 if(ishandle(graphic_h))
         
-    
-    if(nargin<4)        
-        img_filename = [];
-        if(nargin<3 || ~isdir(img_pathname))
-            img_pathname = pwd;
-        end
-        if(nargin<2 || isempty(img_fmt))
-            img_fmt='jpeg'; %default to a jpeg            
+    if(nargin==2)  %in this case img_fmt is a full filename for the image to be saved.
+        fullImageFilename = img_fmt;
+        [img_pathname, img_filename, img_fmt_suffix] = fileparts(fullImageFilename);
+        img_fmt = strrep(img_fmt_suffix,'.','');            
+    else
+        if(nargin<4)
+            img_filename = [];
+            if(nargin<3 || ~isdir(img_pathname))
+                img_pathname = pwd;
+            end
+            if(nargin<2 || isempty(img_fmt))
+                img_fmt='jpeg'; %default to a jpeg
+            end
         end
     end
     
