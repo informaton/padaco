@@ -34,7 +34,7 @@ if(ishandle(graphic_h))
     %of any leading periods
     img_fmt = strcat('-d',strrep(strrep(img_fmt,'.',''),'-d',''));
 
-    if(isempty(img_filename)||~exist(img_filename,'file'))
+    if(isempty(img_filename)|| ~exist(img_pathname,'dir'))
         
         filterspec = {'jpeg','JPEG image (*.jpeg)';'png','Portable Network Graphics file (*.png)';'pdf','Portable Document Format (*.pdf)'};
 %         save_format = {'-dpng','-djpeg'};
@@ -60,19 +60,15 @@ if(ishandle(graphic_h))
         %         filterspec = [strcat('*.',extension(~toss)),strcat(descr(~toss),' (*.',extension(~toss),')')];
         %         img_filename = strcat('screenshot',datestr(now,'ddmmmyyyy HH:MM:SS'),'.',strrep(img_fmt,'.',''));
         img_filename = 'screenshot';
-        [img_filename, new_img_pathname, filterIndex] = uiputfile(filterspec,'Screenshot filename',fullfile(img_pathname,img_filename));
+        [img_filename, img_pathname, filterIndex] = uiputfile(filterspec,'Screenshot filename',fullfile(img_pathname,img_filename));
         if(filterIndex)
             img_fmt = strcat('-d',filterspec{filterIndex,1});
         end
     end
     
-    if isequal(img_filename,0) || isequal(new_img_pathname,0)
+    if isequal(img_filename,0) || isequal(img_pathname,0)
         disp('User cancelled');
     else
-        
-        img_pathname = new_img_pathname;
-        
-
         try
             graphic_type = get(graphic_h,'type');
             if(strcmpi(graphic_type,'figure'))
@@ -129,9 +125,10 @@ if(ishandle(graphic_h))
             %             end
             %         end
             %         hgexport(f,fullfile(img_pathname,img_filename),style,'Format',filterspec{filterindex,1});
-            disp(img_fmt);
-            disp(img_filename);
-            print(f,img_fmt,'-r300',fullfile(img_pathname,img_filename),'-opengl');
+            %disp(img_fmt);
+            full_img_filename = fullfile(img_pathname,img_filename);
+            fprintf(1,'Saving %s\n',full_img_filename);
+            print(f,img_fmt,'-r300',full_img_filename,'-opengl');
             
             %save the screenshot
             %         print(f,['-d',filterspec{filterindex,1}],'-r75',fullfile(img_pathname,img_filename));

@@ -1,0 +1,196 @@
+<deployment-project plugin="plugin.ezdeploy" plugin-version="1.0">
+  <configuration build-checksum="843858059" file="/Users/unknown/git/padaco/Padaco1.65.prj" location="/Users/unknown/git/padaco" name="Padaco" preferred-package-location="/Users/unknown/code/MATLAB_compiled/1.65/package" preferred-package-type="package.type.app" target="target.ezdeploy.standalone" target-name="MATLAB Compiler for Standalone Applications">
+    <param.appname>Padaco</param.appname>
+    <param.icon>${PROJECT_ROOT}/Padaco_resources/icon.icns</param.icon>
+    <param.icons>
+      <file>${PROJECT_ROOT}/Padaco_resources/icon_256.png</file>
+      <file>${PROJECT_ROOT}/Padaco_resources/icon_128.png</file>
+      <file>${PROJECT_ROOT}/Padaco_resources/icon_64.png</file>
+      <file>${PROJECT_ROOT}/Padaco_resources/icon_32.png</file>
+      <file>${PROJECT_ROOT}/Padaco_resources/icon_16.png</file>
+    </param.icons>
+    <param.version>1.65</param.version>
+    <param.authnamewatermark>Hyatt Moore IV</param.authnamewatermark>
+    <param.email>hyatt4@stanford.edu</param.email>
+    <param.company>Informaton</param.company>
+    <param.summary>Signal processing and data visualization software for Actigraph's GT3X+ wearable tri-axial accelerometer sensor.</param.summary>
+    <param.description>Version history
+1.65 - Added a directory sync button to batch mode for ease of setup (link input and output folder to same bath).
+        - Added option to view log file after batch processing in the event that any errors occurred.
+        - Remove view refresh in results mode when attempting to view a profile outside the valid range.  This removes unneeded flicker.
+
+1.60 - Updated activity state classifier to output classification according to X, Y, and Z count values, and not just their vector magnitude.
+        - Updated settings to select which axis to classify activity state from (Previously only vector magnitude was allowed).
+        - Batch log files seen as context help in Batch tool (i.e. when mouse is placed over the output folder path).
+1.55 - Added Power Spectral Density bands to feature selection.  
+        - Increased feature resolution to allow frame sizes of 15, 30, and 60 seconds.	
+        - Miscellaneous visualization and U/I improvements.
+1.51 - Added custom option to day of week selection dropdown menu.</param.description>
+    <param.screenshot>${PROJECT_ROOT}/icons/splash_square.png</param.screenshot>
+    <param.guid />
+    <param.installpath.string>/Informaton/</param.installpath.string>
+    <param.installpath.combo>option.installpath.systemwideapp</param.installpath.combo>
+    <param.logo>${PROJECT_ROOT}/icons/SquareLogo-Transparent.png</param.logo>
+    <param.install.notes />
+    <param.intermediate>/Users/unknown/code/MATLAB_compiled/1.65/testing</param.intermediate>
+    <param.files.only>/Users/unknown/code/MATLAB_compiled/1.65/files_only</param.files.only>
+    <param.output>/Users/unknown/code/MATLAB_compiled/1.65/package</param.output>
+    <param.enable.clean.build>false</param.enable.clean.build>
+    <param.user.defined.mcr.options />
+    <param.embed.ctf>true</param.embed.ctf>
+    <param.server.ctf>/Users/unknown/code/MATLAB_compiled/1.65/testing/.ctf</param.server.ctf>
+    <param.server.readme>/Users/unknown/code/MATLAB_compiled/1.65/testing/readme.txt</param.server.readme>
+    <param.target.type>subtarget.standalone</param.target.type>
+    <param.support.packages />
+    <param.required.mcr.products>
+      <item>35000</item>
+      <item>35001</item>
+    </param.required.mcr.products>
+    <param.web.mcr>true</param.web.mcr>
+    <param.package.mcr>false</param.package.mcr>
+    <param.no.mcr>false</param.no.mcr>
+    <param.web.mcr.name>MyAppInstaller_web</param.web.mcr.name>
+    <param.package.mcr.name>PadacoInstaller_mcr</param.package.mcr.name>
+    <param.no.mcr.name>PadacoInstaller_app</param.no.mcr.name>
+    <param.windows.command.prompt>true</param.windows.command.prompt>
+    <param.create.log>true</param.create.log>
+    <param.log.file>runtimeLog.txt</param.log.file>
+    <unset>
+      <param.email />
+      <param.company />
+      <param.guid />
+      <param.install.notes />
+      <param.user.defined.mcr.options />
+      <param.embed.ctf />
+      <param.server.ctf />
+      <param.server.readme />
+      <param.target.type />
+      <param.support.packages />
+      <param.web.mcr />
+      <param.package.mcr />
+    </unset>
+    <fileset.main>
+      <file>${PROJECT_ROOT}/padaco.m</file>
+    </fileset.main>
+    <fileset.resources>
+      <file>/Users/unknown/git/MLPTestBench/utility/minmax.m</file>
+      <file>${PROJECT_ROOT}/+featureFcn/getpsd.m</file>
+      <file>${PROJECT_ROOT}/PABatchTool.m</file>
+      <file>${PROJECT_ROOT}/PACentroid.m</file>
+      <file>${PROJECT_ROOT}/PAController.m</file>
+      <file>${PROJECT_ROOT}/PAData.m</file>
+      <file>${PROJECT_ROOT}/PASettings.m</file>
+      <file>${PROJECT_ROOT}/PASimpleSettings.m</file>
+      <file>${PROJECT_ROOT}/PAStatTool.m</file>
+      <file>${PROJECT_ROOT}/PAView.m</file>
+      <file>${PROJECT_ROOT}/events/EventData_BatchTool.m</file>
+      <file>${PROJECT_ROOT}/events/EventData_SwitchToResults.m</file>
+      <file>${PROJECT_ROOT}/figures/analysis.fig</file>
+      <file>${PROJECT_ROOT}/figures/analysis.m</file>
+      <file>${PROJECT_ROOT}/figures/batchTool.fig</file>
+      <file>${PROJECT_ROOT}/figures/batchTool.m</file>
+      <file>${PROJECT_ROOT}/figures/htmldlg.m</file>
+      <file>${PROJECT_ROOT}/figures/padacoFig.fig</file>
+      <file>${PROJECT_ROOT}/figures/padacoFig.m</file>
+      <file>${PROJECT_ROOT}/figures/pair_value_dlg.fig</file>
+      <file>${PROJECT_ROOT}/figures/pair_value_dlg.m</file>
+      <file>${PROJECT_ROOT}/figures/resetDlg.m</file>
+      <file>${PROJECT_ROOT}/figures/restartDlg.m</file>
+      <file>${PROJECT_ROOT}/figures/textFileViewer.m</file>
+      <file>${PROJECT_ROOT}/figures/uigetfulldir.m</file>
+      <file>${PROJECT_ROOT}/figures/uigetfullfile.m</file>
+      <file>${PROJECT_ROOT}/pathsetup.m</file>
+      <file>${PROJECT_ROOT}/utility/cell2str.m</file>
+      <file>${PROJECT_ROOT}/utility/cells2cell.m</file>
+      <file>${PROJECT_ROOT}/utility/cells2mat.m</file>
+      <file>${PROJECT_ROOT}/utility/copy2workspace.m</file>
+      <file>${PROJECT_ROOT}/utility/disablehandles.m</file>
+      <file>${PROJECT_ROOT}/utility/enablehandles.m</file>
+      <file>${PROJECT_ROOT}/utility/findpath.m</file>
+      <file>${PROJECT_ROOT}/utility/getFigureHandle.m</file>
+      <file>${PROJECT_ROOT}/utility/getFilenamesi.m</file>
+      <file>${PROJECT_ROOT}/utility/getPathnames.m</file>
+      <file>${PROJECT_ROOT}/utility/killall.m</file>
+      <file>${PROJECT_ROOT}/utility/pa_randperm.m</file>
+      <file>${PROJECT_ROOT}/utility/restart.m</file>
+      <file>${PROJECT_ROOT}/utility/screencap.m</file>
+      <file>${PROJECT_ROOT}/utility/sethandles.m</file>
+      <file>${PROJECT_ROOT}/utility/showME.m</file>
+      <file>${PROJECT_ROOT}/utility/simpleEdit.m</file>
+      <file>${PROJECT_ROOT}/utility/str2cell.m</file>
+      <file>${PROJECT_ROOT}/utility/struct2array.m</file>
+      <file>${PROJECT_ROOT}/widgets/dissolve.m</file>
+      <file>${PROJECT_ROOT}/widgets/fitTableWidth.m</file>
+      <file>${PROJECT_ROOT}/widgets/getMenuParameter.m</file>
+      <file>${PROJECT_ROOT}/widgets/getMenuString.m</file>
+      <file>${PROJECT_ROOT}/widgets/getMenuUserData.m</file>
+      <file>${PROJECT_ROOT}/widgets/getSelectedMenuString.m</file>
+      <file>${PROJECT_ROOT}/widgets/getSelectedMenuUserData.m</file>
+      <file>${PROJECT_ROOT}/widgets/openDirectory.m</file>
+      <file>${PROJECT_ROOT}/widgets/resizePanelWithScrollbarOption.m</file>
+      <file>${PROJECT_ROOT}/widgets/showPathContextmenuCallback.m</file>
+      <file>${PROJECT_ROOT}/widgets/viewTextFileCallback.m</file>
+      <file>/Users/unknown/git/sev/auxiliary/cropFigure2Axes.m</file>
+      <file>/Users/unknown/git/sev/auxiliary/getScreenCoordinates.m</file>
+    </fileset.resources>
+    <fileset.package>
+      <file>${PROJECT_ROOT}/html/PAController.html</file>
+      <file>${PROJECT_ROOT}/html/Padaco_FAQ.html</file>
+      <file>${PROJECT_ROOT}/html/images/image00.png</file>
+      <file>${PROJECT_ROOT}/icons/arrow-left_64x64.png</file>
+      <file>${PROJECT_ROOT}/icons/arrow-right_16px.png</file>
+      <file>${PROJECT_ROOT}/icons/arrow-right_24px.png</file>
+      <file>${PROJECT_ROOT}/icons/arrow-right_32px.png</file>
+      <file>${PROJECT_ROOT}/icons/arrow-right_32x32.png</file>
+      <file>${PROJECT_ROOT}/model/libmysqlclient.18.dylib</file>
+      <file>${PROJECT_ROOT}/model/mym.m</file>
+      <file>${PROJECT_ROOT}/model/mym.mexa64</file>
+      <file>${PROJECT_ROOT}/model/mym.mexmaci64</file>
+    </fileset.package>
+    <build-deliverables>
+      <file location="/Users/unknown/code/MATLAB_compiled/1.65/testing" name="Padaco.app" optional="false">/Users/unknown/code/MATLAB_compiled/1.65/testing/Padaco.app</file>
+      <file location="/Users/unknown/code/MATLAB_compiled/1.65/testing" name="readme.txt" optional="true">/Users/unknown/code/MATLAB_compiled/1.65/testing/readme.txt</file>
+      <file location="/Users/unknown/code/MATLAB_compiled/1.65/testing" name="run_Padaco.sh" optional="false">/Users/unknown/code/MATLAB_compiled/1.65/testing/run_Padaco.sh</file>
+      <file location="/Users/unknown/code/MATLAB_compiled/1.65/testing" name="splash.png" optional="false">/Users/unknown/code/MATLAB_compiled/1.65/testing/splash.png</file>
+    </build-deliverables>
+    <workflow />
+    <matlab>
+      <root>/Users/unknown/code/MATLAB_R2014b.app</root>
+      <toolboxes>
+        <toolbox name="fixedpoint" />
+        <toolbox name="embeddedcoder" />
+        <toolbox name="matlabcoder" />
+      </toolboxes>
+      <toolbox>
+        <fixedpoint>
+          <enabled>true</enabled>
+        </fixedpoint>
+      </toolbox>
+      <toolbox>
+        <embeddedcoder>
+          <enabled>true</enabled>
+        </embeddedcoder>
+      </toolbox>
+      <toolbox>
+        <matlabcoder>
+          <enabled>true</enabled>
+        </matlabcoder>
+      </toolbox>
+    </matlab>
+    <platform>
+      <unix>true</unix>
+      <mac>true</mac>
+      <windows>false</windows>
+      <win2k>false</win2k>
+      <winxp>false</winxp>
+      <vista>false</vista>
+      <linux>false</linux>
+      <solaris>false</solaris>
+      <osver>10.10.5</osver>
+      <os32>false</os32>
+      <os64>true</os64>
+      <arch>maci64</arch>
+      <matlab>true</matlab>
+    </platform>
+  </configuration>
+</deployment-project>

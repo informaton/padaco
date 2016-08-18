@@ -15,5 +15,5 @@ for s=1:numel(subPaths)
 end
 
 
-deploytool -package Padaco.prj
+deploytool -package Padaco_1.65.prj
 openDirectory('/Users/unknown/code/MATLAB_compiled/1.65/');
