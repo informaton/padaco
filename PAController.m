@@ -1130,7 +1130,12 @@ classdef PAController < handle
         function menuFileOpenCallback(obj,hObject,eventdata)
             %DATA.pathname	/Volumes/SeaG 1TB/sampleData/csv
             %DATA.filename	700023t00c1.csv.csv
-            f=uigetfullfile({'*.csv;*.raw;*.bin','All (counts, raw accelerations)';'*.csv','Comma Separated Values';'*.bin','Raw Acceleration (binary format: firmwares 2.2.1, 2.5.0, and 3.1.0)';'*.raw','Raw Acceleration (comma separated values)';'*.gt3x','Raw GT3X binary'},'Select a file','off',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
+            f=uigetfullfile({'*.csv;*.raw;*.bin','All (counts, raw accelerations)';
+                '*.csv','Comma Separated Values';
+                '*.bin','Raw Acceleration (binary format: firmwares 2.2.1, 2.5.0, and 3.1.0)';
+                '*.raw','Raw Acceleration (comma separated values)';
+                '*.gt3x','Raw GT3X binary'},...
+                'Select a file',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
             try
                 if(~isempty(f))
                     %                     if(~strcmpi(obj.getViewMode(),'timeseries'))
@@ -1177,7 +1182,9 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function menuFileOpenFitBitCallback(obj,hObject,eventdata)
             
-            f=uigetfullfile({'*.txt;*.fbit','Fitbit';'*.csv','Comma Separated Values'},'Select a file','off',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
+            f=uigetfullfile({'*.txt;*.fbit','Fitbit';
+                '*.csv','Comma Separated Values'},...
+                'Select a file',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
             try
                 if(~isempty(f))
 

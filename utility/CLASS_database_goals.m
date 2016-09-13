@@ -127,7 +127,8 @@ classdef CLASS_database_goals < CLASS_database
         function loadSubjectInfo_T(this,subjectinfo_csv_filename)
             
             if(nargin<2 || ~exist(goals_csv_filename,'file'))  
-                subjectinfo_csv_filename = uigetfullfile({'*.csv','Comma separated values (*.csv)'},'Select GOALS subject data file');
+                subjectinfo_csv_filename = uigetfullfile({'*.csv','Comma separated values (*.csv)'},...
+                    'Select GOALS subject data file');
                 
             end
             

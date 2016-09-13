@@ -12,25 +12,15 @@
                         <items>
                             <menuItem title="Padaco launcher" id="1Xt-HY-uBw">
                                 <modifierMask key="keyEquivalentModifierMask"/>
-                                <menu key="submenu" title="Padaco launcher" systemMenu="apple" id="uQy-DD-JDr"/>
-                            </menuItem>
-                            <menuItem title="File" id="dMs-cI-mzQ">
-                                <modifierMask key="keyEquivalentModifierMask"/>
-                            </menuItem>
-                            <menuItem title="Edit" id="5QF-Oa-p0T">
-                                <modifierMask key="keyEquivalentModifierMask"/>
-                            </menuItem>
-                            <menuItem title="Format" id="jxT-CU-nIS">
-                                <modifierMask key="keyEquivalentModifierMask"/>
-                            </menuItem>
-                            <menuItem title="View" id="H8h-7b-M4v">
-                                <modifierMask key="keyEquivalentModifierMask"/>
-                            </menuItem>
-                            <menuItem title="Window" id="aUF-d1-5bR">
-                                <modifierMask key="keyEquivalentModifierMask"/>
-                            </menuItem>
-                            <menuItem title="Help" id="wpr-3q-Mcd">
-                                <modifierMask key="keyEquivalentModifierMask"/>
+                                <menu key="submenu" title="Padaco launcher" systemMenu="apple" id="uQy-DD-JDr">
+                                    <items>
+                                        <menuItem title="Quit" keyEquivalent="q" id="1mz-et-fBD">
+                                            <connections>
+                                                <action selector="terminate:" target="hnw-xV-0zn" id="RCX-fa-9Lv"/>
+                                            </connections>
+                                        </menuItem>
+                                    </items>
+                                </menu>
                             </menuItem>
                         </items>
                     </menu>
@@ -47,8 +37,7 @@
         <scene sceneID="R2V-B0-nI4">
             <objects>
                 <windowController showSeguePresentationStyle="single" id="B8D-0N-5wS" sceneMemberID="viewController">
-                    <window key="window" title="Padaco" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" oneShot="NO" releasedWhenClosed="NO" showsToolbarButton="NO" visibleAtLaunch="NO" animationBehavior="default" id="IQv-IB-iLA">
-                        <windowStyleMask key="styleMask" titled="YES" closable="YES" miniaturizable="YES" resizable="YES"/>
+                    <window key="window" title="Padaco" allowsToolTipsWhenApplicationIsInactive="NO" autorecalculatesKeyViewLoop="NO" restorable="NO" hasShadow="NO" oneShot="NO" releasedWhenClosed="NO" showsToolbarButton="NO" visibleAtLaunch="NO" animationBehavior="default" id="IQv-IB-iLA">
                         <windowPositionMask key="initialPositionMask" leftStrut="YES" rightStrut="YES" topStrut="YES" bottomStrut="YES"/>
                         <rect key="contentRect" x="196" y="240" width="480" height="270"/>
                         <rect key="screenRect" x="0.0" y="0.0" width="1680" height="1027"/>
@@ -59,21 +48,46 @@
                 </windowController>
                 <customObject id="Oky-zY-oP4" userLabel="First Responder" customClass="NSResponder" sceneMemberID="firstResponder"/>
             </objects>
-            <point key="canvasLocation" x="56" y="242"/>
+            <point key="canvasLocation" x="-198" y="359"/>
         </scene>
         <!--View Controller-->
         <scene sceneID="hIz-AP-VOD">
             <objects>
-                <viewController id="XfG-lQ-9wD" customClass="ViewController" customModule="Padaco_launcher" customModuleProvider="target" sceneMemberID="viewController">
-                    <imageView key="view" horizontalHuggingPriority="251" verticalHuggingPriority="251" id="FYq-Ky-oEm">
-                        <rect key="frame" x="0.0" y="0.0" width="467" height="111"/>
+                <viewController storyboardIdentifier="LaunchScreenViewController" showSeguePresentationStyle="single" id="XfG-lQ-9wD" customClass="UIViewController" sceneMemberID="viewController">
+                    <imageView key="view" wantsLayer="YES" horizontalHuggingPriority="251" verticalHuggingPriority="251" id="3Sh-3Z-aoH">
+                        <rect key="frame" x="0.0" y="0.0" width="847" height="213"/>
                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMinY="YES"/>
-                        <imageCell key="cell" refusesFirstResponder="YES" alignment="left" imageScaling="proportionallyDown" imageFrameStyle="grayBezel" image="splash_wide" id="pUl-AO-noc"/>
+                        <ciFilter key="compositingFilter" name="CIPinLightBlendMode">
+                            <configuration>
+                                <null key="inputBackgroundImage"/>
+                                <null key="inputImage"/>
+                            </configuration>
+                        </ciFilter>
+                        <contentFilters>
+                            <ciFilter name="CIMotionBlur">
+                                <configuration>
+                                    <real key="inputAngle" value="10"/>
+                                    <null key="inputImage"/>
+                                    <real key="inputRadius" value="20"/>
+                                </configuration>
+                            </ciFilter>
+                        </contentFilters>
+                        <backgroundFilters>
+                            <ciFilter name="CILanczosScaleTransform">
+                                <configuration>
+                                    <real key="inputAspectRatio" value="1"/>
+                                    <null key="inputImage"/>
+                                    <real key="inputScale" value="3"/>
+                                </configuration>
+                            </ciFilter>
+                        </backgroundFilters>
+                        <imageCell key="cell" enabled="NO" refusesFirstResponder="YES" alignment="left" imageFrameStyle="photo" image="splash_wide" id="mB7-ta-Sh1"/>
                     </imageView>
                 </viewController>
                 <customObject id="rPt-NT-nkU" userLabel="First Responder" customClass="NSResponder" sceneMemberID="firstResponder"/>
+                <userDefaultsController representsSharedInstance="YES" id="XWz-sH-xEa"/>
             </objects>
-            <point key="canvasLocation" x="56.5" y="584.5"/>
+            <point key="canvasLocation" x="-197.5" y="179.5"/>
         </scene>
     </scenes>
     <resources>

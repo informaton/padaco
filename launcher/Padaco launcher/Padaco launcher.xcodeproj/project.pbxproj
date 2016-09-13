@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		F46749E31D78F4E6005A93C1 /* Launch Screen.xib in Resources */ = {isa = PBXBuildFile; fileRef = F46749E21D78F4E6005A93C1 /* Launch Screen.xib */; };
 		F49055111D66370400EA17A3 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F49055101D66370400EA17A3 /* AppDelegate.swift */; };
 		F49055131D66370400EA17A3 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F49055121D66370400EA17A3 /* ViewController.swift */; };
 		F49055151D66370400EA17A3 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F49055141D66370400EA17A3 /* Images.xcassets */; };
@@ -26,6 +27,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		F46749E21D78F4E6005A93C1 /* Launch Screen.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = "Launch Screen.xib"; sourceTree = "<group>"; };
 		F490550B1D66370400EA17A3 /* Padaco launcher.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Padaco launcher.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F490550F1D66370400EA17A3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F49055101D66370400EA17A3 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -82,6 +84,7 @@
 				F490552D1D66419600EA17A3 /* splash_wide.png */,
 				F49055141D66370400EA17A3 /* Images.xcassets */,
 				F49055161D66370500EA17A3 /* Main.storyboard */,
+				F46749E21D78F4E6005A93C1 /* Launch Screen.xib */,
 				F490550E1D66370400EA17A3 /* Supporting Files */,
 			);
 			path = "Padaco launcher";
@@ -195,6 +198,7 @@
 				F490552E1D66419600EA17A3 /* splash_wide.png in Resources */,
 				F49055151D66370400EA17A3 /* Images.xcassets in Resources */,
 				F49055181D66370500EA17A3 /* Main.storyboard in Resources */,
+				F46749E31D78F4E6005A93C1 /* Launch Screen.xib in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -401,6 +405,7 @@
 				F49055291D66370500EA17A3 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		F490552A1D66370500EA17A3 /* Build configuration list for PBXNativeTarget "Padaco launcherTests" */ = {
 			isa = XCConfigurationList;
@@ -409,6 +414,7 @@
 				F490552C1D66370500EA17A3 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

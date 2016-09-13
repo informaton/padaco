@@ -1,6 +1,6 @@
 % ======================================================================
 %> @file PAStatTool.cpp
-%> @brief PAStatTool serves as Padaco's batch results analsysis controller
+%> @brief PAStatTool serves as Padaco's batch results analysis controller
 % ======================================================================
 classdef PAStatTool < handle
     events
@@ -2945,10 +2945,8 @@ classdef PAStatTool < handle
             paramStruct.primaryAxis_yLimMode = 'auto';
             paramStruct.primaryAxis_nextPlot = 'replace';
             paramStruct.showAnalysisFigure = 0; % do not display the other figure at first
-            paramStruct.centroidDistributionType = 'membership';  %{'performance','membership','weekday'}
-            
-            paramStruct.profileFieldSelection = 1;
-            
+            paramStruct.centroidDistributionType = 'membership';  %{'performance','membership','weekday'}            
+            paramStruct.profileFieldSelection = 1;            
             paramStruct.clusterMethod = 'kmeans';  % {'kmeans','kmedoids'}
         end
         
