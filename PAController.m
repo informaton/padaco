@@ -8,7 +8,7 @@
 %> controller.
 classdef PAController < handle
     properties(Constant)
-        versionNum = 1.65;
+        versionMatFilename = 'version.chk';
     end
     properties(Access=private)
         %> @brief Vector for keeping track of the feature handles that are
@@ -405,7 +405,7 @@ classdef PAController < handle
         function menuHelpFAQCallback(this,hObject,eventdata)
             %msg = sprintf('Help FAQ');
             this.VIEW.showBusy('Initializing help');
-            filename = fullfile(this.SETTINGS.rootpathname,'html','PadacoFAQ.html');
+            filename = fullfile(this.SETTINGS.rootpathname,'resources/html','PadacoFAQ.html');
             url = sprintf('file://%s',filename);
             %             web(url,'-notoolbar','-noaddressbox');
             htmldlg('url',url);
@@ -422,12 +422,43 @@ classdef PAController < handle
         %> @param eventdata
         % --------------------------------------------------------------------
         function menuFileAboutCallback(obj,hObject,eventdata)
+            if(exist(obj.versionMatFilename,'file'))
+                try
+                    versionS = load(obj.versionMatFilename,'-mat');
+                    versionNum = versionS.num;
+                catch me
+                    showME(me);
+                    versionNum = '1.NA';
+                end
+            else
+                versionNum = '1.NA';
+            end
             msg = sprintf(['Padaco version %0.2f\n',...
-                '\nSponsored by Stanford University\nin a collaborative effort between\nStanford Pediatric''s Solution Science Lab and\nCivil Engineering''s Sustainable Energy Lab.\n',...
-                '\nSoftware license: To be decided',...
+                '\nA collaborative effort between:',...
+                '\n\t1. Stanford''s Pediatric''s Solution Science Lab',...
+                '\n\t2. Stanford''s Civil Engineering''s Sustainable Energy Lab',...
+                '\n\t3. Stanford''s Quantitative Science Unit',...
+                '\n\nSoftware license: To be decided',...
                 '\nCopyright Hyatt Moore IV (2014-2016)\n'
-                ],obj.versionNum);
-            msgbox(msg);
+                ],versionNum);
+            h=msgbox(msg,'About');
+            
+            mbox_h=findobj(h,'tag','MessageBox');
+            ok_h = findobj(h,'tag','OKButton');
+            if(~isempty(mbox_h))
+                mpos = get(h,'position');
+                set(h,'visible','off');
+                set(mbox_h,'fontname','arial','fontsize',12');
+                set(h,'position',[mpos(1:2), mpos(3:4)*12/10]);
+                
+                axes_h = get(mbox_h,'parent');
+                apos = get(axes_h,'position');
+                set(axes_h,'position',apos*12/10);
+                
+                okPos = get(ok_h,'position');
+                set(ok_h,'position',okPos*12/10,'fontsize',12);
+                set(h,'visible','on');
+            end
         end
         
         
