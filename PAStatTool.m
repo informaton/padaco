@@ -15,8 +15,13 @@ classdef PAStatTool < handle
         featuresDirectory;
         cacheDirectory;
         
-        %> @brief Cluster method employed {'kmeans','kmedoids'}
-        clusterMethod;
+        %> @brief Struct with key value pairs for clustering:
+        %> - @c clusterMethod Cluster method employed {'kmeans','kmedoids'}
+        %> - @c useDefaultRandomizer = widgetSettings.useDefaultRandomizer;
+        %> - @c initCentroidWithPermutation = settings.initCentroidWithPermutation;
+        %> @note Initialized in the setWidgetSettings() method
+        clusterSettings;
+        
         %> Booleans
         useCache;
         useDatabase;
@@ -126,32 +131,29 @@ classdef PAStatTool < handle
             if(nargin<3 || isempty(widgetSettings))
                 widgetSettings = PAStatTool.getDefaultParameters();
             end
-            try
+            
                 
-                % This call ensures that we have at a minimum, the default parameter field-values in widgetSettings.
-                % And eliminates later calls to determine if a field exists
-                % or not in the input widgetSettings parameter
-                widgetSettings = PAData.mergeStruct(PAStatTool.getDefaultParameters,widgetSettings);
-                
-                if(isfield(widgetSettings,'useDatabase') && widgetSettings.useDatabase)
-                    this.useDatabase = true;
-                    this.databaseObj = feval(widgetSettings.databaseClass);
-                    this.profileFields = this.databaseObj.getColumnNames('subjectInfo_t');
-                    addpath('/users/unknown/Google Drive/work/Stanford - Pediatrics/code/models');
-                    addpath('/Users/unknown/Google Drive/work/Informaton/code/matlab/gee');
-                else
-                    this.useDatabase = false;
-                    this.databaseObj = [];
-                    this.profileFields = {''};
-                end
-            catch me
-                showME(me);
-                this.databaseObj = [];
-                this.profileFields = {
-                    'bmi_zscore';
-                    'insulin'
-                    };
+            % This call ensures that we have at a minimum, the default parameter field-values in widgetSettings.
+            % And eliminates later calls to determine if a field exists
+            % or not in the input widgetSettings parameter
+            widgetSettings = PAData.mergeStruct(PAStatTool.getDefaultParameters,widgetSettings);
+            
+            if(~isfield(widgetSettings,'useDatabase'))
+                widgetSettings.useDatabase = false;
             end
+            
+            this.setUseDatabase(widgetSettings.useDatabase);
+            
+            
+            
+%             catch me
+%                 showME(me);
+%                 this.databaseObj = [];
+%                 this.profileFields = {
+%                     'bmi_zscore';
+%                     'insulin'
+%                     };
+%             end
             
             this.globalProfile  = [];
             this.coiProfile = [];
@@ -253,6 +255,8 @@ classdef PAStatTool < handle
             end
         end
 
+        
+
         % ======================================================================
         %> @brief Overload delete method to ensure we get rid of the
         %> analysis figure
@@ -333,10 +337,12 @@ classdef PAStatTool < handle
             this.originalWidgetSettings = widgetSettings;
             
             % Merge the defaults with what is here otherwise.  
+            this.setUseDatabase(widgetSettings.useDatabase);
             this.useCache = widgetSettings.useCache;
             this.cacheDirectory = widgetSettings.cacheDirectory;
-            this.clusterMethod = widgetSettings.clusterMethod;
-            
+            this.clusterSettings.clusterMethod = widgetSettings.clusterMethod;
+            this.clusterSettings.useDefaultRandomizer = widgetSettings.useDefaultRandomizer;
+            this.clusterSettings.initCentroidWithPermutation = widgetSettings.initCentroidWithPermutation;
             if(initializeOnSet)
                 this.initWidgets(this.originalWidgetSettings);
 %                 this.refreshPlot();
@@ -696,6 +702,35 @@ classdef PAStatTool < handle
     
     methods(Access=private)
         
+        function didSet = setUseDatabase(this, willSet)
+            if(nargin>1)
+                this.useDatabase = willSet && true;
+                this.useDatabase = this.initDatabaseObj();% initDatabase returns false if it fails to initialize and is supposed to.
+            else
+                didSet = false;
+            end
+        end
+        function didInit = initDatabaseObj(this)
+            didInit = false;
+            try
+                if(this.useDatabase)
+                    this.databaseObj = feval(this.originalWidgetSettings.databaseClass);
+                    this.profileFields = this.databaseObj.getColumnNames('subjectInfo_t');
+                    addpath('/users/unknown/Google Drive/work/Stanford - Pediatrics/code/models');
+                    addpath('/Users/unknown/Google Drive/work/Informaton/code/matlab/gee');
+                    didInit = true;
+                else
+                    this.databaseObj = [];
+                    this.profileFields = {''};                    
+                end
+            catch me
+                showME(me);
+                this.databaseObj = [];
+                this.useDatabase = false;
+                this.profileFields = {''};
+            end
+            
+        end
         % ======================================================================
         %> @brief Shows busy state: Disables all non-centroid panel widgets
         %> and mouse pointer becomes a watch.
@@ -1121,8 +1156,6 @@ classdef PAStatTool < handle
                         this.handles.contextmenu.secondaryAxes.weekday = uimenu(contextmenu_secondaryAxes,'Label','Show current centroid''s weekday distribution','callback',{@this.centroidDistributionCallback,'weekday'});
                         this.handles.contextmenu.secondaryAxes.membership = uimenu(contextmenu_secondaryAxes,'Label','Show membership distribution by centroid','callback',{@this.centroidDistributionCallback,'membership'});
                         set(this.handles.axes_secondary,'uicontextmenu',contextmenu_secondaryAxes);
-                        
-
                     end
                 end                
             end
@@ -1147,6 +1180,8 @@ classdef PAStatTool < handle
                 
                 set(this.handles.push_exportTable,'string','Export Table','callback',@this.exportTableResultsCallback);
                 set(this.handles.text_analysisTitle,'string','','fontsize',12);
+                set(this.handles.check_showAnalysisFigure,'visible','on');
+
             else
                 set(this.handles.check_showAnalysisFigure,'visible','off');
             end
@@ -2574,8 +2609,6 @@ classdef PAStatTool < handle
             userSettings.cullToValue = str2double(get(this.handles.edit_cullToValue,'string'));
             
                         
-            userSettings.minClusters = str2double(get(this.handles.edit_centroidMinimum,'string'));
-            userSettings.clusterThreshold = str2double(get(this.handles.edit_centroidThreshold,'string'));            
             
             userSettings.weekdaySelection = get(this.handles.menu_weekdays,'value');
 
@@ -2599,7 +2632,13 @@ classdef PAStatTool < handle
             userSettings.centroidDurationHours = this.base.centroidHourlyDurations(userSettings.centroidDurationSelection);
             
             userSettings.centroidDistributionType = this.centroidDistributionType;
-            userSettings.clusterMethod = this.clusterMethod;
+            
+            % Cluster settings
+            userSettings.minClusters = str2double(get(this.handles.edit_centroidMinimum,'string'));
+            userSettings.clusterThreshold = str2double(get(this.handles.edit_centroidThreshold,'string'));
+            userSettings.clusterMethod = this.clusterSettings.clusterMethod;
+            userSettings.initCentroidWithPermutation = this.clusterSettings.initCentroidWithPermutation;
+            userSettings.useDefaultRandomizer = this.clusterSettings.useDefaultRandomizer;
         end
 
         
@@ -2914,6 +2953,10 @@ classdef PAStatTool < handle
             else
                 workingPath = fileparts(mfilename('fullpath'));                
             end
+            
+            % Prime with cluster parameters.
+            paramStruct = PACentroid.getDefaultParameters();
+            
             paramStruct.cacheDirectory = fullfile(workingPath,'cache');
             paramStruct.useCache = 1;
             
@@ -2947,12 +2990,7 @@ classdef PAStatTool < handle
             paramStruct.centroidDistributionType = 'membership';  %{'performance','membership','weekday'}            
             paramStruct.profileFieldSelection = 1;            
             
-            % Cluster settings
-            paramStruct.clusterMethod = 'kmeans';  % {'kmeans','kmedoids'}
-            paramStruct.minClusters = 40;
-            paramStruct.clusterThreshold = 1.5;
-            paramStruct.useDefaultRandomizer = true;
-            
+           
         end
         
         % ======================================================================

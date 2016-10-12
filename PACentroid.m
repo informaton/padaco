@@ -8,7 +8,6 @@ classdef PACentroid < handle
         WEEKDAY_ORDER = 0:6;  % for Sunday through Saturday
     end
     
-    
     %> @brief The sort order can be difficult to understand.  First, the
     %> adaptive k-means algorithm is applied and centroids are found.  The
     %> centroids are labeled arbitrarily according to the index or position
@@ -172,17 +171,18 @@ classdef PACentroid < handle
                 end
             end
 
+            defaultSettings = PAStatTool.getDefaultParameters();
             if(isempty(settings))
-                N = size(loadShapes,1);
-                settings.minClusters = 10;
-                settings.maxClusters = ceil(N/2);
-                settings.clusterThreshold = 0.2;
-                settings.clusterMethod = 'kmeans';
-                settings.useDefaultRandomizer = false;
+                this.settings = defaultSettings;
+            else
+                % This call ensures that we have at a minimum, the default parameter field-values in widgetSettings.
+                % And eliminates later calls to determine if a field exists
+                % or not in the input widgetSettings parameter
+                this.settings = PAData.mergeStruct(defaultSettings,settings);
             end
+            
             if(~isempty(textHandle) && ishandle(textHandle) && strcmpi(get(textHandle,'type'),'uicontrol') && strcmpi(get(textHandle,'style'),'text'))
                 this.statusTextHandle = textHandle;
-                
             else
                 this.statusTextHandle = -1;
             end
@@ -203,28 +203,15 @@ classdef PACentroid < handle
             else
                 this.performanceLineHandle = -1;
             end
-            
+
             this.performanceMeasure = [];
+
             
-            if(isfield(settings,'maxCluster'))                
-                maxClusters = settings.maxClusters;
-            else
-                maxClusters = ceil(size(loadShapes,1)/2);
-            end
-            
-            if(~isfield(settings,'clusterMethod'))
-                settings.clusterMethod = 'kmeans';
-            end
-            
-            this.settings.clusterMethod = settings.clusterMethod;
             
             %/ Do not let K start off higher than 
             % And don't let it fall to less than 1.
             this.settings.minClusters = max(1,min(floor(size(loadShapes,1)/2),settings.minClusters));
-            this.settings.maxClusters = maxClusters;
-            
-            this.settings.clusterThreshold = settings.clusterThreshold;
-            
+            this.settings.maxClusters = ceil(size(loadShapes,1)/2);
             
             this.loadShapes = loadShapes;
             this.loadShapeIDs = loadShapeIDs;
@@ -614,7 +601,31 @@ classdef PACentroid < handle
                 [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression] = this.adaptiveKmeans(inputLoadShapes,inputSettings,this.performanceAxesHandle,this.statusTextHandle);
             end
             
-            if(~isempty(this.centroidShapes))                
+            if(~isempty(this.centroidShapes))
+                % It is possible that we overdid it and have unassigned
+                % clusters here.  
+                uniqueIndices = unique(this.loadshapeIndex2centroidIndexMap);
+                possibleIndices = 1:size(this.centroidShapes,1);
+                % Return values that are possible but not found;  Note, the order matters here; need possible to go first
+                unassignedIndices = setdiff(possibleIndices,uniqueIndices); 
+                numUnassigned = numel(unassignedIndices);
+                
+                % Potential problem here: if unassigned indices are not the last
+                % row indices of centroid shapes and we remove them,
+                % then the unique indices are no longer going to be valid,
+                % but point to indices outside the now consolidated
+                % centroid shapes matrix.  Catch this possibility with an
+                % if statement for now, and *perhaps* come back later and
+                % more robustly handle this case with a remapping of the
+                % centroid shapes and load shape map vector.
+                if(numUnassigned>0 && min(unassignedIndices)>max(uniqueIndices))
+                    this.centroidShapes(unassignedIndices,:)=[];
+                    msg = sprintf('Removing %d unassigned centroids.', numUnassigned);
+                    if(ishandle(this.statusTextHandle))
+                        set(this.statusTextHandle ,'string',{msg});
+                    end
+                    fprintf(1,'%s\n',msg);
+                end
                 [this.histogram, this.centroidSortMap] = this.calculateAndSortDistribution(this.loadshapeIndex2centroidIndexMap);%  was -->       calculateAndSortDistribution(this.loadshapeIndex2centroidIndexMap);
                 this.coiSortOrder2Index = this.centroidSortMap;
                 [~,this.coiIndex2SortOrder] = sort(this.centroidSortMap,1,'ascend');
@@ -715,7 +726,7 @@ classdef PACentroid < handle
         %> -- @c false (default) Do not update randomizer seed (rng).
         %> @param performanceAxesH GUI handle to display Calinzki index at each iteration (optional)
         %> @note When included, display calinski index at each adaptive k-mediods iteration which is slower.
-        %> @param textStatusH GUI text handle (ui control) to display updates at each iteration (optional)
+        %> @param textStatusH GUI text handle to display updates at each iteration (optional)
         %> @retval idx = Rx1 vector of cluster indices that the matching (i.e. same) row of the loadShapes is assigned to.
         %> @retval centroids - KxC matrix of cluster centroids.
         %> @retval The Calinski index for the returned idx and centroids
@@ -735,10 +746,8 @@ classdef PACentroid < handle
                 if(nargin<4)
                     performanceAxesH = -1;
                     if(nargin<3)                        
-                        settings.useDefaultRandomizer = false;
-                        settings.minClusters = 40;
+                        settings = this.getDefaultParameters();
                         settings.maxClusters = size(loadShapes,1)/2;
-                        settings.clusterThreshold = 5; %higher threshold equates to fewer clusters.
                         settings.clusterMethod = 'kmedoids';
                     end
                 end
@@ -778,8 +787,6 @@ classdef PACentroid < handle
                 centroids = [];
                 
             else
-                % prime the kmedoids algorithms starting centroids
-                centroids = loadShapes(pa_randperm(N,K),:);
                 % prime loop condition since we don't have a do while ...
                 numNotCloseEnough = settings.minClusters;
                 
@@ -804,13 +811,25 @@ classdef PACentroid < handle
                             set(textStatusH,'string',[curString(end);statusStr]);
                         end
                         
-                        firstLoop = false;
                     end
                     
                     tic
-                    
-                    [idx, centroids, sumD, pointToClusterDistances] = kmedoids(loadShapes,K,'Start',centroids);
-                    
+                               
+                    if(firstLoop)
+                        if(settings.initCentroidWithPermutation)
+                            % prime the kmedoids algorithms starting centroids
+                            % Can be a problem when we are going to start with repeat
+                            % clusters.
+                            centroids = loadShapes(pa_randperm(N,K),:);
+                            [idx, centroids, sumD, pointToClusterDistances] = kmedoids(loadShapes,K,'Start',centroids);
+                        else
+                            [idx, centroids, sumD, pointToClusterDistances] = kmedoids(loadShapes,K);
+                        end
+                        firstLoop = false;
+                    else
+                        [idx, centroids, sumD, pointToClusterDistances] = kmedoids(loadShapes,K,'Start',centroids);
+                    end
+
                     if(ishandle(performanceAxesH))
                         performanceIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);
                         X(end+1)= K;
@@ -848,6 +867,8 @@ classdef PACentroid < handle
                         K = K-numRemoved;
                         [idx, centroids, sumD, pointToClusterDistances] = kmedoids(loadShapes,K,'Start',centroids,'onlinephase','off');
                         
+                        % We performed another clustering step just now, so
+                        % show these results.
                         if(ishandle(performanceAxesH))
                             performanceIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);
                             X(end+1)= K;
@@ -908,7 +929,7 @@ classdef PACentroid < handle
                         K = K+numNotCloseEnough;
                         [~, centroids] = kmedoids(loadShapes,K,'Start',centroids,'onlinephase','off');
                     end
-                end
+                end  % end adaptive while loop
                 
                 if(numNotCloseEnough~=0 && ~this.getUserCancelled())
                     statusStr = sprintf('Failed to converge using a maximum limit of %u clusters.',settings.maxClusters);
@@ -930,7 +951,8 @@ classdef PACentroid < handle
                         end
                         [idx, centroids, sumD, pointToClusterDistances] = kmedoids(loadShapes,K,'Start',centroids);
                     end
-
+                    % This may only pertain to when the user cancelled.
+                    % Not sure if it is needed otherwise...
                     if(ishandle(performanceAxesH))
                         performanceIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);
                         X(end+1)= K;
@@ -984,7 +1006,7 @@ classdef PACentroid < handle
         %> -- @c false (default) Do not update randomizer seed (rng).
         %> @param performanceAxesH GUI handle to display Calinzki index at each iteration (optional)
         %> @note When included, display calinski index at each adaptive k-mediods iteration which is slower.
-        %> @param textStatusH GUI text handle (ui control) to display updates at each iteration (optional)
+        %> @param textStatusH GUI text handle to display updates at each iteration (optional)
         %> @retval idx = Rx1 vector of cluster indices that the matching (i.e. same) row of the loadShapes is assigned to.
         %> @retval centroids - KxC matrix of cluster centroids.
         %> @retval The Calinski index for the returned idx and centroids
@@ -1005,12 +1027,9 @@ classdef PACentroid < handle
                 if(nargin<4)
                     performanceAxesH = -1;
                     if(nargin<3)
-                        settings.useDefaultRandomizer = false;
-                        settings.minClusters = 40;
+                        settings = this.getDefaultParameters();
                         settings.maxClusters = size(loadShapes,1)/2;
-                        settings.clusterThreshold = 5; %higher threshold equates to fewer clusters.
-                        settings.clusterMethod = 'kmeans';
-                        
+                        settings.clusterMethod = 'kmeans';                        
                     end
                 end
             end
@@ -1051,8 +1070,7 @@ classdef PACentroid < handle
                 centroids = [];
                 
             else
-                % prime the kmeans algorithms starting centroids
-                centroids = loadShapes(pa_randperm(N,K),:);
+                
                 % prime loop condition since we don't have a do while ...
                 numNotCloseEnough = settings.minClusters;
                 
@@ -1077,7 +1095,6 @@ classdef PACentroid < handle
                             set(textStatusH,'string',[curString(end);statusStr]);
                         end
                         
-                        firstLoop = false;
                     end
                     
                     tic
@@ -1093,8 +1110,22 @@ classdef PACentroid < handle
                     %     [IDX, C, SUMD, D] = kmeans(X, K) returns distances from each point
                     %     to every centroid in the N-by-K matrix D.
                     
-                    [idx, centroids, sumD, pointToClusterDistances] = kmeans(loadShapes,K,'Start',centroids,'EmptyAction','drop');
                     
+                    if(firstLoop)
+                        % prime the kmeans algorithms starting centroids
+                        % Can be a problem when we are going to start with repeat
+                        % clusters.
+                        if(settings.initCentroidWithPermutation)
+                            centroids = loadShapes(pa_randperm(N,K),:);
+                            [idx, centroids, sumD, pointToClusterDistances] = kmeans(loadShapes,K,'Start',centroids,'EmptyAction','drop');
+                        else
+                            [idx, centroids, sumD, pointToClusterDistances] = kmeans(loadShapes,K);
+                        end
+                        firstLoop = false;
+                                            
+                    else
+                        [idx, centroids, sumD, pointToClusterDistances] = kmeans(loadShapes,K,'Start',centroids,'EmptyAction','drop');
+                    end
                     if(ishandle(performanceAxesH))
                         performanceIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);
                         X(end+1)= K;
@@ -1296,7 +1327,24 @@ classdef PACentroid < handle
     
     methods(Static)
         
-  
+        %> @brief Retrieve a struct of default settings for the PACentroid
+        %> class.
+        %> @retval Struct with field value pairs as follows:
+        %> - @c minClusters = 10
+        %> - @c clusterThreshold = 0.2 
+        %> - @c clusterMethod = 'kmeans'   {'kmeans','kmedoids'}
+        %> - @c useDefaultRandomizer = false;
+        %> - @c initCentroidWithPermutation = false;            
+        %> @note Higher thresholds result in fewer clusters (and vice versa).
+        function settings = getDefaultParameters()
+            settings.minClusters = 10;
+            settings.clusterThreshold = 1.0;    %higher threshold equates to fewer clusters.
+
+            settings.clusterMethod = 'kmeans';
+            settings.useDefaultRandomizer = false;
+            settings.initCentroidWithPermutation = false;            
+        end
+
         
                 
         %> @brief Validation metric for cluster separation.   Useful in determining if clusters are well separated.  

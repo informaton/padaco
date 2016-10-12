@@ -151,20 +151,7 @@ classdef PAController < handle
         
         %% Shutdown functions
         %> Destructor
-        function close(obj)
-            
-            % Overwrite the current SETTINGS.DATA if we have an accelObj
-            % instantiated.
-            if(~isempty(obj.accelObj))
-                obj.SETTINGS.DATA = obj.accelObj.getSaveParameters();
-            end
-            
-            % update the stat tool settings if it was used successfully.
-            if(~isempty(obj.StatTool) && obj.StatTool.getCanPlot())
-                obj.SETTINGS.StatTool = obj.StatTool.getSaveParameters();
-            end
-            
-            obj.SETTINGS.CONTROLLER = obj.getSaveParameters();
+        function close(obj)            
             obj.saveParameters(); %requires SETTINGS variable
             obj.SETTINGS = [];
             if(~isempty(obj.StatTool))
@@ -174,8 +161,35 @@ classdef PAController < handle
         end
         
         function saveParameters(obj)
+            obj.refreshSETTINGS(); % updates the parameters based on current state of the gui.
             obj.SETTINGS.saveParametersToFile();
             fprintf(1,'Settings saved to disk.\n');
+        end
+
+        %> @brief Sync the controller's settings with the SETTINGS object
+        %> member variable.
+        %> @param Instance of PAController;
+        %> @retval Boolean Did refresh = true, false otherwise (e.g. an
+        %> error occurred)
+        function didRefresh = refreshSETTINGS(obj)
+            try
+                % Overwrite the current SETTINGS.DATA if we have an accelObj
+                % instantiated.
+                if(~isempty(obj.accelObj))
+                    obj.SETTINGS.DATA = obj.accelObj.getSaveParameters();
+                end
+                
+                % update the stat tool settings if it was used successfully.
+                if(~isempty(obj.StatTool) && obj.StatTool.getCanPlot())
+                    obj.SETTINGS.StatTool = obj.StatTool.getSaveParameters();
+                end
+                
+                obj.SETTINGS.CONTROLLER = obj.getSaveParameters();
+                didRefresh = true;
+            catch me
+                showME(me);
+                didRefresh = false;
+            end
         end
         
         %         function paramStruct = getSaveParametersStruct(obj)
@@ -467,10 +481,14 @@ classdef PAController < handle
             if(nargin<4)
                 optionalSettingsName = [];
             end
+            
+            % Need to refresh the current settings
+            obj.refreshSETTINGS();
             wasModified = obj.SETTINGS.defaultsEditor(optionalSettingsName);
             if(wasModified)
                 if(isa(obj.StatTool,'PAStatTool'))
-                    obj.StatTool.setWidgetSettings(obj.SETTINGS.StatTool);
+                    initializeOnSet = false;  % setViewMode (below) will call the equivalent initialize on set as necessary.
+                    obj.StatTool.setWidgetSettings(obj.SETTINGS.StatTool, initializeOnSet);
                 end
                 fprintf('Settings have been updated.\n');
                 
