@@ -8,7 +8,21 @@ classdef PADeriver < handle
         FIGURE_NAME = 'Counts derivation tool';
         SOI_LABELS = {'X','Y','Z','Magnitude'};
         SOI_FIELDS = {'x','y','z','vecMag'};
-        FILTER_NAMES = {'fir1' % FIR filter design using the window method.
+        SRC_FORMAT_LABELS = {'Raw (g)','Raw (ubits)'};
+        SRC_FORMAT_FIELDS = {'raw','ubit'};
+        
+        DERIVE_LABELS = {
+            'Max'
+            'Sum'
+            };
+        DERIVE_TAGS = {
+            'max'
+            'sum'
+            };
+        
+        FILTER_NAMES = {
+            'none' % Use data as is
+            'fir1' % FIR filter design using the window method.
             'fir2' % FIR arbitrary shape filter design using the frequency sampling method.
             %'kaiserord' % FIR order estimator
             % 'fircls1' % Low & high pass FIR filter design by constrained least-squares.
@@ -76,12 +90,22 @@ classdef PADeriver < handle
         %> raw data.
         filterOptions;
         
+        %> Struct with fields describing the count derivation options
+        countOptions;
+        
+        
         %> Signal of interest, can be:
         %> - x
         %> - y
         %> - z
         %> - vecMag
         soi;  %signal of interest
+        
+        %> Format of signal of interest, can be:
+        %> - raw_g Raw acceleration in units of gravity
+        %> - raw_10 raw counts as provided by a 10 bit ADC
+        %> - raw_12 raw counts as provided by a 12 bit ADC
+        src_format;
         
         %> first non-zero count index
         firstNZI
@@ -94,6 +118,7 @@ classdef PADeriver < handle
     methods
         
         function this = PADeriver()
+            this.src_format = 'raw';
             this.soi = 'x';
             this.filterOptions.start = 0.25;
             this.filterOptions.stop = 2.5;
@@ -102,6 +127,8 @@ classdef PADeriver < handle
             this.filterOptions.type = 'filtfilt';
             this.filterOptions.dB = 3;  % peak-to-peak decibals
             this.filterOptions.windowFcn = this.WINDOW_OPTIONS{1,2};
+            
+            this.countOptions.deriveMethod = 'max';
             this.initGUI();
         end
         
@@ -123,17 +150,25 @@ classdef PADeriver < handle
             
         end
         
-        function dataInRange =  getDataInRange(this,label)
-            
+        function dataInRange =  getDataInRange(this,label)            
             switch(lower(label))
                 case 'raw'
                     shiftBy = this.getShiftBy('raw');
-                    dataInRange = this.dataObject.raw.accel.raw.(this.soi)(this.range.raw - shiftBy);
+                    dataInRange = this.dataObject.raw.accel.(this.src_format).(this.soi)(this.range.raw - shiftBy);
+                    if(strcmpi(this.src_format,'ubit'))
+                        %                         dataInRange = bitand(dataInRange,sum(2.^(10:12)));
+%                                                  dataInRange = bitand(dataInRange,sum(2.^(0:9)));
+%                         dataInRange = floor(dataInRange/4); % brings maximum value from 4095 to 1023
+                        %                         dataInRange = bitshift(dataInRange,2,'uint16');
+                        %                         dataInRange = dataInRange - floor(dataInRange/4); % only shows the higher order values
+                        %                         dataInRange = dataInRange - 2^11-2^10; % only shows the lower bits
+                    end
+                    
                 case 'counts'
                     dataInRange = this.dataObject.count.accel.count.(this.soi)(this.range.count);
                 otherwise
                     shiftBy = this.getShiftBy('raw');
-                    dataInRange = this.dataObject.raw.accel.raw.(this.soi)(this.range.raw - shiftBy);
+                    dataInRange = this.dataObject.raw.accel.(this.src_format).(this.soi)(this.range.raw - shiftBy);
             end
         end
         
@@ -143,8 +178,6 @@ classdef PADeriver < handle
                     shiftSamples = getMenuUserData(this.handles.menu_shiftRaw);
                 case 'filtered'
                     shiftSamples = getMenuUserData(this.handles.menu_shiftFiltered);
-                otherwise
-                    shiftSamples = this.dataObject.raw.accel.raw.(this.soi)(this.range.raw - shiftBy);
              end            
         end
         
@@ -162,8 +195,11 @@ classdef PADeriver < handle
             absFlag = get(this.handles.check_filterAbsOutput,'value');
         end
         
+        
+        
         function shiftFlag = isFilterDelayShifted(this)
-            shiftFlag = get(this.handles.check_filterShiftDelay,'value');
+            shiftBy = this.getShiftBy('filtered');
+            shiftFlag = shiftBy~=0;  % get(this.handles.check_filterShiftDelay,'value') || shiftBy~=0;
         end
         
 
@@ -178,6 +214,7 @@ classdef PADeriver < handle
             this.filterOptions.order = getMenuUserData(this.handles.menu_filterOrder);
             this.filterOptions.startHz = str2double(get(this.handles.edit_filterStartHz,'string'));
             this.filterOptions.stopHz = str2double(get(this.handles.edit_filterStopHz,'string'));
+            this.countOptions.deriveMethod = getMenuUserData(this.handles.menu_countDeriveMethod);
         end
         function plotCounts(this)
             line_tags = {'counts','rawCounts','rawFiltered','raw','error'};
@@ -223,19 +260,27 @@ classdef PADeriver < handle
             
             % Filter panel
             orderOptions = (0:99)';
-            set(this.handles.menu_filterName,'string',this.FILTER_NAMES,'userdata',this.FILTER_NAMES,'value',find(strcmpi(this.FILTER_NAMES,this.filterOptions.name),1));
-            set(this.handles.menu_filterOrder,'string',num2str(orderOptions),'userdata',orderOptions,'value',find(orderOptions==this.filterOptions.order,1));
+            set(this.handles.menu_filterName,'string',this.FILTER_NAMES,'userdata',this.FILTER_NAMES,'value',find(strcmpi(this.FILTER_NAMES,this.filterOptions.name),1),'callback',@this.updatePlotsCallbackFcn);
+            set(this.handles.menu_filterOrder,'string',num2str(orderOptions),'userdata',orderOptions,'value',find(orderOptions==this.filterOptions.order,1),'callback',@this.updatePlotsCallbackFcn);
             set(this.handles.menu_filterWindow,'string',this.WINDOW_OPTIONS(:,1),'value',1,'userdata',this.WINDOW_OPTIONS(:,3),'tooltipstring',this.WINDOW_OPTIONS{1,3},'callback',@this.menuWindowChangeCallbackFcn);
             set(this.handles.edit_filterStartHz,'string',num2str(this.filterOptions.start),'callback',@this.edit_positiveNumericCallbackFcn);
             set(this.handles.edit_filterStopHz,'string',num2str(this.filterOptions.stop),'callback',@this.edit_positiveNumericCallbackFcn);
             
-            % Signal flow panel
+            %% Signal flow panel
+            % Raw panel
+
+            set(this.handles.menu_input_format,'string',this.SRC_FORMAT_LABELS,...
+                'userdata',this.SRC_FORMAT_FIELDS,...
+                'value',find(strcmpi(this.src_format,this.SRC_FORMAT_FIELDS),1),...
+                'callback',@this.updateSRC_FORMATCallbackFcn);
+            
             set(this.handles.menu_soi,'string',this.SOI_LABELS,'value',find(strcmpi(this.soi,this.SOI_FIELDS),1),'userdata',this.SOI_FIELDS,'callback',@this.updateSOICallbackFcn);
             filtfiltFlag = strcmpi('filtfilt',this.filterOptions.type);
             set(this.handles.radio_filtfilt,'value',filtfiltFlag);
             set(this.handles.buttongroup_filterType,'SelectionChangedFcn',@this.updatePlotsCallbackFcn);
             %             set(this.handles.radio_filter,'value',~filtfiltFlag);
             
+            % Filtered panel
             set(this.handles.check_filterAbsInput,'callback',@this.check_filterAbsInputCallback);
             set(this.handles.check_filterAbsOutput,'callback',@this.updatePlotsCallbackFcn);
             
@@ -243,9 +288,17 @@ classdef PADeriver < handle
             shiftStr = num2str(shiftVector);
             shiftValue = find(shiftVector==0,1);
             set([this.handles.menu_shiftRaw;
-                 this.handles.menu_shiftFiltered],'string',shiftStr,'userdata',shiftVector,'value',shiftValue,'callback',@this.menu_shiftByCallback);
-            
+                this.handles.menu_shiftFiltered],'string',shiftStr,'userdata',shiftVector,'value',shiftValue)
+            set(this.handles.menu_shiftRaw,'callback',@this.menu_shiftRawByCallback);
+            set(this.handles.menu_shiftFiltered,'callback',@this.menu_shiftFilteredByCallback);
+             
             set(this.handles.push_update,'callback',@this.updatePlotsCallbackFcn);
+            
+            % count derivation panel
+            set(this.handles.menu_countDeriveMethod,'string',this.DERIVE_LABELS,'userdata',this.DERIVE_TAGS,'value',find(strcmpi(this.DERIVE_TAGS,this.countOptions.deriveMethod),1),'callback',@this.updatePlotsCallbackFcn);
+
+            
+            
             
             this.initPlots();
         end
@@ -283,12 +336,12 @@ classdef PADeriver < handle
             this.showBusy('Loading binary data ...');
             %             set(this.figureH,'name','Loading binary data ...');
             %             drawnow();
-            this.dataObject.raw = PAData(raw_filename);
+            this.dataObject.raw = PADeriverData(raw_filename);
             
             this.showBusy('Loading count data ...');
             %             set(this.figureH,'name','Loading count data ...');
             %             drawnow();
-            this.dataObject.count = PAData(count_filename);
+            this.dataObject.count = PADeriverData(count_filename);
             
             %raw - sampled at 40 Hz
             %count - 1 Hz -> though upsampled from file to 40Hz during data object
@@ -358,9 +411,11 @@ classdef PADeriver < handle
             [this.data.filter, this.data.filtfilt] = this.acti_filter(inputData,this.filterOptions.name,this.filterOptions.order, this.filterOptions.windowFcn,wPass, this.filterOptions.dB);
             
             if(this.isFilterDelayShifted())
-                [this.data.filter, this.data.filtfilt] = this.adjustFilterOrderDelay(this.filterOptions.order, this.data.filter, this.data.filtfilt);
+                filterShift = this.getShiftBy('filtered');
+                this.data.filter = circshift(this.data.filter,filterShift);
+                this.data.filtfilt = circshift(this.data.filter,filterShift);
+                %                 [this.data.filter, this.data.filtfilt] = this.adjustFilterOrderDelay(this.filterOptions.order, this.data.filter, this.data.filtfilt);
             end
-            
             
             if(this.isFilterOutputAbs)
                 this.data.filter = abs(this.data.filter);
@@ -378,7 +433,16 @@ classdef PADeriver < handle
             
             samplesToCheck = 1:numel(this.data.raw);
             x=reshape(this.data.rawFiltered(samplesToCheck),this.samplerate.raw,[]);
-            this.data.rawCounts = sum(x); % sum down the columns
+            
+            deriveMethod = this.countOptions.deriveMethod;
+            switch(deriveMethod)
+                case 'sum'
+                    this.data.rawCounts = sum(x); % sum down the columns
+                case 'max'
+                    this.data.rawCounts = max(x);
+            end
+            this.data.rawCounts = max(0,[0,(diff(this.data.rawCounts))]);
+                    
             
             this.data.error = this.data.counts(:) - this.data.rawCounts(:);
         end
@@ -388,6 +452,17 @@ classdef PADeriver < handle
         end
         
         %% Callbacks
+        
+            
+        
+        function updateSRC_FORMATCallbackFcn(this, hObject, eventdata)
+            this.src_format = getMenuUserData(hObject);
+            this.data.raw = this.getDataInRange('raw');
+            this.data.counts = this.getDataInRange('counts');
+            this.updatePlots();
+        end
+            
+        
         function updateSOICallbackFcn(this, hObject, eventdata)
             this.soi = getMenuUserData(hObject);
             this.data.raw = this.getDataInRange('raw');
@@ -410,13 +485,9 @@ classdef PADeriver < handle
             csv_testFile = '704397t00c1.csv';
             %             raw_filename = fullfile(testingPath,bin_testFile);
             count_filename = fullfile(testingPath,csv_testFile);
-            
-            multiSelectFlag = 'off';
-            %     fullFilename = uigetfullfile({'*.csv','Counts data (*.csv)';'*.bin','Binary acceleration data (.bin)'},'Select a file with counts or acceleration',...
-            %         multiSelectFlag,initFile);
-            
+                        
             count_filename = uigetfullfile({'*.csv','Counts data (*.csv)'},'Select counts file',...
-                multiSelectFlag,count_filename);
+                count_filename);
             
             if(~isempty(count_filename))
                 
@@ -445,11 +516,16 @@ classdef PADeriver < handle
             this.updatePlots();
         end
         
-        function menu_shiftByCallback(this,hObject,eventData)        
+        function menu_shiftRawByCallback(this,hObject,eventData)        
             this.data.raw = this.getDataInRange('raw');
             this.updatePlots();
         end
 
+        function menu_shiftFilteredByCallback(this, varargin)
+            this.updatePlots();
+        end
+        
+        
         function check_filterAbsInputCallback(this,hObject,eventdata)
             this.data.raw = this.getDataInRange('raw');
             if(this.isFilterInputAbs())
@@ -457,6 +533,27 @@ classdef PADeriver < handle
             end
             this.updatePlots();
         end
+        
+        function edit_positiveNumericCallbackFcn(this,hObject,eventdata)
+            newValue = str2double(get(hObject,'string'));
+            if(isempty(newValue) || isnan(newValue) || newValue<0)
+                tag = get(hObject,'tag');
+                if(strcmpi(tag,'edit_filterStopHz'))
+                    set(hObject,'string',this.filterOptions.stopHz);
+                elseif(strcmpi(tag,'edit_filterStartHz'))
+                    set(hObject,'string',this.filterOptions.startHz);                    
+                else
+                    warndlg(sprintf('Unknown tag: %s',tag));
+                end
+                fprintf(1,'Bad value entered!\n');
+                
+            else
+                this.updatePlots();
+                %fprintf(1,'Good value entered\n');
+            end
+            
+        end
+        
         
         %% Misc support
                 % --------------------------------------------------------------------
@@ -517,6 +614,9 @@ classdef PADeriver < handle
             h_a = 1;
             bandPassMag = [0 1 1 0];
             switch(filterName)
+                case 'none'
+                    h_a = 1;
+                    h_b = 1;
                 case 'fir1'
                     wind = windowFcn(n_order+1);
 
@@ -571,15 +671,6 @@ classdef PADeriver < handle
             
         end
         
-        function edit_positiveNumericCallbackFcn(hObject,eventdata)
-            newValue = str2double(get(hObject,'string'));
-            if(isempty(newValue) || isnan(newValue) || newValue<0)
-                fprintf(1,'Bad value entered!\n');
-            else
-                %fprintf(1,'Good value entered\n');
-            end
-            
-        end
         
     end
     

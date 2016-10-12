@@ -30,7 +30,7 @@ classdef PACentroid < handle
         %> Struct with cluster calculation settings.  Fields include
         %> - @c minClusters
         %> - @c maxClusters
-        %> - @c thresholdScale        
+        %> - @c clusterThreshold        
         %> - @c method - {'kmeans' (Default),'kmedoids','kmedians'}
         settings;
         
@@ -178,6 +178,7 @@ classdef PACentroid < handle
                 settings.maxClusters = ceil(N/2);
                 settings.clusterThreshold = 0.2;
                 settings.clusterMethod = 'kmeans';
+                settings.useDefaultRandomizer = false;
             end
             if(~isempty(textHandle) && ishandle(textHandle) && strcmpi(get(textHandle,'type'),'uicontrol') && strcmpi(get(textHandle,'style'),'text'))
                 this.statusTextHandle = textHandle;
@@ -204,10 +205,6 @@ classdef PACentroid < handle
             end
             
             this.performanceMeasure = [];
-            this.settings.thresholdScale = settings.clusterThreshold;
-            %/ Do not let K start off higher than 
-            % And don't let it fall to less than 1.
-            this.settings.minClusters = max(1,min(floor(size(loadShapes,1)/2),settings.minClusters));
             
             if(isfield(settings,'maxCluster'))                
                 maxClusters = settings.maxClusters;
@@ -220,7 +217,15 @@ classdef PACentroid < handle
             end
             
             this.settings.clusterMethod = settings.clusterMethod;
+            
+            %/ Do not let K start off higher than 
+            % And don't let it fall to less than 1.
+            this.settings.minClusters = max(1,min(floor(size(loadShapes,1)/2),settings.minClusters));
             this.settings.maxClusters = maxClusters;
+            
+            this.settings.clusterThreshold = settings.clusterThreshold;
+            
+            
             this.loadShapes = loadShapes;
             this.loadShapeIDs = loadShapeIDs;
             this.loadShapeDayOfWeek = loadShapeDayOfWeek;
@@ -588,26 +593,25 @@ classdef PACentroid < handle
                     inputLoadShapes = this.loadShapes;
                 end
             end
-            useDefaultRandomizerSeed = true;
             
             %             inputSettings.clusterMethod = 'kmedians';
             % inputSettings.clusterMethod = 'kmedoids';
             if(strcmpi(inputSettings.clusterMethod,'kmedians'))
                 if(ishandle(this.statusTextHandle))
-                    set(this.statusTextHandle ,'string',{sprintf('Performing accelerated k-medians clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.thresholdScale)});
+                    set(this.statusTextHandle ,'string',{sprintf('Performing accelerated k-medians clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.clusterThreshold)});
                 end
                 [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression] = deal([],[],[],[]);
             elseif(strcmpi(inputSettings.clusterMethod,'kmedoids'))
                 if(ishandle(this.statusTextHandle))
-                    set(this.statusTextHandle ,'string',{sprintf('Performing adaptive k-medoids clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.thresholdScale)});
+                    set(this.statusTextHandle ,'string',{sprintf('Performing adaptive k-medoids clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.clusterThreshold)});
                 end
-                [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression] = this.adaptiveKmedoids(inputLoadShapes,inputSettings, useDefaultRandomizerSeed,this.performanceAxesHandle,this.statusTextHandle);
+                [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression] = this.adaptiveKmedoids(inputLoadShapes,inputSettings,this.performanceAxesHandle,this.statusTextHandle);
             elseif(strcmpi(inputSettings.clusterMethod,'kmeans'))
                 
                 if(ishandle(this.statusTextHandle))
-                    set(this.statusTextHandle ,'string',{sprintf('Performing adaptive k-means clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.thresholdScale)});
+                    set(this.statusTextHandle ,'string',{sprintf('Performing adaptive k-means clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.clusterThreshold)});
                 end
-                [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression] = this.adaptiveKmeans(inputLoadShapes,inputSettings, useDefaultRandomizerSeed,this.performanceAxesHandle,this.statusTextHandle);
+                [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression] = this.adaptiveKmeans(inputLoadShapes,inputSettings,this.performanceAxesHandle,this.statusTextHandle);
             end
             
             if(~isempty(this.centroidShapes))                
@@ -704,14 +708,14 @@ classdef PACentroid < handle
         %> default values]
         %> - @c minClusters [40]  Used to set initial K
         %> - @c maxClusters [0.5*N]
-        %> - @c thresholdScale [1.5]
+        %> - @c clusterThreshold [1.5]
         %> - @c method  'kmedoids'
-        %> @param Boolean
-        %> @param Boolean Set randomizer seed to default
-        %> - @c true Use 'default' for randomizer (rng)
-        %> - @c false (default) Do not update randomizer seed (rng).
-        %> - @c true Display calinski index at each adaptive k-mediods iteration (slower)
-        %> - @c false (default) Do not calcuate Calinzki index.
+        %> - @c useDefaultRandomizer boolean to set randomizer seed to default
+        %> -- @c true Use 'default' for randomizer (rng)
+        %> -- @c false (default) Do not update randomizer seed (rng).
+        %> @param performanceAxesH GUI handle to display Calinzki index at each iteration (optional)
+        %> @note When included, display calinski index at each adaptive k-mediods iteration which is slower.
+        %> @param textStatusH GUI text handle (ui control) to display updates at each iteration (optional)
         %> @retval idx = Rx1 vector of cluster indices that the matching (i.e. same) row of the loadShapes is assigned to.
         %> @retval centroids - KxC matrix of cluster centroids.
         %> @retval The Calinski index for the returned idx and centroids
@@ -719,30 +723,29 @@ classdef PACentroid < handle
         %> cluster sizes and corresponding Calinksi indices obtained for
         %> each iteration of k means.
         % ======================================================================
-        function [idx, centroids, performanceIndex, performanceProgression] = adaptiveKmedoids(this,loadShapes,settings,defaultRandomizer,performanceAxesH,textStatusH)
+        function [idx, centroids, performanceIndex, performanceProgression] = adaptiveKmedoids(this,loadShapes,settings,performanceAxesH,textStatusH)
             performanceIndex = [];
             X = [];
             Y = [];
             idx = [];
             
             % argument checking and validation ....
-            if(nargin<6)
+            if(nargin<5)
                 textStatusH = -1;
-                if(nargin<5)
+                if(nargin<4)
                     performanceAxesH = -1;
-                    if(nargin<4)
-                        defaultRandomizer = false;
-                        if(nargin<3)
-                            settings.minClusters = 40;
-                            settings.maxClusters = size(loadShapes,1)/2;
-                            settings.thresholdScale = 5; %higher threshold equates to fewer clusters.
-                            settings.clusterMethod = 'kmedoids';
-                        end
+                    if(nargin<3)                        
+                        settings.useDefaultRandomizer = false;
+                        settings.minClusters = 40;
+                        settings.maxClusters = size(loadShapes,1)/2;
+                        settings.clusterThreshold = 5; %higher threshold equates to fewer clusters.
+                        settings.clusterMethod = 'kmedoids';
                     end
                 end
             end
             
-            if(defaultRandomizer)
+            
+            if(settings.useDefaultRandomizer)
                 rng('default');  % To get same results from run to run...
             end
             
@@ -873,7 +876,7 @@ classdef PACentroid < handle
                     distanceToCentroids = pointToClusterDistances(point2centroidDistanceIndices);
                     sqEuclideanCentroids = (sum(centroids.^2,2));
                     
-                    clusterThresholds = settings.thresholdScale*sqEuclideanCentroids;
+                    clusterThresholds = settings.clusterThreshold*sqEuclideanCentroids;
                     notCloseEnoughPoints = distanceToCentroids>clusterThresholds(idx);
                     notCloseEnoughClusters = unique(idx(notCloseEnoughPoints));
                     
@@ -974,14 +977,14 @@ classdef PACentroid < handle
         %> default values]
         %> - @c minClusters [40]  Used to set initial K
         %> - @c maxClusters [0.5*N]
-        %> - @c thresholdScale [1.5]
+        %> - @c clusterThreshold [1.5]
         %> - @c method  'kmeans'
-        %> @param Boolean
-        %> @param Boolean Set randomizer seed to default
-        %> - @c true Use 'default' for randomizer (rng)
-        %> - @c false (default) Do not update randomizer seed (rng).
-        %> - @c true Display calinski index at each adaptive k-means iteration (slower)
-        %> - @c false (default) Do not calcuate Calinzki index.
+        %> - @c useDefaultRandomizer (boolean) Set randomizer seed to default
+        %> -- @c true Use 'default' for randomizer (rng)
+        %> -- @c false (default) Do not update randomizer seed (rng).
+        %> @param performanceAxesH GUI handle to display Calinzki index at each iteration (optional)
+        %> @note When included, display calinski index at each adaptive k-mediods iteration which is slower.
+        %> @param textStatusH GUI text handle (ui control) to display updates at each iteration (optional)
         %> @retval idx = Rx1 vector of cluster indices that the matching (i.e. same) row of the loadShapes is assigned to.
         %> @retval centroids - KxC matrix of cluster centroids.
         %> @retval The Calinski index for the returned idx and centroids
@@ -989,7 +992,7 @@ classdef PACentroid < handle
         %> cluster sizes and corresponding Calinksi indices obtained for
         %> each iteration of k means.
         % ======================================================================
-        function [idx, centroids, performanceIndex, performanceProgression] = adaptiveKmeans(this,loadShapes,settings,defaultRandomizer,performanceAxesH,textStatusH)
+        function [idx, centroids, performanceIndex, performanceProgression] = adaptiveKmeans(this,loadShapes,settings,performanceAxesH,textStatusH)
             performanceIndex = [];
             X = [];
             Y = [];
@@ -997,23 +1000,22 @@ classdef PACentroid < handle
             
             
             % argument checking and validation ....
-            if(nargin<6)
+            if(nargin<5)
                 textStatusH = -1;
-                if(nargin<5)
+                if(nargin<4)
                     performanceAxesH = -1;
-                    if(nargin<4)
-                        defaultRandomizer = false;
-                        if(nargin<3)
-                            settings.minClusters = 40;
-                            settings.maxClusters = size(loadShapes,1)/2;
-                            settings.thresholdScale = 5; %higher threshold equates to fewer clusters.
-                            settings.clusterMethod = 'kmeans';
-                        end
+                    if(nargin<3)
+                        settings.useDefaultRandomizer = false;
+                        settings.minClusters = 40;
+                        settings.maxClusters = size(loadShapes,1)/2;
+                        settings.clusterThreshold = 5; %higher threshold equates to fewer clusters.
+                        settings.clusterMethod = 'kmeans';
+                        
                     end
                 end
             end
             
-            if(defaultRandomizer)
+            if(settings.useDefaultRandomizer)
                 rng('default');  % To get same results from run to run...
             end
             
@@ -1158,7 +1160,7 @@ classdef PACentroid < handle
                     distanceToCentroids = pointToClusterDistances(point2centroidDistanceIndices);
                     sqEuclideanCentroids = (sum(centroids.^2,2));
                     
-                    clusterThresholds = settings.thresholdScale*sqEuclideanCentroids;
+                    clusterThresholds = settings.clusterThreshold*sqEuclideanCentroids;
                     notCloseEnoughPoints = distanceToCentroids>clusterThresholds(idx);
                     notCloseEnoughClusters = unique(idx(notCloseEnoughPoints));
                     

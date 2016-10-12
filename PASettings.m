@@ -359,6 +359,10 @@ classdef  PASettings < handle
                     % Here we go now...
                     % obj = PAData.mergeStruct(obh,paramStruct);
                     
+                    % This appears to obtain file from odd location
+                    % determined when the program is first installed.
+                    % warndlg(sprintf('Loading %s',full_paramsFile));
+                    
                     fnames = fieldnames(paramStruct);
                     
                     if(isempty(fnames))

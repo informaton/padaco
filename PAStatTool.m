@@ -1,6 +1,6 @@
 % ======================================================================
 %> @file PAStatTool.cpp
-%> @brief PAStatTool serves as Padaco's batch results analsysis controller
+%> @brief PAStatTool serves as Padaco's batch results analysis controller
 % ======================================================================
 classdef PAStatTool < handle
     events
@@ -2853,7 +2853,7 @@ classdef PAStatTool < handle
             %     urhere = ftell(fid);
             %     fseek(fid,urhere,'bof');
             
-            % +3 because of datenum and start date of the week that precede the
+            % +3 because of study id, datenum, and start date of the week that precede the
             % time stamps.
             scanStr = repmat(' %f',1,numCols+3);
             
@@ -2933,8 +2933,7 @@ classdef PAStatTool < handle
             paramStruct.trimToPercent = 100;
             paramStruct.cullToValue = 0;
             paramStruct.showCentroidMembers = 0;
-            paramStruct.minClusters = 40;
-            paramStruct.clusterThreshold = 1.5;
+            
             paramStruct.weekdaySelection = 1;
             paramStruct.startTimeSelection = 1;
             paramStruct.stopTimeSelection = -1;
@@ -2945,11 +2944,15 @@ classdef PAStatTool < handle
             paramStruct.primaryAxis_yLimMode = 'auto';
             paramStruct.primaryAxis_nextPlot = 'replace';
             paramStruct.showAnalysisFigure = 0; % do not display the other figure at first
-            paramStruct.centroidDistributionType = 'membership';  %{'performance','membership','weekday'}
+            paramStruct.centroidDistributionType = 'membership';  %{'performance','membership','weekday'}            
+            paramStruct.profileFieldSelection = 1;            
             
-            paramStruct.profileFieldSelection = 1;
-            
+            % Cluster settings
             paramStruct.clusterMethod = 'kmeans';  % {'kmeans','kmedoids'}
+            paramStruct.minClusters = 40;
+            paramStruct.clusterThreshold = 1.5;
+            paramStruct.useDefaultRandomizer = true;
+            
         end
         
         % ======================================================================

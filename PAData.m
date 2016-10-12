@@ -97,7 +97,7 @@ classdef PAData < handle
         
     end
     
-    properties (Access = private)
+    properties (Access = protected)
         %> @brief Pathname of file containing accelerometer data.
         pathname;
         %> @brief Name of file containing accelerometer data that is loaded.
@@ -949,7 +949,7 @@ classdef PAData < handle
         end
         
         % ======================================================================
-        %> @brief Returns the private intance variable windowDurSec.
+        %> @brief Returns the protected intance variable windowDurSec.
         %> @param obj Instance of PAData
         %> @retval windowDurationSec The value of windowDurSec
         % =================================================================
@@ -2319,7 +2319,7 @@ classdef PAData < handle
         
     end
     
-    methods (Access = private)
+    methods (Access = protected)
         
         % ======================================================================
         %> @brief Loads raw accelerometer data from binary file produced via
@@ -2347,7 +2347,7 @@ classdef PAData < handle
                 
                 if(fid>0)
                     
-                    encodingEPS = 1/341; %from trial and error - or math
+                    encodingEPS = 1/341; %from trial and error - or math:  341*3 == 1023; this is 10 bits across three vlues
                     precision = 'ubit12=>double';
                     
                     

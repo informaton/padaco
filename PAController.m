@@ -8,9 +8,10 @@
 %> controller.
 classdef PAController < handle
     properties(Constant)
-        versionNum = 1.6;
+        versionMatFilename = 'version.chk';
     end
     properties(Access=private)
+        versionNum;
         %> @brief Vector for keeping track of the feature handles that are
         %> displayed on the secondary axes field.
         featureHandles;
@@ -104,6 +105,7 @@ classdef PAController < handle
             obj.screenshotPathname = obj.SETTINGS.CONTROLLER.screenshotPathname;
             obj.resultsPathname = obj.SETTINGS.CONTROLLER.resultsPathname;
             
+            obj.setVersionNum();
             obj.accelTypeShown = [];
             obj.figureH = Padaco_fig_h;
             if(ishandle(obj.figureH))
@@ -405,7 +407,7 @@ classdef PAController < handle
         function menuHelpFAQCallback(this,hObject,eventdata)
             %msg = sprintf('Help FAQ');
             this.VIEW.showBusy('Initializing help');
-            filename = fullfile(this.SETTINGS.rootpathname,'html','PadacoFAQ.html');
+            filename = fullfile(this.SETTINGS.rootpathname,'resources/html','PadacoFAQ.html');
             url = sprintf('file://%s',filename);
             %             web(url,'-notoolbar','-noaddressbox');
             htmldlg('url',url);
@@ -422,12 +424,33 @@ classdef PAController < handle
         %> @param eventdata
         % --------------------------------------------------------------------
         function menuFileAboutCallback(obj,hObject,eventdata)
-            msg = sprintf(['Padaco version %0.2f\n',...
-                '\nSponsored by Stanford University\nin a collaborative effort between\nStanford Pediatric''s Solution Science Lab and\nCivil Engineering''s Sustainable Energy Lab.\n',...
-                '\nSoftware license: To be decided',...
+            
+            msg = sprintf(['Padaco version %s\n',...
+                '\nA collaborative effort between:',...
+                '\n\t1. Stanford''s Pediatric''s Solution Science Lab',...
+                '\n\t2. Stanford''s Civil Engineering''s Sustainable Energy Lab',...
+                '\n\t3. Stanford''s Quantitative Science Unit',...
+                '\n\nSoftware license: To be decided',...
                 '\nCopyright Hyatt Moore IV (2014-2016)\n'
-                ],obj.versionNum);
-            msgbox(msg);
+                ],obj.getVersionNum());
+            h=msgbox(msg,'About');
+            
+            mbox_h=findobj(h,'tag','MessageBox');
+            ok_h = findobj(h,'tag','OKButton');
+            if(~isempty(mbox_h))
+                mpos = get(h,'position');
+                set(h,'visible','off');
+                set(mbox_h,'fontname','arial','fontsize',12');
+                set(h,'position',[mpos(1:2), mpos(3:4)*12/10]);
+                
+                axes_h = get(mbox_h,'parent');
+                apos = get(axes_h,'position');
+                set(axes_h,'position',apos*12/10);
+                
+                okPos = get(ok_h,'position');
+                set(ok_h,'position',okPos*12/10,'fontsize',12);
+                set(h,'visible','on');
+            end
         end
         
         
@@ -830,6 +853,8 @@ classdef PAController < handle
             set(hObject,'enable','on');
         end
         
+
+        
         % --------------------------------------------------------------------
         %> @brief Retrieves current prefilter method from the GUI
         %> @param obj Instance of PAController
@@ -1130,7 +1155,12 @@ classdef PAController < handle
         function menuFileOpenCallback(obj,hObject,eventdata)
             %DATA.pathname	/Volumes/SeaG 1TB/sampleData/csv
             %DATA.filename	700023t00c1.csv.csv
-            f=uigetfullfile({'*.csv;*.raw;*.bin','All (counts, raw accelerations)';'*.csv','Comma Separated Values';'*.bin','Raw Acceleration (binary format: firmwares 2.2.1, 2.5.0, and 3.1.0)';'*.raw','Raw Acceleration (comma separated values)';'*.gt3x','Raw GT3X binary'},'Select a file','off',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
+            f=uigetfullfile({'*.csv;*.raw;*.bin','All (counts, raw accelerations)';
+                '*.csv','Comma Separated Values';
+                '*.bin','Raw Acceleration (binary format: firmwares 2.2.1, 2.5.0, and 3.1.0)';
+                '*.raw','Raw Acceleration (comma separated values)';
+                '*.gt3x','Raw GT3X binary'},...
+                'Select a file',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
             try
                 if(~isempty(f))
                     %                     if(~strcmpi(obj.getViewMode(),'timeseries'))
@@ -1177,7 +1207,9 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function menuFileOpenFitBitCallback(obj,hObject,eventdata)
             
-            f=uigetfullfile({'*.txt;*.fbit','Fitbit';'*.csv','Comma Separated Values'},'Select a file','off',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
+            f=uigetfullfile({'*.txt;*.fbit','Fitbit';
+                '*.csv','Comma Separated Values'},...
+                'Select a file',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
             try
                 if(~isempty(f))
 
@@ -1435,6 +1467,7 @@ classdef PAController < handle
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
         function menuViewmodeBatchCallback(obj,hObject,eventdata)
+            
             batchTool = PABatchTool(obj.SETTINGS.BATCH);
             batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
             batchTool.addlistener('SwitchToResults',@obj.setResultsViewModeCallback);
@@ -1785,6 +1818,26 @@ classdef PAController < handle
     end
     
     methods(Access=private)
+        
+        % --------------------------------------------------------------------
+        %> @brief Initializes the version number based on internal file
+        %> specified by variable @c versionMatFilename.
+        %> @param obj Instance of PAController
+        % --------------------------------------------------------------------
+        function setVersionNum(obj)
+            versionStruct = obj.getVersionInfo();
+            obj.versionNum = versionStruct.num;
+        end
+        
+        
+        % --------------------------------------------------------------------
+        %> @brief Returns the current version number as a string.
+        %> @param obj Instance of PAController
+        %> @retval versionNum String value of Padaco's current version.
+        % --------------------------------------------------------------------
+        function versionNum = getVersionNum(obj)
+            versionNum = obj.versionNum;
+        end
         
         % --------------------------------------------------------------------
         %> @brief Initializes the display for accelerometer data viewing
@@ -2591,7 +2644,34 @@ classdef PAController < handle
     end
     
     methods (Static)
-                % =================================================================
+        % --------------------------------------------------------------------
+        %> @brief Returns version info in a struct.
+        %> @param Optional string tag identifying a single parameter to be
+        %> returned.  The tag request must match a structure field name of
+        %> versionInfo.  See below.  
+        %> @retval versionInfo Struct values include
+        %> - @c num The version number (string)
+        % --------------------------------------------------------------------
+        function versionInfo = getVersionInfo(tagRequest)
+            if(exist(PAController.versionMatFilename,'file'))
+                try
+                    versionInfo = load(PAController.versionMatFilename,'-mat');
+                catch me
+                    showME(me);
+                    versionInfo.num = '1.NA';
+                end
+            else
+                versionInfo.num = '1.NA';
+            end
+            
+            if(nargin > 0 && isfield(versionInfo,tagRequest))
+                versionInfo = versionInfo.(tagRequest);
+            end
+                
+            
+        end
+
+        % =================================================================
         %> @brief Copy the selected (feature) linehandle's ydata to the system
         %> clipboard.
         %> @param obj Instance of PAController
