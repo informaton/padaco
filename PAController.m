@@ -11,6 +11,7 @@ classdef PAController < handle
         versionMatFilename = 'version.chk';
     end
     properties(Access=private)
+        versionNum;
         %> @brief Vector for keeping track of the feature handles that are
         %> displayed on the secondary axes field.
         featureHandles;
@@ -104,6 +105,7 @@ classdef PAController < handle
             obj.screenshotPathname = obj.SETTINGS.CONTROLLER.screenshotPathname;
             obj.resultsPathname = obj.SETTINGS.CONTROLLER.resultsPathname;
             
+            obj.setVersionNum();
             obj.accelTypeShown = [];
             obj.figureH = Padaco_fig_h;
             if(ishandle(obj.figureH))
@@ -422,25 +424,15 @@ classdef PAController < handle
         %> @param eventdata
         % --------------------------------------------------------------------
         function menuFileAboutCallback(obj,hObject,eventdata)
-            if(exist(obj.versionMatFilename,'file'))
-                try
-                    versionS = load(obj.versionMatFilename,'-mat');
-                    versionNum = versionS.num;
-                catch me
-                    showME(me);
-                    versionNum = '1.NA';
-                end
-            else
-                versionNum = '1.NA';
-            end
-            msg = sprintf(['Padaco version %0.2f\n',...
+            
+            msg = sprintf(['Padaco version %s\n',...
                 '\nA collaborative effort between:',...
                 '\n\t1. Stanford''s Pediatric''s Solution Science Lab',...
                 '\n\t2. Stanford''s Civil Engineering''s Sustainable Energy Lab',...
                 '\n\t3. Stanford''s Quantitative Science Unit',...
                 '\n\nSoftware license: To be decided',...
                 '\nCopyright Hyatt Moore IV (2014-2016)\n'
-                ],versionNum);
+                ],obj.getVersionNum());
             h=msgbox(msg,'About');
             
             mbox_h=findobj(h,'tag','MessageBox');
@@ -860,6 +852,8 @@ classdef PAController < handle
             obj.VIEW.showReady('secondary');
             set(hObject,'enable','on');
         end
+        
+
         
         % --------------------------------------------------------------------
         %> @brief Retrieves current prefilter method from the GUI
@@ -1473,6 +1467,7 @@ classdef PAController < handle
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
         function menuViewmodeBatchCallback(obj,hObject,eventdata)
+            
             batchTool = PABatchTool(obj.SETTINGS.BATCH);
             batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
             batchTool.addlistener('SwitchToResults',@obj.setResultsViewModeCallback);
@@ -1823,6 +1818,26 @@ classdef PAController < handle
     end
     
     methods(Access=private)
+        
+        % --------------------------------------------------------------------
+        %> @brief Initializes the version number based on internal file
+        %> specified by variable @c versionMatFilename.
+        %> @param obj Instance of PAController
+        % --------------------------------------------------------------------
+        function setVersionNum(obj)
+            versionStruct = obj.getVersionInfo();
+            obj.versionNum = versionStruct.num;
+        end
+        
+        
+        % --------------------------------------------------------------------
+        %> @brief Returns the current version number as a string.
+        %> @param obj Instance of PAController
+        %> @retval versionNum String value of Padaco's current version.
+        % --------------------------------------------------------------------
+        function versionNum = getVersionNum(obj)
+            versionNum = obj.versionNum;
+        end
         
         % --------------------------------------------------------------------
         %> @brief Initializes the display for accelerometer data viewing
@@ -2629,7 +2644,34 @@ classdef PAController < handle
     end
     
     methods (Static)
-                % =================================================================
+        % --------------------------------------------------------------------
+        %> @brief Returns version info in a struct.
+        %> @param Optional string tag identifying a single parameter to be
+        %> returned.  The tag request must match a structure field name of
+        %> versionInfo.  See below.  
+        %> @retval versionInfo Struct values include
+        %> - @c num The version number (string)
+        % --------------------------------------------------------------------
+        function versionInfo = getVersionInfo(tagRequest)
+            if(exist(PAController.versionMatFilename,'file'))
+                try
+                    versionInfo = load(PAController.versionMatFilename,'-mat');
+                catch me
+                    showME(me);
+                    versionInfo.num = '1.NA';
+                end
+            else
+                versionInfo.num = '1.NA';
+            end
+            
+            if(nargin > 0 && isfield(versionInfo,tagRequest))
+                versionInfo = versionInfo.(tagRequest);
+            end
+                
+            
+        end
+
+        % =================================================================
         %> @brief Copy the selected (feature) linehandle's ydata to the system
         %> clipboard.
         %> @param obj Instance of PAController

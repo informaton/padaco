@@ -678,9 +678,10 @@ classdef PABatchTool < handle
                     end;
                     
                     dlgName = 'Errors found';
-                    options.Default = showResultsStr;
                     showLogFileStr = 'Open log file';
                     returnToBatchToolStr = 'Return to batch tool';
+                    options.Default = showLogFileStr;
+
                     options.Interpreter = 'none';
                     buttonName = questdlg(batchResultStr,dlgName,showLogFileStr,returnToBatchToolStr,options);
                     switch buttonName
@@ -789,7 +790,9 @@ classdef PABatchTool < handle
             logFilename = strrep(settings.logFilename,'@TIMESTAMP',startDateTime);
             logFullFilename = fullfile(settings.outputDirectory,logFilename);
             logFID = fopen(logFullFilename,'w');
+            versionStr = PAController.getVersionInfo('num');
             fprintf(logFID,'Padaco batch processing log\nStart time:\t%s\n',startDateTime);
+            fprintf(logFID,'Padaco version %s\n',versionStr);
             fprintf(logFID,'Source directory:\t%s\n',settings.sourceDirectory);
             fprintf(logFID,'Output directory:\t%s\n',settings.outputDirectory);
             fprintf(logFID,'Features:\t%s\n',settings.featureLabel);
