@@ -679,7 +679,7 @@ classdef PACentroid < handle
         %> keys.
         %> - @c memberIDs Nx1 array of unique keys corresponding to each row.
         %> - @c colnames 1xM cell string of names describing the covariate columns.
-        function covariateStruct = getCovariateStruct(this)
+        function covariateStruct = getCovariateStruct(this,optionalCOISortOrder)
             subjectIDs = this.getUniqueLoadShapeIDs(); %    unique(this.loadShapeIDs);
             numSubjects = numel(subjectIDs);
             
@@ -702,7 +702,10 @@ classdef PACentroid < handle
             colnames = regexp(sprintf('Centroid #%u\n',1:this.numCentroids),'\n','split');            
 
             colnames(end) = [];  %remove the last cell entry which will be empty.
-            
+            if(nargin>1 && ~isempty(optionalCOISortOrder))
+                values = values(:,optionalCOISortOrder);
+                colnames = colnames(optionalCOISortOrder);
+            end
             covariateStruct.memberIDs = subjectIDs;
             covariateStruct.values = values;
             covariateStruct.colnames = colnames;

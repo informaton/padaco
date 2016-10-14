@@ -142,7 +142,6 @@ classdef PAStatTool < handle
                 widgetSettings.useDatabase = false;
             end
             
-            this.setUseDatabase(widgetSettings.useDatabase);
             
             
             
@@ -164,6 +163,7 @@ classdef PAStatTool < handle
 
             initializeOnSet = false;
             this.setWidgetSettings(widgetSettings, initializeOnSet);
+            
             this.originalFeatureStruct = [];
             this.canPlot = false;
             this.featuresDirectory = [];
@@ -1421,7 +1421,7 @@ classdef PAStatTool < handle
                dependentVar = this.getProfileFieldSelection();
 %                'bmi_zscore'
 %                'bmi_zscore+'  %for logistic regression modeling
-               resultStr = gee_model(this.centroidObj.getCovariateStruct(),dependentVar,{'age'; '(sex=1) as male'});
+               resultStr = gee_model(this.centroidObj.getCovariateStruct(this.centroidObj.getCOISortOrder()),dependentVar,{'age'; '(sex=1) as male'});
                if(~isempty(resultStr))
                    msgbox(resultStr);
                end
