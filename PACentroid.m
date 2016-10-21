@@ -416,6 +416,25 @@ classdef PACentroid < handle
             performance = this.performanceMeasure;
         end
                 
+        %==================================================================
+        %> @brief Returns all member shapes and associated day of week
+        %> for the corresponding memberID
+        %> @param this Instance of PACentroid.
+        %> @param memberID The ID of the member shapes to retrieve.
+        %> @retval NxM matrix of N member shapes of length M attributed to memberID
+        %> @retval Nx1 vector containing day of week that the nth load shape occurred on.  
+        %> @retval Nx1 vector containing centroid index corresponding to the nth loadshape.
+        %> @retval NxM matrix of N centroids associated with the N member shapes attributed to memberID        
+        function [memberLoadShapes, memberLoadShapeDayOfWeek, memberCentroidInd, memberCentroidShapes] = getMemberShapesForID(this, memberID)
+            matchInd = memberID==this.loadShapeIDs;
+            memberLoadShapes = this.loadShapes(matchInd,:);
+            memberLoadShapeDayOfWeek = this.loadShapeDayOfWeek(matchInd);
+            
+            memberCentroidInd = this.loadshapeIndex2centroidIndexMap(matchInd);
+            
+            %> CxM array of C centroids of size M.
+            memberCentroidShapes = this.centroidShapes(memberCentroidInd,:);
+        end
         
         %==================================================================
         %> @brief Returns the index of centroid matching the current sort

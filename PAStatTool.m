@@ -10,6 +10,9 @@ classdef PAStatTool < handle
     
     properties(Constant)
        RESULTS_CACHE_FILENAME = 'results.tmp';
+       COLOR_MEMBERSHAPE = [0.85 0.85 0.85];
+       COLOR_LINESELECTION = [0.8 0.1 0.1];
+       COLOR_MEMBERID = [0.1 0.1 0.8];
     end
     properties(Access=private)
         resultsDirectory;
@@ -46,8 +49,8 @@ classdef PAStatTool < handle
         %> been load (i.e. and populates the dropdown menus.
         originalWidgetSettings;
         %> structure loaded features which is as current or as in sync with the gui settings 
-        %> as of the last time the 'Calculate' button was pressed.
-        %> manipulated 
+        %> as of the last time the 'Calculate' button was
+        %> pressed/manipulated.
         featureStruct;
         
         %> structure containing Usage Activity feature output by padaco's batch tool.
@@ -57,6 +60,7 @@ classdef PAStatTool < handle
         
         %> struct of handles that PAStatTool interacts with.  See
         %> initHandles()
+        %> Includes contextmenu
         handles; 
         
         %> Struct of java component peers to some graphic handles listed
@@ -408,7 +412,16 @@ classdef PAStatTool < handle
                 loadFileRequired = isempty(this.originalFeatureStruct) || ~strcmpi(inputFilename,this.originalFeatureStruct.filename);                    
                 if(loadFileRequired)
                     this.originalFeatureStruct = this.loadAlignedFeatures(inputFilename);                    
-                    [pSettings.startTimeSelection, pSettings.stopTimeSelection] = this.setStartTimes(this.originalFeatureStruct.startTimes);
+                    
+                    % The call to setStartTimes here is no longer
+                    % necessary here, if it ever was.  It results in
+                    % updating the start/stop GUI times with the original
+                    % widget settings that PAStatTool was constructed with,
+                    % which may very well be different than those loaded
+                    % now.  The problem of having a directory or file with
+                    % start/stop times outside the GUI range may still need
+                    % to be addressed at some point, somehow.
+                    %[pSettings.startTimeSelection, pSettings.stopTimeSelection] = this.setStartTimes(this.originalFeatureStruct.startTimes);
                 end
                 
                 tmpFeatureStruct = this.originalFeatureStruct;
@@ -703,7 +716,40 @@ classdef PAStatTool < handle
     end
     
     methods(Access=private)
+        % Methods are interfacing with membershape lines of a cluster.
+        %> @brief Selected membershape's contextmenu callback for drawing
+        %> all membershapes associated with the ID.
+        function showSelectedMemberShapesCallback(this, ~,~)
+            lineH = get(this.figureH,'currentObject');
+            memberID = get(lineH,'userdata');
+            [memberLoadShapes, memberLoadShapeDayOfWeek, memberCentroidInd, memberCentroidShapes] = this.centroidObj.getMemberShapesForID(memberID);
+            
+            nextPlot = get(this.handles.axes_primary,'nextplot');
+            set(this.handles.axes_primary,'nextplot','add');
+            plot(this.handles.axes_primary,memberLoadShapes','--','linewidth',1,'color', this.COLOR_MEMBERID);
+            set(this.handles.axes_primary,'nextplot',nextPlot);
+            %            msgbox(sprintf('Member ID: %u',memberID));
+        end
         
+        %> @brief Selected membershape's line selection callback for when a user clicks 
+        %> on the line handle with the mouse.
+        %> @param Instance of PAStatTool
+        %> @param Handle to the line
+        %> @param Event data (not used)
+        %> @param Numeric identifier for the member shape (i.e. of the
+        %> subject, or subjectID it is associated with).
+        function memberLineButtonDownCallback(this,lineH,~, memberID)
+            if(strcmpi(get(lineH,'selected'),'off'))
+                set(lineH,'selected','on','color',this.COLOR_LINESELECTION);
+                
+
+            % Toggle off
+            else
+                set(lineH,'selected','off','color',this.COLOR_MEMBERSHAPE);
+            end
+        end
+        
+        %> @brief Database functionality
         function didSet = setUseDatabase(this, willSet)
             if(nargin>1)
                 this.useDatabase = willSet && true;
@@ -1784,6 +1830,13 @@ classdef PAStatTool < handle
                     tmpHandles.panel_plotSignal;
                     tmpHandles.panel_plotData
                 ];
+            
+            % add a context menu now to figureH in order to use with centroid load
+            % shape line handles.
+            this.handles.contextmenu.clusterLineMember = uicontextmenu('parent',this.figureH);
+            uimenu(this.handles.contextmenu.clusterLineMember,'Label','Show all from this subject','callback',@this.showSelectedMemberShapesCallback);
+            
+
         end
         
         % ======================================================================
@@ -2309,7 +2362,7 @@ classdef PAStatTool < handle
             enablehandles(this.handles.panel_controlCentroid);  
             %             set(findall(this.handles.panel_plotCentroid,'enable','off'),'enable','on');
             
-            % add a context menu now to primary axes
+            % add a context menu now to primary axes            
             contextmenu_primaryAxes = uicontextmenu('parent',this.figureH);
 
             horizontalGridMenu = uimenu(contextmenu_primaryAxes,'Label','Horizontal grid','callback',@this.primaryAxesHorizontalGridContextmenuCallback);
@@ -2436,7 +2489,13 @@ classdef PAStatTool < handle
                     for c=1:numCOIs
                         coi = cois{c};
                         if(centroidAndPlotSettings.showCentroidMembers)
-                            plot(centroidAxes,coi.dayOfWeek.memberShapes','-','linewidth',1,'color',[0.85 0.85 0.85]);
+                            membersLineH = plot(centroidAxes,coi.dayOfWeek.memberShapes','-','linewidth',1,'color',this.COLOR_MEMBERSHAPE);
+                            if(coi.numMembers<50)
+                                for m=1:coi.numMembers
+                                    set(membersLineH,'uicontextmenu',this.handles.contextmenu.clusterLineMember,'userdata',coi.memberIDs(m),'buttondownfcn',{@this.memberLineButtonDownCallback,coi.memberIDs(m)});
+                                end
+                            end
+                            
                         end
                         pctMembership =  coi.dayOfWeek.numMembers/numLoadShapes*100;
                         legendStrings{c} = sprintf('Centroid #%u (%0.2f%%)',coi.sortOrder, pctMembership);
