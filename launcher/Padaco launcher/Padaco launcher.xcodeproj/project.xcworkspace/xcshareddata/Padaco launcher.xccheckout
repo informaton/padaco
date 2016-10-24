@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>IDESourceControlProjectFavoriteDictionaryKey</key>
+	<false/>
+	<key>IDESourceControlProjectIdentifier</key>
+	<string>DA98C414-1034-478B-B17D-691EB90A2995</string>
+	<key>IDESourceControlProjectName</key>
+	<string>Padaco launcher</string>
+	<key>IDESourceControlProjectOriginsDictionary</key>
+	<dict>
+		<key>6929D5D78849188D6D2261F3FF174EEFA8F4498A</key>
+		<string>https://github.com/informaton/padaco.git</string>
+	</dict>
+	<key>IDESourceControlProjectPath</key>
+	<string>launcher/Padaco launcher/Padaco launcher.xcodeproj</string>
+	<key>IDESourceControlProjectRelativeInstallPathDictionary</key>
+	<dict>
+		<key>6929D5D78849188D6D2261F3FF174EEFA8F4498A</key>
+		<string>../../../..</string>
+	</dict>
+	<key>IDESourceControlProjectURL</key>
+	<string>https://github.com/informaton/padaco.git</string>
+	<key>IDESourceControlProjectVersion</key>
+	<integer>111</integer>
+	<key>IDESourceControlProjectWCCIdentifier</key>
+	<string>6929D5D78849188D6D2261F3FF174EEFA8F4498A</string>
+	<key>IDESourceControlProjectWCConfigurations</key>
+	<array>
+		<dict>
+			<key>IDESourceControlRepositoryExtensionIdentifierKey</key>
+			<string>public.vcs.git</string>
+			<key>IDESourceControlWCCIdentifierKey</key>
+			<string>6929D5D78849188D6D2261F3FF174EEFA8F4498A</string>
+			<key>IDESourceControlWCCName</key>
+			<string>padaco</string>
+		</dict>
+	</array>
+</dict>
+</plist>

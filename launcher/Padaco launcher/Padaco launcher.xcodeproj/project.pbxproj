@@ -1,0 +1,422 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		F46749E31D78F4E6005A93C1 /* Launch Screen.xib in Resources */ = {isa = PBXBuildFile; fileRef = F46749E21D78F4E6005A93C1 /* Launch Screen.xib */; };
+		F49055111D66370400EA17A3 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F49055101D66370400EA17A3 /* AppDelegate.swift */; };
+		F49055131D66370400EA17A3 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F49055121D66370400EA17A3 /* ViewController.swift */; };
+		F49055151D66370400EA17A3 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F49055141D66370400EA17A3 /* Images.xcassets */; };
+		F49055181D66370500EA17A3 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = F49055161D66370500EA17A3 /* Main.storyboard */; };
+		F49055241D66370500EA17A3 /* Padaco_launcherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F49055231D66370500EA17A3 /* Padaco_launcherTests.swift */; };
+		F490552E1D66419600EA17A3 /* splash_wide.png in Resources */ = {isa = PBXBuildFile; fileRef = F490552D1D66419600EA17A3 /* splash_wide.png */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		F490551E1D66370500EA17A3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F49055031D66370400EA17A3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F490550A1D66370400EA17A3;
+			remoteInfo = "Padaco launcher";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		F46749E21D78F4E6005A93C1 /* Launch Screen.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = "Launch Screen.xib"; sourceTree = "<group>"; };
+		F490550B1D66370400EA17A3 /* Padaco launcher.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Padaco launcher.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		F490550F1D66370400EA17A3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		F49055101D66370400EA17A3 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		F49055121D66370400EA17A3 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
+		F49055141D66370400EA17A3 /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Images.xcassets; sourceTree = "<group>"; };
+		F49055171D66370500EA17A3 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		F490551D1D66370500EA17A3 /* Padaco launcherTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Padaco launcherTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		F49055221D66370500EA17A3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		F49055231D66370500EA17A3 /* Padaco_launcherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Padaco_launcherTests.swift; sourceTree = "<group>"; };
+		F490552D1D66419600EA17A3 /* splash_wide.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = splash_wide.png; path = ../../../icons/splash_wide.png; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		F49055081D66370400EA17A3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F490551A1D66370500EA17A3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		F49055021D66370400EA17A3 = {
+			isa = PBXGroup;
+			children = (
+				F490550D1D66370400EA17A3 /* Padaco launcher */,
+				F49055201D66370500EA17A3 /* Padaco launcherTests */,
+				F490550C1D66370400EA17A3 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		F490550C1D66370400EA17A3 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				F490550B1D66370400EA17A3 /* Padaco launcher.app */,
+				F490551D1D66370500EA17A3 /* Padaco launcherTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		F490550D1D66370400EA17A3 /* Padaco launcher */ = {
+			isa = PBXGroup;
+			children = (
+				F49055101D66370400EA17A3 /* AppDelegate.swift */,
+				F49055121D66370400EA17A3 /* ViewController.swift */,
+				F490552D1D66419600EA17A3 /* splash_wide.png */,
+				F49055141D66370400EA17A3 /* Images.xcassets */,
+				F49055161D66370500EA17A3 /* Main.storyboard */,
+				F46749E21D78F4E6005A93C1 /* Launch Screen.xib */,
+				F490550E1D66370400EA17A3 /* Supporting Files */,
+			);
+			path = "Padaco launcher";
+			sourceTree = "<group>";
+		};
+		F490550E1D66370400EA17A3 /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				F490550F1D66370400EA17A3 /* Info.plist */,
+			);
+			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+		F49055201D66370500EA17A3 /* Padaco launcherTests */ = {
+			isa = PBXGroup;
+			children = (
+				F49055231D66370500EA17A3 /* Padaco_launcherTests.swift */,
+				F49055211D66370500EA17A3 /* Supporting Files */,
+			);
+			path = "Padaco launcherTests";
+			sourceTree = "<group>";
+		};
+		F49055211D66370500EA17A3 /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				F49055221D66370500EA17A3 /* Info.plist */,
+			);
+			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		F490550A1D66370400EA17A3 /* Padaco launcher */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F49055271D66370500EA17A3 /* Build configuration list for PBXNativeTarget "Padaco launcher" */;
+			buildPhases = (
+				F49055071D66370400EA17A3 /* Sources */,
+				F49055081D66370400EA17A3 /* Frameworks */,
+				F49055091D66370400EA17A3 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Padaco launcher";
+			productName = "Padaco launcher";
+			productReference = F490550B1D66370400EA17A3 /* Padaco launcher.app */;
+			productType = "com.apple.product-type.application";
+		};
+		F490551C1D66370500EA17A3 /* Padaco launcherTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F490552A1D66370500EA17A3 /* Build configuration list for PBXNativeTarget "Padaco launcherTests" */;
+			buildPhases = (
+				F49055191D66370500EA17A3 /* Sources */,
+				F490551A1D66370500EA17A3 /* Frameworks */,
+				F490551B1D66370500EA17A3 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				F490551F1D66370500EA17A3 /* PBXTargetDependency */,
+			);
+			name = "Padaco launcherTests";
+			productName = "Padaco launcherTests";
+			productReference = F490551D1D66370500EA17A3 /* Padaco launcherTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		F49055031D66370400EA17A3 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0610;
+				ORGANIZATIONNAME = Informaton;
+				TargetAttributes = {
+					F490550A1D66370400EA17A3 = {
+						CreatedOnToolsVersion = 6.1.1;
+					};
+					F490551C1D66370500EA17A3 = {
+						CreatedOnToolsVersion = 6.1.1;
+						TestTargetID = F490550A1D66370400EA17A3;
+					};
+				};
+			};
+			buildConfigurationList = F49055061D66370400EA17A3 /* Build configuration list for PBXProject "Padaco launcher" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = F49055021D66370400EA17A3;
+			productRefGroup = F490550C1D66370400EA17A3 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				F490550A1D66370400EA17A3 /* Padaco launcher */,
+				F490551C1D66370500EA17A3 /* Padaco launcherTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		F49055091D66370400EA17A3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F490552E1D66419600EA17A3 /* splash_wide.png in Resources */,
+				F49055151D66370400EA17A3 /* Images.xcassets in Resources */,
+				F49055181D66370500EA17A3 /* Main.storyboard in Resources */,
+				F46749E31D78F4E6005A93C1 /* Launch Screen.xib in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F490551B1D66370500EA17A3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		F49055071D66370400EA17A3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F49055131D66370400EA17A3 /* ViewController.swift in Sources */,
+				F49055111D66370400EA17A3 /* AppDelegate.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F49055191D66370500EA17A3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F49055241D66370500EA17A3 /* Padaco_launcherTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		F490551F1D66370500EA17A3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F490550A1D66370400EA17A3 /* Padaco launcher */;
+			targetProxy = F490551E1D66370500EA17A3 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		F49055161D66370500EA17A3 /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				F49055171D66370500EA17A3 /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		F49055251D66370500EA17A3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.10;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		F49055261D66370500EA17A3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.10;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		F49055281D66370500EA17A3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = "Padaco launcher/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		F49055291D66370500EA17A3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = "Padaco launcher/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		F490552B1D66370500EA17A3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(DEVELOPER_FRAMEWORKS_DIR)",
+					"$(inherited)",
+				);
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				INFOPLIST_FILE = "Padaco launcherTests/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Padaco launcher.app/Contents/MacOS/Padaco launcher";
+			};
+			name = Debug;
+		};
+		F490552C1D66370500EA17A3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(DEVELOPER_FRAMEWORKS_DIR)",
+					"$(inherited)",
+				);
+				INFOPLIST_FILE = "Padaco launcherTests/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Padaco launcher.app/Contents/MacOS/Padaco launcher";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		F49055061D66370400EA17A3 /* Build configuration list for PBXProject "Padaco launcher" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F49055251D66370500EA17A3 /* Debug */,
+				F49055261D66370500EA17A3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F49055271D66370500EA17A3 /* Build configuration list for PBXNativeTarget "Padaco launcher" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F49055281D66370500EA17A3 /* Debug */,
+				F49055291D66370500EA17A3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F490552A1D66370500EA17A3 /* Build configuration list for PBXNativeTarget "Padaco launcherTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F490552B1D66370500EA17A3 /* Debug */,
+				F490552C1D66370500EA17A3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = F49055031D66370400EA17A3 /* Project object */;
+}

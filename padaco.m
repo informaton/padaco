@@ -1,18 +1,14 @@
 function padaco()
     
-    mPathname = fileparts(mfilename('fullpath'));
-    addpath(mPathname);
-    subPaths = {'figures','icons','utility','html'};
-    for s=1:numel(subPaths)
-        addpath(fullfile(mPathname,subPaths{s}));
-    end
+    mPathname = pathsetup();
     hObject = padacoFig('visible','off');
     handles = initializeGUI(hObject);
 
     try
         parametersFile = '_padaco.parameters.txt';
         handles.user.controller = PAController(hObject,mPathname,parametersFile);
-        set(hObject,'visible','on');
+        %         set(hObject,'visible','on');  % handled inside
+        %         PAController constructor.
         guidata(hObject,handles);
     catch me
         %     me.message

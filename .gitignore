@@ -35,3 +35,6 @@ utility/lib
 
 model/model_summary.m
 model/table_summary.m
+*.tmp
+
+*.tmp

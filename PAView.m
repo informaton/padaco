@@ -14,6 +14,13 @@ classdef PAView < handle
         %> @li @c Features
         displayType; 
         
+        %> Boolean value: 
+        %> - @c true : Apply line smoothing when presenting features on the
+        %> secondary axes (Default).  
+        %> - @c false : Do not apply line smoothing when presenting features on the
+        %> secondary axes (show them in original form).
+        useSmoothing;        
+        
     end
     
     properties
@@ -103,8 +110,8 @@ classdef PAView < handle
         %> PAData instance
         dataObj;
         window_resolution;%struct of different time resolutions, field names correspond to the units of time represented in the field        
-        
     end
+
 
     methods
         
@@ -119,22 +126,30 @@ classdef PAView < handle
         %> VIEW's feature line handles.
         %> @retval obj Instance of PAView
         % --------------------------------------------------------------------
-        function obj = PAView(Padaco_fig_h,lineContextmenuHandle,primaryAxesContextmenuHandle,featureLineContextmenuHandle)
+        function obj = PAView(Padaco_fig_h,lineContextmenuHandle,primaryAxesContextmenuHandle,featureLineContextmenuHandle,secondaryAxesContextmenuHandle)
             if(ishandle(Padaco_fig_h))
-                if(nargin<3)
-                    primaryAxesContextmenuHandle = [];
-                    
-                    if(nargin<2)
-                        lineContextmenuHandle = [];
+                if(nargin<4)
+                    secondaryAxesContextmenuHandle = [];
+                    if(nargin<3)
+                        primaryAxesContextmenuHandle = [];
+                        
+                        if(nargin<2)
+                            lineContextmenuHandle = [];
+                        else
+                            if(ishandle(lineContextmenuHandle))
+                                set(lineContextmenuHandle,'parent',Padaco_fig_h);
+                            end
+                        end
                     else
-                        if(ishandle(lineContextmenuHandle))
-                            set(lineContextmenuHandle,'parent',Padaco_fig_h);
+                        if(ishandle(primaryAxesContextmenuHandle))
+                            set(primaryAxesContextmenuHandle,'parent',Padaco_fig_h);
                         end
                     end
                 else
-                    if(ishandle(primaryAxesContextmenuHandle))
-                        set(primaryAxesContextmenuHandle,'parent',Padaco_fig_h);
+                    if(ishandle(secondaryAxesContextmenuHandle))
+                        set(secondaryAxesContextmenuHandle,'parent',Padaco_fig_h);
                     end
+                    
                 end
                 
                 obj.figurehandle = Padaco_fig_h;
@@ -142,19 +157,23 @@ classdef PAView < handle
                 %                 set(obj.figurehandle,'renderer','OpenGL');
 
                 obj.contextmenuhandle.primaryAxes = primaryAxesContextmenuHandle;
+                obj.contextmenuhandle.secondaryAxes = secondaryAxesContextmenuHandle;
                 obj.contextmenuhandle.signals = lineContextmenuHandle;
                 obj.contextmenuhandle.featureLine = featureLineContextmenuHandle;
+                
+                obj.useSmoothing = true;
                 
                 obj.createView(); 
                 obj.disableWidgets();
                 
-                set(obj.getFigHandle(),'visible','on');
+                %                 set(obj.getFigHandle(),'visible','on');
 
                 
             else
                 obj = [];
             end
-        end        
+        end 
+        
                 
         % --------------------------------------------------------------------
         %> @brief Creates line handles and maps figure tags to PAView instance variables.
@@ -189,15 +208,7 @@ classdef PAView < handle
             coiControlsPos = get(handles.panel_controlCentroid,'position');
             coiControlsPos(2) = sum(epochControlsPos([2,4]))-coiControlsPos(4);  % This is y_ = y^ + h^ - h_
             set(handles.panel_controlCentroid,'position',coiControlsPos);
-            
-            
-            
-            % Line up panel_centroidPrimaryAxesControls with panel_epochControls
-            priAxesControlsPos = get(handles.panel_centroidPrimaryAxesControls,'position');
-            priAxesControlsPos(2) = sum(epochControlsPos([2,4]))-priAxesControlsPos(4);  % This is y_ = y^ + h^ - h_
-            set(handles.panel_centroidPrimaryAxesControls,'position',priAxesControlsPos);
-            
-
+            drawnow();
             
             
             metaDataHandles = [handles.panel_study;get(handles.panel_study,'children')];
@@ -217,7 +228,7 @@ classdef PAView < handle
                 handles.panel_plotType
                 handles.panel_plotSignal
                 handles.panel_plotData
-                handles.panel_centroidPrimaryAxesControls
+                handles.panel_controlCentroid
                 handles.panel_plotCentroid];
             set(whiteHandles,'backgroundcolor',[0.94,0.94,0.94]);
 %             set(findobj(whiteHandles,'-property','shadowcolor'),'shadowcolor',[0 0 0],'highlightcolor',[0 0 0]);
@@ -265,13 +276,13 @@ classdef PAView < handle
             % create a spot for it in the struct;
             obj.patchhandle.feature = [];
             
+            % Flush our drawing queue
+            drawnow();
             % Clear the figure and such.  
             obj.clearAxesHandles();
             obj.clearTextHandles(); 
-            obj.clearWidgets();
-            
+            obj.clearWidgets();            
         end
-        
         
         % --------------------------------------------------------------------
         %> @brief Sets padaco's view mode to either time series or results viewing.
@@ -286,7 +297,7 @@ classdef PAView < handle
 
             obj.initAxesHandlesViewMode(viewMode);
             obj.clearTextHandles();
-            obj.initWidgets(viewMode);          
+            obj.initWidgets(viewMode);
         end
         
         % --------------------------------------------------------------------
@@ -299,7 +310,6 @@ classdef PAView < handle
             userData = get(obj.menuhandle.windowDurSec,'userdata');
             windowDurSec = userData(userChoice);
         end
-        
         
         % --------------------------------------------------------------------
         %> @brief Sets the window duration drop down menu's current value
@@ -324,7 +334,6 @@ classdef PAView < handle
             end
             set(obj.menuhandle.windowDurSec,'value',userChoice);
         end
-        
         
         % --------------------------------------------------------------------
         %> @brief Retrieves the current window's edit box string value as a
@@ -389,7 +398,29 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         function setFrameDurationHours(obj,frameDurationHoursStr)
            set(obj.texthandle.frameDurationHours,'string',frameDurationHoursStr);            
-        end   
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Sets line smoothing state for feature vectors displayed on the secondary axes.
+        %> @param obj Instance of PAView.
+        %> @param smoothingState  Possible values include:
+        %> - @c true Smoothing is on.
+        %> - @c false Smoothing is off.
+        % --------------------------------------------------------------------
+        function setUseSmoothing(obj,smoothingState)
+            if(nargin<2 || isempty(smoothingState))
+                obj.useSmoothing = true;
+            else
+                obj.useSmoothing = smoothingState==true;
+            end           
+        end
+        
+        function smoothing = getUseSmoothing(obj)
+            smoothing = obj.useSmoothing;
+        end
+        
+           
+
         
         % --------------------------------------------------------------------
         %> @brief Sets display type instance variable.    
@@ -418,9 +449,9 @@ classdef PAView < handle
                 
                 displayStruct = obj.displayType;
                 
-                obj.recurseHandleSetter(obj.labelhandle.(displayStruct), visibleProps);
                 obj.recurseHandleSetter(obj.referencelinehandle.(displayStruct), visibleProps);
                 obj.recurseHandleSetter(obj.linehandle.(displayStruct), visibleProps);
+                obj.recurseHandleSetter(obj.labelhandle.(displayStruct), visibleProps);
             else
                 fprintf('Warning, this string (%s) is not an acceptable option.\n',displayTypeStr);
             end
@@ -538,20 +569,26 @@ classdef PAView < handle
             axesProps.primary.yticklabel = [];
             axesProps.primary.uicontextmenu = [];
 
-            if(strcmpi(viewMode,'timeseries'))
-                
+            if(strcmpi(viewMode,'timeseries'))                
+                % Want these for both the primary (upper) and secondary (lower) axes
                 axesProps.primary.xAxisLocation = 'top';
-                axesProps.primary.uicontextmenu = obj.contextmenuhandle.primaryAxes;
                 axesProps.primary.ylimmode = 'manual';
                 axesProps.primary.ytickmode='manual';
                 axesProps.primary.yticklabelmode = 'manual';
+                
                 axesProps.secondary = axesProps.primary;
+                
+                % Distinguish primary and secondary properties here:
                 axesProps.primary.xminortick='on';
+                axesProps.primary.uicontextmenu = obj.contextmenuhandle.primaryAxes;
+                
+                axesProps.secondary.xminortick = 'off';
+                axesProps.secondary.uicontextmenu = obj.contextmenuhandle.secondaryAxes;                
                 
             elseif(strcmpi(viewMode,'results'))
                 axesProps.primary.ylimmode = 'auto';
-%                 axesProps.primary.ytickmode='auto';
-%                 axesProps.primary.yticklabelmode = 'auto';
+                %                 axesProps.primary.ytickmode='auto';
+                %                 axesProps.primary.yticklabelmode = 'auto';
                 axesProps.primary.xAxisLocation = 'bottom';
                 axesProps.primary.xminortick='off';
                 
@@ -580,6 +617,7 @@ classdef PAView < handle
                 title(h,'');
                 ylabel(h,'');
                 xlabel(h,'');
+                set(h,'xtick',[],'ytick',[]);
             end
         end
 
@@ -610,7 +648,6 @@ classdef PAView < handle
             resultPanels = [
                             handles.panel_results;
                             handles.panel_controlCentroid;
-                            handles.panel_centroidPrimaryAxesControls
                             handles.panel_epochControls;
                            ];
 
@@ -678,7 +715,6 @@ classdef PAView < handle
             resultPanels = [
                 handles.panel_results;
                 handles.panel_controlCentroid;
-                handles.panel_centroidPrimaryAxesControls;
                 ];
             
                        
@@ -689,11 +725,9 @@ classdef PAView < handle
             
             if(strcmpi(viewMode,'timeseries'))
 
+                set(timeseriesPanels,'visible','on');
                 set(resultPanels,'visible','off');
                 set(findall(resultPanels,'enable','on'),'enable','off');
-
-                
-                set(timeseriesPanels,'visible','on');
                 
                 set(handles.menu_viewmode_timeseries,'checked','on');
                 set(handles.menu_viewmode_results,'checked','off');
@@ -703,6 +737,7 @@ classdef PAView < handle
                 end
                 
             elseif(strcmpi(viewMode,'results'))
+                set(resultPanels(1),'visible','on');
                 set(timeseriesPanels,'visible','off');
                 % Handle the enabling or disabling in the PAStatTool ->
                 % which has more control
@@ -713,9 +748,8 @@ classdef PAView < handle
 
                 % Handle the specific visibility in the PAStatTool ->
                 % which has more control
-                set(resultPanels(1),'visible','on');
-                set(resultPanels(2:3),'visible','off');
-                
+                %                 set(resultPanels(1),'visible','on');
+                %                 set(resultPanels(2:3),'visible','off');
                 set(handles.menu_viewmode_timeseries,'checked','off');
                 set(handles.menu_viewmode_results,'checked','on');
             else
@@ -751,10 +785,13 @@ classdef PAView < handle
             axesProps.primary.xlim = PADataObject.getCurWindowRange();
             axesProps.primary.ylim = PADataObject.getDisplayMinMax();
             
+            
             ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Lumens','Daylight'};
-            numViews = numel(ytickLabel);
-            axesProps.secondary.ytick = 1/numViews/2:1/numViews:1;
+
+            axesProps.secondary.ytick = obj.getTicksForLabels(ytickLabel);
             axesProps.secondary.yticklabel = ytickLabel;
+            
+            
             axesProps.secondary.TickDir = 'in';
             axesProps.secondary.TickDirMode = 'manual';
             
@@ -782,7 +819,9 @@ classdef PAView < handle
             obj.updateSecondaryAxes(PADataObject.getStartStopDatenum());
                         
             %initialize the various line handles and label content and
-            %color.
+            %color.  Struct types consist of
+            %> 1. timeSeries
+            %> 2. features
             structType = PADataObject.getStructTypes();
             fnames = fieldnames(structType);
             for f=1:numel(fnames)
@@ -793,7 +832,14 @@ classdef PAView < handle
                 labelProps = PAData.mergeStruct(labelProps,labelPosStruct);
                 
                 colorStruct = PADataObject.getColor(curStructType);
+                
                 visibleStruct = PADataObject.getVisible(curStructType);
+                
+                % Keep everything invisible at this point - so ovewrite the
+                % visibility property before we merge it together.
+                visibleStruct = PAData.structEval('overwrite',visibleStruct,visibleStruct,'off');
+                
+                
                 allStruct = PADataObject.mergeStruct(colorStruct,visibleStruct);
                 
                 labelProps = PADataObject.mergeStruct(labelProps,allStruct);
@@ -910,7 +956,7 @@ classdef PAView < handle
             if(ishandle(obj.linehandle.featureCumsum))
                 delete(obj.linehandle.featureCumsum);
             end
-            [obj.patchhandle.feature, obj.linehandle.feature, obj.linehandle.featureCumsum] = obj.addFeaturesVecAndOverlayToAxes( featureVector, startStopDatenum, overlayHeight, overlayOffset, obj.axeshandle.secondary, obj.contextmenuhandle.featureLine);
+            [obj.patchhandle.feature, obj.linehandle.feature, obj.linehandle.featureCumsum] = obj.addFeaturesVecAndOverlayToAxes( featureVector, startStopDatenum, overlayHeight, overlayOffset, obj.axeshandle.secondary, obj.getUseSmoothing(), obj.contextmenuhandle.featureLine);
         end
         
         % --------------------------------------------------------------------
@@ -928,7 +974,7 @@ classdef PAView < handle
         %> @retval featureHandles Line handles created from the method.
         % --------------------------------------------------------------------
         function featureHandles = addFeaturesVecToSecondaryAxes(obj, featureVector, startStopDatenum, overlayHeight, overlayOffset)
-            featureHandles = obj.addFeaturesVecToAxes(featureVector, startStopDatenum, overlayHeight, overlayOffset,obj.axeshandle.secondary);
+            featureHandles = obj.addFeaturesVecToAxes(featureVector, startStopDatenum, overlayHeight, overlayOffset,obj.axeshandle.secondary, obj.getUseSmoothing());
 
         end
         
@@ -1183,16 +1229,21 @@ classdef PAView < handle
         %> @brief Appends the new feature to the drop down feature menu.
         %> @param obj Instance of PAView
         %> @param newFeature String label to append to the drop down feature menu.
+        %> @param newUserData Mixed entry to append to the drop down
+        %> feature menu's user data field.
         % --------------------------------------------------------------------
-        function appendFeatureMenu(obj,newFeature)
+        function appendFeatureMenu(obj,newFeature,newUserData)
             
             featureOptions = get(obj.menuhandle.displayFeature,'string');
+            userData = get(obj.menuhandle.displayFeature,'userdata');
             if(~iscell(featureOptions))
                 featureOptions = {featureOptions};
+                userData = {userData};
             end
             if(isempty(intersect(featureOptions,newFeature)))
                 featureOptions{end+1} = newFeature;
-                set(obj.menuhandle.displayFeature,'string',featureOptions);
+                userData{end+1} = newUserData;
+                set(obj.menuhandle.displayFeature,'string',featureOptions,'userdata',userData);
             end;
         end        
         
@@ -1282,11 +1333,12 @@ classdef PAView < handle
             if(nargin<2 || isempty(displayTypeStr))
                 displayTypeStr = obj.displayType;
             end
+            yOffset = -30; %Trial and error
             dummyStruct = obj.dataObj.getStruct('dummy',displayTypeStr);
             offsetStruct = obj.dataObj.getStruct('displayoffset',displayTypeStr);
             labelPosStruct = PAData.structEval('calculateposition',dummyStruct,offsetStruct);
-            xOffset = 1/120*diff(get(obj.axeshandle.primary,'xlim'));            
-            offset = [xOffset, 15, 0];
+            xOffset = 1/250*diff(get(obj.axeshandle.primary,'xlim'));            
+            offset = [xOffset, yOffset, 0];
             labelPosStruct = PAData.structScalarEval('plus',labelPosStruct,offset);            
         end
 
@@ -1344,7 +1396,7 @@ classdef PAView < handle
         function showReady(obj,axesTag)
             set(obj.getFigHandle(),'pointer','arrow');
             set(obj.texthandle.status,'string','');
-            if(nargin>1)
+            if(nargin>1 && ~isempty(axesTag))
                 obj.setAxesState(axesTag,'ready');
             end
             drawnow();
@@ -1397,15 +1449,20 @@ classdef PAView < handle
         %> @param overlayOffset The normalized y offset ([0, 1]) that is applied to
         %> the featureVector when displayed on the axes. 
         %> @param axesH Handle of the axes to assign features to.
+        %> @param useSmoothing Boolean flag to set if feature vector should
+        %> be applied (true) or not (false) before display.
         %> @param contextmenuH Optional contextmenu handle.  Is assigned to the overlayLineH lines
         %> contextmenu callback when included.  
         %> @retval feature_patchH Patch handle of feature
         %> @retval feature_lineH Line handle of feature
         %> @retval feature_cumsumLineH Line handle of cumulative sum of feature        
         % --------------------------------------------------------------------
-        function [feature_patchH, feature_lineH, feature_cumsumLineH] = addFeaturesVecAndOverlayToAxes(featureVector, startStopDatenum, overlayHeight, overlayOffset, axesH, contextmenuH)
-            if(nargin<6)
+        function [feature_patchH, feature_lineH, feature_cumsumLineH] = addFeaturesVecAndOverlayToAxes(featureVector, startStopDatenum, overlayHeight, overlayOffset, axesH, useSmoothing,contextmenuH)
+            if(nargin<7)
                 contextmenuH = [];
+                if(nargin<6 || isempty(useSmoothing))
+                    useSmoothing = true;
+                end
             end
             
             yLim = get(axesH,'ylim');
@@ -1442,9 +1499,14 @@ classdef PAView < handle
             
             normalizedFeatureVector = featureVector/quantile(featureVector,0.99)*(overlayHeight/2);
             
-            n = 10;
-            b = repmat(1/n,1,n);
-            smoothY = filtfilt(b,1,normalizedFeatureVector);
+            if(useSmoothing)
+                n = 10;
+                b = repmat(1/n,1,n);
+                smoothY = filtfilt(b,1,normalizedFeatureVector);
+            else
+                smoothY = normalizedFeatureVector;
+            end
+            
             feature_lineH = line('parent',axesH,'ydata',smoothY+overlayOffset,'xdata',startStopDatenum(:,1),'color','b','hittest','on');
             
             if(~isempty(contextmenuH))
@@ -1470,17 +1532,26 @@ classdef PAView < handle
         %> @param overlayOffset The normalized y offset ([0, 1]) that is applied to
         %> the featureVector when displayed on the secondary axes.
         %> @param axesH The graphic handle to the axes.
+        %> @param useSmoothing Boolean flag to set if feature vector should
+        %> be applied (true) or not (false) before display.
         %> @retval featureHandles Line handles created from the method.
         % --------------------------------------------------------------------
-        function featureHandles = addFeaturesVecToAxes(featureVector, startStopDatenum, overlayHeight, overlayOffset, axesH)
+        function featureHandles = addFeaturesVecToAxes(featureVector, startStopDatenum, overlayHeight, overlayOffset, axesH, useSmoothing)
             if(overlayOffset>0)
                 featureHandles = nan(3,1);
             else
                 featureHandles = nan(2,1);
             end            
+
+                
             n = 10;
             b = repmat(1/n,1,n);
-            smoothY = filtfilt(b,1,featureVector);
+            
+            if(useSmoothing)
+                smoothY = filtfilt(b,1,featureVector);
+            else
+                smoothY = featureVector;
+            end
             normalizedY = smoothY/max(smoothY)*overlayHeight+overlayOffset;
             featureHandles(1) = line('parent',axesH,'ydata',normalizedY,'xdata',startStopDatenum(:,1),'color','b','hittest','off','userdata',featureVector);
             %draw some boundaries around our features - put in rails
@@ -1597,17 +1668,18 @@ classdef PAView < handle
                     %recurse down
                     destStruct.(fname) = PAView.recurseHandleGenerator(dummyStruct.(fname),handleType,curHandleProperties,destStruct.(fname));
                 else
-                    if(strcmpi(handleType,'line'))
-                        destStruct.(fname) = line();
-                    elseif(strcmpi(handleType,'text'))
-                        destStruct.(fname) = text();
+                    
+                    if(strcmpi(handleType,'line') || strcmpi(handleType,'text'))
+                        if(nargin>1 && ~isempty(curHandleProperties)) %aka  if(hasProperties)
+                            destStruct.(fname) = feval(handleType,curHandleProperties);
+                        else                            
+                            destStruct.(fname) = feval(handleType);
+                        end
                     else
                         destStruct.(fname) = [];
                         fprintf('Warning!  Handle type %s unknown!',handleType);
                     end
-                    if(nargin>1 && ~isempty(curHandleProperties))
-                        set(destStruct.(fname),curHandleProperties);
-                    end                    
+                    
                 end
             end
         end
@@ -1691,6 +1763,23 @@ classdef PAView < handle
                 end
             end
         end
+        
+        %> @brief Returns evenly spaced tick marks for an input cell of
+        %> labels.  This is a utility method for placing nicely spaced labels
+        %> along an x or y axes.
+        %> @param cellOfLabels For example {'X','Y','Z','VecMag'}
+        %> @retval ticks Vector of evenly spaced values between 1/(number
+        %> of labels)/2 and 1
+        function ticks = getTicksForLabels(cellOfLabels)
+            if(~iscell(cellOfLabels))
+                numTicks = 1;
+            else
+                numTicks = numel(cellOfLabels);
+            end
+             ticks = 1/numTicks/2:1/numTicks:1;
+            
+        end
+        
     end
 end
 

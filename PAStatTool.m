@@ -1,12 +1,25 @@
 % ======================================================================
 %> @file PAStatTool.cpp
-%> @brief PAStatTool serves as Padaco's batch results analsysis controller
+%> @brief PAStatTool serves as Padaco's batch results analysis controller
 % ======================================================================
-classdef PAStatTool < handle   
+classdef PAStatTool < handle
+    events
+       UserCancel_Event;
+    end
+    
+    properties(Constant)
+       RESULTS_CACHE_FILENAME = 'results.tmp';
+    end
     properties(Access=private)
         resultsDirectory;
         featuresDirectory;
-        %         imagesDirectory; % Not used
+        cacheDirectory;
+        
+        %> @brief Cluster method employed {'kmeans','kmedoids'}
+        clusterMethod;
+        %> Booleans
+        useCache;
+        useDatabase;
         
         databaseObj;
         %> handle of scatter plot figure.
@@ -39,6 +52,12 @@ classdef PAStatTool < handle
         %> struct of handles that PAStatTool interacts with.  See
         %> initHandles()
         handles; 
+        
+        %> Struct of java component peers to some graphic handles listed
+        %> under @c handles.  Currently only table_profileFields (under the
+        %> analysis figure) is included.  
+        jhandles;
+        
         %> struct of base (all possible) parameter values that can be set
         base;  
         featureTypes;
@@ -82,8 +101,6 @@ classdef PAStatTool < handle
         %> the columns: n, mean, and standard error of the mean for the
         %> subjects in centroid c with values found in covariate f.
         allProfiles;
-        
-        
         profileTableData;
     end
     
@@ -106,16 +123,24 @@ classdef PAStatTool < handle
         %> @retval this Instance of PAStatTool
         % ======================================================================
         function this = PAStatTool(padaco_fig_h, resultsPathname, widgetSettings)
-            if(nargin<3)
-                widgetSettings = [];
+            if(nargin<3 || isempty(widgetSettings))
+                widgetSettings = PAStatTool.getDefaultParameters();
             end
-            
             try
-                if(widgetSettings.useDatabase)
-                    %                     this.databaseObj = CLASS_database_goals();
+                
+                % This call ensures that we have at a minimum, the default parameter field-values in widgetSettings.
+                % And eliminates later calls to determine if a field exists
+                % or not in the input widgetSettings parameter
+                widgetSettings = PAData.mergeStruct(PAStatTool.getDefaultParameters,widgetSettings);
+                
+                if(isfield(widgetSettings,'useDatabase') && widgetSettings.useDatabase)
+                    this.useDatabase = true;
                     this.databaseObj = feval(widgetSettings.databaseClass);
                     this.profileFields = this.databaseObj.getColumnNames('subjectInfo_t');
+                    addpath('/users/unknown/Google Drive/work/Stanford - Pediatrics/code/models');
+                    addpath('/Users/unknown/Google Drive/work/Informaton/code/matlab/gee');
                 else
+                    this.useDatabase = false;
                     this.databaseObj = [];
                     this.profileFields = {''};
                 end
@@ -135,12 +160,13 @@ classdef PAStatTool < handle
             % variable names for the table
             %             this.profileMetrics = {''};
 
-
-            this.originalWidgetSettings = widgetSettings;
+            initializeOnSet = false;
+            this.setWidgetSettings(widgetSettings, initializeOnSet);
             this.originalFeatureStruct = [];
             this.canPlot = false;
             this.featuresDirectory = [];
-            %             this.imagesDirectory = [];
+
+            
             this.figureH = padaco_fig_h;
             this.featureStruct = [];
             
@@ -149,33 +175,71 @@ classdef PAStatTool < handle
             this.initHandles();            
             this.initBase();
             this.centroidDistributionType = widgetSettings.centroidDistributionType;  % {'performance','membership','weekday'}
-
             
             this.featureInputFilePattern = ['%s',filesep,'%s',filesep,'features.%s.accel.%s.%s.txt'];
             this.featureInputFileFieldnames = {'inputPathname','displaySeletion','processType','curSignal'};       
-                       
             
             if(isdir(resultsPathname))
                 this.resultsDirectory = resultsPathname;
                 featuresPath = fullfile(resultsPathname,'features');
-                if(isdir(featuresPath))
-                    this.featuresDirectory = featuresPath;
-                else
-                    fprintf('Features pathname (%s) does not exist!\n',featuresPath);
-                end
                 
-                %                 imagesPath = fullfile(resultsPathname,'images');
-                %                 if(isdir(imagesPath))
-                %                     this.imagesDirectory = imagesPath;
-                %                 else
-                %                     fprintf('Images pathname (%s) does not exist!\n',imagesPath);
-                %                 end
-
+                % We are allowing user to pick a folder that contains
+                % 'features' as a subfolder, or the folder whose subfolders
+                % are in fact the feature subfolders.  This will give a
+                % little more flexibility to the user and hopefully hide
+                % some of the more mundane parts of loading a path.
+                if(~isdir(featuresPath))
+                    featuresPath = resultsPathname;
+                    % fprintf('Assuming features pathFeatures pathname (%s) does not exist!\n',featuresPath);
+                end
+                this.featuresDirectory = featuresPath;
+                
                 this.initWidgets(widgetSettings);  %initializes previousstate.plotType on success
 
                 plotType = this.base.plotTypes{get(this.handles.menu_plottype,'value')};
                 this.clearPlots();
-                set(padaco_fig_h,'visible','on');
+                
+                if(exist(this.getFullCentroidCacheFilename(),'file') && this.useCache)
+
+                    try
+                        validFields = {'centroidObj';
+                            'featureStruct';
+                            'originalFeatureStruct'
+                            'usageStateStruct'
+                            'resultsDirectory'
+                            'featuresDirectory'};
+                        tmpStruct = load(this.getFullCentroidCacheFilename(),'-mat',validFields{:});
+                        
+                        % Double check that the cached data is still there in
+                        % the expected results directory. We give results and
+                        % features directory of the current object precendence
+                        % over that found in the cache (e.g. we don't overwrite
+                        % this.featuresDirectory with tmpStruct.featuresDirectory
+                        if(strcmpi(tmpStruct.featuresDirectory,this.featuresDirectory))
+                            for f = 1:numel(validFields)
+                                curField = validFields{f};
+                                if(isfield(tmpStruct,curField))
+                                    curValue = tmpStruct.(curField);
+                                    if((strcmp(curField,'centroidObj') && isa(curValue,'PACentroid'))||...
+                                            (~strcmpi(curField,'centroidObj') && isstruct(curValue)))
+                                        this.(curField) = curValue;
+                                    end
+                                end
+                            end
+                            % updates our features and start/stop times
+                            this.setStartTimes(this.originalFeatureStruct.startTimes);
+                            
+                            % Updates our scatter plot as applicable.
+                            this.refreshGlobalProfile();
+                        end
+                    catch me
+                        showME(me);
+                    end
+                    
+                end
+                
+                set(padaco_fig_h,'visible','on');                
+
                 if(this.getCanPlot())
                     switch(plotType)
                         case 'centroids'
@@ -200,8 +264,7 @@ classdef PAStatTool < handle
             
             % call the parent/superclass method
             delete@handle(this);
-        end 
-      
+        end
 
         %> @brief Returns boolean indicator if results view is showing
         %> clusters (plot type 'centroids') or not.
@@ -245,6 +308,39 @@ classdef PAStatTool < handle
         % ======================================================================
         function paramStruct = getSaveParameters(this)
             paramStruct = this.getPlotSettings();            
+            
+            % Parameters not stored in figure widgets
+            paramStruct.useDatabase = this.useDatabase;
+            paramStruct.databaseClass = this.originalWidgetSettings.databaseClass;
+            paramStruct.useCache = this.useCache;
+            paramStruct.cacheDirectory = this.cacheDirectory;            
+        end
+        
+        % ======================================================================
+        %> @brief Sets the widget settings.  In particular, set the
+        %> originalWidgetSettings property to the input struct.
+        %> @param this Instance of PAStatTool
+        %> @param Struct of settings for the Stat tool.  Should conform to
+        %> getDefaultParameters
+        %> @param initializeOnSet Optional flag that defaults to {True}.
+        %> When true, initWidgets() is called using the input widgetSettings.
+        %> When false, initWidgets is not called (helpful on construction)
+        % ======================================================================
+        function setWidgetSettings(this,widgetSettings, initializeOnSet)
+            if(nargin<3 || isempty(initializeOnSet) || ~islogical(initializeOnSet))
+                initializeOnSet = true;
+            end
+            this.originalWidgetSettings = widgetSettings;
+            
+            % Merge the defaults with what is here otherwise.  
+            this.useCache = widgetSettings.useCache;
+            this.cacheDirectory = widgetSettings.cacheDirectory;
+            this.clusterMethod = widgetSettings.clusterMethod;
+            
+            if(initializeOnSet)
+                this.initWidgets(this.originalWidgetSettings);
+%                 this.refreshPlot();
+            end
         end
         
         % ======================================================================
@@ -259,7 +355,7 @@ classdef PAStatTool < handle
         function [startTimeSelection, stopTimeSelection ] = setStartTimes(this,startTimeCellStr)
             if(~isempty(this.originalWidgetSettings))
                 stopTimeSelection = this.originalWidgetSettings.stopTimeSelection;
-                if(stopTimeSelection<=0)
+                if(stopTimeSelection<=0 || stopTimeSelection == 1)
                     stopTimeSelection = numel(startTimeCellStr);
                 end
                 startTimeSelection = this.originalWidgetSettings.startTimeSelection;
@@ -283,16 +379,19 @@ classdef PAStatTool < handle
         %> @param this Instance of PAStatTool
         %> @retval success Boolean: true if features are loaded from file.  False if they are not.
         % ======================================================================
-        function success = getFeatureStruct(this)
-            
+        function didCalc = calcFeatureStruct(this)
             pSettings = this.getPlotSettings();
             inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
 
-            if(exist(inputFilename,'file')) 
+            if(exist(inputFilename,'file'))
+
+                usageFeature = 'usagestate';
+                usageFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,usageFeature,usageFeature,'count','vecMag');
                 
-                if(isempty(this.usageStateStruct))
-                    usageFeature = 'usagestate';
-                    usageFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,usageFeature,usageFeature,'count','vecMag');
+                % Double check that we haven't switched paths somewhere and
+                % are still using a previous copy of usageStateStruct (i.e.
+                % check usageFilename against this.usageStateStruct.filename)
+                if(isempty(this.usageStateStruct) || ~strcmpi(usageFilename,this.usageStateStruct.filename))
                     if(exist(usageFilename,'file'))
                         this.usageStateStruct= this.loadAlignedFeatures(usageFilename);
                     end
@@ -429,10 +528,10 @@ classdef PAStatTool < handle
                     this.featureStruct.features = loadFeatures;    
                 end
                 
-                success = true;
+                didCalc = true;
             else
                 this.featureStruct = [];
-                success = false;
+                didCalc = false;
             end               
         end
         
@@ -463,7 +562,9 @@ classdef PAStatTool < handle
             ylabel(this.handles.axes_secondary,'');
             xlabel(this.handles.axes_secondary,'');
             set([this.handles.axes_primary
-                this.handles.axes_secondary],'xgrid','off','ygrid','off','xtick',[],'ytick',[]);
+                this.handles.axes_secondary],'xgrid','off','ygrid','off',...
+                'xtick',[],'ytick',[],...
+                'fontsize',11);
         end
         
         % ======================================================================
@@ -527,7 +628,7 @@ classdef PAStatTool < handle
                         
                         this.showBusy();
                         this.clearPlots();
-                        this.getFeatureStruct();
+                        this.calcFeatureStruct();
                         if(~isempty(this.featureStruct))
                             pSettings.ylabelstr = sprintf('%s of %s %s activity',pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
                             pSettings.xlabelstr = 'Days of Week';
@@ -557,7 +658,6 @@ classdef PAStatTool < handle
             resultPanels = [
                 obj.handles.panel_results;
                 obj.handles.panel_controlCentroid;
-                obj.handles.panel_centroidPrimaryAxesControls;
                 ];
             
             switch( enableState )
@@ -571,10 +671,26 @@ classdef PAStatTool < handle
                 set(resultPanels,'visible','on');
             else
                 set(resultPanels(1),'visible','on');
-                set(resultPanels(2:3),'visible','off');
+                set(resultPanels(2),'visible','off');
             end
         end
-            
+        
+        
+        function fullFilename = getFullCentroidCacheFilename(this)
+            fullFilename = fullfile(this.cacheDirectory,this.RESULTS_CACHE_FILENAME);
+        end
+        
+        % ======================================================================
+        %> @brief Checks if a centroid object member (instance of
+        %> PACentroid) exists and converged.
+        %> @param this Instance of PAStatTool
+        %> @retval isValid (boolean) True if a centroid object (instance of
+        %> PACentroid) exists and converged; False otherwise
+        % ======================================================================
+        function isValid = hasValidCentroid(this)
+            isValid = ~(isempty(this.centroidObj) || this.centroidObj.failedToConverge());
+        end 
+
 
     end
     
@@ -644,58 +760,7 @@ classdef PAStatTool < handle
             this.previousState.plotType = plotType;
         end
         
-        
-        
-        
-        % ======================================================================
-        %> @brief Configure gui handles for non centroid/clusting viewing
-        %> @param this Instance of PAStatTool
-        % ======================================================================
-        function switchFromClustering(this)
-            this.previousState.sortValues = get(this.handles.check_sortvalues,'value');            
-            set(this.handles.check_sortvalues,'value',0,'enable','off');            
-            set(this.handles.check_normalizevalues,'value',this.previousState.normalizeValues,'enable','on');
-            this.hideCentroidControls();
-            
-            set(findall(this.handles.panel_plotCentroid,'enable','on'),'enable','off');            %  set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','off');
-            set(this.handles.axes_secondary,'visible','off');
-            set(this.figureH,'WindowKeyPressFcn',[]);
-            set(this.analysisFigureH,'visible','off');
 
-            this.refreshPlot();
-        end    
-        
-        % ======================================================================
-        %> @brief Configure gui handles for centroid analysis and viewing.
-        %> @param this Instance of PAStatTool
-        % ======================================================================
-        function switch2clustering(this)
-            set(this.handles.check_sortvalues,'value',this.previousState.sortValues,'enable','on');            
-            this.previousState.normalizeValues = get(this.handles.check_normalizevalues,'value');           
-            set(this.handles.check_normalizevalues,'value',1,'enable','off');
-            set(this.handles.axes_primary,'ydir','normal');  %sometimes this gets changed by the heatmap displays which have the time shown in reverse on the y-axis
-            
-            if(this.getCanPlot())
-                if(isempty(this.centroidObj) || this.centroidObj.failedToConverge())
-                    this.disableCentroidControls();
-                    this.refreshCentroidsAndPlot();
-                else
-                    this.showCentroidControls();
-                    this.plotCentroids();
-                end
-                
-                %             this.disableCentroidControls();
-                %             this.showCentroidControls();
-                set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','on');
-                
-                set(this.handles.axes_secondary,'visible','on','color',[1 1 1]);
-                set(this.figureH,'WindowKeyPressFcn',@this.mainFigureKeyPressFcn);
-                
-                if(this.shouldShowAnalysisFigure())
-                    set(this.analysisFigureH,'visible','on');
-                end
-            end
-        end
         
         % ======================================================================
         %> @brief Window key press callback for centroid view changes
@@ -713,9 +778,15 @@ classdef PAStatTool < handle
 
             switch(key)
                 case 'rightarrow'
-                        this.showNextCentroid(toggleOn);
+                    set(this.handles.push_nextCentroid,'enable','off');
+                    this.showNextCentroid(toggleOn);
+                    set(this.handles.push_nextCentroid,'enable','on');
+                    drawnow();
                 case 'leftarrow'
-                    this.showPreviousCentroid(toggleOn);                        
+                    set(this.handles.push_previousCentroid,'enable','off');                    
+                    this.showPreviousCentroid(toggleOn);               
+                    set(this.handles.push_previousCentroid,'enable','on'); 
+                    drawnow();
                 case 'uparrow'
                     if(figH == this.analysisFigureH)
                         this.decreaseProfileFieldSelection();
@@ -732,6 +803,33 @@ classdef PAStatTool < handle
             end
         end
         
+        
+
+        % ======================================================================
+        %> @brief Mouse button callback when clicking on the centroid
+        %> distribution histogram.
+        %> @param this Instance of PAStatTool
+        %> @param hObject Handle to the bar graph.
+        %> @param eventdata Struct of 'hit' even data.
+        % ======================================================================
+        function centroidDayOfWeekHistogramButtonDownFcn(this,histogramH,eventdata, overlayingPatchHandles)
+            xHit = eventdata.IntersectionPoint(1);
+            barWidth = 1;  % histogramH.BarWidth is 0.8 by default, but leaves 0.2 of ambiguity between adjancent bars.
+            xStartStop = [histogramH.XData(:)-barWidth/2, histogramH.XData(:)+barWidth/2];
+            selectedBarIndex = find( xStartStop(:,1)<xHit & xStartStop(:,2)>xHit ,1);
+            selectedDayOfInterest = selectedBarIndex-1;
+            this.centroidObj.toggleDayOfInterestOrder(selectedDayOfInterest);
+            
+            daysOfInterest = this.centroidObj.getDaysOfInterest();
+            if(daysOfInterest(selectedBarIndex))
+                set(overlayingPatchHandles(selectedBarIndex),'visible','off');
+            else
+                set(overlayingPatchHandles(selectedBarIndex),'visible','on');
+            end
+            this.plotCentroids();
+        end
+
+                
         % ======================================================================
         %> @brief Mouse button callback when clicking on the centroid
         %> distribution histogram.
@@ -817,6 +915,10 @@ classdef PAStatTool < handle
             this.plotCentroids();
         end
 
+    end
+    
+    methods
+            
         
         % ======================================================================
         %> @brief Initialize gui handles using input parameter or default
@@ -831,6 +933,9 @@ classdef PAStatTool < handle
                 widgetSettings = this.getDefaultParameters();                
             end
 
+            customIndex = strcmpi(this.base.weekdayTags,'custom');
+            this.base.weekdayValues{customIndex} = widgetSettings.customDaysOfWeek;
+            
             featuresPathname = this.featuresDirectory;
             this.hideCentroidControls();
 
@@ -893,10 +998,20 @@ classdef PAStatTool < handle
                         set(this.handles.menu_signalsource,'string',this.base.signalDescriptions,'userdata',this.base.signalTypes,'value',widgetSettings.signalSelection);
                         set(this.handles.menu_plottype,'userdata',this.base.plotTypes,'string',this.base.plotTypeDescriptions,'value',widgetSettings.plotTypeSelection);
                         
-                        % Centroid widgets
-                        set(this.handles.menu_weekdays,'userdata',this.base.weekdayTags,'string',this.base.weekdayDescriptions,'value',widgetSettings.weekdaySelection);
-                        set(this.handles.menu_centroidStartTime,'userdata',[],'string',{'Start times'},'value',1);
-                        set(this.handles.menu_centroidStopTime,'userdata',[],'string',{'Stop times'},'value',1);
+                        % Centroid widgets                        
+                        if(strcmpi(this.base.weekdayTags{widgetSettings.weekdaySelection},'custom'))
+                            customIndex = widgetSettings.weekdaySelection;
+                            tooltipString = cell2str(this.base.daysOfWeekDescriptions(this.base.weekdayValues{customIndex}+1));
+                        else
+                            tooltipString = '';
+                        end
+                        set(this.handles.menu_weekdays,'string',this.base.weekdayDescriptions,'userdata',this.base.weekdayTags,...
+                            'value',widgetSettings.weekdaySelection,'callback',@this.menuWeekdaysCallback,'tooltipstring',tooltipString);
+
+                        %                         set(this.handles.menu_centroidStartTime,'userdata',[],'string',{'Start times'},'value',1);
+                        %                         set(this.handles.menu_centroidStopTime,'userdata',[],'string',{'Stop times'},'value',1);
+                        
+                        
                         %                         startStopTimesInDay= 0:1/4:24;
                         %                         hoursInDayStr = datestr(startStopTimesInDay/24,'HH:MM');
                         %                         set(this.handles.menu_centroidStartTime,'userdata',startStopTimesInDay(1:end-1),'string',hoursInDayStr(1:end-1,:),'value',widgetSettings.startTimeSelection);
@@ -943,35 +1058,35 @@ classdef PAStatTool < handle
                         % parent centroid panel based on the menu selection
                         % change callback which is called after initWidgets
                         % in the constructor.
-                        set(this.handles.push_refreshCentroids,'callback',@this.refreshCentroidsAndPlot);
+                        this.initRefreshCentroidButton('off');
                         set(this.handles.push_previousCentroid,'callback',@this.showPreviousCentroidCallback);
                         set(this.handles.push_nextCentroid,'callback',@this.showNextCentroidCallback);
                         
                         set(this.handles.push_nextCentroid,'units','pixels');
                         set(this.handles.push_previousCentroid,'units','pixels');
-                        drawnow();
+                        
                         % Correct arrow positions - they seem to shift in
                         % MATLAB R2014b from their guide set position.
-                        pos = get(this.handles.push_nextCentroid,'position');
-                        set(this.handles.push_nextCentroid,'position',pos.*[1 -1 1 1]);
-                        pos = get(this.handles.push_previousCentroid,'position');
-                        set(this.handles.push_previousCentroid,'position',pos.*[1 -1 1 1]);
+                        %                         pos = get(this.handles.push_nextCentroid,'position');
+                        %                         set(this.handles.push_nextCentroid,'position',pos.*[1 -1 1 1]);
+                        %                         pos = get(this.handles.push_previousCentroid,'position');
+                        %                         set(this.handles.push_previousCentroid,'position',pos.*[1 -1 1 1]);
                         
                         % Correct primary axes control widgets - they seem to shift in
                         % MATLAB R2014b from their guide set position.
-                        %                         parentH = get(this.handles.check_autoScaleYAxes,'parent');  %both widgets share the same parent panel here.
+                        %                         parentH = get(this.handles.check_holdYAxes,'parent');  %both widgets share the same parent panel here.
                         %                         parentPos = get(parentH,'position');
-                        pos = get(this.handles.check_autoScaleYAxes,'position');
-                        pos(2) = 0; %parentPos(4)/2-pos(4)/2; % get the lower position that results in the widget being placed in the center of the panel.
-                        set(this.handles.check_autoScaleYAxes,'position',pos);
+                        %                         pos = get(this.handles.check_holdYAxes,'position');
+                        %                         pos(2) = 0; %parentPos(4)/2-pos(4)/2; % get the lower position that results in the widget being placed in the center of the panel.
+                        %                         set(this.handles.check_holdYAxes,'position',pos);
                         
-                        pos = get(this.handles.check_holdPlots,'position');
-                        pos(2) = 0; %parentPos(4)/2-pos(4)/2; % get the lower position that results in the widget being placed in the center of the panel.
-                        set(this.handles.check_holdPlots,'position',pos);
-                        
-                        pos = get(this.handles.check_showAnalysisFigure,'position');
-                        pos(2) = 0; %parentPos(4)/2-pos(4)/2; % get the lower position that results in the widget being placed in the center of the panel.
-                        set(this.handles.check_showAnalysisFigure,'position',pos);
+                        %                         pos = get(this.handles.check_holdPlots,'position');
+                        %                         pos(2) = 0; %parentPos(4)/2-pos(4)/2; % get the lower position that results in the widget being placed in the center of the panel.
+                        %                         set(this.handles.check_holdPlots,'position',pos);
+                        %
+                        %                         pos = get(this.handles.check_showAnalysisFigure,'position');
+                        %                         pos(2) = 0; %parentPos(4)/2-pos(4)/2; % get the lower position that results in the widget being placed in the center of the panel.
+                        %                         set(this.handles.check_showAnalysisFigure,'position',pos);
                         
                         drawnow();
                         %
@@ -988,11 +1103,11 @@ classdef PAStatTool < handle
                         set(this.handles.push_nextCentroid,'units','points');
                         set(this.handles.push_previousCentroid,'units','points');
 
-                        set(this.handles.check_autoScaleYAxes,'value',strcmpi(widgetSettings.primaryAxis_yLimMode,'auto'),'callback',@this.checkAutoScaleYAxesCallback);
+                        set(this.handles.check_holdYAxes,'value',strcmpi(widgetSettings.primaryAxis_yLimMode,'manual'),'callback',@this.checkHoldYAxesCallback);
                         set(this.handles.check_holdPlots,'value',strcmpi(widgetSettings.primaryAxis_nextPlot,'add'),'callback',@this.checkHoldPlotsCallback);
                         set(this.handles.check_showAnalysisFigure,'value',widgetSettings.showAnalysisFigure,'callback',@this.checkShowAnalysisFigureCallback);
                         
-                        set([this.handles.menu_weekdays
+                        set([
                             this.handles.menu_centroidStartTime
                             this.handles.menu_centroidStopTime
                             this.handles.edit_centroidMinimum
@@ -1019,16 +1134,18 @@ classdef PAStatTool < handle
             this.previousState.sortValues = widgetSettings.sortValues;
             this.previousState.normalizeValues = widgetSettings.normalizeValues;
             this.previousState.plotType = this.base.plotTypes{widgetSettings.plotTypeSelection};
+            this.previousState.weekdaySelection = widgetSettings.weekdaySelection;
             
             %% Analysis Figure
             % Profile Summary
-            if(widgetSettings.useDatabase && ~isempty(this.databaseObj))
+            if(this.useDatabase && ~isempty(this.databaseObj))
                 this.initProfileTable(widgetSettings.profileFieldSelection);
                 
                 % Initialize the scatter plot axes
                 this.initScatterPlotAxes();
+                set(this.handles.push_analyzeClusters,'string','Analyze Clusters','callback',@this.analyzeClustersCallback);
                 
-                set(this.handles.push_dumpTable,'string','Dump Table','callback',@this.dumpTableResultsCallback);
+                set(this.handles.push_exportTable,'string','Export Table','callback',@this.exportTableResultsCallback);
                 set(this.handles.text_analysisTitle,'string','','fontsize',12);
             else
                 set(this.handles.check_showAnalysisFigure,'visible','off');
@@ -1041,12 +1158,84 @@ classdef PAStatTool < handle
             end
         end
         
-        function dumpTableResultsCallback(this, hObject,eventData)
-            tableData = get(this.handles.table_centroidProfiles,'data');
-            copy2workspace(tableData,'centroidProfilesTable');
-            
+        function initRefreshCentroidButton(this,enableState)
+            if(nargin<2 || ~strcmpi(enableState,'off'))
+                enableState = 'on';
+            end
+            fgColor = get(0,'FactoryuicontrolForegroundColor');
+            defaultBackgroundColor = get(0,'FactoryuicontrolBackgroundColor');
+            set(this.handles.push_refreshCentroids,'callback',@this.refreshCentroidsAndPlot,...
+                'enable',enableState,'string','Recalculate',...
+                'backgroundcolor',defaultBackgroundColor,...
+                'foregroundcolor',fgColor,...
+                'fontsize',12);
         end
         
+
+        % ======================================================================
+        %> @brief Configure gui handles for non centroid/clusting viewing
+        %> @param this Instance of PAStatTool
+        % ======================================================================
+        function switchFromClustering(this)
+            this.previousState.sortValues = get(this.handles.check_sortvalues,'value');            
+            set(this.handles.check_sortvalues,'value',0,'enable','off');            
+            set(this.handles.check_normalizevalues,'value',this.previousState.normalizeValues,'enable','on');
+            this.hideCentroidControls();
+            
+            disablehandles(this.handles.panel_plotCentroid);
+            set(this.handles.axes_secondary,'visible','off');
+            set(this.figureH,'WindowKeyPressFcn',[]);
+            set(this.analysisFigureH,'visible','off');
+
+            this.refreshPlot();
+        end    
+        
+
+        
+        % ======================================================================
+        %> @brief Configure gui handles for centroid analysis and viewing.
+        %> @param this Instance of PAStatTool
+        % ======================================================================
+        function switch2clustering(this)
+            set(this.handles.check_sortvalues,'value',this.previousState.sortValues,'enable','on');            
+            this.previousState.normalizeValues = get(this.handles.check_normalizevalues,'value');           
+            set(this.handles.check_normalizevalues,'value',1,'enable','off');
+            set(this.handles.axes_primary,'ydir','normal');  %sometimes this gets changed by the heatmap displays which have the time shown in reverse on the y-axis
+            
+            set(this.handles.panel_controlCentroid,'visible','on');
+            
+            if(this.getCanPlot())
+                if(this.hasValidCentroid())                    
+                    % lite version of refreshCentroidsAndPlot()
+                    this.showCentroidControls();
+                    this.plotCentroids();                     
+                    this.enableCentroidControls();
+                else
+                    this.disableCentroidControls();
+                    this.refreshCentroidsAndPlot();
+                end
+                
+                set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','on');
+                
+                if(this.hasValidCentroid())
+                    validColor = [1 1 1];
+                    keyPressFcn = @this.mainFigureKeyPressFcn;
+                else
+                    validColor = [0.75 0.75 0.75];
+                    keyPressFcn = [];
+                end
+                
+                
+                % This is handled in the plot centroid method, right before tick marks are down on
+                % set(this.handles.axes_primary,'color',validColor); 
+                set(this.handles.axes_secondary,'visible','on','color',validColor);
+                set(this.figureH,'WindowKeyPressFcn',keyPressFcn);
+                
+                if(this.shouldShowAnalysisFigure())
+                    set(this.analysisFigureH,'visible','on');
+                end
+            end
+        end        
 
         
         function decreaseProfileFieldSelection(this)
@@ -1091,15 +1280,132 @@ classdef PAStatTool < handle
             backgroundColor = userData.defaultBackgroundColor;
             backgroundColor(curIndex,:) = userData.rowOfInterestBackgroundColor;
             set(this.handles.table_centroidProfiles,'backgroundColor',backgroundColor,'rowStriping','on');
-            
+            drawnow();
+%             pause(0.2);
+            sRow = curIndex-1;  %java is 0 based
+            sCol = max(0,this.jhandles.table_centroidProfiles.getSelectedColumn());  %give us the first column if nothing is selected)
+%             this.jhandles.table_centroidProfiles.setRowSelectionInterval(sRow,sRow);
+%             this.jhandles.table_centroidProfiles.setSelectionBackground()
+            this.jhandles.table_centroidProfiles.changeSelection(sRow,sCol,false,false);
+            this.jhandles.table_centroidProfiles.repaint();
             this.refreshScatterPlot();
         end
         
+        function profileField = getProfileFieldSelection(this)
+            profileField = getMenuString(this.handles.menu_ySelection);
+        end
         
         function shouldShow = shouldShowAnalysisFigure(this)
             shouldShow = get(this.handles.check_showAnalysisFigure,'value');
         end
         
+        
+    end
+    
+    methods(Access=protected)
+        
+        
+        % ======================================================================
+        %> @brief Callback to enable the push_refreshCentroids button.  The button's 
+        %> background color is switched to green to highlight the change and need
+        %> for recalculation.
+        %> @param this Instance of PAStatTool
+        %> @param Variable number of arguments required by MATLAB gui callbacks
+        % ======================================================================
+        function enableCentroidRecalculation(this,varargin)
+            %             bgColor = 'green';
+            bgColor = [0.2 0.8 0.1];
+            fgColor = [1 1 1];
+            set(this.handles.push_refreshCentroids,'enable','on',...
+                'backgroundcolor',bgColor,'string','Recalculate',...
+                'foregroundcolor',fgColor,...
+                'callback',@this.refreshCentroidsAndPlot);
+        end
+        
+        function enableCentroidCancellation(this, varargin)
+            bgColor = [0.8 0.2 0.1];
+            fgColor = [0 0 0];
+            set(this.handles.push_refreshCentroids,'enable','on',...
+                'backgroundcolor',bgColor,'string','Cancel',...
+                'foregroundcolor',fgColor,...
+                'callback',@this.cancelCentroidsCalculationCallback);
+        end
+        
+        function cancelCentroidsCalculationCallback(this,hObject,eventdata)
+            %             bgColor = [0.6 0.4 0.3];
+            bgColor = [0.6 0.1 0.1];
+            set(this.handles.push_refreshCentroids,'enable','off','callback',[],...
+                'backgroundcolor',bgColor,'string','Cancelling');
+            this.notify('UserCancel_Event');
+        end        
+        
+        
+        function menuWeekdaysCallback(this, hObject, eventData)
+            curTag = getMenuUserData(hObject);
+            curValue = get(hObject,'value');
+            if(strcmpi(curTag,'custom'))
+                listString = this.base.daysOfWeekDescriptions(:);
+                listSize = [200, 100];
+                customIndex = strcmpi(this.base.weekdayTags,'custom');
+                initialValue = this.base.weekdayValues{customIndex}+1;
+                name = 'Custom selection';
+                
+                promptString = 'Select day(s) of week to use in clustering';
+                selectionMode = 'multiple';                
+                
+                [selection, okayChecked] = listdlg('liststring',listString,...
+                    'name',name,'promptString',promptString,...
+                    'listSize',listSize,...
+                    'initialValue',initialValue,'selectionMode',selectionMode);
+                
+                if(okayChecked && ~isempty(selection) && ~isequal(selection,initialValue))
+                    this.base.weekdayValues{customIndex} = selection-1;  %return to 0 based indexing for day of week fields.  
+                    this.previousState.weekdaySelection = curValue;
+                    set(hObject,'tooltipstring',cell2str(listString(selection)));
+                    this.enableCentroidRecalculation();                    
+                else
+                    set(hObject,'value',this.previousState.weekdaySelection);
+                end
+            else
+                this.previousState.weekdaySelection = curValue;
+                set(hObject,'tooltipstring','');
+                this.enableCentroidRecalculation();
+            end
+        end
+
+        
+
+        function analyzeClustersCallback(this, hObject,eventData)
+           % Get my centroid Object
+           % Take in all of the clusters, or the ones selected
+           % Apply to see how well it splits the data...
+           % Requires: addpath('/users/unknown/Google Drive/work/Stanford - Pediatrics/code/models');
+           initString = get(hObject,'string');
+           try
+               set(hObject,'enable','off','String','Analyzing ...');
+               dependentVar = this.getProfileFieldSelection();
+%                'bmi_zscore'
+%                'bmi_zscore+'  %for logistic regression modeling
+               resultStr = gee_model(this.centroidObj.getCovariateStruct(),dependentVar,{'age'; '(sex=1) as male'});
+               if(~isempty(resultStr))
+                   msgbox(resultStr);
+               end
+                   
+           catch me
+               set(hObject,'string','Error!');
+               showME(me);
+               pause(1);
+           end
+           set(hObject,'enable','on','string',initString);
+            
+        end
+
+        
+        function exportTableResultsCallback(this, hObject,eventData)
+            tableData = get(this.handles.table_centroidProfiles,'data');
+            copy2workspace(tableData,'centroidProfilesTable');
+        end
+                
         % Should probably move to event listeners here pretty soon.
         function hideAnalysisFigure(this,varargin)
             set(this.handles.check_showAnalysisFigure,'value',0);
@@ -1124,22 +1430,27 @@ classdef PAStatTool < handle
             'ytickmode',yScalingMode,...
             'yticklabelmode',yScalingMode);
             if(strcmpi(yScalingMode,'auto'))
-                set(this.handles.check_autoScaleYAxes,'value',1);
-                checkHoldPlotsCallback
+                set(this.handles.check_holdYAxes,'value',0);
+                %                 this.checkHoldPlotsCallback();
                 this.plotCentroids();
             else
-                set(this.handles.check_autoScaleYAxes,'value',0);
-                if(strcmpi(get(this.handles.axes_primary,'nextplot'),'replace'))
-                    set(this.handles.axes_primary,'nextplot','replaceChildren');
-                end
+                set(this.handles.check_holdYAxes,'value',1);  %manual selection means do not auto adjust
+                
+                % What is going on here?
+                %                 if(strcmpi(get(this.handles.axes_primary,'nextplot'),'replace'))
+                %                     set(this.handles.axes_primary,'nextplot','replaceChildren');
+                %                 end
             end
         end
         
-        function checkAutoScaleYAxesCallback(this,hObject,eventData)
+        %> @brief A 'checked' "Hold y-axis" checkbox infers 'manual'
+        %> yllimmode for the primary (upper) axis.  An unchecked box
+        %> indicates auto-scaling for the y-axis.
+        function checkHoldYAxesCallback(this,hObject,eventData)
             if(get(hObject,'value'))
-                yScalingMode = 'auto';
-            else
                 yScalingMode = 'manual';
+            else
+                yScalingMode = 'auto';
             end
             
             set(this.handles.axes_primary,'ylimmode',yScalingMode,...
@@ -1200,22 +1511,33 @@ classdef PAStatTool < handle
         function centroidDistributionCallback(this,hObject,eventdata,selection)
             this.centroidDistributionType = selection;
             this.plotCentroids();
-        end            
+        end   
+    end
+    
+    methods
       
         
         function refreshScatterPlot(this)
             numCentroids = this.centroidObj.getNumCentroids();  %or numel(globalStruct.colnames).
             sortOrders = find( this.centroidObj.getCOIToggleOrder() );
             curProfileFieldIndex = this.getProfileFieldIndex();
-            % get the current profile's ('curProfileIndex' row) mean ('2' column) for all centrois
+            % get the current profile's ('curProfileIndex' row) mean ('2' column) for all centroids
             % (':').
             x = 1:numCentroids;
             y = this.allProfiles(curProfileFieldIndex, 2, :);  % rows (1) = 
                         % columns (2) = 
                         % dimension (3) = centroid popularity (1 to most
                         % popular index)
-                        
+            
+            globalMean = repmat(this.profileTableData{curProfileFieldIndex,5},size(x));
+            profileSEM = this.profileTableData{curProfileFieldIndex,6};
+            upper95 = globalMean+1.96*profileSEM;
+            lower95 = globalMean-1.96*profileSEM;
+            
             set(this.handles.line_allScatterPlot,'xdata',x(:),'ydata',y(:));
+            set(this.handles.line_meanScatterPlot,'xdata',x(:),'ydata',globalMean(:));
+            set(this.handles.line_upper95PctScatterPlot,'xdata',x(:),'ydata',upper95(:));
+            set(this.handles.line_lower95PctScatterPlot,'xdata',x(:),'ydata',lower95(:));
             
             % The sort order indices will not change on a refresh like
             % this, but the y values at these indices will; so update them
@@ -1225,6 +1547,9 @@ classdef PAStatTool < handle
             
             set(this.handles.line_coiInScatterPlot,'xdata',sortOrders,'ydata',y(sortOrders));%,'displayName','blah');
             legend(this.handles.axes_scatterplot,this.handles.line_coiInScatterPlot,'location','southwest');
+            
+            
+            
         end
         
         % only extract the handles we are interested in using for the stat tool.
@@ -1267,19 +1592,31 @@ classdef PAStatTool < handle
             backgroundColor = backgroundColor(1:numRows,:);  %make sure we only get as many rows as we actually have.
             userData.defaultBackgroundColor = backgroundColor;
             userData.rowOfInterestBackgroundColor = [0.5 0.5 0.5];
+            
+            this.jhandles.table_centroidProfiles.setSelectionBackground(java.awt.Color(0.5,0.5,0.5));
+            this.jhandles.table_centroidProfiles.setSelectionForeground(java.awt.Color(0.0,0.0,0.0));
+            
             backgroundColor(profileFieldSelection,:) = userData.rowOfInterestBackgroundColor;
             
             % legend(this.handles.axes_scatterPlot,'off');
             tableData = cell(numRows,numel(profileColumnNames));
             this.profileTableData = tableData;  %array2table(tableData,'VariableNames',profileColumnNames,'RowNames',rowNames);
             
+            % Could use the DefaultTableModel instead of the, otherwise,
+            % DefaultUIStyleTableModel which does not provide the same
+            % functionality (namely setRowData)
+            %             this.jhandles.table_centroidProfiles.setModel(javax.swing.table.DefaultTableModel(tableData,profileColumnNames));
+                     
             %             curStack = dbstack;
             %             fprintf(1,'Skipping centroid profile table initialization on line %u of %s\n',curStack(1).line,curStack(1).file);
             set(this.handles.table_centroidProfiles,'rowName',rowNames,'columnName',profileColumnNames,...
                 'units','points','fontname','arial','fontsize',12,'fontunits','pixels','visible','on',...
                 'backgroundColor',backgroundColor,'rowStriping','on',...
-                'userdata',userData);
+                'userdata',userData,'CellSelectionCallback',@this.analysisTableCellSelectionCallback);
+            
                         
+
+            
             this.refreshProfileTableData();
                         
             fitTableWidth(this.handles.table_centroidProfiles);
@@ -1292,6 +1629,10 @@ classdef PAStatTool < handle
         % ======================================================================
         function initScatterPlotAxes(this)
             set(this.handles.axes_scatterplot,'box','on');
+            this.handles.line_meanScatterPlot = line('parent',this.handles.axes_scatterplot,'xdata',[],'ydata',[],'color','b','linestyle','--');
+            this.handles.line_upper95PctScatterPlot = line('parent',this.handles.axes_scatterplot,'xdata',[],'ydata',[],'color','b','linestyle',':');
+            this.handles.line_lower95PctScatterPlot = line('parent',this.handles.axes_scatterplot,'xdata',[],'ydata',[],'color','b','linestyle',':');
+            
             this.handles.line_allScatterPlot = line('parent',this.handles.axes_scatterplot,'xdata',[],'ydata',[],'color','k','linestyle','none','marker','.','buttondownfcn',@this.scatterplotButtonDownFcn);
             this.handles.line_coiInScatterPlot = line('parent',this.handles.axes_scatterplot,'xdata',[],'ydata',[],'color','r','linestyle','none','markerFaceColor','g','marker','o','markersize',6,'buttondownfcn',@this.scatterPlotCOIButtonDownFcn);
             [~,profileFieldName] = this.getProfileFieldIndex();
@@ -1317,7 +1658,8 @@ classdef PAStatTool < handle
                 'axes_scatterplot'
                 'table_centroidProfiles'
                 'menu_ySelection'
-                'push_dumpTable'
+                'push_exportTable'
+                'push_analyzeClusters'
                 'text_analysisTitle'
                 };
             
@@ -1325,10 +1667,30 @@ classdef PAStatTool < handle
                 fname = analysisHandlesOfInterest{f};
                 this.handles.(fname) = tmpAnalysisHandles.(fname);
             end
+            
+            %             h=uitable();
+            %             hFig = ancestor(h,'figure');
+            %             hFig = this.analysisFigureH;
+            %             jFrame = get(hFig,'JavaFrame');
+            %             mde = com.mathworks.mde.desk.MLDesktop.getInstance;
+            %             figName = get(this.analysisFigureH,'name');
+            %             jFig = mde.getClient(figName); %Get the underlying JAVA object of the figure.
+            %             jFrame = jFig.getRootPane.getParent();
+            
+            warning off MATLAB:HandleGraphics:ObsoletedProperty:JavaFrame
+            jFrame = get(this.analysisFigureH,'JavaFrame');
+            jFigPanel = get(jFrame,'FigurePanelContainer');
+%             this.jhandles.table_centroidProfiles=jFigPanel.getComponent(0).getComponent(0).getComponent(0).getComponent(0).getComponent(0);
+            
+            this.jhandles.table_centroidProfiles = jFigPanel.getComponent(0).getComponent(4).getComponent(0).getComponent(0).getComponent(0);
+            %             j.getUIClassID=='TableUI';
         
             % allocate line handle names here for organizational consistency
             this.handles.line_allScatterPlot = [];
             this.handles.line_coiInScatterPlot = [];
+            this.handles.line_meanScatterPlot = [];
+            this.handles.line_upper95PctScatterPlot = [];
+            this.handles.line_lower95PctScatterPlot = [];
             
             
             % get handles of interest from the main/primary figure.
@@ -1357,20 +1719,16 @@ classdef PAStatTool < handle
                 'panel_plotCentroid'
                 'panel_results'
                 'panel_controlCentroid'
-                'panel_centroidPrimaryAxesControls'
                 'push_nextCentroid'
                 'push_previousCentroid'
                 'text_resultsCentroid'
                 'check_holdPlots'
-                'check_autoScaleYAxes'
+                'check_holdYAxes'
                 'check_showAnalysisFigure'
 
 %                 'text_resultsCentroid'
 %                 'table_centroidProfiles'
                 };
-            
-            
-        
             
             for f=1:numel(handlesOfInterest)
                 fname = handlesOfInterest{f};
@@ -1401,8 +1759,9 @@ classdef PAStatTool < handle
         function plotSelection(this,plotOptions)
             axesHandle = this.handles.axes_primary;
             daysofweek = this.featureStruct.startDaysOfWeek;
-            daysofweekStr = {'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
-            daysofweekOrder = 1:7;
+                        
+            daysofweekStr = this.base.daysOfWeekShortDescriptions; %{'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
+            daysofweekOrder = this.base.daysOfWeekOrder; %1:7;
             features = this.featureStruct.features;
             divisionsPerDay = size(features,2);
             
@@ -1635,11 +1994,14 @@ classdef PAStatTool < handle
             end
             if(~isempty(this.centroidObj))
                 if(toggleOn)
-                    this.centroidObj.toggleOnNextCOI();
+                    didChange = this.centroidObj.toggleOnNextCOI();
                 else
-                    this.centroidObj.increaseCOISortOrder();
+                    didChange = this.centroidObj.increaseCOISortOrder();
+                    
                 end
-                this.plotCentroids();
+                if(didChange)
+                    this.plotCentroids();
+                end
             end
         end
         
@@ -1667,23 +2029,17 @@ classdef PAStatTool < handle
                 toggleOn = false;
             end
             if(toggleOn)
-                this.centroidObj.toggleOnPreviousCOI();
+                didChange = this.centroidObj.toggleOnPreviousCOI();
             else
-                this.centroidObj.decreaseCOISortOrder();
+                didChange = this.centroidObj.decreaseCOISortOrder();
             end
-            this.plotCentroids();
+            % Don't refresh if there was no change.
+            if(didChange)
+                this.plotCentroids();
+            end
         end
         
-        % ======================================================================
-        %> @brief Callback to enable the push_refreshCentroids button.  The button's 
-        %> background color is switched to green to highlight the change and need
-        %> for recalculation.
-        %> @param this Instance of PAStatTool
-        %> @param Variable number of arguments required by MATLAB gui callbacks
-        % ======================================================================
-        function enableCentroidRecalculation(this,varargin)
-            set(this.handles.push_refreshCentroids,'enable','on','backgroundcolor','green');
-        end
+
         
         % ======================================================================
         %> @brief Check button callback to refresh centroid display.
@@ -1692,6 +2048,39 @@ classdef PAStatTool < handle
         % ======================================================================
         function checkShowCentroidMembershipCallback(this,varargin)
             this.plotCentroids();
+        end
+        
+        %> @brief Creates a matlab struct with pertinent fields related to
+        %> the current centroid and its calculation, and then saves the
+        %> struct in a matlab binary (.mat) file.  Fields include
+        %> - centroidObj (sans handle references)
+        %> - featureStruct
+        %> - originalFeatureStruct
+        %> - usageStateStruct
+        %> - resultsDirectory
+        %> - featuresDirectory
+        function didCache = cacheCentroid(this)
+            didCache = false;
+            if(this.useCache)
+                if(isdir(this.cacheDirectory) || mkdir(this.cacheDirectory))
+                    try
+                        tmpStruct.centroidObj = this.getCentroidObj();  
+                        tmpStruct.centroidObj.removeHandleReferences();
+                        tmpStruct.featureStruct = this.featureStruct;
+                        tmpStruct.originalFeatureStruct = this.originalFeatureStruct;
+                        tmpStruct.usageStateStruct = this.usageStateStruct;
+                        tmpStruct.resultsDirectory = this.resultsDirectory;
+                        tmpStruct.featuresDirectory = this.featuresDirectory;
+                        fnames = fieldnames(tmpStruct);
+                        save(this.getFullCentroidCacheFilename(),'-mat','-struct','tmpStruct',fnames{:});
+                        didCache = true;
+                    catch me
+                        showME(me);
+                        didCache = false;
+                    end
+                end
+            end
+            
         end
 
         % ======================================================================
@@ -1707,8 +2096,11 @@ classdef PAStatTool < handle
             this.clearPrimaryAxes();
             this.showBusy();
             pSettings= this.getPlotSettings();
-            this.centroidObj = [];            
-            if(this.getFeatureStruct())            
+            
+            this.centroidObj = [];
+            
+            this.disableCentroidControls();  % disable further interaction with our centroid panel
+            if(this.calcFeatureStruct())            
                 % does not converge well if not normalized as we are no longer looking at the shape alone
                 
                 % @b weekdayTag String to identify how/if data should be
@@ -1719,18 +2111,23 @@ classdef PAStatTool < handle
                 % - @c weekdays Returns only data recorded on the weekdays (Monday
                 % to Friday)
                 % - @c weekends Returns data recored on the weekend
-                % (Saturday-Sunday)                
-                switch(pSettings.weekdayTag)                    
-                    case 'weekdays'
-                        daysOfInterest = 1:5;
-                    case 'weekends'
-                        daysOfInterest = [0,6];
-                    case 'all'
-                        daysOfInterest = [];
-                    otherwise               
-                        daysOfInterest = [];
-                        %this is the default case with 'all'
-                end
+                % (Saturday-Sunday)
+                weekdayIndex = strcmpi(this.base.weekdayTags,pSettings.weekdayTag);
+                daysOfInterest = this.base.weekdayValues{weekdayIndex};
+                
+                %                 switch(pSettings.weekdayTag)
+                %                     case 'weekdays'
+                %                         daysOfInterest = 1:5;
+                %                     case 'weekends'
+                %                         daysOfInterest = [0,6];
+                %                     case 'all'
+                %                         daysOfInterest = [];
+                %                     case 'custom'
+                %                         daysOfInterest = getMenuUserData(this.handles.menu_weekdays);
+                %                     otherwise
+                %                         daysOfInterest = [];
+                %                         %this is the default case with 'all'
+                %                 end
                 
                 if(~isempty(daysOfInterest))
                     rowsOfInterest = ismember(this.featureStruct.startDaysOfWeek,daysOfInterest); 
@@ -1746,52 +2143,90 @@ classdef PAStatTool < handle
                 set(this.handles.axes_primary,'color',[1 1 1],'xlimmode','auto','ylimmode',pSettings.primaryAxis_yLimMode,'xtickmode','auto',...
                     'ytickmode',pSettings.primaryAxis_yLimMode,'xticklabelmode','auto','yticklabelmode',pSettings.primaryAxis_yLimMode,'xminortick','off','yminortick','off');
                 set(resultsTextH,'visible','on','foregroundcolor',[0.1 0.1 0.1],'string','');
-               
 
                 % % set(this.handles.text_primaryAxes,'backgroundcolor',[0 0 0],'foregroundcolor',[1 1 0],'visible','on');
                 this.showCentroidControls();
                 
                 drawnow();
-                this.centroidObj = PACentroid(this.featureStruct.features,pSettings,this.handles.axes_primary,resultsTextH,this.featureStruct.studyIDs);
+                
+                % This means we will create the centroid object, but not
+                % calculate the centroids in the constructor.  The reason
+                % for this is because I want to register a mouse listener
+                % so users can cancel.  And I chose to do that here, rather
+                % than in the constructor.
+                delayedStart = true;
+                tmpCentroidObj = PACentroid(this.featureStruct.features,pSettings,this.handles.axes_primary,resultsTextH,this.featureStruct.studyIDs, this.featureStruct.startDaysOfWeek, delayedStart);
+                this.addlistener('UserCancel_Event',@tmpCentroidObj.cancelCalculations);
+                this.centroidObj = tmpCentroidObj;
+                this.enableCentroidCancellation();
+                
+                this.centroidObj.calculateCentroids();
                 
                 if(this.centroidObj.failedToConverge())
-                    warndlg('Failed to converge');
+                    warnMsg = {'Failed to converge',[]};
+                    if(isempty(this.featureStruct.features))
+                        warnMsg = {[warnMsg{1}, 'No features found.'];
+                                '';
+                                '  Hint: Try altering input settings:';
+                                '';
+                                '  - Changing days of week for analysis';
+                                '  - Reduce minimum number of clusters';
+                                '  - Include non-wear sections instead of discarding them';
+                                ''};
+                    else
+                        warnMsg{end} = 'See console for possible explanations';
+                    end
+                    warndlg(warnMsg,'Warning','modal');
                     this.centroidObj = [];
                 else
                     this.refreshGlobalProfile();
+                    this.cacheCentroid();
                 end
             else
                 inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);                
                 warndlg(sprintf('Could not find the input file required (%s)!',inputFilename));
             end
             
-            % Prep the x-axis here since it will not change when going from one centroid to the
-            % next, but only (though not necessarily) when refreshing centroids.
+
+            
+            if(this.hasValidCentroid()) % ~isempty(this.centroidObj))
+                % Prep the x-axis here since it will not change when going from one centroid to the
+                % next, but only (though not necessarily) when refreshing centroids.
+                this.drawCentroidXTicksAndLabels();
+                
+                
+                if(this.centroidObj.getUserCancelled())
+                    this.initRefreshCentroidButton('on');
+                else
+                    this.initRefreshCentroidButton('off');                    
+                end
+                
+                this.plotCentroids(pSettings); 
+                this.enableCentroidControls();
+                dissolve(resultsTextH,2.5);
+            else
+                set(resultsTextH,'visible','off');
+                this.initRefreshCentroidButton('on');  % want to initialize the button again so they can try again perhaps.
+            end
+            this.showReady();
+        end
+        
+        function drawCentroidXTicksAndLabels(this)
             xTicks = 1:6:this.featureStruct.totalCount;
             
             % This is nice to place a final tick matching the end time on
             % the graph, but it sometimes gets too busy and the tick
             % separation distance is non-linear which can be an eye soar.
-%             if(xTicks(end)~=this.featureStruct.totalCount)
-%                 xTicks(end+1)=this.featureStruct.totalCount;
-%             end
+            %             if(xTicks(end)~=this.featureStruct.totalCount)
+            %                 xTicks(end+1)=this.featureStruct.totalCount;
+            %             end
             
             xTickLabels = this.featureStruct.startTimes(xTicks);
-            set(this.handles.axes_primary,'xlim',[1,this.featureStruct.totalCount],'xtick',xTicks,'xticklabel',xTickLabels);
+            set(this.handles.axes_primary,'xlim',[1,this.featureStruct.totalCount],'xtick',xTicks,'xticklabel',xTickLabels);%,...
+%                 'fontsize',11);
             
-            if(~isempty(this.centroidObj))
-                defaultBackgroundColor = get(0,'FactoryuicontrolBackgroundColor');
-                set(this.handles.push_refreshCentroids,'enable','off','backgroundcolor',defaultBackgroundColor);
-                
-                this.plotCentroids(pSettings); 
-                this.enableCentroidControls();
-            else
-                this.disableCentroidControls();
-                set(this.handles.axes_primary,'color',[0.75 0.75 0.75]);
-            end
-            dissolve(resultsTextH,2.5);
-            this.showReady();
         end
+        
         
         %> @brief Hides the panel of centroid interaction controls.  For
         %> example, the forward and back buttons that appear in between the
@@ -1799,7 +2234,6 @@ classdef PAStatTool < handle
         %> @param Instance of PAStatTool
         function hideCentroidControls(this)
             set(this.handles.panel_controlCentroid,'visible','off'); 
-            set(this.handles.panel_centroidPrimaryAxesControls,'visible','off'); 
             
             % remove anycontext menu on the primary axes
             set(this.handles.axes_primary,'uicontextmenu',[]);
@@ -1811,13 +2245,13 @@ classdef PAStatTool < handle
         
         function showCentroidControls(this)
             set(this.handles.panel_controlCentroid,'visible','on');
-            set(this.handles.panel_centroidPrimaryAxesControls,'visible','on');
         end
         
+        %> @brief Does not change panel_plotCentroid controls.
         function enableCentroidControls(this)
-            set(findall(this.handles.panel_centroidPrimaryAxesControls,'enable','off'),'enable','on');  
+            enablehandles(this.handles.panel_controlCentroid);  
+            %             set(findall(this.handles.panel_plotCentroid,'enable','off'),'enable','on');
             
-            set(findall(this.handles.panel_controlCentroid,'enable','off'),'enable','on');  
             % add a context menu now to primary axes
             contextmenu_primaryAxes = uicontextmenu('parent',this.figureH);
             axesScalingMenu = uimenu(contextmenu_primaryAxes,'Label','y-Axis scaling','callback',@this.primaryAxesScalingContextmenuCallback);
@@ -1831,12 +2265,19 @@ classdef PAStatTool < handle
             set(this.handles.axes_primary,'uicontextmenu',contextmenu_primaryAxes);            
         end
         
+        %> @brief Does not alter panel_plotCentroid controls, which we want to
+        %> leave avaialbe to the user to manipulate settings in the event
+        %> that they have excluded loadshapes and need to alter the settings
+        %> to included them in a follow-on calculation.
         function disableCentroidControls(this)
-            set(findall(this.handles.panel_centroidPrimaryAxesControls,'enable','on'),'enable','off');              
-            set(findall(this.handles.panel_controlCentroid,'enable','on'),'enable','off');              
+            sethandles(this.handles.panel_controlCentroid,'enable','inactive');
+            
             set(this.handles.text_resultsCentroid,'enable','on');
             % add a context menu now to primary axes           
             set(this.handles.axes_primary,'uicontextmenu',[]);
+            this.clearPlots();
+            set([this.handles.axes_primary
+                this.handles.axes_secondary],'color',[0.75 0.75 0.75]);
         end
         
         
@@ -1861,11 +2302,18 @@ classdef PAStatTool < handle
                     if(nargin<2)
                         centroidAndPlotSettings = this.getPlotSettings();
                     end
-                    distributionAxes = this.handles.axes_secondary;
-                    centroidAxes = this.handles.axes_primary;
+                    
                     
                     numCentroids = this.centroidObj.numCentroids();
                     numLoadShapes = this.centroidObj.numLoadShapes();
+                    
+                    distributionAxes = this.handles.axes_secondary;
+                    centroidAxes = this.handles.axes_primary;
+                    
+                    set(centroidAxes,'color',[1 1 1]);
+                    % draw the x-ticks and labels
+                    this.drawCentroidXTicksAndLabels();
+                    
                     
                     %% Show centroids on primary axes
                     %                 coi = this.centroidObj.getCentroidOfInterest();
@@ -1889,7 +2337,6 @@ classdef PAStatTool < handle
                     else
                         set(centroidAxes,'ygrid','off','nextplot','replacechildren');
                     end
-                    
                     
                     %                 % Prep the x-axis.  This should probably be done elsewhere
                     %                 % as it will not change when going from one centroid to the
@@ -1918,15 +2365,15 @@ classdef PAStatTool < handle
                     for c=1:numCOIs
                         coi = cois{c};
                         if(centroidAndPlotSettings.showCentroidMembers)
-                            plot(centroidAxes,coi.memberShapes','-','linewidth',1,'color',[0.85 0.85 0.85]);
+                            plot(centroidAxes,coi.dayOfWeek.memberShapes','-','linewidth',1,'color',[0.85 0.85 0.85]);
                         end
-                        pctMembership =  coi.numMembers/numLoadShapes*100;
+                        pctMembership =  coi.dayOfWeek.numMembers/numLoadShapes*100;
                         legendStrings{c} = sprintf('Centroid #%u (%0.2f%%)',coi.sortOrder, pctMembership);
                         
                         coiSortOrders(c) = coi.sortOrder;
-                        coiPctMemberships(c) =  coi.numMembers/numLoadShapes*100;
+                        coiPctMemberships(c) =  coi.dayOfWeek.numMembers/numLoadShapes*100;
                         %                     coiIndices(c) = coi.index;
-                        coiMemberIDs = [coiMemberIDs;coi.memberIDs(:)];
+                        coiMemberIDs = [coiMemberIDs;coi.dayOfWeek.memberIDs(:)];
                         totalMembers = totalMembers+coi.numMembers;  %total load shape counts
                         
                         
@@ -1946,7 +2393,7 @@ classdef PAStatTool < handle
                     % selection or interaction with the gui.  It is updated
                     % internally within centroidObj.
                     coi = this.centroidObj.getCentroidOfInterest();
-                    pctMembership =  coi.numMembers/numLoadShapes*100;
+                    pctMembership =  coi.dayOfWeek.numMembers/numLoadShapes*100;
                     
                     set(centroidAxes,'nextplot',nextPlot);
                     
@@ -1961,22 +2408,26 @@ classdef PAStatTool < handle
                     else
                         legend(centroidAxes,'off');
                         centroidTitle = sprintf('Centroid #%u (%s). Popularity %u of %u. Loadshapes: %u of %u (%0.2f%%).  Individuals: %u of %u (%0.2f%%)',coi.sortOrder,...
-                            this.featureStruct.method, numCentroids-coi.sortOrder+1,numCentroids, coi.numMembers, numLoadShapes, pctMembership, numUniqueMemberIDs, totalMemberIDsCount, pctOfTotalMemberIDs);
+                            this.featureStruct.method, numCentroids-coi.sortOrder+1,numCentroids, coi.dayOfWeek.numMembers, numLoadShapes, pctMembership, numUniqueMemberIDs, totalMemberIDsCount, pctOfTotalMemberIDs);
                     end
                     title(centroidAxes,centroidTitle,'fontsize',14,'interpreter','none');
                     
                     
                     %% Analysis figure and scatter plot
                     %                 title(this.handles.axes_scatterplot,centroidTitle,'fontsize',12);
-                    if(centroidAndPlotSettings.useDatabase && ~isempty(this.databaseObj))
+                    if(this.useDatabase && ~isempty(this.databaseObj))
                         set(this.handles.text_analysisTitle,'string',centroidTitle);
                         
                         displayName = sprintf('Centroid #%u (%0.2f%%)\n',[coiSortOrders(:),coiPctMemberships(:)]');
                         displayName(end-1:end) = []; %remove trailing '\n'
                         yData = get(this.handles.line_allScatterPlot,'ydata');
-                        set(this.handles.line_coiInScatterPlot,'xdata',coiSortOrders,'ydata',yData(coiSortOrders),'displayName',displayName);
+                        if(~isempty(yData))
+                            set(this.handles.line_coiInScatterPlot,'xdata',coiSortOrders,'ydata',yData(coiSortOrders),'displayName',displayName);
+                        end
                     end
-                    
+
+                    oldVersion = verLessThan('matlab','7.14');
+ 
                     %%  Show distribution on secondary axes
                     switch(this.centroidDistributionType)
                         
@@ -1989,20 +2440,37 @@ classdef PAStatTool < handle
                             % and the loadshape count (for the centroid of
                             % interest) on the y-axis.
                         case 'weekday'
-                            daysofweekStr = {'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
-                            daysofweekOrder = 1:7;
+                            daysofweekStr = this.base.daysOfWeekShortDescriptions;%{'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
+                            daysofweekOrder = this.base.daysOfWeekOrder;  %1:7;
                             
                             % +1 to adjust startDaysOfWeek range from [0,6] to [1,7]
-                            coiDaysOfWeek = this.featureStruct.startDaysOfWeek(coiStruct.memberIndices)+1;
+                            coiDaysOfWeek = this.featureStruct.startDaysOfWeek(coi.memberIndices)+1;
                             coiDaysOfWeekCount = histc(coiDaysOfWeek,daysofweekOrder);
                             coiDaysOfWeekPct = coiDaysOfWeekCount/sum(coiDaysOfWeekCount(:));
-                            bar(distributionAxes,coiDaysOfWeekPct);
-                            
-                            for d=1:7
-                                daysofweekStr{d} = sprintf('%s (n=%u)',daysofweekStr{d},coiDaysOfWeekCount(d));
+                            h = bar(distributionAxes,coiDaysOfWeekPct);%,'buttonDownFcn',@this.centroidDayOfWeekHistogramButtonDownFcn);
+                            barWidth = get(h,'barwidth');
+                            x = get(h,'xdata');
+                            y = get(h,'ydata');
+                            pH = nan(max(daysofweekOrder),1);
+                            daysOfInterestVec = this.centroidObj.getDaysOfInterest();  %on means that we show the original bar, and that the day is 'on'; while the visibility of the overlay is off.
+                            for d=1:numel(daysofweekOrder)
+                                dayOrder = daysofweekOrder(d);
+                                daysofweekStr{dayOrder} = sprintf('%s (n=%u)',daysofweekStr{dayOrder},coiDaysOfWeekCount(dayOrder));
+                                
+                                if(~oldVersion)
+                                    onColor = [1 1 1];
+                                    if(daysOfInterestVec(dayOrder)) % don't draw the cover-up patches for days we are interested in.
+                                        visibility = 'off';
+                                    else
+                                        visibility = 'on';
+                                    end
+                                    pH(dayOrder) = patch(repmat(x(dayOrder),1,4)+0.5*barWidth*[-1 -1 1 1],1*[y(dayOrder) 0 0 y(dayOrder)],onColor,'parent',distributionAxes,'facecolor',onColor,'edgecolor',onColor,'pickableparts','none','hittest','off','visible',visibility);
+                                end
                             end
                             
-                            title(distributionAxes,sprintf('Weekday distribution for Centroid #%u (membership count = %u)',coiStruct.index,coiStruct.numMembers),'fontsize',14);
+                            
+                            set(h,'buttonDownFcn',{@this.centroidDayOfWeekHistogramButtonDownFcn,pH});
+                            title(distributionAxes,sprintf('Weekday distribution for Centroid #%u (membership count = %u)',coi.index,coi.dayOfWeek.numMembers),'fontsize',14);
                             %ylabel(distributionAxes,sprintf('Load shape count'));
                             xlabel(distributionAxes,'Days of week');
                             xlim(distributionAxes,[daysofweekOrder(1)-0.75 daysofweekOrder(end)+0.75]);
@@ -2021,7 +2489,6 @@ classdef PAStatTool < handle
                             
                             barH = bar(distributionAxes,y,barWidth,'buttonDownFcn',@this.centroidHistogramButtonDownFcn);
                             
-                            oldVersion = verLessThan('matlab','7.14');
                             if(oldVersion)
                                 %barH = bar(distributionAxes,y,barWidth);
                                 defaultColor = [0 0 9/16];
@@ -2053,10 +2520,10 @@ classdef PAStatTool < handle
                             %                         globalProfile = this.getGlobalProfile();
                             %                     case 'localVsGlobalProfile'
                             %                         globalProfile = this.getGlobalProfile();
-                            %                         primaryKeys = coiStruct.memberIDs;
+                            %                         primaryKeys = coi.memberIDs;
                             %                         ` = this.getProfileCell(primaryKeys);
                             %                     case 'centroidprofile'
-                            %                         primaryKeys = coiStruct.memberIDs;
+                            %                         primaryKeys = coi.memberIDs;
                             %                         coiProfile = this.getProfileCell(primaryKeys);
                         otherwise
                             warndlg(sprintf('Distribution type (%s) is unknonwn and or not supported',this.centroidDistributionType));
@@ -2083,9 +2550,6 @@ classdef PAStatTool < handle
         %> @retval userSettings Struct of GUI parameter value pairs
         % ======================================================================
         function userSettings = getPlotSettings(this)
-            
-            userSettings.useDatabase = this.originalWidgetSettings.useDatabase;
-            userSettings.databaseClass = this.originalWidgetSettings.databaseClass;
             userSettings.discardNonWearFeatures = this.originalWidgetSettings.discardNonWearFeatures;
             
             userSettings.showCentroidMembers = get(this.handles.check_showCentroidMembers,'value');
@@ -2128,10 +2592,14 @@ classdef PAStatTool < handle
             %             userSettings.centroidStopTime = getSelectedMenuString(this.handles.menu_centroidStopTime);
 
             userSettings.weekdayTag = this.base.weekdayTags{userSettings.weekdaySelection};
+            customIndex = strcmpi(this.base.weekdayTags,'custom');
+            userSettings.customDaysOfWeek = this.base.weekdayValues{customIndex};
+            
             userSettings.centroidDurationSelection = get(this.handles.menu_duration,'value');
             userSettings.centroidDurationHours = this.base.centroidHourlyDurations(userSettings.centroidDurationSelection);
             
             userSettings.centroidDistributionType = this.centroidDistributionType;
+            userSettings.clusterMethod = this.clusterMethod;
         end
 
         
@@ -2142,10 +2610,46 @@ classdef PAStatTool < handle
         function didRefresh = refreshProfileTableData(this)
             %             curStack = dbstack;
             %             fprintf(1,'Skipping %s on line %u of %s\n',curStack(1).name,curStack(1).line,curStack(1).file);
+            
+            sRow = this.getProfileFieldIndex()-1;  % Java is 0-based, MATLAB is 1-based
+            sCol = max(0,this.jhandles.table_centroidProfiles.getSelectedColumn());  %give us the first column if nothing is selected)
+                         
+            jViewPort = this.jhandles.table_centroidProfiles.getParent();
+            initViewPos = jViewPort.getViewPosition();
             set(this.handles.table_centroidProfiles,'data',this.profileTableData);
+            
+            %
+            %             colNames = get(this.handles.table_centroidProfiles,'columnname');
+%             this.jhandles.table_centroidProfiles.getModel.setDataVector(this.profileTableData, colNames); % data = java.util.Vector
+            %             %             data = this.jhandles.table_centroidProfiles.getModel.getDataVector;
+            
+            drawnow();
+            this.jhandles.table_centroidProfiles.changeSelection(sRow,sCol,false,false);            
+            jViewPort.setViewPosition(initViewPos);
+            drawnow();
+%             jViewPort.repaint();
+            
+            this.jhandles.table_centroidProfiles.repaint();
+            
+%             this.jhandles.table_centroidProfiles.clearSelection();
+%              this.jhandles.table_centroidProfiles.setRowSelectionInterval(sRow,sRow);
+            
+%          
             didRefresh = true;
-        end
+        end  
         
+        
+        function analysisTableCellSelectionCallback(this, hObject, eventdata)
+            if(~isempty(eventdata.Indices))
+                rowSelectionIndex = eventdata.Indices(1);
+                % If we clicked on a different row than where we were before,
+                % then adjust to the new row.
+                if(rowSelectionIndex~=this.getProfileFieldIndex())
+                    this.setProfileFieldIndex(rowSelectionIndex);
+                end
+            end
+            
+        end
         
         %> @brief Refreshes profile statistics for the current centroid of interest (COI).
         %> This method should be called whenever the COI changes.
@@ -2212,9 +2716,9 @@ classdef PAStatTool < handle
                         coiMemberIDs = globalStruct.memberIDs(globalStruct.values(:,coiIndex)>0);  % pull out the members contributing to index of the current centroid of interest (coi)
                         
                         sortOrder = this.centroidObj.getCOISortOrder(coiIndex);
-                        if(sortOrder==21)
-                           disp(sortOrder); 
-                        end
+                        %                         if(sortOrder==21)
+                        %                            disp(sortOrder);
+                        %                         end
                         this.allProfiles(:,:,sortOrder) = cell2mat(this.getProfileCell(coiMemberIDs, this.profileFields));
                     end
                     
@@ -2349,7 +2853,7 @@ classdef PAStatTool < handle
             %     urhere = ftell(fid);
             %     fseek(fid,urhere,'bof');
             
-            % +3 because of datenum and start date of the week that precede the
+            % +3 because of study id, datenum, and start date of the week that precede the
             % time stamps.
             scanStr = repmat(' %f',1,numCols+3);
             
@@ -2402,6 +2906,17 @@ classdef PAStatTool < handle
         %> - @c centroidDurationSelection
         % ======================================================================
         function paramStruct = getDefaultParameters()
+            % Cache directory is for storing the centroid object to 
+            % so it does not have to be reloaded each time when the
+            % PAStatTool is instantiated.
+            if(~isdeployed)
+                workingPath = fileparts(mfilename('fullpath'));
+            else
+                workingPath = fileparts(mfilename('fullpath'));                
+            end
+            paramStruct.cacheDirectory = fullfile(workingPath,'cache');
+            paramStruct.useCache = 1;
+            
             paramStruct.useDatabase = 0;
             paramStruct.databaseClass = 'CLASS_database_goals';
             paramStruct.discardNonWearFeatures = 1;
@@ -2418,20 +2933,26 @@ classdef PAStatTool < handle
             paramStruct.trimToPercent = 100;
             paramStruct.cullToValue = 0;
             paramStruct.showCentroidMembers = 0;
-            paramStruct.minClusters = 40;
-            paramStruct.clusterThreshold = 1.5;
+            
             paramStruct.weekdaySelection = 1;
             paramStruct.startTimeSelection = 1;
             paramStruct.stopTimeSelection = -1;
+            paramStruct.customDaysOfWeek = 0;  %for sunday.
             
             paramStruct.centroidDurationSelection = 1;
                         
             paramStruct.primaryAxis_yLimMode = 'auto';
             paramStruct.primaryAxis_nextPlot = 'replace';
             paramStruct.showAnalysisFigure = 0; % do not display the other figure at first
-            paramStruct.centroidDistributionType = 'membership';  %{'performance','membership','weekday'}
+            paramStruct.centroidDistributionType = 'membership';  %{'performance','membership','weekday'}            
+            paramStruct.profileFieldSelection = 1;            
             
-            paramStruct.profileFieldSelection = 1;
+            % Cluster settings
+            paramStruct.clusterMethod = 'kmeans';  % {'kmeans','kmedoids'}
+            paramStruct.minClusters = 40;
+            paramStruct.clusterThreshold = 1.5;
+            paramStruct.useDefaultRandomizer = true;
+            
         end
         
         % ======================================================================
@@ -2450,7 +2971,7 @@ classdef PAStatTool < handle
         %> - @c weekdayTags
         % ======================================================================
         function baseSettings = getBaseSettings()
-            featureDescriptionStruct = PAData.getFeatureDescriptionStruct();
+            featureDescriptionStruct = PAData.getFeatureDescriptionStructWithPSDBands();
             baseSettings.featureDescriptions = struct2cell(featureDescriptionStruct);
             baseSettings.featureTypes = fieldnames(featureDescriptionStruct);
             baseSettings.signalTypes = {'x','y','z','vecMag'};
@@ -2476,8 +2997,13 @@ classdef PAStatTool < handle
             baseSettings.processedTypes = {'count','raw'};            
             baseSettings.numShades = 1000;
             
-            baseSettings.weekdayDescriptions = {'All days','Monday-Friday','Weekend'};            
-            baseSettings.weekdayTags = {'all','weekdays','weekends'};
+            baseSettings.weekdayDescriptions = {'All days','Monday-Friday','Weekend','Custom'};            
+            baseSettings.weekdayTags = {'all','weekdays','weekends','custom'};
+            baseSettings.weekdayValues = {0:6,1:5,[0,6],[]};
+            baseSettings.daysOfWeekShortDescriptions = {'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
+            baseSettings.daysOfWeekDescriptions = {'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'};
+            baseSettings.daysOfWeekOrder = 1:7;
+                    
             
             baseSettings.centroidDurationDescriptions = {'1 day','12 hours','6 hours','4 hours','3 hours','2 hours','1 hour'};
             baseSettings.centroidDurationDescriptions = {'24 hours','12 hours','6 hours','4 hours','3 hours','2 hours','1 hour'};

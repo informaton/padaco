@@ -19,9 +19,9 @@ classdef  PASettings < handle
         %> is useful when saving the setting's file to make sure it is
         %> always saved in the same place and not in another directory
         %> (e.g. if the user moves about in MATLAB's editor).
-        rootpathname
+        rootpathname;
         %> @brief name of text file that stores the toolkit's settings
-        parameters_filename
+        parameters_filename;
         %> @brief cell of string names corresponding to the struct properties that
         %> contain settings  <b><i> {'DATA','VIEW', 'CONTROLLER','BATCH'}</i></b>
         fieldNames;
@@ -356,6 +356,13 @@ classdef  PASettings < handle
                     fprintf('\nWarning: Could not load parameters from file %s.  Will use default settings instead.\n\r',full_paramsFile);
                     
                 else
+                    % Here we go now...
+                    % obj = PAData.mergeStruct(obh,paramStruct);
+                    
+                    % This appears to obtain file from odd location
+                    % determined when the program is first installed.
+                    % warndlg(sprintf('Loading %s',full_paramsFile));
+                    
                     fnames = fieldnames(paramStruct);
                     
                     if(isempty(fnames))
@@ -365,21 +372,29 @@ classdef  PASettings < handle
                         for f=1:numel(obj.fieldNames)
                             cur_field = obj.fieldNames{f};
                             if(~isfield(paramStruct,cur_field) || ~isstruct(paramStruct.(cur_field)))
-                                fprintf('\nWarning: Could not load parameters from file %s.  The %s parameters are missing.  Will use default settings instead.\n\r',full_paramsFile,cur_field);
-                                return;
+                                fprintf('\nWarning: Could not find the ''%s'' parameter in %s.  Default settings for this parameter are being used instead.\n\r',cur_field,full_paramsFile);
+                                continue;
                             else
                                 structFnames = fieldnames(obj.(cur_field));
                                 for g= 1:numel(structFnames)
                                     cur_sub_field = structFnames{g};
                                     %check if there is a corruption
                                     if(~isfield(paramStruct.(cur_field),cur_sub_field))
-                                        fprintf('\nSettings file corrupted.  The %s.%s parameter is missing.  Using default Padaco settings\n\n', cur_field,cur_sub_field);
-                                        return;
+                                        fprintf('\nSettings file may be corrupted or incomplete.  The %s.%s parameter is missing.  Using default setting for this paramter.\n\n', cur_field,cur_sub_field);
+                                        paramStruct.(cur_field).(cur_sub_field) = obj.(cur_field).(cur_sub_field);  % We'll produce it then and use whatever came up from obj.setDefaults();
+                                        continue;
+                                    elseif(isempty(paramStruct.(cur_field).(cur_sub_field)))
+                                        fprintf('\nSettings file may be corrupted or incomplete.  The %s.%s parameter is empty ('''').  Using default setting for this paramter instead.\n\n', cur_field,cur_sub_field);
+                                        paramStruct.(cur_field).(cur_sub_field) = obj.(cur_field).(cur_sub_field);  % We'll take whatever came up from obj.setDefaults();
+                                        continue;
                                     end
                                 end
                             end
                         end
                         
+                        % Now that everything has been checked and we have
+                        % warned the groups of what we may be missing, we
+                        % can continue.
                         for f=1:numel(fnames)
                             obj.(fnames{f}) = paramStruct.(fnames{f});
                         end
@@ -415,7 +430,11 @@ classdef  PASettings < handle
             end
             
             tmp_obj.fieldNames = lite_fieldNames;
+            
+            %             tmp_obj.StatTool = rmfield(tmp_obj.StatTool,'customDaysOfWeek');  % get rid of fields that contain arrays of values, since I don't actually know how to handle this
             tmp_obj = pair_value_dlg(tmp_obj);
+            
+            
             if(~isempty(tmp_obj))
                 for f=1:numel(lite_fieldNames)
                     fname = lite_fieldNames{f};

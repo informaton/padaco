@@ -22,7 +22,7 @@ function varargout = analysis(varargin)
 
 % Edit the above text to modify the response to help analysis
 
-% Last Modified by GUIDE v2.5 11-Feb-2016 14:18:33
+% Last Modified by GUIDE v2.5 28-Apr-2016 12:16:44
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -59,7 +59,7 @@ handles.output = hObject;
 guidata(hObject, handles);
 
 % UIWAIT makes analysis wait for user response (see UIRESUME)
-% uiwait(handles.figure1);
+% uiwait(handles.analysisFig);
 
 
 % --- Outputs from this function are returned to the command line.

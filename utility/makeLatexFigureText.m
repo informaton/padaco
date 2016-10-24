@@ -15,6 +15,17 @@ function latexText = makeLatexFigureText(figureNames,pathname)
                 'sourceDirectoryForSampleData.png';
                 'sourceDirectoryOfGoalsData.png';
                 'switch2batch.png'};
+            figureNames = {'complete_with_all_errors_selected.png'
+                'complete_with_errors.png'
+                'waitbar_1minute.png'
+                'waitbar_50pct.png'
+                'waitbar_finished.png'
+                };
+            
+            figureNames = {'sampleDataResultsDialog.png'
+                'contextmenu_openPath_2.png'
+                'contextmenu_openPath.png'
+                };
         end
     end
     if(~iscell(figureNames))
