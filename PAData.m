@@ -2879,7 +2879,7 @@ classdef PAData < handle
             
             pStruct.usageStateRules = usageState;
             
-            featureStruct = PAData.getFeatureDescriptionStruct();
+            featureStruct = PAData.getFeatureDescriptionStructWithPSDBands();
             fnames = fieldnames(featureStruct);
             
             windowHeight = 1000; %diff(obj.getMinmax('all'))
@@ -3165,8 +3165,7 @@ classdef PAData < handle
                 end
             else
                 if(strcmpi(operand,'calculateposition'))
-                    resultStruct.position = [rtStruct.xdata(1), rtStruct.ydata(1), 0];
-                    
+                    resultStruct.position = [rtStruct.xdata(1), rtStruct.ydata(1), 0];                    
                 else
                     if(~isempty(optionalDestFieldOrValue))
                         if(strcmpi(operand,'passthrough'))
@@ -3310,13 +3309,14 @@ classdef PAData < handle
         %> @note
         %> @note rtStruct =
         %> @note     accel: [1x1 struct]
+        %> @note            [x]: [1.0]
         %> @note            [pos]: [0.5000, 1, 0]
         %> @note
         %> @note
         %> @note PAData.structEval(rtStruct,ltStruct)
         %> @note ans =
         %> @note     accel: [1x1 struct]
-        %> @note              [x]: 0.5000
+        %> @note              [x]: 1.0
         %> @note              [y]: 1
         %> @note            [pos]: [0.5000, 1, 0]
         %> @note     lux: [1x1 struct]
@@ -3675,7 +3675,7 @@ classdef PAData < handle
             psdNames = PAData.getPSDBandNames();
             for p=1:numel(psdNames)
                 psdFeatureStruct.(psdNames{p}) = sprintf('Power Spectral Density (band - %u)',p);
-            end            
+            end
             if(nargout>1)
                 varargout{1} = struct2cell(psdFeatureStruct);
             end

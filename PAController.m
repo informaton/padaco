@@ -1195,11 +1195,12 @@ classdef PAController < handle
                     
                     
                     if(~strcmpi(obj.getViewMode(),'timeseries'))
-                        obj.setViewMode('timeseries');
+                        obj.setViewMode('timeseries');  % Call initAccelDataView as well 
+                    else
+                        %initialize the PAData object's visual properties
+                        obj.initAccelDataView(); %calls show obj.VIEW.showReady() Ready...
+                        
                     end
-                    
-                    %initialize the PAData object's visual properties
-                    obj.initAccelDataView(); %calls show obj.VIEW.showReady() Ready...
                     
                     % For testing/debugging
                     %                     featureFcn = 'mean';
@@ -1461,7 +1462,7 @@ classdef PAController < handle
                         if(strcmpi(responseButton,'yes'))
                             obj.menuFileOpenCallback();
                         end
-                    else
+                    else                        
                         obj.initAccelDataView();
                     end
                 case 'results'
