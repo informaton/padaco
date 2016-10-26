@@ -804,8 +804,10 @@ classdef PAController < handle
             % update secondary axes y labels according to our feature
             % function.
             if(strcmpi(featureFcn,'psd'))
-                ytickLabels = {sprintf('PSD (B4)\r(0.01 - 1)'),'Band 3','Band 2','Band 1','Band 1','Activity','Lumens','Daylight'};
+                ytickLabels = {'Band 5','Band 4','Band 3','Band 2','Band 1','Activity','Lumens','Daylight'};
+                signalTags = {'b5','b4','b3','b2','b1'};                
             else
+                signalTags = {'x','y','z','vecMag'};
                 ytickLabels = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Lumens','Daylight'};
             end
             obj.updateSecondaryAxesLabels('y',ytickLabels);
@@ -813,7 +815,8 @@ classdef PAController < handle
             %  signalTagLine = obj.getSignalSelection();
             %  obj.drawFeatureVecPatches(featureFcn,signalTagLine,numFrames);
             
-            signalTagLines = strcat('accel.',obj.accelTypeShown,'.',{'x','y','z','vecMag'})';
+            signalTagLines = strcat('accel.',obj.accelTypeShown,'.',signalTags)';
+            
             numViews = obj.numViewsInSecondaryDisplay; %(numel(signalTagLines)+1);
             height = 1/numViews;
             heightOffset = 0;
@@ -835,18 +838,19 @@ classdef PAController < handle
                 featureVec = obj.getFeatureVec(featureFcn,signalName,numFeatures);  %  redundant time stamp calculations benig done for start stpop dateneums in here.
                 
                 % x, y, z
-                if(s<numel(signalTagLines))
-                    vecHandles = obj.VIEW.addFeaturesVecToSecondaryAxes(featureVec,startStopDatenums,height,heightOffset);
-                    obj.featureHandles = [obj.featureHandles(:);vecHandles(:)];
+                if(s<numel(signalTagLines) || (s==numel(signalTagLines)&&strcmpi(featureFcn,'psd')))
+                    vecHandles = obj.VIEW.addFeaturesVecToSecondaryAxes(featureVec,startStopDatenums,height,heightOffset);                    
                     heightOffset = heightOffset+height;
                     
                     % vecMag
                 else
                     % This requires twice the height because it will have a
                     % feature line and heat map
-                    obj.VIEW.addFeaturesVecAndOverlayToSecondaryAxes(featureVec,startStopDatenums,height*2,heightOffset);
+                    [patchH, lineH, cumsumH] = obj.VIEW.addFeaturesVecAndOverlayToSecondaryAxes(featureVec,startStopDatenums,height*2,heightOffset);
+                    vecHandles = [patchH, lineH, cumsumH];
                     heightOffset = heightOffset+height*2;
                 end
+                obj.featureHandles = [obj.featureHandles(:);vecHandles(:)];
             end
         end
         
@@ -1688,21 +1692,30 @@ classdef PAController < handle
             % correct number of sections needed.
             if(strcmpi(featureFcn,'psd'))
                 featureStruct = paDataObj.getStruct('all','features');
-                switch fieldName(end)
-                    case 'g'  % accel.count.vecMag
-                        featureVec = featureStruct.psd_band_1;
-                    case 'x'
-                        featureVec = featureStruct.psd_band_2;
-                    case 'y'
-                        featureVec = featureStruct.psd_band_3;
-                    case 'z'
-                        featureVec = featureStruct.psd_band_4;
-                    otherwise
-                        featureVec = featureStruct.psd_band_1;
-                end
-                
+                psdBand = strcat('psd_band_',fieldName(end));
+                if(isfield(featureStruct,psdBand))
+                    featureVec = featureStruct.(psdBand);
+                else
+                    switch fieldName(end)
+                        
+                        case 'g'  % accel.count.vecMag
+                            featureVec = featureStruct.psd_band_1;
+                        case 'x'
+                            featureVec = featureStruct.psd_band_2;
+                        case 'y'
+                            featureVec = featureStruct.psd_band_3;
+                        case 'z'
+                            featureVec = featureStruct.psd_band_4;
+                        otherwise
+                            featureVec = featureStruct.psd_band_1;
+                    end
+                end                
             else
                 timeSeriesStruct = paDataObj.getStruct('all','timeSeries');
+                
+                % Can't get nested fields directly with
+                % timeSeriesStruct.(fieldName) where fieldName =
+                % 'accel.count.x', for example.
                 fieldData = eval(['timeSeriesStruct.',fieldName]);
                 
                 indices = ceil(linspace(1,numel(fieldData),numSections+1));
@@ -2027,7 +2040,7 @@ classdef PAController < handle
         end
         
         %> Draw all parts of the overlay to axesH using paDataObject
-        %> This is used for batch processing.
+        %> This is used for batch processing, when taking screenshots.
         function [featureHandles] = drawOverlay(obj,paDataObject,featureFcn,axesH)
             
             numFrames = paDataObject.getFrameCount();
@@ -2054,19 +2067,22 @@ classdef PAController < handle
             featureHandles = [];
             for s=1:numel(signalTagLines)
                 signalName = signalTagLines{s};
-                % Modified to pass in the paDataObj as last parameter
+                % Modified to pass in the PADataObj as last parameter
                 [featureVec, startStopDatenums] = obj.getFeatureVec(featureFcn,signalName,numFrames,paDataObject);
                 if(s<numel(signalTagLines))
-                    vecHandles = obj.VIEW.addFeaturesVecToAxes(featureVec,startStopDatenums,height,heightOffset,axesH);
-                    featureHandles = [featureHandles(:);vecHandles(:)];
+                    vecHandles = obj.VIEW.addFeaturesVecToAxes(featureVec,startStopDatenums,height,heightOffset,axesH);                    
                 else
                     % This requires twice the height because it will have a
                     % feature line and heat map
-                    obj.VIEW.addFeaturesVecAndOverlayToAxes(featureVec,startStopDatenums,height*2,heightOffset,axesH);
+                    vecHandles = obj.VIEW.addFeaturesVecAndOverlayToAxes(featureVec,startStopDatenums,height*2,heightOffset,axesH);
                     
                 end
                 heightOffset = heightOffset+height;
+                featureHandles = [featureHandles(:);vecHandles(:)];
+
             end
+            
+            % Added this to keep consistency with updateSecondaryFeaturesDisplay method
             
             ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Lumens','Daylight'};
             numViews = numel(ytickLabel);

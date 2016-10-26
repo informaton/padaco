@@ -946,7 +946,7 @@ classdef PAView < handle
         %> @param overlayOffset The normalized y offset ([0, 1]) that is applied to
         %> the featureVector when displayed on the secondary axes.        
         % --------------------------------------------------------------------
-        function addFeaturesVecAndOverlayToSecondaryAxes(obj, featureVector, startStopDatenum, overlayHeight, overlayOffset)
+        function [feature_patchH, feature_lineH, feature_cumsumLineH] = addFeaturesVecAndOverlayToSecondaryAxes(obj, featureVector, startStopDatenum, overlayHeight, overlayOffset)
             if(ishandle(obj.patchhandle.feature))
                 delete(obj.patchhandle.feature);
             end
@@ -956,7 +956,8 @@ classdef PAView < handle
             if(ishandle(obj.linehandle.featureCumsum))
                 delete(obj.linehandle.featureCumsum);
             end
-            [obj.patchhandle.feature, obj.linehandle.feature, obj.linehandle.featureCumsum] = obj.addFeaturesVecAndOverlayToAxes( featureVector, startStopDatenum, overlayHeight, overlayOffset, obj.axeshandle.secondary, obj.getUseSmoothing(), obj.contextmenuhandle.featureLine);
+            [feature_patchH, feature_lineH, feature_cumsumLineH] = obj.addFeaturesVecAndOverlayToAxes( featureVector, startStopDatenum, overlayHeight, overlayOffset, obj.axeshandle.secondary, obj.getUseSmoothing(), obj.contextmenuhandle.featureLine);
+            [obj.patchhandle.feature, obj.linehandle.feature, obj.linehandle.featureCumsum] = deal(feature_patchH, feature_lineH, feature_cumsumLineH);
         end
         
         % --------------------------------------------------------------------
