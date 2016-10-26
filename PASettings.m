@@ -351,54 +351,79 @@ classdef  PASettings < handle
             full_paramsFile = fullfile(obj.rootpathname,obj.parameters_filename);
             
             if(exist(full_paramsFile,'file'))
+                % This appears to obtain file from odd location
+                % determined when the program is first installed.
+                % warndlg(sprintf('Loading %s',full_paramsFile));
                 paramStruct = obj.loadParametersFromFile(full_paramsFile);
                 if(~isstruct(paramStruct))
                     fprintf('\nWarning: Could not load parameters from file %s.  Will use default settings instead.\n\r',full_paramsFile);
                     
                 else
-                    % Here we go now...
-                    % obj = PAData.mergeStruct(obh,paramStruct);
+                    % This does not work directly because obj is not a
+                    % struct and mergeStruct does a check to see if fields
+                    % exist in the left hand argument as if it were a
+                    % struct.  Instead, build a tmp struct first, merge it,
+                    % and then put the tmp struct back into our object.                    
+                    % obj = PAData.mergeStruct(obj,paramStruct);                  
                     
-                    % This appears to obtain file from odd location
-                    % determined when the program is first installed.
-                    % warndlg(sprintf('Loading %s',full_paramsFile));
-                    
+                   
                     fnames = fieldnames(paramStruct);
                     
                     if(isempty(fnames))
                         fprintf('\nWarning: Could not load parameters from file %s.  Will use default settings instead.\n\r',full_paramsFile);
                     else
-                        
-                        for f=1:numel(obj.fieldNames)
-                            cur_field = obj.fieldNames{f};
-                            if(~isfield(paramStruct,cur_field) || ~isstruct(paramStruct.(cur_field)))
-                                fprintf('\nWarning: Could not find the ''%s'' parameter in %s.  Default settings for this parameter are being used instead.\n\r',cur_field,full_paramsFile);
-                                continue;
-                            else
-                                structFnames = fieldnames(obj.(cur_field));
-                                for g= 1:numel(structFnames)
-                                    cur_sub_field = structFnames{g};
-                                    %check if there is a corruption
-                                    if(~isfield(paramStruct.(cur_field),cur_sub_field))
-                                        fprintf('\nSettings file may be corrupted or incomplete.  The %s.%s parameter is missing.  Using default setting for this paramter.\n\n', cur_field,cur_sub_field);
-                                        paramStruct.(cur_field).(cur_sub_field) = obj.(cur_field).(cur_sub_field);  % We'll produce it then and use whatever came up from obj.setDefaults();
-                                        continue;
-                                    elseif(isempty(paramStruct.(cur_field).(cur_sub_field)))
-                                        fprintf('\nSettings file may be corrupted or incomplete.  The %s.%s parameter is empty ('''').  Using default setting for this paramter instead.\n\n', cur_field,cur_sub_field);
-                                        paramStruct.(cur_field).(cur_sub_field) = obj.(cur_field).(cur_sub_field);  % We'll take whatever came up from obj.setDefaults();
-                                        continue;
-                                    end
-                                end
-                            end
-                        end
-                        
-                        % Now that everything has been checked and we have
-                        % warned the groups of what we may be missing, we
-                        % can continue.
+                        tmpStruct = struct;
                         for f=1:numel(fnames)
-                            obj.(fnames{f}) = paramStruct.(fnames{f});
+                            tmpStruct.(fnames{f}) = obj.(fnames{f});
                         end
+                        
+                        tmpStruct = PAData.mergeStruct(tmpStruct,paramStruct);
+                        
+                        % Do not bring in any new tier-1 fields that may have
+                        % existed independtly in the paramStruct.
+                        for f=1:numel(fnames)
+                            obj.(fnames{f}) = tmpStruct.(fnames{f});
+                        end
+                        
+                        
+                        % Alternative with more debugging information on what
+                        % changed or is not found correctly in the parameter
+                        % file.  Unfortunately, it only checks one or two
+                        % levels deep into the struct and can miss small
+                        % changes like obj.DATA.color.features.psd vs
+                        % obj.DATA.color.features.psd_band_1.
+                        %                         for f=1:numel(obj.fieldNames)
+                        %                             cur_field = obj.fieldNames{f};
+                        %                             if(~isfield(paramStruct,cur_field) || ~isstruct(paramStruct.(cur_field)))
+                        %                                 fprintf('\nWarning: Could not find the ''%s'' parameter in %s.  Default settings for this parameter are being used instead.\n\r',cur_field,full_paramsFile);
+                        %                                 continue;
+                        %                             else
+                        %
+                        %                                 structFnames = fieldnames(obj.(cur_field));
+                        %                                 for g= 1:numel(structFnames)
+                        %                                     cur_sub_field = structFnames{g};
+                        %                                     %check if there is a corruption
+                        %                                     if(~isfield(paramStruct.(cur_field),cur_sub_field))
+                        %                                         fprintf('\nSettings file may be corrupted or incomplete.  The %s.%s parameter is missing.  Using default setting for this paramter.\n\n', cur_field,cur_sub_field);
+                        %                                         paramStruct.(cur_field).(cur_sub_field) = obj.(cur_field).(cur_sub_field);  % We'll produce it then and use whatever came up from obj.setDefaults();
+                        %                                         continue;
+                        %                                     elseif(isempty(paramStruct.(cur_field).(cur_sub_field)))
+                        %                                         fprintf('\nSettings file may be corrupted or incomplete.  The %s.%s parameter is empty ('''').  Using default setting for this paramter instead.\n\n', cur_field,cur_sub_field);
+                        %                                         paramStruct.(cur_field).(cur_sub_field) = obj.(cur_field).(cur_sub_field);  % We'll take whatever came up from obj.setDefaults();
+                        %                                         continue;
+                        %                                     end
+                        %                                 end
+                        %                             end
+                        %                         end
+                        %
+                        %                         % Now that everything has been checked and we have
+                        %                         % warned the groups of what we may be missing, we
+                        %                         % can continue.
+                        %                         for f=1:numel(fnames)
+                        %                             obj.(fnames{f}) = paramStruct.(fnames{f});
+                        %                         end
                     end
+                    
                 end
             end
         end
