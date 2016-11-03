@@ -42,8 +42,8 @@ function importLibs()
             filename = curStruct{c};
             fullSrcFile = fullfile(srcPath,curField,filename);
             if(exist(fullSrcFile,'file'))
-                copyfile(fullSrcFile,curDestPath);
                 curDestFile = fullfile(curDestPath,filename);
+                copyfile(fullSrcFile,curDestFile,'f');
                 [status, result] = system(strcat('chmod -w ',curDestFile)); % make sure we can't write to these files.  Want to update them in their own repositories (and I don't want to use git submodules)
                 if(~status)
                     fprintf('Could not make %s read only.\n\t%s\n',result);
