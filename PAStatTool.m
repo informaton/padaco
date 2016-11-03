@@ -1266,7 +1266,7 @@ classdef PAStatTool < handle
             set(this.handles.check_normalizevalues,'value',this.previousState.normalizeValues,'enable','on');
             this.hideCentroidControls();
             
-            disablehandles(this.handles.panel_plotCentroid);
+            disableHandles(this.handles.panel_plotCentroid);
             set(this.handles.axes_secondary,'visible','off');
             set(this.figureH,'WindowKeyPressFcn',[]);
             set(this.analysisFigureH,'visible','off');
@@ -2359,7 +2359,7 @@ classdef PAStatTool < handle
         
         %> @brief Does not change panel_plotCentroid controls.
         function enableCentroidControls(this)
-            enablehandles(this.handles.panel_controlCentroid);  
+            enableHandles(this.handles.panel_controlCentroid);  
             %             set(findall(this.handles.panel_plotCentroid,'enable','off'),'enable','on');
             
             % add a context menu now to primary axes            

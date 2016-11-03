@@ -232,16 +232,16 @@ classdef PADeriver < handle
         end
         
         function disableControls(this)
-            disablehandles(this.handles.panel_filterOptions);
-            disablehandles(this.handles.panel_signalFlow);
+            disableHandles(this.handles.panel_filterOptions);
+            disableHandles(this.handles.panel_signalFlow);
             
             %             set(this.handles.menu_soi,'enable','off');
             set(this.handles.push_update,'enable','off');
         end
         
         function enableControls(this)
-            enablehandles(this.handles.panel_filterOptions);
-            enablehandles(this.handles.panel_signalFlow);
+            enableHandles(this.handles.panel_filterOptions);
+            enableHandles(this.handles.panel_signalFlow);
             
             set(this.handles.menu_soi,'enable','on');
             set(this.handles.push_update,'enable','on');

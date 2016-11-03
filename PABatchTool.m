@@ -34,10 +34,10 @@ classdef PABatchTool < handle
     
     methods(Access=private)
         function disable(this)
-            disablehandles(this.figureH);
+            disableHandles(this.figureH);
         end
         function enable(this)
-            enablehandles(this.figureH);
+            enableHandles(this.figureH);
         end
         
         function hide(this)
