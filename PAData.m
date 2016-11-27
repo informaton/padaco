@@ -1081,9 +1081,10 @@ classdef PAData < handle
                     % For .raw files, load the count data first so that it can
                     % then be reshaped by the sampling rate found in .raw
                     if(strcmpi(ext,'.raw'))
-                        tic
+                        if(~exist(fullCountFilename,'file'))
+                             obj.loadFileHeader(fullRawCSVFilename);
+                        end
                         didLoad = obj.loadRawCSVFile(fullfilename);
-                        toc
                         obj.accelType = 'all';
                     elseif(strcmpi(ext,'.bin'))
                         %determine firmware version
@@ -1372,6 +1373,8 @@ classdef PAData < handle
                         
                         %Date time handling
                         %dateVecFound = datevec(tmpDataCell{1},'mm/dd/yyyy HH:MM:SS.FFF');
+
+                        
                         
                         
                         obj.sampleRate = 40;
@@ -1379,6 +1382,7 @@ classdef PAData < handle
                         
                         %start, stop and delta date nums
                         startDateNum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
+                        
                         stopDateNum = datenum(dateVecFound(end,:));
                         windowDateNumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
                         missingValue = nan;
