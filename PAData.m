@@ -67,11 +67,16 @@ classdef PAData < handle
         startTime;
         %> @brief Start Date
         startDate;
+        %> @brief stop Time
+        stopTime;
+        %> @brief stop Date
+        stopDate;
         %> Durtion of the sampled data in seconds.
         durationSec;
         %> @brief The numeric value for each date time sample provided by
-        %the file name.
+        %> the file name.
         dateTimeNum;
+
         
         %> @brief Numeric values for date time sample for the start of
         %> extracted features.
@@ -146,8 +151,7 @@ classdef PAData < handle
         frames_signalTagLine;
         
         %> @brief Mode of usage state vector (i.e. taken from getUsageActivity) for current frame rate.
-        usageFrames;
-        
+        usageFrames;        
         
         %> @brief Struct of rules for classifying usage state.
         %> See getDefaultParameters for initial values.
@@ -163,6 +167,7 @@ classdef PAData < handle
         
         %> @brief Sample rate of time series data.
         sampleRate;
+               
     end
     
     
@@ -982,6 +987,8 @@ classdef PAData < handle
                     commentLine = '------------';
                     %make sure we are dealing with a file which has a header
                     if(strncmp(tline,commentLine, numel(commentLine)))
+                        fs = regexp(tline,'.* at (\d+) Hz .*','tokens');
+                        
                         fgetl(fid);
                         tline = fgetl(fid);
                         exp = regexp(tline,'^Start Time (.*)','tokens');
@@ -994,11 +1001,43 @@ classdef PAData < handle
                         tline = fgetl(fid);
                         obj.startDate = strrep(tline,'Start Date ','');
                         
+                        % Window period (hh:mm:ss) 00:00:01
+                        tline = fgetl(fid);
+                        tmpPeriod = sscanf(tline,'Epoch Period (hh:mm:ss) %u:%u:%u');
+                        obj.countPeriodSec = [3600,60,1]*tmpPeriod(:);
+                        
+                        if(~isempty(fs))
+                            obj.sampleRate = str2double(fs{1}{1});
+                        else
+                            if(obj.countPeriodSec~=0)
+                                obj.sampleRate = 1/obj.countPeriodSec;
+                            else
+                                obj.sampeRate = obj.countPeriodSec;
+                            end
+                        end
+                        
+                        
                         % Pull the following line from the file and convert hh:mm:ss
                         % to total seconds
                         %  Window Period (hh:mm:ss) 00:00:01
-                        a=fscanf(fid,'%*s %*s %*s %d:%d:%d');
-                        obj.countPeriodSec = [3600 60 1]* a;
+                        % [a, c]=fscanf(fid,'%*s %*s %*s %d:%d:%d');  %
+                        % This causes a read of the second line as well->
+                        % which is very strange.  So don't use this way.
+                        % obj.countPeriodSec = [3600 60 1]* a;
+                                                
+                        tline = fgetl(fid);
+                        exp = regexp(tline,'^Download Time (.*)','tokens');
+                        if(~isempty(exp))
+                            obj.stopTime = exp{1}{1};
+                        else
+                            obj.stopTime = 'N/A';
+                        end
+                        %  Download Date 1/23/2014
+                        tline = fgetl(fid);
+                        obj.stopDate = strrep(tline,'Download Date ','');                       
+                        
+                        
+
                     else
                         % unset - we don't know - assume 1 per second
                         obj.countPeriodSec = 1;
@@ -1082,9 +1121,10 @@ classdef PAData < handle
                     % then be reshaped by the sampling rate found in .raw
                     if(strcmpi(ext,'.raw'))
                         if(~exist(fullCountFilename,'file'))
-                             obj.loadFileHeader(fullRawCSVFilename);
+                             obj.loadFileHeader(fullfilename);
                         end
-                        didLoad = obj.loadRawCSVFile(fullfilename);
+                        loadFast = true;
+                        didLoad = obj.loadRawCSVFile(fullfilename,loadFast);
                         obj.accelType = 'all';
                     elseif(strcmpi(ext,'.bin'))
                         %determine firmware version
@@ -1165,7 +1205,6 @@ classdef PAData < handle
         %> @param fullCountFilename The full (i.e. with path) filename to load.
         % =================================================================
         function didLoad = loadCountFile(obj,fullCountFilename)
-            
             if(exist(fullCountFilename,'file'))
                 fid = fopen(fullCountFilename,'r');
                 if(fid>0)
@@ -1226,8 +1265,8 @@ classdef PAData < handle
                         % The following call to mergedCell ensures the data
                         % is chronologically ordered and data is not
                         % missing.
-                        [dataCell, ~, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,missingValue);
-                        
+                        [dataCell, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,missingValue);
+                       
                         tmpDataCell = []; %free up this memory;
                         
                         %MATLAB has some strange behaviour with date num -
@@ -1303,137 +1342,108 @@ classdef PAData < handle
         %> @param obj Instance of PAData.
         %> @param fullRawCSVFilename The full (i.e. with path) filename for raw data to load.
         % =================================================================
-        function didLoad = loadRawCSVFile(obj,fullRawCSVFilename)
+        function didLoad = loadRawCSVFile(obj,fullRawCSVFilename, loadFastOption)
+            if(nargin<3 || isempty(loadFastOption))
+                loadFastOption = false;
+            end
             if(exist(fullRawCSVFilename,'file'))
-                
-                fid = fopen(fullRawCSVFilename,'r');
-                if(fid>0)
-                    try
-                        delimiter = ',';
-                        % header = 'Date	 Time	 Axis1	Axis2	Axis3
-                        headerLines = 11; %number of lines to skip
-                        %                        scanFormat = '%s %f32 %f32 %f32'; %load as a 'single' (not double) floating-point number
-                        scanFormat = '%f/%f/%f %f:%f:%f %f32 %f32 %f32';
+                try
+                    if(exist('loadrawcsv','file')==3) % If the mex file exists and is compiled
                         tic
-                        tmpDataCell = textscan(fid,scanFormat,'delimiter',delimiter,'headerlines',headerLines);
+                        rawMat = loadrawcsv(fullRawCSVFilename, loadFastOption)';  %loadrawcsv loads rows as columns so we need to transpose the results.
                         toc
-                        
-                        %                        scanFormat = '%2d/%2d/%4d %2d:%2d:%f,%f32,%f32,%f32';
-                        %                        frewind(fid);
-                        %                        for f=1:headerLines
-                        %                            fgetl(fid);
-                        %                        end
-                        %
-                        %                        %This takes 46 seconds; //or 24 seconds or 4.547292
-                        %                        %or 8.8 ...
-                        %                        %seconds. or 219.960772 seconds (what is going on
-                        %                        %here?)
-                        %                        tic
-                        %                        A  = fread(fid,'*char');
-                        %                        toc
-                        %                        tic
-                        %                        tmpDataCell = textscan(A,scanFormat);
-                        %                        toc
-                        %                        toc
-                        %                        pattern = '(?<datetimestamp>[^,]+),(?<axis1>[^,]+),(?<axis2>[^,]+),(?<axis3>[^\s]+)\s*';
-                        %                        tic
-                        %                        result = regexp(A(1:2e+8)',pattern,'names')  % seconds
-                        % %                        result = regexp(A(1:1e+8)',pattern,'names')  %23.7 seconds
-                        %                        toc
-                        
-                        %                        scanFormat = '%u8/%u8/%u16 %2d:%2d:%f,%f32,%f32,%f32';
-                        %tmpDataCell = textscan(A(1:1e+9),scanFormat)
-                        %                        tmpDataCell = textscan(A(1:1e+8),scanFormat)
-                        %                        tmpDataCell = textscan(A(1e+8+2:2e+8),scanFormat)
-                        %                        tmpDataCell = textscan(A(2e+8-15:3e+8),scanFormat)
-                        %                        tmpDataCell = textscan(A(3e+8:4e+8),scanFormat) %12.7 seconds
-                        %                        tmpDataCell = textscan(A(4e+8-3:5e+8),scanFormat) %8.8 seconds
-                        %                        tmpDataCell = textscan(A(5e+8+10:6e+8+100)',scanFormat) %7.9 seconds
-                        %                        tmpDataCell = textscan(A(6e+8+15:7e+8+100)',scanFormat) %7.86 seconds
-                        %                        tmpDataCell = textscan(A(7e+8+7:8e+8+100)',scanFormat) %7.8 seconds
-                        %                        tmpDataCell = textscan(A(8e+8-13:9e+8+100)',scanFormat) %7.9 seconds
-                        %                        tmpDataCell = textscan(A(9e+8-1:10e+8+100)',scanFormat) %7.87 seconds
-                        %
-                        % tic
-                        % tmpDataCell = textscan(A(10e+8-17:11e+8+100)',scanFormat) %7.94 seconds
-                        % toc,tic
-                        % tmpDataCell = textscan(A(11e+8+4:12e+8+100)',scanFormat) %7.73 seconds
-                        % toc,tic
-                        % tmpDataCell = textscan(A(12e+8-2:13e+8+100)',scanFormat) %8.08 seconds
-                        % toc,tic
-                        % tmpDataCell = textscan(A(13e+8-3:14e+8+100)',scanFormat) %9.45 seconds
-                        % toc,tic
-                        % tmpDataCell = textscan(A(14e+8+4:14.106e+8)',scanFormat) %1.03 seconds
-                        % toc
-                        %                        toc
-                        
-                        
                         %Date time handling
-                        dateVecFound = double([tmpDataCell{3},tmpDataCell{1},tmpDataCell{2},tmpDataCell{4},tmpDataCell{5},tmpDataCell{6}]);
-                        
-                        %Date time handling
-                        %dateVecFound = datevec(tmpDataCell{1},'mm/dd/yyyy HH:MM:SS.FFF');
-
-                        
-                        
-                        
-                        obj.sampleRate = 40;
-                        samplesFound = size(dateVecFound,1);
-                        
-                        %start, stop and delta date nums
-                        startDateNum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
-                        
-                        stopDateNum = datenum(dateVecFound(end,:));
-                        windowDateNumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
-                        missingValue = nan;
-                        
-                        % NOTE:  Chopping off the first six columns: date time values;
-                        tmpDataCell(1:6) = [];
-                        [dataCell, ~, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,missingValue);
-                        tmpDataCell = []; %free up this memory;
-                        
-                        obj.durSamples = numel(obj.dateTimeNum);
-                        obj.durationSec = floor(obj.durationSamples()/obj.sampleRate);
-                        
-                        numMissing = obj.durationSamples() - samplesFound;
-                        
-                        if(obj.durationSamples()==samplesFound)
-                            fprintf('%d rows loaded from %s\n',samplesFound,fullRawCSVFilename);
+                        if(loadFastOption)
+                            tmpDataCell = {rawMat(:,1),rawMat(:,2),rawMat(:,3)};
                         else
-                            
-                            if(numMissing>0)
-                                fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullCountFilename,numMissing,num2str(missingValue));
-                            else
-                                fprintf('This case is not handled yet.\n');
-                                fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullCountFilename,numMissing,num2str(missingValue));
-                            end
+                            dateVecFound = double([rawMat(:,3),rawMat(:,1),rawMat(:,2),rawMat(:,4),rawMat(:,5),rawMat(:,6)]);
+                            tmpDataCell = {rawMat(:,7),rawMat(:,8),rawMat(:,9)};
                         end
-                        
-                        obj.accel.raw.x = dataCell{1};
-                        obj.accel.raw.y = dataCell{2};
-                        obj.accel.raw.z = dataCell{3};
-                        
-                        fclose(fid);
-                        
-                        obj.resampleCountData();
-                        didLoad = true;
-                        
-                    catch me
-                        showME(me);
-                        fclose(fid);
-                        didLoad = false;
+                    else
+                        fid = fopen(fullRawCSVFilename,'r');
+                        if(fid>0)
+                            delimiter = ',';
+                            % header = 'Date	 Time	 Axis1	Axis2	Axis3
+                            headerLines = 11; %number of lines to skip
+                            %                        scanFormat = '%s %f32 %f32 %f32'; %load as a 'single' (not double) floating-point number
+                            if(loadFastOption)
+                                scanFormat = '%*f/%*f/%*f %*f:%*f:%*f %f32 %f32 %f32';
+                            else
+                                scanFormat = '%f/%f/%f %f:%f:%f %f32 %f32 %f32';
+                            end
+                            tic
+                            tmpDataCell = textscan(fid,scanFormat,'delimiter',delimiter,'headerlines',headerLines);
+                            toc
+                            %Date time handling
+                            
+                            if(~loadFastOption)
+                                dateVecFound = double([tmpDataCell{3},tmpDataCell{1},tmpDataCell{2},tmpDataCell{4},tmpDataCell{5},tmpDataCell{6}]);
+                                %dateVecFound = datevec(tmpDataCell{1},'mm/dd/yyyy HH:MM:SS.FFF');
+                                
+                                % NOTE:  Chopping off the first six columns: date time values;
+                                tmpDataCell(1:6) = [];
+                            end
+                            
+                            fclose(fid);
+                       
+                        else
+                            fprintf('Warning - could not open %s for reading!\n',fullRawCSVFilename);
+                            % didLoad = false;
+                            MException('MATLAB:Padaco:FileIO','Could not open file for reading');
+                        end
                     end
-                else
-                    fprintf('Warning - could not open %s for reading!\n',fullRawCSVFilename);
+                    
+                    samplesFound = numel(tmpDataCell{1}); %size(dateVecFound,1);
+                    
+
+                    %start, stop and delta date nums
+                    startDateNum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
+                    windowDateNumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
+                    missingValue = nan;
+                    
+                    if(loadFastOption)
+                        stopDateNum = datenum(strcat(obj.stopDate,{' '},obj.stopTime),'mm/dd/yyyy HH:MM:SS');
+                        obj.dateTimeNum = obj.datespace(startDateNum,stopDateNum,windowDateNumDelta);
+                        obj.dateTimeNum(end)=[];  %remove the very last sample, since it is not actually recorded in the dataset, but represents when the data was downloaded, which happens one sample after the device stops.
+                    else
+                        stopDateNum = datenum(dateVecFound(end,:));
+                        [tmpDataCell, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,missingValue);                        
+                    end
+
+                    obj.durSamples = numel(obj.dateTimeNum);
+                    obj.durationSec = floor(obj.durationSamples()/obj.sampleRate);
+
+                    numMissing = obj.durationSamples() - samplesFound;
+                                        
+                    obj.accel.raw.x = tmpDataCell{1};
+                    obj.accel.raw.y = tmpDataCell{2};
+                    obj.accel.raw.z = tmpDataCell{3};
+                    
+                    if(obj.durationSamples()==samplesFound)
+                        fprintf('%d rows loaded from %s\n',samplesFound,fullRawCSVFilename);
+                    else
+                        if(numMissing>0)
+                            fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullRawCSVFilename,numMissing,num2str(missingValue));
+                        else
+                            fprintf('This case is not handled yet.\n');
+                            fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullRawCSVFilename,numMissing,num2str(missingValue));
+                        end
+                    end
+                    
+                    obj.resampleCountData();
+                    didLoad = true;
+                catch me
+                    showME(me);
                     didLoad = false;
+                    if(exist('fid','var'))
+                        fclose(fid);
+                    end
                 end
             else
                 fprintf('Warning - %s does not exist!\n',fullRawCSVFilename);
                 didLoad = false;
             end
         end
-        
-        
         
         % ======================================================================
         %> @brief Loads an accelerometer's raw data from binary files stored
@@ -3040,30 +3050,29 @@ classdef PAData < handle
         %> @param sampledDateVec Vector of date number values taken between startDateNum
         %> and stopDateNum (inclusive) and are in the order and size as the
         %> individual cell components of tmpDataCell
-        %> @param tmpDataCell A cell of vectors whose individual values correspond to
-        %> the order of sampledDateVec
+        %> @param tmpDataCellOrMatrix A cell or matrix of row vectors whose individual values correspond to
+        %> the order of sampledDateVec.  @note tmpDataMatrix(:,x)==tempDataCell{x}       
         %> @param missingValue (Optional) Value to be used in the ordered output data
         %> cell where the tmpDataCell does not have corresponding values.
         %> The default is 'nan'.
         %> @retval orderedDataCell A cell of vectors that are taken from tmpDataCell but
         %> initially filled with the missing value parameter and ordered
         %> according to synthDateNum.
+        %> @retval synthDateNum Vector of date numbers corresponding to the date vector
+        %> matrix return argument.
         %> @retval synthDateVec Matrix of date vectors ([Y, Mon,Day, Hr, Mn, Sec]) generated by
         %> startDateNum:dateNumDelta:stopDateNum which correponds to the
         %> row order of orderedDataCell cell values/vectors
-        %> @retval synthDateNum Vector of date numbers corresponding to the date vector
-        %> matrix return argument.
         %> @note This is a helper function for loading raw and count file
         %> formats to ensure proper ordering and I/O error handling.
         %======================================================================
-        function [orderedDataCell, synthDateVec, synthDateNum] = mergedCell(startDateNum, stopDateNum, dateNumDelta, sampledDateVec,tmpDataCell,missingValue)
+        function [orderedDataCell, synthDateNum, synthDateVec] = mergedCell(startDateNum, stopDateNum, dateNumDelta, sampledDateVec,tmpDataCellOrMatrix,missingValue)
             if(nargin<6 || isempty(missingValue))
                 missingValue = nan;
             end
             
-            %sampledDateNum = datenum(sampledDateVec);
-            synthDateVec = datevec(startDateNum:dateNumDelta:stopDateNum);
-            synthDateVec(:,6) = round(synthDateVec(:,6)*1000)/1000;
+            
+            [synthDateNum, synthDateVec] = obj.datespace(startDateNum, stopDateNum, dateNumDelta);
             numSamples = size(synthDateVec,1);
             
             %make a cell with the same number of column as
@@ -3071,10 +3080,9 @@ classdef PAData < handle
             %b/c already have these, with each column entry
             %having an array with as many missing values as
             %originally found.
-            orderedDataCell =  repmat({repmat(missingValue,numSamples,1)},1,size(tmpDataCell,2));
+            orderedDataCell =  repmat({repmat(missingValue,numSamples,1)},1,size(tmpDataCellOrMatrix,2));
             
             %This takes 2.0 seconds!
-            synthDateNum = datenum(synthDateVec);
             sampledDateNum = datenum(sampledDateVec);
             [~,IA,~] = intersect(synthDateNum,sampledDateNum);
             
@@ -3082,9 +3090,37 @@ classdef PAData < handle
             %here.
             %            [~,IA,~] = intersect(synthDateVec,sampledDateVec,'rows');
             for c=1:numel(orderedDataCell)
-                orderedDataCell{c}(IA) = tmpDataCell{c};
+                if(iscell(tmpDataCellOrMatrix))
+                    orderedDataCell{c}(IA) = tmpDataCellOrMatrix{c};
+                else
+                    orderedDataCell{c}(IA) = tmpDataCellOrMatrix(:,c);
+                end
             end
         end
+        
+        
+        
+        % ======================================================================
+        %> @brief Linearly spaced dates from start to stop dates provided.
+        %> @param startDateNum The start date number that the ordered data cell should
+        %> begin at.  (should be generated using datenum())
+        %> @param stopDateNum The date number (generated using datenum()) that the ordered data cell
+        %> ends at.
+        %> @param dateNumDelta The difference between two successive date number samples.
+        %> @param sampledDateVec Vector of date number values taken between startDateNum
+        %> and stopDateNum (inclusive) and are in the order and size as the
+        %> individual cell components of tmpDataCell
+        %> @retval synthDateNum Vector of date numbers corresponding to the date vector
+        %> matrix return argument.
+        %> @retval synthDateVec Matrix of date vectors ([Y, Mon,Day, Hr, Mn, Sec]) generated by
+        %> startDateNum:dateNumDelta:stopDateNum which correponds to the
+        %> row order of orderedDataCell cell values/vectors
+        %======================================================================
+        function [synthDateNum, synthDateVec] = datespace(startDateNum, stopDateNum, dateNumDelta)            
+            synthDateVec = datevec(startDateNum:dateNumDelta:stopDateNum);
+            synthDateVec(:,6) = round(synthDateVec(:,6)*1000)/1000;
+            synthDateNum = datenum(synthDateVec);
+        end     
         
         % ======================================================================
         %> @brief Evaluates the two structures, field for field, using the function name
@@ -3871,3 +3907,55 @@ end
 % obj.color.features.rms.color = 'b';
 % obj.color.features.std.color = 'k';
 % obj.color.features.variance.color = 'y';
+
+
+%  File load Raw notes:
+%                        scanFormat = '%2d/%2d/%4d %2d:%2d:%f,%f32,%f32,%f32';
+%                        frewind(fid);
+%                        for f=1:headerLines
+%                            fgetl(fid);
+%                        end
+%
+%                        %This takes 46 seconds; //or 24 seconds or 4.547292
+%                        %or 8.8 ...
+%                        %seconds. or 219.960772 seconds (what is going on
+%                        %here?)
+%                        tic
+%                        A  = fread(fid,'*char');
+%                        toc
+%                        tic
+%                        tmpDataCell = textscan(A,scanFormat);
+%                        toc
+%                        toc
+%                        pattern = '(?<datetimestamp>[^,]+),(?<axis1>[^,]+),(?<axis2>[^,]+),(?<axis3>[^\s]+)\s*';
+%                        tic
+%                        result = regexp(A(1:2e+8)',pattern,'names')  % seconds
+% %                        result = regexp(A(1:1e+8)',pattern,'names')  %23.7 seconds
+%                        toc
+
+%                        scanFormat = '%u8/%u8/%u16 %2d:%2d:%f,%f32,%f32,%f32';
+%tmpDataCell = textscan(A(1:1e+9),scanFormat)
+%                        tmpDataCell = textscan(A(1:1e+8),scanFormat)
+%                        tmpDataCell = textscan(A(1e+8+2:2e+8),scanFormat)
+%                        tmpDataCell = textscan(A(2e+8-15:3e+8),scanFormat)
+%                        tmpDataCell = textscan(A(3e+8:4e+8),scanFormat) %12.7 seconds
+%                        tmpDataCell = textscan(A(4e+8-3:5e+8),scanFormat) %8.8 seconds
+%                        tmpDataCell = textscan(A(5e+8+10:6e+8+100)',scanFormat) %7.9 seconds
+%                        tmpDataCell = textscan(A(6e+8+15:7e+8+100)',scanFormat) %7.86 seconds
+%                        tmpDataCell = textscan(A(7e+8+7:8e+8+100)',scanFormat) %7.8 seconds
+%                        tmpDataCell = textscan(A(8e+8-13:9e+8+100)',scanFormat) %7.9 seconds
+%                        tmpDataCell = textscan(A(9e+8-1:10e+8+100)',scanFormat) %7.87 seconds
+%
+% tic
+% tmpDataCell = textscan(A(10e+8-17:11e+8+100)',scanFormat) %7.94 seconds
+% toc,tic
+% tmpDataCell = textscan(A(11e+8+4:12e+8+100)',scanFormat) %7.73 seconds
+% toc,tic
+% tmpDataCell = textscan(A(12e+8-2:13e+8+100)',scanFormat) %8.08 seconds
+% toc,tic
+% tmpDataCell = textscan(A(13e+8-3:14e+8+100)',scanFormat) %9.45 seconds
+% toc,tic
+% tmpDataCell = textscan(A(14e+8+4:14.106e+8)',scanFormat) %1.03 seconds
+% toc
+%                        toc
+

@@ -10,6 +10,8 @@
 
  * Build instrctions using mex compiler:
  * mex loadrawcsv.c loadraw.c
+ * testing: a=PAData('/Users/unknown/Data/GOALS/700073t00c1.raw');
+ * tic;a=loadrawcsv('/Users/unknown/Data/GOALS/700073t00c1.raw');toc
  */
 
 #include "mex.h"
@@ -32,10 +34,11 @@ void mexFunction(int nlhs, mxArray *plhs[],
     mwSize buflen;  //or     size_t buflen; //but this requires casting to mwSize later
     int status;
     FILE *fid;
+    bool loadFastOption = false;
     
     
     /* code here */
-    if(nrhs != 1) {
+    if(nrhs < 1) {
         mexErrMsgIdAndTxt("PadacoToolbox:loadrawcsv:nrhs",
                 "A single filename is required for input.");
     }
@@ -43,6 +46,9 @@ void mexFunction(int nlhs, mxArray *plhs[],
     if(nlhs != 1) {
         mexErrMsgIdAndTxt("PadacoToolbox:loadrawcsv:nrhs",
                 "One output is required.");
+    }
+    if(nrhs==2){
+        loadFastOption = (bool)mxGetScalar(prhs[1]);
     }
     
     /* Find out how long the input string is.  Allocate enough memory
@@ -62,7 +68,7 @@ void mexFunction(int nlhs, mxArray *plhs[],
      /* Copy the string data into csvFilename. */
      status = mxGetString(prhs[0], csvFilename, buflen);
      
-     plhs[0] = mxParseRawCSVFile(csvFilename);
+     plhs[0] = mxParseRawCSVFile(csvFilename, loadFastOption);
      
      mxFree(csvFilename);
 

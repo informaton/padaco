@@ -2,7 +2,8 @@
 #include <stdio.h>
 #include <time.h>
 #include "matrix.h"
-
+#include "mex.h"
+#include <string.h>
 #define HEADER_LINES 11 //number of lines to skip
 
 // ======================================================================
@@ -27,7 +28,7 @@ typedef struct header_t {
 } header_t;
 
 void parseFileHeader(FILE * fid, header_t *header);
-mxArray * mxParseRawCSVFile(const char * csvFilename);
-float * parseRawCSVFile(const char * csvFilename);
+mxArray * mxParseRawCSVFile(const char * csvFilename, bool);
+float * parseRawCSVFile(const char * csvFilename, bool);
 
 
