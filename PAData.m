@@ -167,6 +167,10 @@ classdef PAData < handle
         
         %> @brief Sample rate of time series data.
         sampleRate;
+        
+        % Flags for determining if counts and or raw data is loaded.
+        hasCounts
+        hasRaw;
                
     end
     
@@ -192,6 +196,8 @@ classdef PAData < handle
                 pStruct = obj.getDefaultParameters();
             end
             
+            obj.hasCounts = false;
+            obj.hasRaw = false;
             obj.accelType = [];
             obj.startDatenums = [];
             
@@ -1085,6 +1091,7 @@ classdef PAData < handle
         function didLoad = loadFile(obj,fullfilename)
             % Ensure that we have a negative number or some way of making sure
             % that we have sequential data (fill in all with Nan or -1 eg)
+            didLoad = false;
             
             if(nargin<2 || ~exist(fullfilename,'file'))
                 fullfilename = obj.getFullFilename();
@@ -1107,14 +1114,16 @@ classdef PAData < handle
                     
                     if(exist(fullCountFilename,'file'))
                         
-                        obj.loadCountFile(fullCountFilename);
+                        didLoad = obj.loadCountFile(fullCountFilename);
                         
-                        obj.accelType = 'count'; % this is modified, below, to 'all' if a
-                        % a raw acceleration file (.csv or
-                        % .bin) is being loaded, in which
-                        % case the count data is replaced
-                        % with the raw data.
-                        obj.classifyUsageForAllAxes();
+                        if(didLoad)
+                            obj.accelType = 'count'; % this is modified, below, to 'all' if a
+                            % a raw acceleration file (.csv or
+                            % .bin) is being loaded, in which
+                            % case the count data is replaced
+                            % with the raw data.
+                        end
+                        obj.hasCounts = didLoad;
                     end
                     
                     % For .raw files, load the count data first so that it can
@@ -1125,7 +1134,7 @@ classdef PAData < handle
                         end
                         loadFast = true;
                         didLoad = obj.loadRawCSVFile(fullfilename,loadFast);
-                        obj.accelType = 'all';
+                        obj.hasRaw = didLoad;
                     elseif(strcmpi(ext,'.bin'))
                         %determine firmware version
                         %                        infoFile = fullfile(pathName,strcat(baseName,'.info.txt'));
@@ -1141,9 +1150,6 @@ classdef PAData < handle
                             obj.setFullFilename(fullfilename);
                             obj.sampleRate = str2double(infoStruct.Sample_Rate);
                             
-                            obj.accelType = 'all';
-                            
-                            didLoad = true;  % will be changed to false if none of the strcmp find a match
                             % Version 2.5.0 firmware
                             if(strcmp(firmwareVersion,'2.5.0'))
                                 
@@ -1163,7 +1169,7 @@ classdef PAData < handle
                                 end
                                     
                                 
-                                obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
+                                didLoad = obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
                                 
                                 obj.durationSec = floor(obj.durationSamples()/obj.sampleRate);
                                 
@@ -1178,24 +1184,36 @@ classdef PAData < handle
                                 % Version 3.1.0 firmware                                % Version 2.2.1 firmware
                                 
                             elseif(strcmp(firmwareVersion,'3.1.0') || strcmp(firmwareVersion,'2.2.1') || strcmp(firmwareVersion,'1.5.0'))
-                                obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
+                                didLoad = obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
                             else
                                 didLoad = false;
                             end
+                            obj.hasRaw = didLoad;
                             
                         else
                             % for future firmware version loaders
                             % Not 2.2.1, 2.5.0 or 3.1.0 - skip - cannot handle right now.
                             fprintf(1,'Firmware version (%s) either not found or unrecognized in %s.\n',firmwareVersion,infoFile);
-                            
-                        end
-                        
-                    else  % if it was not .bin or .raw
-                        obj.accelType = 'count';
+                            obj.hasRaw = false;
+                        end                        
                     end
                 end
             else
                 didLoad = false;
+            end
+            
+            if(obj.hasRaw && obj.hasCounts)
+                obj.accelType = 'all';
+            elseif(obj.hasRaw)
+                obj.accelType = 'raw';
+            elseif(obj.hasCounts)
+                obj.accelType = 'count';
+            else
+                obj.accelType = [];
+            end
+            
+            if(obj.hasCounts || obj.hasRaw)
+                obj.classifyUsageForAllAxes();
             end
         end
         
@@ -1414,10 +1432,8 @@ classdef PAData < handle
                     obj.durationSec = floor(obj.durationSamples()/obj.sampleRate);
 
                     numMissing = obj.durationSamples() - samplesFound;
-                                        
-                    obj.accel.raw.x = tmpDataCell{1};
-                    obj.accel.raw.y = tmpDataCell{2};
-                    obj.accel.raw.z = tmpDataCell{3};
+
+                    obj.setRawXYZ(tmpDataCell{1},tmpDataCell{2},tmpDataCell{3});
                     
                     if(obj.durationSamples()==samplesFound)
                         fprintf('%d rows loaded from %s\n',samplesFound,fullRawCSVFilename);
@@ -1430,7 +1446,11 @@ classdef PAData < handle
                         end
                     end
                     
-                    obj.resampleCountData();
+                    % No longer thing resampling count data is the way to
+                    % go here.
+                    if(obj.hasCounts)
+                        obj.resampleCountData();
+                    end
                     didLoad = true;
                 catch me
                     showME(me);
@@ -1518,7 +1538,32 @@ classdef PAData < handle
             end
         end
         
-        
+                
+        % ======================================================================
+        %> @brief Resamples previously loaded 'count' data to match sample rate of
+        %> raw accelerometer data that has been loaded in a following step (see loadFile()).
+        %> @param obj Instance of PAData.       %
+        %> @note countPeriodSec, sampleRate, steps, lux, and accel values
+        %> must be set in advance of this call.
+        % ======================================================================
+        function setRawXYZ(obj, rawXorXYZ, rawY, rawZ)
+            if(nargin==2)
+                if(size(rawXorXYZ,1)==3 && size(rawXorXYZ,2)>3)
+                    rawXorXYZ = rawXorXYZ';
+                end
+                rawY = rawXorXYZ(:,2);
+                rawZ = rawXorXYZ(:,3);
+                rawX = rawXorXYZ(:,1);
+            elseif(nargin==4)
+                rawX = rawXorXYZ;
+            end
+            obj.accel.raw.x = rawX;
+            obj.accel.raw.y = rawY;
+            obj.accel.raw.z = rawZ;
+            obj.accel.raw.vecMag = sqrt(obj.accel.raw.x.^2+obj.accel.raw.y.^2+obj.accel.raw.z.^2);
+            obj.durSamples = numel(rawX);
+        end
+
         
         % ======================================================================
         %> @brief Resamples previously loaded 'count' data to match sample rate of
@@ -1673,6 +1718,7 @@ classdef PAData < handle
                 data = eval(['data.',signalTagLine]);
                 tagParts = strsplit(signalTagLine,'.');  %break it up and give me the 'vecMag' in the default case.
                 axisName = tagParts{end};
+                
                 usageVec = obj.usage.(axisName);
             catch me                
                 rethrow(me);  %this is just for debugging.
@@ -1893,14 +1939,30 @@ classdef PAData < handle
         % ======================================================================        
         function didClassify = classifyUsageForAllAxes(obj)
             try
-                countStruct = obj.getStruct('all');
-                countStruct = countStruct.accel.count;
-                axesNames = fieldnames(countStruct);
-                for a=1:numel(axesNames)
-                    axesName=axesNames{a};
-                    obj.usage.(axesName) = obj.classifyUsageState(countStruct.(axesName));
+                if(obj.hasCounts || obj.hasRaw)
+                    dataStruct = obj.getStruct('all');
+                    if(obj.hasCounts)
+                        dataStruct = dataStruct.accel.count;
+                    else
+                        dataStruct = dataStruct.accel.raw;
+                    end
+                    axesNames = fieldnames(dataStruct);
+                    for a=1:numel(axesNames)
+                        axesName=axesNames{a};
+                        % This branch can be merged with the one above as soon
+                        % as there is a better/faster way to classify usage
+                        % state from raw data.
+                        if(obj.hasCounts)
+                            obj.usage.(axesName) = obj.classifyUsageState(dataStruct.(axesName));
+                            didClassify = true;
+                        else
+                            obj.usage.(axesName) = zeros(size(dataStruct.(axesName)));
+                        end
+                    end
+                else
+                    didClassify = false;
+                    fprintf(1,'No data available to classify the usage state with.\n');
                 end
-                didClassify=true;
             catch me
                 showME(me);
                 didClassify=false;
@@ -2489,12 +2551,8 @@ classdef PAData < handle
                             
                             axesFloatData = (-bitand(axesUBitData,2048)+bitand(axesUBitData,2047))*encodingEPS;
                             
-                            obj.accel.raw.x = axesFloatData(:,1);
-                            obj.accel.raw.y = axesFloatData(:,2);
-                            obj.accel.raw.z = axesFloatData(:,3);
-                            obj.accel.raw.vecMag = sqrt(obj.accel.raw.x.^2+obj.accel.raw.y.^2+obj.accel.raw.z.^2);
-                            recordCount = size(axesFloatData,1);
-                            obj.durSamples = recordCount;
+                            obj.setRawXYZ(axesFloatData);
+                            
                             
                             toc;
                         end

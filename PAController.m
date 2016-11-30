@@ -961,7 +961,6 @@ classdef PAController < handle
             if(isempty(selectionIndex))
                 selectionIndex = 1;
                 signalTagLine = signalTagLines{selectionIndex};
-                
             end
             
             set(obj.VIEW.menuhandle.signalSelection,'value',selectionIndex);
@@ -975,7 +974,6 @@ classdef PAController < handle
                     obj.accelTypeShown = v{1}{1};
                 end
             end
-            
             %             obj.SETTINGS.CONTROLLER.signalTagLine = signalTagLine;
         end
         
@@ -1888,7 +1886,7 @@ classdef PAController < handle
             
             obj.initSignalSelectionMenu();
             
-            if(strcmpi(obj.accelObj.accelType,'all'))
+            if(strcmpi(obj.accelObj.accelType,'all')||strcmpi(obj.accelObj.accelType,'raw'))
                 obj.accelTypeShown = 'raw';
             else
                 obj.accelTypeShown = 'count';
