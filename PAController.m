@@ -1277,6 +1277,7 @@ classdef PAController < handle
         function menuFileOpenResultsPathCallback(obj,hObject,eventdata)
             initialPath = obj.resultsPathname;
             resultsPath = uigetfulldir(initialPath, 'Select path containing PADACO''s features directory');
+            try
             if(~isempty(resultsPath))
                 % Say good bye to your old stat tool if you selected a
                 % directory.  This ensures that if a breakdown occurs in
@@ -1303,6 +1304,11 @@ classdef PAController < handle
                 % No - maybe we already were in a results view
                 % Yes - maybe we were not in a results view
                 
+            end
+            
+            catch me
+                warndlg('An error occurred while trying to load the feature set.  See the console log for details.');
+                showME(me);
             end
         end
         
@@ -1904,9 +1910,9 @@ classdef PAController < handle
             % Go ahead and extract features using current settings.  This
             % is good because then we can use
             obj.VIEW.showBusy('Calculating features','all');
-            
+            tic
             obj.accelObj.extractFeature(signalSelection,'all');
-            
+            toc
             
             % This was disabled until the first time features are
             % calculated.

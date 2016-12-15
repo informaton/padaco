@@ -435,6 +435,8 @@ classdef PAStatTool < handle
                     if(this.inClusterView())
                         warndlg('Only one time epoch selected - defaulting to all epochs instead.');
                     end
+                    %startTimeSelection = 1;
+                    %stopTimeSelection = 
                     
                 elseif(startTimeSelection < stopTimeSelection)
                     tmpFeatureStruct.startTimes = tmpFeatureStruct.startTimes(startTimeSelection:stopTimeSelection);
@@ -2297,13 +2299,10 @@ classdef PAStatTool < handle
                 warndlg(sprintf('Could not find the input file required (%s)!',inputFilename));
             end
             
-
-            
             if(this.hasValidCentroid()) % ~isempty(this.centroidObj))
                 % Prep the x-axis here since it will not change when going from one centroid to the
                 % next, but only (though not necessarily) when refreshing centroids.
                 this.drawCentroidXTicksAndLabels();
-                
                 
                 if(this.centroidObj.getUserCancelled())
                     this.initRefreshCentroidButton('on');

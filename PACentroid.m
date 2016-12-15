@@ -124,7 +124,7 @@ classdef PACentroid < handle
         %> - @c clusterThreshold [1.5]                  
         %> - @c method - {'kmeans','kmedoids','kmedians'}; clustering method.  Default
         %> is kmeans.
-        %> @param Optional axes or line handle for displaying clustering progress.
+        %> @param axesOrLineH Optional axes or line handle for displaying clustering progress.
         %> - If argument is a handle to a MATLAB @b axes, then a line handle
         %> will be added to the axes and adjusted with clustering progress.
         %> - If argument is a handle to a MATLAB @b line, then the handle
@@ -135,11 +135,11 @@ classdef PACentroid < handle
         %> (default)
         %> @note Including a handle increases processing time as additional calculations
         %> are made to measuring clustering separation and performance.
-        %> @param Optional text handle to send status updates to via set(textHandle,'string',statusString) type calls.
+        %> @param textHandle Optional text handle to send status updates to via set(textHandle,'string',statusString) type calls.
         %> Status updates are sent to the command window by default.
-        %> @param Optional Nx1 cell string with load shape source
+        %> @param loadShapeIDs Optional Nx1 cell string with load shape source
         %> identifiers (e.g. which participant they came from).
-        %> @param Optional Nx1 vector with entries defining day of week
+        %> @param loadShapeDayOfWeek Optional Nx1 vector with entries defining day of week
         %> corresponding to the load shape entry found at the same row index
         %> in the loadShapes matrix.  
         %> @param delayedStart Boolean.  If true, the centroids are not
@@ -148,6 +148,8 @@ classdef PACentroid < handle
         %> 'false': centroids are calculated in the constructor.
         %> @retval Instance of PACentroid on success.  Empty matrix on
         %> failure.
+        %> @note PACentroid can be used apart from Padaco.  For example
+        %> obj = PACentroid(loadShapes,settings,[],[],loadShapeIDs,loadShapeDayOfWeek)
         % ======================================================================        
         function this = PACentroid(loadShapes,settings,axesOrLineH,textHandle,loadShapeIDs,loadShapeDayOfWeek, delayedStart)    
             
