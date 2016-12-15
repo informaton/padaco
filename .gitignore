@@ -38,3 +38,5 @@ model/table_summary.m
 *.tmp
 
 *.tmp
+
+*.o

@@ -931,6 +931,23 @@ classdef PAController < handle
         end
         
         % --------------------------------------------------------------------
+        %> @brief Returns the accelType parameter of the accelObj object
+        %> when it exists and 'none' otherwise.
+        %> @param obj Instance of PAController
+        %> @retval accelType String value that can be:
+        %> - @c all
+        %> - @c raw
+        %> - @c count
+        %> - @c none (not loaded)
+        % --------------------------------------------------------------------
+        function accelType = getAccelType(obj)
+            accelType = 'none';
+            if(~isempty(obj.accelObj))
+                accelType = obj.accelObj.accelType;
+            end            
+        end
+        
+        % --------------------------------------------------------------------
         %> @brief Retrieves current signal selection from the GUI's
         %> signalSelection dropdown menu.
         %> @param obj Instance of PAController
@@ -1892,7 +1909,8 @@ classdef PAController < handle
             
             obj.initSignalSelectionMenu();
             
-            if(strcmpi(obj.accelObj.accelType,'all')||strcmpi(obj.accelObj.accelType,'raw'))
+            curAccelType = obj.getAccelType();
+            if(any(strcmpi(curAccelType, {'all','raw'})))
                 obj.accelTypeShown = 'raw';
             else
                 obj.accelTypeShown = 'count';
@@ -1955,10 +1973,13 @@ classdef PAController < handle
             heightOffset = heightOffset+height;
             maxLumens = 250;
             numFrames = obj.getFrameCount();
-            [meanLumens,startStopDatenums] = obj.getMeanLumenPatches(numFrames);
-            obj.VIEW.addOverlayToSecondaryAxes(meanLumens,startStopDatenums,height,heightOffset,maxLumens);
-            %             [medianLumens,startStopDatenums] = obj.getMedianLumenPatches(1000);
-            %             obj.VIEW.addLumensOverlayToSecondaryAxes(meanLumens,startStopDatenums);
+            
+            if(~strcmpi(obj.getAccelType(),'raw'))
+                [meanLumens,startStopDatenums] = obj.getMeanLumenPatches(numFrames);
+                obj.VIEW.addOverlayToSecondaryAxes(meanLumens,startStopDatenums,height,heightOffset,maxLumens);
+                %             [medianLumens,startStopDatenums] = obj.getMedianLumenPatches(1000);
+                %             obj.VIEW.addLumensOverlayToSecondaryAxes(meanLumens,startStopDatenums);
+            end
             
             % Finally Add daylight to the top.
             heightOffset = heightOffset+height;

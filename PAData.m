@@ -2263,12 +2263,17 @@ classdef PAData < handle
                         dat.accel.(obj.accelType).z = double(obj.accel.(obj.accelType).z(indices));
                         dat.accel.(obj.accelType).vecMag = double(obj.accel.(obj.accelType).vecMag(indices));
                     end
-                    dat.steps = double(obj.steps(indices));
-                    dat.lux = double(obj.lux(indices));
-                    dat.inclinometer.standing = double(obj.inclinometer.standing(indices));
-                    dat.inclinometer.sitting = double(obj.inclinometer.sitting(indices));
-                    dat.inclinometer.lying = double(obj.inclinometer.lying(indices));
-                    dat.inclinometer.off = double(double(obj.inclinometer.off(indices)));
+                    
+                    % Raw accelerometer data does not include these fields
+                    % in their data file.
+                    if(~strcmpi(obj.accelType,'raw'))
+                        dat.steps = double(obj.steps(indices));
+                        dat.lux = double(obj.lux(indices));
+                        dat.inclinometer.standing = double(obj.inclinometer.standing(indices));
+                        dat.inclinometer.sitting = double(obj.inclinometer.sitting(indices));
+                        dat.inclinometer.lying = double(obj.inclinometer.lying(indices));
+                        dat.inclinometer.off = double(double(obj.inclinometer.off(indices)));
+                    end
                 case 'features'
                     dat = PAData.subsStruct(obj.features,indices);
                 case 'bins'

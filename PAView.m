@@ -1695,17 +1695,23 @@ classdef PAView < handle
         %==================================================================
         function recurseHandleSetter(handleStruct, propertyStruct)
             fnames = fieldnames(handleStruct);
+            % Add some checking to make sure we match properties correctly.
+            % Experience showed that 'raw' accelTypes do not contain all
+            % fields that exist for display which leads to exception throws.
+            matchingFields = isfield(propertyStruct,fnames);
+            fnames = fnames(matchingFields);
             for f=1:numel(fnames)
                 fname = fnames{f};
                 curField = handleStruct.(fname);
+                curPropertyStruct = propertyStruct.(fname);
                 try
-                if(isstruct(curField))
-                    PAView.recurseHandleSetter(curField,propertyStruct.(fname));
-                else
-                    if(ishandle(curField))                        
-                       set(curField,propertyStruct.(fname));
+                    if(isstruct(curField))
+                        PAView.recurseHandleSetter(curField,curPropertyStruct);
+                    else
+                        if(ishandle(curField))
+                            set(curField,curPropertyStruct);
+                        end
                     end
-                end
                 catch me
                     showME(me);
                 end

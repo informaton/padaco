@@ -1,11 +1,14 @@
-// gcc -o loadraw loadraw.c
+// See loadrawcsv.c for build instructions.
 
 // build object file:  gcc -Wall  loadraw.c libmx.dylib libmex.dylib -I/Applications/MATLAB/MATLAB_Runtime/v90/extern/include -L /Applications/MATLAB/MATLAB_Runtime/v90/bin/maci64 -o loadraw
 // gcc -Wall  loadraw.c -llibmx.dylib -llibmex.dylib -I/Applications/MATLAB/MATLAB_Runtime/v90/extern/include -o loadraw
 // http://www.cprogramming.com/tutorial/shared-libraries-linux-gcc.html
 //																										/Applications/MATLAB/MATLAB_Runtime/v90/bin/maci64
 
-// testing:  ./loadraw ~/Data/GOALS/700073t00c1.raw
+// Testing
+// 1.  Uncomment main() function below.
+// 2.  Compile with gcc
+// 3.  Run ./loadraw ~/Data/GOALS/700073t00c1.raw
 
 #include "loadraw.h"
 #define NUM_COLUMNS 9
@@ -158,8 +161,8 @@ mxArray * mxParseRawCSVFile(const char * csvFilename, bool loadFastOption){
     
     // wrap things up
     fclose(fid);
-    printf("Finished!\n");
-    printf("Read %d lines\n",linesRead);
+    //     printf("Finished!\n");
+    //     printf("Read %d lines\n",linesRead);
     return accelerations;
 }
 
