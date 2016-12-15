@@ -1206,6 +1206,14 @@ classdef PAData < handle
                 obj.accelType = 'all';
             elseif(obj.hasRaw)
                 obj.accelType = 'raw';
+                obj.visible.timeSeries.lux = 'off';
+                obj.visible.timeSeries.steps = 'off';
+                obj.visible.timeSeries.inclinometer.standing = 'off';
+                obj.visible.timeSeries.inclinometer.sitting = 'off';
+                obj.visible.timeSeries.inclinometer.lying = 'off';
+                obj.visible.timeSeries.inclinometer.off = 'off';
+                
+                
             elseif(obj.hasCounts)
                 obj.accelType = 'count';
             else

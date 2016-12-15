@@ -1950,9 +1950,12 @@ classdef PAController < handle
             obj.setCurWindow(obj.accelObj.getCurWindow());
             
             % Update the secondary axes
-            % Items to display = 8;
-            obj.numViewsInSecondaryDisplay = 8;
-            
+            % Items to display = 8 when count or all views exist.  
+            if(strcmpi(obj.getAccelType(),'raw'))
+                obj.numViewsInSecondaryDisplay = 7;
+            else
+                obj.numViewsInSecondaryDisplay = 8;
+            end
             % Items 1-5
             % Starting from the bottom of the axes - display the features
             % for x, y, z, vec magnitude, and 1-d values
@@ -1977,12 +1980,13 @@ classdef PAController < handle
             if(~strcmpi(obj.getAccelType(),'raw'))
                 [meanLumens,startStopDatenums] = obj.getMeanLumenPatches(numFrames);
                 obj.VIEW.addOverlayToSecondaryAxes(meanLumens,startStopDatenums,height,heightOffset,maxLumens);
+                heightOffset = heightOffset+height;
+
                 %             [medianLumens,startStopDatenums] = obj.getMedianLumenPatches(1000);
                 %             obj.VIEW.addLumensOverlayToSecondaryAxes(meanLumens,startStopDatenums);
             end
             
             % Finally Add daylight to the top.
-            heightOffset = heightOffset+height;
             maxDaylight = 1;
             [daylight,startStopDatenums] = obj.getDaylight(numFrames);
             obj.VIEW.addOverlayToSecondaryAxes(daylight,startStopDatenums,height-0.005,heightOffset,maxDaylight);
@@ -2108,8 +2112,11 @@ classdef PAController < handle
             end
             
             % Added this to keep consistency with updateSecondaryFeaturesDisplay method
-            
-            ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Lumens','Daylight'};
+            if(~strcmpi(obj.getAccelType(),'raw'))
+                ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Lumens','Daylight'};
+            else
+                ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Daylight'};
+            end
             numViews = numel(ytickLabel);
             startStopDatenum = [startStopDatenums(1),startStopDatenums(end)];
             axesProps.yticklabel = ytickLabel;
