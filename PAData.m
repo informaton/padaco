@@ -15,6 +15,7 @@ classdef PAData < handle
         %> - @c raw This is not processed
         %> - @c count This is preprocessed
         %> - @c all - This is both @c raw and @c count accel fields.
+        %> - @c none No data loaded.
         accelType;
         %> @brief Structure of count and raw accelerations structs (x,y,z).  Fields are:
         %> - @c raw Structure of raw x,y,z accelerations.  Fields are:
@@ -198,7 +199,7 @@ classdef PAData < handle
             
             obj.hasCounts = false;
             obj.hasRaw = false;
-            obj.accelType = [];
+            obj.accelType = 'none';
             obj.startDatenums = [];
             
             obj.durationSec = 0;  %ensures we get valid, non-empty values from  getWindowCount() when we do not have any data loaded.
@@ -708,6 +709,8 @@ classdef PAData < handle
                 offAccelType = 'count';
             elseif(strcmpi(accelTypeStr,'all'))
                 offAccelType = [];
+            elseif(strcmpi(accelTypeTypeStr,'none'))
+                offAccelType = [];
             else
                 fprintf('Unrecognized accelTypeStr (%s)\n',accelTypeStr);
                 offAccelType = [];
@@ -829,6 +832,15 @@ classdef PAData < handle
             if(nargout>0)
                 varargout = cell(1,nargout);
             end
+        end
+        
+        function accelType = getAccelType(obj)
+            if(isempty(obj.accelType))
+                accelType = 'none';
+            else
+                accelType = obj.accelType;
+            end
+            
         end
         
         % --------------------------------------------------------------------
@@ -1206,14 +1218,12 @@ classdef PAData < handle
                 obj.accelType = 'all';
             elseif(obj.hasRaw)
                 obj.accelType = 'raw';
-                obj.visible.timeSeries.lux = 'off';
-                obj.visible.timeSeries.steps = 'off';
-                obj.visible.timeSeries.inclinometer.standing = 'off';
-                obj.visible.timeSeries.inclinometer.sitting = 'off';
-                obj.visible.timeSeries.inclinometer.lying = 'off';
-                obj.visible.timeSeries.inclinometer.off = 'off';
-                
-                
+                obj.setVisible('lux','off');
+                obj.setVisible('steps','off');
+                obj.setVisible('inclinometer.standing','off');
+                obj.setVisible('inclinometer.sitting','off');
+                obj.setVisible('inclinometer.lying','off');
+                obj.setVisible('inclinometer.off','off');
             elseif(obj.hasCounts)
                 obj.accelType = 'count';
             else
@@ -3024,14 +3034,14 @@ classdef PAData < handle
             
             
             pStruct.color.timeSeries.accel.raw.x.color = 'r';
-            pStruct.color.timeSeries.accel.raw.y.color = 'b';
-            pStruct.color.timeSeries.accel.raw.z.color = 'g';
-            pStruct.color.timeSeries.accel.raw.vecMag.color = 'm';
+            pStruct.color.timeSeries.accel.raw.y.color = 'g';
+            pStruct.color.timeSeries.accel.raw.z.color = 'b';
+            pStruct.color.timeSeries.accel.raw.vecMag.color = 'k';
             pStruct.color.timeSeries.accel.count.x.color = 'r';
-            pStruct.color.timeSeries.accel.count.y.color = 'b';
-            pStruct.color.timeSeries.accel.count.z.color = 'g';
-            pStruct.color.timeSeries.accel.count.vecMag.color = 'm';
-            pStruct.color.timeSeries.steps.color = 'k'; %[1 0.5 0.5];
+            pStruct.color.timeSeries.accel.count.y.color = 'g';
+            pStruct.color.timeSeries.accel.count.z.color = 'b';
+            pStruct.color.timeSeries.accel.count.vecMag.color = 'k';
+            pStruct.color.timeSeries.steps.color = 'm'; %[1 0.5 0.5];
             pStruct.color.timeSeries.lux.color = 'y';
             pStruct.color.timeSeries.inclinometer.standing.color = 'k';
             pStruct.color.timeSeries.inclinometer.lying.color = 'k';

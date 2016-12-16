@@ -300,6 +300,40 @@ classdef PAView < handle
             obj.initWidgets(viewMode);
         end
         
+        % returns visible linehandles in the upper axes of padaco.
+        function visibleLineHandles = getVisibleLineHandles(obj)
+            lineHandleStructs = obj.getLinehandle(obj.getDisplayType());
+            lineHandles = PAData.struct2vec(lineHandleStructs);
+            visibleLineHandles = lineHandles(strcmpi(get(lineHandles,'visible'),'on'));
+        end
+        
+        function hiddenLineHandles = getHiddenLineHandles(obj)
+            lineHandleStructs = obj.getLinehandle(obj.getDisplayType());
+            lineHandles = PAData.struct2vec(lineHandleStructs);
+            visibleLineHandles = lineHandles(strcmpi(get(lineHandles,'visible'),'off'));            
+            
+        end
+        %> @brief Want to redistribute or evenly distribute the lines displayed in
+        %> this axis.
+        function redistributePrimaryAxesLineHandles(obj)
+            visibleLineHandles = obj.getVisibleLineHandles();
+            numLines = numel(visibleLineHandles);
+            if(numLines>0)
+                curYLim = get(obj.axeshandle.primary,'ylim');
+                
+                axesHeight = diff(curYLim);
+                deltaHeight = axesHeight/numLines;
+                offset = deltaHeight/2;
+                for n=1:numLines
+                    curH = visibleLineHandles(n);
+                    curTag = get(curH,'tag');
+                    obj.dataObj.setOffset(curTag,offset);
+                    offset = offset+deltaHeight;
+                end
+            end
+            obj.draw()
+        end
+
         % --------------------------------------------------------------------
         %> @brief Retrieves the window duration drop down menu's current value as a number.
         %> @param obj Instance of PAView.
@@ -785,8 +819,11 @@ classdef PAView < handle
             axesProps.primary.xlim = PADataObject.getCurWindowRange();
             axesProps.primary.ylim = PADataObject.getDisplayMinMax();
             
-            
-            ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Lumens','Daylight'};
+            if(strcmpi(obj.dataObj.getAccelType(),'raw'))
+                ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Daylight'};
+            else
+                ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Lumens','Daylight'};
+            end
 
             axesProps.secondary.ytick = obj.getTicksForLabels(ytickLabel);
             axesProps.secondary.yticklabel = ytickLabel;
@@ -976,7 +1013,6 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         function featureHandles = addFeaturesVecToSecondaryAxes(obj, featureVector, startStopDatenum, overlayHeight, overlayOffset)
             featureHandles = obj.addFeaturesVecToAxes(featureVector, startStopDatenum, overlayHeight, overlayOffset,obj.axeshandle.secondary, obj.getUseSmoothing());
-
         end
         
         % --------------------------------------------------------------------
@@ -1135,7 +1171,9 @@ classdef PAView < handle
             % axes...
             zombieLines = findobj([obj.axeshandle.primary;obj.axeshandle.secondary],'type','line');
             zombiePatches = findobj([obj.axeshandle.primary;obj.axeshandle.secondary],'type','patch');
-            zombieHandles = [zombieLines(:);zombiePatches(:)];
+            zombieText = findobj([obj.axeshandle.primary;obj.axeshandle.secondary],'type','text');
+            
+            zombieHandles = [zombieLines(:);zombiePatches(:);zombieText(:)];
             delete(zombieHandles);
             
             obj.linehandle = [];
@@ -1553,7 +1591,7 @@ classdef PAView < handle
             else
                 smoothY = featureVector;
             end
-            normalizedY = smoothY/max(smoothY)*overlayHeight+overlayOffset;
+            normalizedY = smoothY/max(smoothY)*overlayHeight-min(smoothY)+overlayOffset;
             featureHandles(1) = line('parent',axesH,'ydata',normalizedY,'xdata',startStopDatenum(:,1),'color','b','hittest','off','userdata',featureVector);
             %draw some boundaries around our features - put in rails
             railsBottom = [overlayOffset,overlayOffset]+0.001;

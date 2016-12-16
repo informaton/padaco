@@ -801,25 +801,38 @@ classdef PAController < handle
             
             featureFcn = obj.getExtractorMethod();
             
+            numViews = obj.numViewsInSecondaryDisplay; %(numel(signalTagLines)+1);
+            
+            
             % update secondary axes y labels according to our feature
             % function.
             if(strcmpi(featureFcn,'psd'))
-                ytickLabels = {'Band 5','Band 4','Band 3','Band 2','Band 1','Activity','Lumens','Daylight'};
+                ytickLabels = {'Band 5','Band 4','Band 3','Band 2','Band 1'};
                 signalTags = {'b5','b4','b3','b2','b1'};                
             else
                 signalTags = {'x','y','z','vecMag'};
-                ytickLabels = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Lumens','Daylight'};
+                ytickLabels = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|'};
             end
-            obj.updateSecondaryAxesLabels('y',ytickLabels);
+            %axesHeight = 1;
+            if(strcmpi(obj.getAccelType(),'raw'))
+                ytickLabels = [ytickLabels,'Activity','Daylight'];
+                %                 deltaHeight = 1/(numViews+1);
+                %                 heightOffset = deltaHeight/2;
+            else
+                ytickLabels = [ytickLabels,'Activity','Lumens','Daylight'];
+            end
             
+            deltaHeight = 1/numViews;
+            heightOffset = 0;
+            
+            % This has already been updated though?
+            obj.updateSecondaryAxesLabels('y',ytickLabels);
+
             %  signalTagLine = obj.getSignalSelection();
             %  obj.drawFeatureVecPatches(featureFcn,signalTagLine,numFrames);
             
             signalTagLines = strcat('accel.',obj.accelTypeShown,'.',signalTags)';
             
-            numViews = obj.numViewsInSecondaryDisplay; %(numel(signalTagLines)+1);
-            height = 1/numViews;
-            heightOffset = 0;
             if(any(ishandle(obj.featureHandles)))
                 delete(obj.featureHandles);
             end
@@ -839,16 +852,16 @@ classdef PAController < handle
                 
                 % x, y, z
                 if(s<numel(signalTagLines) || (s==numel(signalTagLines)&&strcmpi(featureFcn,'psd')))
-                    vecHandles = obj.VIEW.addFeaturesVecToSecondaryAxes(featureVec,startStopDatenums,height,heightOffset);                    
-                    heightOffset = heightOffset+height;
+                    vecHandles = obj.VIEW.addFeaturesVecToSecondaryAxes(featureVec,startStopDatenums,deltaHeight,heightOffset);                    
+                    heightOffset = heightOffset+deltaHeight;
                     
                     % vecMag
                 else
                     % This requires twice the height because it will have a
                     % feature line and heat map
-                    [patchH, lineH, cumsumH] = obj.VIEW.addFeaturesVecAndOverlayToSecondaryAxes(featureVec,startStopDatenums,height*2,heightOffset);
+                    [patchH, lineH, cumsumH] = obj.VIEW.addFeaturesVecAndOverlayToSecondaryAxes(featureVec,startStopDatenums,deltaHeight*2,heightOffset);
                     vecHandles = [patchH, lineH, cumsumH];
-                    heightOffset = heightOffset+height*2;
+                    heightOffset = heightOffset+deltaHeight*2;
                 end
                 obj.featureHandles = [obj.featureHandles(:);vecHandles(:)];
             end
@@ -1955,13 +1968,14 @@ classdef PAController < handle
                 obj.numViewsInSecondaryDisplay = 7;
             else
                 obj.numViewsInSecondaryDisplay = 8;
+                
             end
             % Items 1-5
             % Starting from the bottom of the axes - display the features
             % for x, y, z, vec magnitude, and 1-d values
             heightOffset = obj.updateSecondaryFeaturesDisplay();
             
-            itemsToDisplay = 3; % usage state, mean lumens, daylight approx
+            itemsToDisplay = obj.numViewsInSecondaryDisplay-5; % usage state, mean lumens, daylight approx
             remainingHeight = 1-heightOffset;
             height = remainingHeight/itemsToDisplay;
             if(obj.accelObj.getSampleRate()<=1)
@@ -1972,23 +1986,26 @@ classdef PAController < handle
             else
                 vecHandles = [];
             end
-            % Next, add lumens intensity to secondary axes
-            heightOffset = heightOffset+height;
-            maxLumens = 250;
+            
             numFrames = obj.getFrameCount();
             
             if(~strcmpi(obj.getAccelType(),'raw'))
+                % Next, add lumens intensity to secondary axes
+                heightOffset = heightOffset+height;
+                maxLumens = 250;
+
                 [meanLumens,startStopDatenums] = obj.getMeanLumenPatches(numFrames);
                 obj.VIEW.addOverlayToSecondaryAxes(meanLumens,startStopDatenums,height,heightOffset,maxLumens);
-                heightOffset = heightOffset+height;
 
                 %             [medianLumens,startStopDatenums] = obj.getMedianLumenPatches(1000);
                 %             obj.VIEW.addLumensOverlayToSecondaryAxes(meanLumens,startStopDatenums);
             end
             
             % Finally Add daylight to the top.
-            maxDaylight = 1;
+            maxDaylight = 1;            
             [daylight,startStopDatenums] = obj.getDaylight(numFrames);
+            heightOffset = heightOffset+height;
+
             obj.VIEW.addOverlayToSecondaryAxes(daylight,startStopDatenums,height-0.005,heightOffset,maxDaylight);
             
             obj.initCallbacks(); %initialize callbacks now that we have some data we can interact with.
@@ -2112,11 +2129,15 @@ classdef PAController < handle
             end
             
             % Added this to keep consistency with updateSecondaryFeaturesDisplay method
-            if(~strcmpi(obj.getAccelType(),'raw'))
-                ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Lumens','Daylight'};
+            ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|'};
+            
+            if(strcmpi(obj.getAccelType(),'raw'))
+                ytickLabel = [ytickLabel,'Activity','Daylight'];
             else
-                ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Daylight'};
+                ytickLabel = [ytickLabel,'Activity','Lumens','Daylight'];
             end
+
+            
             numViews = numel(ytickLabel);
             startStopDatenum = [startStopDatenums(1),startStopDatenums(end)];
             axesProps.yticklabel = ytickLabel;
@@ -2266,6 +2287,7 @@ classdef PAController < handle
             contextmenu_mainaxes_h = uicontextmenu('parent',obj.figureH);
             hideH =uimenu(contextmenu_mainaxes_h,'Label','Hide','tag','hide');
             unhideH = uimenu(contextmenu_mainaxes_h,'Label','Unhide','tag','unhide');
+            uimenu(contextmenu_mainaxes_h,'Label','Evenly distribute lines','tag','redistribute','callback',@obj.contextmenu_redistributeLines_callback);
             set(contextmenu_mainaxes_h,'callback',{@obj.contextmenu_primaryAxes_callback,hideH,unhideH});
             
         end
@@ -2275,6 +2297,12 @@ classdef PAController < handle
             %configure sub contextmenus
             obj.configure_contextmenu_unhideSignals(unhide_uimenu_h);
             obj.configure_contextmenu_hideSignals(hide_uimenu_h);
+        end
+        
+        %> @brief Want to redistribute or evenly distribute the lines displayed in
+        %> this axis.
+        function contextmenu_redistributeLines_callback(obj, hObject, eventdata)
+            obj.VIEW.redistributeUpperAxesLineHandles();
         end
         
         % =================================================================
@@ -2589,7 +2617,7 @@ classdef PAController < handle
             %axes_h is the axes that the current object (channel_object) is in
             pos = get(obj.VIEW.axeshandle.primary,'currentpoint');
             curOffset = max(min(pos(1,2),y_lim(2)),y_lim(1));
-            obj.accelObj.setOffset(lineTag,curOffset);
+            obj.accelObj.setOffset(lineTag,curOffset);            
             obj.VIEW.draw();
         end
         
