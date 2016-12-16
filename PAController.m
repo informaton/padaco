@@ -2302,7 +2302,7 @@ classdef PAController < handle
         %> @brief Want to redistribute or evenly distribute the lines displayed in
         %> this axis.
         function contextmenu_redistributeLines_callback(obj, hObject, eventdata)
-            obj.VIEW.redistributeUpperAxesLineHandles();
+            obj.VIEW.redistributePrimaryAxesLineHandles();
         end
         
         % =================================================================

@@ -1591,7 +1591,9 @@ classdef PAView < handle
             else
                 smoothY = featureVector;
             end
-            normalizedY = smoothY/max(smoothY)*overlayHeight-min(smoothY)+overlayOffset;
+            smoothY = smoothY-min(smoothY);
+            normalizedY = smoothY/max(smoothY)*overlayHeight+overlayOffset;%drop it right down in place, center vertically
+            
             featureHandles(1) = line('parent',axesH,'ydata',normalizedY,'xdata',startStopDatenum(:,1),'color','b','hittest','off','userdata',featureVector);
             %draw some boundaries around our features - put in rails
             railsBottom = [overlayOffset,overlayOffset]+0.001;
