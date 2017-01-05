@@ -1219,6 +1219,7 @@ classdef PAController < handle
                     
                     
                     obj.VIEW.showBusy('Loading','all');
+                    obj.VIEW.disableWidgets();
                     [pathname,basename, baseext] = fileparts(f);
                     obj.SETTINGS.DATA.pathname = pathname;
                     obj.SETTINGS.DATA.filename = strcat(basename,baseext);
