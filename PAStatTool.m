@@ -136,7 +136,6 @@ classdef PAStatTool < handle
             if(nargin<3 || isempty(widgetSettings))
                 widgetSettings = PAStatTool.getDefaultParameters();
             end
-            
                 
             % This call ensures that we have at a minimum, the default parameter field-values in widgetSettings.
             % And eliminates later calls to determine if a field exists
@@ -146,9 +145,6 @@ classdef PAStatTool < handle
             if(~isfield(widgetSettings,'useDatabase'))
                 widgetSettings.useDatabase = false;
             end
-            
-            
-            
             
 %             catch me
 %                 showME(me);
@@ -172,7 +168,6 @@ classdef PAStatTool < handle
             this.originalFeatureStruct = [];
             this.canPlot = false;
             this.featuresDirectory = [];
-
             
             this.figureH = padaco_fig_h;
             this.featureStruct = [];
@@ -260,8 +255,6 @@ classdef PAStatTool < handle
             end
             this.addlistener('ProfileFieldSelectionChange_Event',@this.profileFieldSelectionChangeCallback);
         end
-
-        
 
         % ======================================================================
         %> @brief Overload delete method to ensure we get rid of the
@@ -1043,7 +1036,7 @@ classdef PAStatTool < handle
                 this.handles.edit_trimToPercent
                 this.handles.check_cull
                 this.handles.edit_cullToValue
-                this.handles.check_segment],'units','points',...
+                this.handles.check_segment],'units','normalized',...% had been : 'points',...
                 'callback',[],...
                 'enable','off');
 
@@ -1150,6 +1143,9 @@ classdef PAStatTool < handle
                         
                         set(this.handles.push_nextCentroid,'units','pixels');
                         set(this.handles.push_previousCentroid,'units','pixels');
+
+%                         set(this.handles.push_nextCentroid,'units','normalized');
+%                         set(this.handles.push_previousCentroid,'units','normalized');
                         
                         % Correct arrow positions - they seem to shift in
                         % MATLAB R2014b from their guide set position.
@@ -1186,8 +1182,8 @@ classdef PAStatTool < handle
                         set(this.handles.push_nextCentroid,'cdata',nextImg,'string',[]);
                         set(this.handles.push_previousCentroid,'cdata',previousImg,'string',[]);
                         
-                        set(this.handles.push_nextCentroid,'units','points');
-                        set(this.handles.push_previousCentroid,'units','points');
+                        set(this.handles.push_nextCentroid,'units','normalized');
+                        set(this.handles.push_previousCentroid,'units','normalized');
 
                         set(this.handles.check_holdYAxes,'value',strcmpi(widgetSettings.primaryAxis_yLimMode,'manual'),'callback',@this.checkHoldYAxesCallback);
                         set(this.handles.check_holdPlots,'value',strcmpi(widgetSettings.primaryAxis_nextPlot,'add'),'callback',@this.checkHoldPlotsCallback);
