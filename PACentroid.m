@@ -694,7 +694,7 @@ classdef PACentroid < handle
         
         %> @brief Returns struct useful for logisitic or linear regression modelling.
         %> @param Instance of PACentroid.
-        %> @param Optional coi index - index or indices to retrieve
+        %> @param Optional coi sort order index - index or indices to retrieve
         %> covariate structures of.
         %> @retval Struct with fields defining dependent variables to use in the
         %> model.  Fields include:
@@ -702,7 +702,7 @@ classdef PACentroid < handle
         %> keys.
         %> - @c memberIDs Nx1 array of unique keys corresponding to each row.
         %> - @c colnames 1xM cell string of names describing the covariate columns.
-        function covariateStruct = getCovariateStruct(this,optionalCOIIndex)
+        function covariateStruct = getCovariateStruct(this,optionalCOISortOder)
             subjectIDs = this.getUniqueLoadShapeIDs(); %    unique(this.loadShapeIDs);
             numSubjects = numel(subjectIDs);
             
@@ -711,7 +711,7 @@ classdef PACentroid < handle
             for row=1:numSubjects
                 try
                     curSubject = subjectIDs(row);
-                    centroidsForSubject = this.loadshapeIndex2centroidIndexMap(this.loadShapeIDs==curSubject);
+                    centroidsForSubject = this.coiIndex2SortOrder(this.loadshapeIndex2centroidIndexMap(this.loadShapeIDs==curSubject));
                     for c=1:numel(centroidsForSubject)
                         coi = centroidsForSubject(c);
                         values(row,coi) = values(row,coi)+1;
@@ -722,12 +722,16 @@ classdef PACentroid < handle
                 end
             end
             
+            % This states the columns should be in sorted order with #1
+            % first (on the left) and #K on the end (far right).  This is
+            % okay because we have converted centroid indices to centroid
+            % sort order indices in the above for loop.
             colnames = regexp(sprintf('Centroid #%u\n',1:this.numCentroids),'\n','split');            
 
             colnames(end) = [];  %remove the last cell entry which will be empty.
-            if(nargin>1 && ~isempty(optionalCOIIndex))
-                values = values(:,optionalCOIIndex);
-                colnames = colnames(optionalCOIIndex);
+            if(nargin>1 && ~isempty(optionalCOISortOder))
+                values = values(:,optionalCOISortOder);
+                colnames = colnames(optionalCOISortOder);
             end
             covariateStruct.memberIDs = subjectIDs;
             covariateStruct.values = values;
