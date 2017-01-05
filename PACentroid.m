@@ -694,13 +694,15 @@ classdef PACentroid < handle
         
         %> @brief Returns struct useful for logisitic or linear regression modelling.
         %> @param Instance of PACentroid.
+        %> @param Optional coi index - index or indices to retrieve
+        %> covariate structures of.
         %> @retval Struct with fields defining dependent variables to use in the
         %> model.  Fields include:
         %> - @c values NxM array of counts for M centroids (the covariate index) for N subject
         %> keys.
         %> - @c memberIDs Nx1 array of unique keys corresponding to each row.
         %> - @c colnames 1xM cell string of names describing the covariate columns.
-        function covariateStruct = getCovariateStruct(this,optionalCOISortOrder)
+        function covariateStruct = getCovariateStruct(this,optionalCOIIndex)
             subjectIDs = this.getUniqueLoadShapeIDs(); %    unique(this.loadShapeIDs);
             numSubjects = numel(subjectIDs);
             
@@ -723,9 +725,9 @@ classdef PACentroid < handle
             colnames = regexp(sprintf('Centroid #%u\n',1:this.numCentroids),'\n','split');            
 
             colnames(end) = [];  %remove the last cell entry which will be empty.
-            if(nargin>1 && ~isempty(optionalCOISortOrder))
-                values = values(:,optionalCOISortOrder);
-                colnames = colnames(optionalCOISortOrder);
+            if(nargin>1 && ~isempty(optionalCOIIndex))
+                values = values(:,optionalCOIIndex);
+                colnames = colnames(optionalCOIIndex);
             end
             covariateStruct.memberIDs = subjectIDs;
             covariateStruct.values = values;
