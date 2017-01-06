@@ -110,12 +110,12 @@ float * parseRawCSVFile(const char * csvFilename, csv_header_t* fileHeader,bool 
     return accelerations;
 }
 
-void writeRaw2Bin(char * rawCSVFilename, char * rawBinFilename){
+bool writeRaw2Bin(char * rawCSVFilename, char * rawBinFilename){
     bool loadFast = true;
     bool didWrite = false;
     csv_header_t csvFileHeader;
     FILE * binFID = NULL;
-    float * accelerations = parseRawCSVFile(rawCSVFilename,&fileHeader,loadFast);
+    float * accelerations = parseRawCSVFile(rawCSVFilename,&csvFileHeader,loadFast);
     if(accelerations==NULL){
         didWrite = false;
     }
@@ -125,7 +125,7 @@ void writeRaw2Bin(char * rawCSVFilename, char * rawBinFilename){
             fprintf(stderr,"Could not open file for writing: %s\n",rawBinFilename);
         }
         else{
-            didWrite =  write2bin(binFID, csvFileHeader, accelerations);
+            didWrite =  write2bin(binFID, &csvFileHeader, accelerations);
             fclose(binFID);
         }
     }
@@ -142,8 +142,8 @@ bool write2bin(FILE *fid, csv_header_t*csvFileHeader, float * data){
     }
     
     binFileHeader.samplerate = csvFileHeader->samplerate;
-    binFileHeader.startTime = csvFileHeader->startTime;
-    binFileHeader.stopTime = csvFileHeader->stopTime;
+    binFileHeader.startTime = csvFileHeader->start;
+    binFileHeader.stopTime = csvFileHeader->stop;
     binFileHeader.firmware = csvFileHeader->firmware;
     binFileHeader.duration_sec = csvFileHeader->duration_sec;
     binFileHeader.num_signals = 3;

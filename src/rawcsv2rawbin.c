@@ -1,4 +1,4 @@
-// gcc rawcsv2bin.c rawtools.c -o rawcsv2rawbin
+// gcc rawcsv2rawbin.c rawtools.c -o rawcsv2rawbin
 #include "rawtools.h"
 
 void printUsage(char * programName){

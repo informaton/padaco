@@ -27,7 +27,7 @@ typedef struct bin_header_t{
     unsigned sz_remaining:32;
 } bin_header_t;
 
-csv_header_t * parseFileHeader(FILE * fid, csv_header_t *header);
+void parseFileHeader(FILE * fid, csv_header_t *header);
 float * parseRawCSVFile(const char * csvFilename, csv_header_t *, bool);
 bool write2bin(FILE *fid, csv_header_t*, float * data);
 bool writeRaw2Bin(char * rawCSVFilename, char * rawBinFilename);

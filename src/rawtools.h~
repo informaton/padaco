@@ -21,13 +21,13 @@ typedef struct bin_header_t{
     time_t stopTime;
 	char firmware[10];
 	char serialID[20];
-	unsigned duration_sec:16;
+	unsigned duration_sec:32;
     unsigned num_signals:8;
-    unsigned sz_per_signal:8
+    unsigned sz_per_signal:8;
     unsigned sz_remaining:32;
 } bin_header_t;
 
 void parseFileHeader(FILE * fid, csv_header_t *header);
-float * parseRawCSVFile(const char * csvFilename, bool);
-bool write2bin(FILE *fid, header_t*, float * data);
+float * parseRawCSVFile(const char * csvFilename, csv_header_t *, bool);
+bool write2bin(FILE *fid, csv_header_t*, float * data);
 bool writeRaw2Bin(char * rawCSVFilename, char * rawBinFilename);
