@@ -40,3 +40,5 @@ model/table_summary.m
 *.tmp
 
 *.o
+
+src/test.raw

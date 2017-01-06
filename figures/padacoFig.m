@@ -26,7 +26,7 @@ function varargout = padacoFig(varargin)
 
 % Edit the above text to modify the response to help padacoFig
 
-% Last Modified by GUIDE v2.5 09-Mar-2016 11:14:03
+% Last Modified by GUIDE v2.5 05-Jan-2017 15:29:53
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -115,8 +115,6 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-
-
 function menu_weekdays_CreateFcn(hObject, eventdata, handles)
 
 % Hint: popupmenu controls usually have a white background on Windows.
@@ -124,7 +122,6 @@ function menu_weekdays_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
-
 
 function menu_duration_CreateFcn(hObject, eventdata, handles)
 
@@ -162,3 +159,4 @@ function menu_centroidStopTime_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+

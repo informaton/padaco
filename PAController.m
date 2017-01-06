@@ -383,17 +383,20 @@ classdef PAController < handle
             set(handles.menu_file_quit,'callback',{@obj.menuFileQuitCallback,guidata(figH)});
             set(handles.menu_file_restart,'callback',@restartDlg);
             
-            %% Tools
             % export
             set(handles.menu_file_export,'callback',@obj.menu_file_exportMenu_callback);
             set(handles.menu_file_export_dataObj,'callback',@obj.menu_file_export_dataObj_callback);
             set(handles.menu_file_export_centroidObj,'callback',@obj.menu_file_export_centroidObj_callback);
-            set(handles.menu_viewmode_batch,'callback',@obj.menuViewmodeBatchCallback);
             
             
             %% View Modes
             set(handles.menu_viewmode_timeseries,'callback',{@obj.setViewModeCallback,'timeSeries'});
             set(handles.menu_viewmode_results,'callback',{@obj.setViewModeCallback,'results'});
+            set(handles.menu_viewmode_batch,'callback',@obj.menuViewmodeBatchCallback);
+            
+            %% Tools
+            set(handles.menu_tools_raw2bin,'callback',@obj.menuToolsRaw2BinCallback);
+            
             
             %% Help
             set(handles.menu_help_faq,'callback',@obj.menuHelpFAQCallback);
@@ -1530,6 +1533,19 @@ classdef PAController < handle
             batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
             batchTool.addlistener('SwitchToResults',@obj.setResultsViewModeCallback);
         end
+
+        % --------------------------------------------------------------------
+        %> @brief Menubar callback for starting the raw .csv to .bin file
+        %> converter.
+        %> @param obj Instance of PAController
+        %> @param hObject    handle to the menu item (see GCBO)
+        %> @param eventdata  reserved - to be defined in a future version of MATLAB
+        % --------------------------------------------------------------------
+        function menuToolsRaw2BinCallback(obj,hObject,eventdata)
+            batchTool = PABatchTool(obj.SETTINGS.BATCH);
+            batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
+            batchTool.addlistener('SwitchToResults',@obj.setResultsViewModeCallback);
+        end        
         
         % Pass through callback for setViewModeCallback method with
         % 'results' argument.
