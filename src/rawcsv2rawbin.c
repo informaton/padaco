@@ -1,22 +1,23 @@
-// gcc rawcsv2rawbin.c rawtools.c -o rawcsv2rawbin
+// gcc rawcsv2rawbin.c rawtools.c tictoc.c -o rawcsv2rawbin
 #include "rawtools.h"
-
+#include "tictoc.h"
 void printUsage(char * programName){
-    fprintf(stdout,"%s usage: \n",programName);
-    
+    fprintf(stdout,"Usage: %s <raw accelerations .csv filename> <raw accelerations .bin filename>\n",programName);   
 }
 
 int main(int argc, char * argv[]){
     bool shouldPrintUsage = true;
     
-    if(argc!=3)
-        shouldPrintUsage = true;
-    else{
-        if((shouldPrintUsage = writeRaw2Bin(argv[1],argv[2]))==false){
+    if(argc==3){
+        tic();
+        if(writeRaw2Bin(argv[1],argv[2])){
+            printToc();
+            shouldPrintUsage = false;
+        }
+        else{
             fprintf(stderr,"FAIL\n");
         }
     }
-        
     
     if(shouldPrintUsage){
         printUsage(argv[0]);

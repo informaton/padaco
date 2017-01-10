@@ -1385,6 +1385,7 @@ classdef PAData < handle
             if(exist(fullRawCSVFilename,'file'))
                 try
                     if(exist('loadrawcsv','file')==3) % If the mex file exists and is compiled
+                    %if(exist('loadrawcsv','file')==-3) % If the mex file exists and is compiled
                         tic
                         rawMat = loadrawcsv(fullRawCSVFilename, loadFastOption)';  %loadrawcsv loads rows as columns so we need to transpose the results.
                         toc

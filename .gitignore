@@ -42,3 +42,13 @@ model/table_summary.m
 *.o
 
 src/test.raw
+
+*.bin
+
+*.log
+
+src/testtools
+
+*.c~
+
+src/rawcsv2rawbin
