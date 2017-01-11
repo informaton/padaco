@@ -20,7 +20,7 @@ bool parseBinaryFileHeader(FILE * fid, bin_header_t *header){
 }
 
 
-
+// Expecting each record to contain three float values.
 float * parseRawBinFile(const char * binFilename, bin_header_t* fileHeader, unsigned int * recordCount){
     unsigned int i, linesRead = 0, curRead = 0, actualRowCount = 0, expectedRowCount = 0;
     const int lineSize = 100;
@@ -45,12 +45,19 @@ float * parseRawBinFile(const char * binFilename, bin_header_t* fileHeader, unsi
         return NULL;
     }
     else{
-        accelerations = malloc(fileHeader->sz_remaining);
+        *recordCount = fileHeader->sz_remaining/3/sizeof(float);
         
+        accelerations = malloc(fileHeader->sz_remaining);
         if(fread(accelerations,fileHeader->sz_remaining,1,fid)!=1){
             fprintf(stderr,"Expected number of records not found!  %s may be corrupted!\n",binFilename);
+            *recordCount = 0;
+
         }
-        
+        else{
+            *recordCount = fileHeader->sz_remaining/3/sizeof(float);
+            fprintf(stdout,"Read %u records.\n",*recordCount);
+            
+        }
         
         fclose(fid);
         return accelerations;
@@ -97,8 +104,10 @@ bool write2bin(FILE *fid, csv_header_t*csvFileHeader, float * data){
     }
     
     binFileHeader.samplerate = csvFileHeader->samplerate;
-    binFileHeader.startTime = csvFileHeader->start;
-    binFileHeader.stopTime = csvFileHeader->stop;
+    strncpy(binFileHeader.startTimeStr,ctime(&csvFileHeader->start),SZ_TIME_STR);
+    //binFileHeader.start_tm = *localtime(&csvFileHeader->start);
+    //binFileHeader.start_tm = *localtime(&csvFileHeader->start);
+    //binFileHeader.stopTime = csvFileHeader->stop;
     strncpy(binFileHeader.firmware,csvFileHeader->firmware,SZ_FIRMWARE);
     strncpy(binFileHeader.serialID,csvFileHeader->serialID,SZ_SERIALID);
     binFileHeader.duration_sec = csvFileHeader->duration_sec;
@@ -144,6 +153,7 @@ bool write2bin(FILE *fid, csv_header_t*csvFileHeader, float * data){
  ***************/
 // Reading
 void parseCSVFileHeader(FILE * fid, csv_header_t *header){
+    
 	const int i=0,lineSize = 400;
  	char buffer[2][lineSize];
  	
@@ -226,7 +236,8 @@ float * parseRawCSVFile(const char * csvFilename, csv_header_t* fileHeader,bool 
 	parseCSVFileHeader(fid,fileHeader);
 	
 	printf("Sample rate is %u\n",fileHeader->samplerate);
-	printf("Duration: %0.1f s\n",fileHeader->duration_sec);
+	//printf("Duration: %0.1f s\n",fileHeader->duration_sec);
+    printf("Duration: %u s\n",fileHeader->duration_sec);
     expectedRowCount = (unsigned int)fileHeader->duration_sec*fileHeader->samplerate;
 	printf("Expected row count: %u\n",expectedRowCount);
 	
@@ -273,13 +284,15 @@ float * parseRawCSVFile(const char * csvFilename, csv_header_t* fileHeader,bool 
     *recordCount = actualRowCount;
     if(actualRowCount!=expectedRowCount){
         fprintf(stderr,"The CSV file, %s, may be corrupted: only %u of %u records found!\n",csvFilename,actualRowCount, expectedRowCount);
-        fileHeader->duration_sec = (double)actualRowCount/fileHeader->samplerate;
-        fprintf(stderr,"New duration seconds: %lf\n",fileHeader->duration_sec);
-        tmp_time  = localtime(&fileHeader->start);
-        tmp_time->tm_sec+=fileHeader->duration_sec;
-        fileHeader->stop = mktime(tmp_time);
+        fileHeader->duration_sec = actualRowCount/fileHeader->samplerate; /* Want this to be a whole number, so do not type cast */
+        *recordCount = fileHeader->duration_sec*fileHeader->samplerate;  /* This will curtail any additional records beyond the 1-sec boundary */
+        
+        fprintf(stderr,"New duration seconds: %u\n",fileHeader->duration_sec);
+        //tmp_time  = localtime(&fileHeader->start);
+        //tmp_time->tm_sec+=fileHeader->duration_sec;
+        //fileHeader->stop = mktime(tmp_time);
         fprintf(stderr,"New stop time caculated as: %s",ctime(&fileHeader->stop));
-        fprintf(stderr,"New stop time caculated as: %s\n",asctime(localtime(&fileHeader->stop)));
+        //fprintf(stderr,"New stop time caculated as: %s\n",asctime(localtime(&fileHeader->stop)));
     }
     return accelerations;
 }
@@ -293,11 +306,11 @@ float * parseRawCSVFile(const char * csvFilename, csv_header_t* fileHeader,bool 
 void printBinHeader(bin_header_t *binHeader)
 {
     fprintf(stdout,"samplerate:\t%hu\n",binHeader->samplerate);
-    fprintf(stdout,"startTime:\t%llu\n",binHeader->startTime);
-    fprintf(stdout,"stopTime:\t%llu\n",binHeader->stopTime);
+    //fprintf(stdout,"startTime:\t%llu\n",binHeader->startTime);
+    //fprintf(stdout,"stopTime:\t%llu\n",binHeader->stopTime);
     fprintf(stdout,"firmware:\t%s\n",binHeader->firmware);
     fprintf(stdout,"serialID:\t%s\n",binHeader->serialID);
-    fprintf(stdout,"duration_sec:\t%lf\n",binHeader->duration_sec);
+    fprintf(stdout,"duration_sec:\t%llu\n",binHeader->duration_sec);
     fprintf(stdout,"num_signals:\t%hhu\n",binHeader->num_signals);
     fprintf(stdout,"sz_per_signal:\t%hhu\n",binHeader->sz_per_signal);
     fprintf(stdout,"sz_remaining:\t%llu\n",binHeader->sz_remaining);

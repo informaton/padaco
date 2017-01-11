@@ -2433,10 +2433,26 @@ classdef PAData < handle
             didLoad = false;
             recordCount = 0;
             if(exist(fullBinFilename,'file'))
-                fid = fopen(fullBinFilename,'r','b');  %I'm going with a big endian format here.
+                fid = fopen(fullBinFilename,'r','n');  %Let's go with native format...
                 
                 if(fid>0)
                     binHeader = obj.loadPadacoRawBinFileHeader(fid);
+                    recordCount1 = binHeader.sz_remaining/binHeader.num_signals/binHeader.sz_per_signal;
+                    recordCount2 = binHeader.samplerate*binHeader.duration_sec;
+                    if(recordCount1~=recordCount2)
+                        fprintf(1,'A mismatch exists for record count as specified in the binary file %s',fullBinFilename);
+                        recordCount = max(recordCount1,recordCount2); % Take the largest of the two for pre-allocation.
+                    else
+                        recordCount = recordCount1;
+                    end
+                    %                     curPos = ftell(fid);
+                    %                     a=fread(fid, [binHeader.num_signals,inf],'*float')';
+                    %                     fseek(fid,curPos,'bof');
+                    %                     tic
+                    xyzData=fread(fid, [binHeader.num_signals,recordCount],'*float')';
+                    obj.setRawXYZ(xyzData);
+                    didLoad = true;
+                    %                     toc
                 end
             end
         end
@@ -2796,15 +2812,21 @@ classdef PAData < handle
                 fileHeader = [];
             else
                 
-                fileHeader.samplerate = fread(fid,1,'*uint16');
-                fileHeader.startTime = fread(fid,1,'*uint64');
-                fileHeader.stopTime = fread(fid,1,'*uint64');
-%                 ftell(fid)
-%                 fread(fid,6);
-%                 fseek(fid,24,'bof');
+                fileHeader.samplerate = fread(fid,1,'uint16');
+                fileHeader.startTime = fread(fid,[1,24],'*char');
+                %                 fileHeader.tm_sec=fread(fid,1,'int');    % seconds after the minute (0 to 61) */
+                %                 fileHeader.tm_min=fread(fid,1,'int');    % minutes after the hour (0 to 59) */
+                %                 fileHeader.tm_hour=fread(fid,1,'int');   % hours since midnight (0 to 23) */
+                %                 fileHeader.tm_mday=fread(fid,1,'int');   % day of the month (1 to 31) */
+                %                 fileHeader.tm_mon=fread(fid,1,'int');    % months since January (0 to 11) */
+                %                 fileHeader.tm_year=fread(fid,1,'int')+1900;   % years since 1900 */
+                %                 fileHeader.tm_wday=fread(fid,1,'int');   % days since Sunday (0 to 6 Sunday=0) */
+                %                 fileHeader.tm_yday=fread(fid,1,'int');   % days since January 1 (0 to 365) */
+                %                 fileHeader.tm_isdst=fread(fid,1,'int');  % Daylight Savings Time */
+                
                 fileHeader.firmware = fread(fid,[1,10],'*char');
                 fileHeader.serialID = fread(fid,[1,20],'*char');
-                fileHeader.duration_sec = fread(fid,1,'double');
+                fileHeader.duration_sec = fread(fid,1,'uint32');
                 fileHeader.num_signals = fread(fid,1,'uint8');
                 fileHeader.sz_per_signal = fread(fid,1,'uint8');
                 fileHeader.sz_remaining = fread(fid,1,'*uint64');
@@ -2886,12 +2908,9 @@ classdef PAData < handle
                     diff_samples = (candidate_events(:,2)-candidate_events(:,1));
                     candidate_events = candidate_events(diff_samples>=min_duration_samples,:);
                 end
-            end
-            
+            end            
             processVec = PAData.unrollEvents(candidate_events,numel(logicalVec));
-            
         end
-        
         
         %======================================================================
         %> @brief Moving summer finite impulse response filter.
@@ -3987,7 +4006,11 @@ classdef PAData < handle
         %> @retval Study ID
         function studyID = getStudyIDFromBasename(baseName)
             % Appropriate for GOALS output
-            studyID = baseName(1:6);
+            try
+                studyID = baseName(1:6);
+            catch me
+                studyID = baseName;
+            end
         end
         
         function tagStruct = getActivityTags()

@@ -3,6 +3,7 @@
 #define NUM_COLUMNS_FAST 3
 #define SZ_FIRMWARE 10
 #define SZ_SERIALID 20
+#define SZ_TIME_STR 26-2 // Includes newline and string terminating characters; And -2 to exclude newline and terminating character
 
 #pragma pack(1)  /* Do this to avoid padding being added to our fwrite struct blobs
                     Ref: http://stackoverflow.com/questions/3318410/pragma-pack-effect
@@ -20,18 +21,17 @@ typedef struct csv_header_t {
 	time_t stop;
 	char firmware[SZ_FIRMWARE];
 	char serialID[SZ_SERIALID];
-	double duration_sec;
+	unsigned int duration_sec;
 } csv_header_t;
 
 
 
 typedef struct bin_header_t{
     uint16_t samplerate;
-    uint64_t startTime;
-    uint64_t stopTime;
-	char firmware[SZ_FIRMWARE];
+    char startTimeStr[SZ_TIME_STR];
+    char firmware[SZ_FIRMWARE];
 	char serialID[SZ_SERIALID];
-    double duration_sec;
+    uint32_t duration_sec;
     uint8_t num_signals;
     uint8_t sz_per_signal;
     uint64_t sz_remaining;
