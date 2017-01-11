@@ -3,7 +3,7 @@ void tic(){
     startTime = time(NULL);
 }
 
-// Returns difference between start and stop times in seconds.
+/* Returns difference between start and stop times in seconds. */
 double toc(){
     stopTime = time(NULL);
     return difftime(stopTime,startTime); 

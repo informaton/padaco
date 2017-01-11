@@ -1,5 +1,0 @@
-#include <time.h>
-#include <stdio.h> // For fprintf, 
-time_t startTime = time(NULL), stopTime;
-void tic();
-void toc();

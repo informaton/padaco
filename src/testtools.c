@@ -1,4 +1,5 @@
 // gcc testtools.c rawtools.c tictoc.c -o rawcsv2rawbin
+// gcc -std=iso9899:1990 -pedantic testtools.c rawtools.c tictoc.c -o testtools
 #include "rawtools.h"
 #include "tictoc.h"
 void printUsage(char * programName){
@@ -10,15 +11,19 @@ int main(int argc, char * argv[]){
     float * accelData = NULL;
     bin_header_t binHeader;
     unsigned int recordCount = 0;
+    fprintf(stdout,"sizeof(time_t)=%lu\n"
+            "sizeof(unsigned long)=%lu\n",sizeof(time_t),sizeof(unsigned long));
     if(argc==2){
         tic();
         tic();
+        
         accelData = parseRawBinFile(argv[1], &binHeader, &recordCount);
         if(accelData==NULL){
             fprintf(stderr,"FAIL\n");
         }
         else{
             printToc();
+            printBinHeader(&binHeader);
             shouldPrintUsage = false;
         }        
     }

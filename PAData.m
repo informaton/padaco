@@ -1152,62 +1152,69 @@ classdef PAData < handle
                         %                        infoFile = fullfile(pathName,strcat(baseName,'.info.txt'));
                         infoFile = fullfile(pathName,'info.txt');
                         
-                        %load meta data from info.txt
-                        [infoStruct, firmwareVersion] = obj.parseInfoTxt(infoFile);
-                        
-                        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                        % Ensure firmware version is either 2.2.1, 2.5.0 or 3.1.0
-                        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                        if(strcmp(firmwareVersion,'2.5.0')||strcmp(firmwareVersion,'3.1.0') || strcmp(firmwareVersion,'2.2.1') || strcmp(firmwareVersion,'1.5.0'))
-                            obj.setFullFilename(fullfilename);
-                            obj.sampleRate = str2double(infoStruct.Sample_Rate);
-                            
-                            % Version 2.5.0 firmware
-                            if(strcmp(firmwareVersion,'2.5.0'))
-                                
-                                unitsTimePerDay = 24*3600*10^7;
-                                matlabDateTimeOffset = 365+1+1;  %367, 365 days for the first year + 1 day for the first month + 1 day for the first day of the month
-                                %start, stop and delta date nums
-                                binStartDatenum = str2double(infoStruct.Start_Date)/unitsTimePerDay+matlabDateTimeOffset;
-                                
-                                if(~isempty(obj.startDate))
-                                    countStartDatenum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
-                                
-                                    if(binStartDatenum~=countStartDatenum)
-                                        fprintf('There is a discrepancy between the start date-time in the count file and the binary file.  I''m not sure what is going to happen because of this.\n');
-                                    end
-                                else
-                                    
-                                end
-                                    
-                                
-                                didLoad = obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
-                                
-                                obj.durationSec = floor(obj.durationSamples()/obj.sampleRate);
-                                
-                                binDatenumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
-                                binStopDatenum = datenum(binDatenumDelta*obj.durSamples)+binStartDatenum;
-                                synthDateVec = datevec(binStartDatenum:binDatenumDelta:binStopDatenum);
-                                synthDateVec(:,6) = round(synthDateVec(:,6)*1000)/1000;
-                                
-                                %This takes 2.0 seconds!
-                                obj.dateTimeNum = datenum(synthDateVec);
-                                
-                                % Version 3.1.0 firmware                                % Version 2.2.1 firmware
-                                
-                            elseif(strcmp(firmwareVersion,'3.1.0') || strcmp(firmwareVersion,'2.2.1') || strcmp(firmwareVersion,'1.5.0'))
-                                didLoad = obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
-                            else
-                                didLoad = false;
-                            end
-                            obj.hasRaw = didLoad;
-                            
+                        % Is it a padaco exported raw bin file?  
+                        if(~exist(infoFile,'file'))
+                            obj.hasRaw = obj.loadPadacoRawBinFile(fullfilename);
                         else
-                            % for future firmware version loaders
-                            % Not 2.2.1, 2.5.0 or 3.1.0 - skip - cannot handle right now.
-                            fprintf(1,'Firmware version (%s) either not found or unrecognized in %s.\n',firmwareVersion,infoFile);
-                            obj.hasRaw = false;
-                        end                        
+                            %load meta data from info.txt
+                            [infoStruct, firmwareVersion] = obj.parseInfoTxt(infoFile);
+                            
+                            
+                            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                            % Ensure firmware version is either 2.2.1, 2.5.0 or 3.1.0
+                            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                            if(strcmp(firmwareVersion,'2.5.0')||strcmp(firmwareVersion,'3.1.0') || strcmp(firmwareVersion,'2.2.1') || strcmp(firmwareVersion,'1.5.0'))
+                                obj.setFullFilename(fullfilename);
+                                obj.sampleRate = str2double(infoStruct.Sample_Rate);
+                                
+                                % Version 2.5.0 firmware
+                                if(strcmp(firmwareVersion,'2.5.0'))
+                                    
+                                    unitsTimePerDay = 24*3600*10^7;
+                                    matlabDateTimeOffset = 365+1+1;  %367, 365 days for the first year + 1 day for the first month + 1 day for the first day of the month
+                                    %start, stop and delta date nums
+                                    binStartDatenum = str2double(infoStruct.Start_Date)/unitsTimePerDay+matlabDateTimeOffset;
+                                    
+                                    if(~isempty(obj.startDate))
+                                        countStartDatenum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
+                                        
+                                        if(binStartDatenum~=countStartDatenum)
+                                            fprintf('There is a discrepancy between the start date-time in the count file and the binary file.  I''m not sure what is going to happen because of this.\n');
+                                        end
+                                    else
+                                        
+                                    end
+                                    
+                                    
+                                    didLoad = obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
+                                    
+                                    obj.durationSec = floor(obj.durationSamples()/obj.sampleRate);
+                                    
+                                    binDatenumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
+                                    binStopDatenum = datenum(binDatenumDelta*obj.durSamples)+binStartDatenum;
+                                    synthDateVec = datevec(binStartDatenum:binDatenumDelta:binStopDatenum);
+                                    synthDateVec(:,6) = round(synthDateVec(:,6)*1000)/1000;
+                                    
+                                    %This takes 2.0 seconds!
+                                    obj.dateTimeNum = datenum(synthDateVec);
+                                    
+                                    % Version 3.1.0 firmware                                % Version 2.2.1 firmware
+                                    
+                                elseif(strcmp(firmwareVersion,'3.1.0') || strcmp(firmwareVersion,'2.2.1') || strcmp(firmwareVersion,'1.5.0'))
+                                    didLoad = obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
+                                else
+                                    didLoad = false;
+                                end
+                                obj.hasRaw = didLoad;
+                                
+                            else
+                                
+                                % for future firmware version loaders
+                                % Not 2.2.1, 2.5.0 or 3.1.0 - skip - cannot handle right now.
+                                fprintf(1,'Firmware version (%s) either not found or unrecognized in %s.\n',firmwareVersion,infoFile);
+                                obj.hasRaw = false;
+                            end
+                        end
                     end
                 end
             else
@@ -2420,7 +2427,20 @@ classdef PAData < handle
     end
     
     methods (Access = protected)
+            
         
+        function [didLoad,recordCount] = loadPadacoRawBinFile(obj,fullBinFilename)
+            didLoad = false;
+            recordCount = 0;
+            if(exist(fullBinFilename,'file'))
+                fid = fopen(fullBinFilename,'r','b');  %I'm going with a big endian format here.
+                
+                if(fid>0)
+                    binHeader = obj.loadPadacoRawBinFileHeader(fid);
+                end
+            end
+        end
+
         % ======================================================================
         %> @brief Loads raw accelerometer data from binary file produced via
         %> actigraph Firmware 2.5.0 or 3.1.0.  This function is
@@ -2763,6 +2783,39 @@ classdef PAData < handle
     methods(Static)
         
         % File I/O
+        
+        %> @param fid File identifier is expected to be a file resource
+        %> for a binary file obainted using fopen(<filename>,'r');
+        %> @retval fileHeader A struct with file header field value pairs.
+        %> An empty value is returned in the event that the fid is bad.
+        function fileHeader = loadPadacoRawBinFileHeader(fid)
+            goodFile = fseek(fid,0,'bof')==0;
+            
+            if(~goodFile)
+                fprintf(1,'Not a good file identifier.  The following error message was received:\n\t%s\n',ferror(fid));
+                fileHeader = [];
+            else
+                
+                fileHeader.samplerate = fread(fid,1,'*uint16');
+                fileHeader.startTime = fread(fid,1,'*uint64');
+                fileHeader.stopTime = fread(fid,1,'*uint64');
+%                 ftell(fid)
+%                 fread(fid,6);
+%                 fseek(fid,24,'bof');
+                fileHeader.firmware = fread(fid,[1,10],'*char');
+                fileHeader.serialID = fread(fid,[1,20],'*char');
+                fileHeader.duration_sec = fread(fid,1,'double');
+                fileHeader.num_signals = fread(fid,1,'uint8');
+                fileHeader.sz_per_signal = fread(fid,1,'uint8');
+                fileHeader.sz_remaining = fread(fid,1,'*uint64');
+                if(feof(fid))
+                    fprintf(1,'Not a good file identifier.  The following error message was received:\n\t%s\n',ferror(fid));
+                    fileHeader = [];
+                end
+            end
+            
+        end
+
         
         % ======================================================================
         %> @brief Parses the information found in input file name and returns
