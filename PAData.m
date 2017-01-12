@@ -1439,7 +1439,6 @@ classdef PAData < handle
                     
                     samplesFound = numel(tmpDataCell{1}); %size(dateVecFound,1);
                     
-
                     %start, stop and delta date nums
                     startDateNum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
                     windowDateNumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
@@ -2451,8 +2450,24 @@ classdef PAData < handle
                     %                     tic
                     xyzData=fread(fid, [binHeader.num_signals,recordCount],'*float')';
                     obj.setRawXYZ(xyzData);
+                    
+                    obj.sampleRate = binHeader.samplerate;
+                    obj.durationSec = binHeader.duration_sec;
+                    
+                    % Thu Feb  7 00:00:00 2013
+                    daVec = datevec(binHeader.startDateTimeStr,'ddd mmm dd HH:MM:SS yyyy');
+                    startDatenum = datenum(daVec);
+                    obj.startDate = datestr(startDatenum,'mm/dd/yyyy');
+                    obj.startTime = datestr(startDatenum,'HH:MM:SS');
+                    daVec(end)=daVec(end)+obj.durationSec-1/obj.sampleRate;
+                    stopDatenum = datenum(daVec);
+                    obj.stopDate = datestr(stopDatenum,'mm/dd/yyyy');
+                    obj.stopTime = datestr(stopDatenum,'HH:MM:SS');
+                    
+                    datenumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
+                    obj.dateTimeNum = obj.datespace(startDatenum,stopDatenum,datenumDelta);
+                     
                     didLoad = true;
-                    %                     toc
                 end
             end
         end
@@ -2813,7 +2828,7 @@ classdef PAData < handle
             else
                 
                 fileHeader.samplerate = fread(fid,1,'uint16');
-                fileHeader.startTime = fread(fid,[1,24],'*char');
+                fileHeader.startDateTimeStr = fread(fid,[1,24],'*char');
                 %                 fileHeader.tm_sec=fread(fid,1,'int');    % seconds after the minute (0 to 61) */
                 %                 fileHeader.tm_min=fread(fid,1,'int');    % minutes after the hour (0 to 59) */
                 %                 fileHeader.tm_hour=fread(fid,1,'int');   % hours since midnight (0 to 23) */
