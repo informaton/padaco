@@ -1541,6 +1541,13 @@ classdef PAView < handle
             if(useSmoothing)
                 n = 10;
                 b = repmat(1/n,1,n);
+                % Sometimes 'single' data is loaded, particularly with raw
+                % accelerations.  We need to convert to double in such
+                % cases for filtfilt to work.
+                if(~isa(normalizedFeatureVector,'double'))
+                    normalizedFeatureVector = double(normalizedFeatureVector);
+                end
+
                 smoothY = filtfilt(b,1,normalizedFeatureVector);
             else
                 smoothY = normalizedFeatureVector;
@@ -1586,7 +1593,14 @@ classdef PAView < handle
             n = 10;
             b = repmat(1/n,1,n);
             
+            
             if(useSmoothing)
+                % Sometimes 'single' data is loaded, particularly with raw
+                % accelerations.  We need to convert to double in such
+                % cases for filtfilt to work.
+                if(~isa(featureVector,'double'))
+                    featureVector = double(featureVector);
+                end
                 smoothY = filtfilt(b,1,featureVector);
             else
                 smoothY = featureVector;

@@ -1721,8 +1721,9 @@ classdef PAData < handle
         %> - c none
         %> - c all
         %> - c rms
-        %> - c median
         %> - c mean
+        %> - c mad        
+        %> - c median
         %> - c sum
         %> - c var
         %> - c std
@@ -1795,12 +1796,13 @@ classdef PAData < handle
             obj.frames_signalTagLine = signalTagLine;
             
             switch(lower(method))
-                case 'none'
-                    
+                case 'none'                    
                 case 'all'
                     obj.features.rms = sqrt(mean(data.^2))';
-                    obj.features.median = median(data)';
                     obj.features.mean = mean(data)';
+                    obj.features.meanad = mad(data,0)';
+                    obj.features.medianad = mad(data,1)';
+                    obj.features.median = median(data)';
                     obj.features.sum = sum(data)';
                     obj.features.var = var(data)';
                     obj.features.std = std(data)';
@@ -1808,29 +1810,20 @@ classdef PAData < handle
                     obj.features.usagestate = mode(obj.usageFrames)';
                     obj.calculatePSD(signalTagLine);
                     %                    obj.features.count = obj.getCount(data)';
-                    
-                case 'rms'
-                    obj.features.rms = sqrt(mean(data.^2))';
-                case 'median'
-                    obj.features.median = median(data)';
-                case 'mean'
-                    obj.features.mean = mean(data)';
-                case 'sum'
-                    obj.features.sum = sum(data)';
-                case 'var'
-                    obj.features.var = var(data)';
-                case 'std'
-                    obj.features.std = std(data)';
-                case 'mode'
-                    obj.features.mode = mode(data)';
-                case 'usagestate'
-                    obj.features.usagestate = mode(obj.usageFrames)';
                 case 'psd'
                     obj.calculatePSD(signalTagLine);        
+                case 'usagestate'
+                    obj.features.usagestate = mode(obj.usageFrames)'; 
                 otherwise
-                    fprintf(1,'Unknown method (%s)\n',method);
+                    featureVector = obj.calcFeatureVectorFromFrames(data,method);
+                    if(~isempty(featureVector))
+                         obj.features.(method) = featureVector;                      
+                    else
+                        
+                    end
             end
         end
+        
         
         %> @brief Calculates the PSD for the current frames and assigns the
         %> result to obj.psd.frames.  Will also assign
@@ -2046,11 +2039,6 @@ classdef PAData < handle
             awakeVsAsleepCountsPerSecondCutoff = obj.usageStateRules.awakeVsAsleepCountsPerSecondCutoff;  %1;  % exceeding the cutoff means you are awake
             activeVsInactiveCountsPerSecondCutoff = obj.usageStateRules.activeVsInactiveCountsPerSecondCutoff; %10; % exceeding the cutoff indicates active
             onBodyVsOffBodyCountsPerMinuteCutoff = obj.usageStateRules.onBodyVsOffBodyCountsPerMinuteCutoff; %1; % exceeding the cutoff indicates on body (wear)
-
-
-            
-            
-            
                         
             samplesPerMinute = obj.getSampleRate()*60; % samples per second * 60 seconds per minute
             samplesPerHour = 60*samplesPerMinute;
@@ -2308,8 +2296,6 @@ classdef PAData < handle
             end
         end
         
-        
-        
         function [sref,varargout] = subsref(obj,s)
             
             if(strcmp(s(1).type,'()') && length(s)<2)
@@ -2385,8 +2371,6 @@ classdef PAData < handle
                 dat = obj.pruneStruct(dat);
             end
         end
-        
-        
         
         % ======================================================================
         %> @brief Returns a structure of PAData's saveable parameters as a struct.
@@ -2892,7 +2876,58 @@ classdef PAData < handle
             end
         end
         
-        % Analysis
+        
+        %% Analysis
+        
+        % =================================================================
+        %> @brief Calculates a feature vector for the provided data and feature function.
+        %> @param dataVector An N*Mx1 row vector.
+        %> @param samplesPerFrame The number of samples to be used per
+        %> frame.  The dataVector is reshaped into an NxM matrix whose
+        %> columns are taken sample by sample from the dataVector.  Thus,
+        %> each column represents a frame that the feature function is
+        %> applied to.
+        %> @param featureFcn String name of the feature function to be
+        %> applied.  See calcFeatureVectorFromFrames for a list of
+        %> supported feature functions and corresponding labels.
+        %> @retval featureVector Mx1 vector of feature values.  The ith row
+        %> entry corresponds to the ith frame's feature value.
+        function featureVector = calcFeatureVector(dataVector,samplesPerFrame,featureFcn)
+            numelements = numel(dataVector);
+            numFrames = floor(numelements/samplesPerFrame);
+            frameableSamples = numelements*numFrames;
+            NxM_dataFrames =  reshape(dataVector(1:frameableSamples),[],numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
+            featureVector = PAData.calcFeatureVectorFromFrames(NxM_dataFrames,featureFcn);
+        end
+        
+        function Mx1_featureVector = calcFeatureVectorFromFrames(NxM_dataFrames,featureFcn)
+            switch(lower(featureFcn))
+                 case 'rms'
+                    Mx1_featureVector = sqrt(mean(NxM_dataFrames.^2))';
+                case 'mean'
+                    Mx1_featureVector = mean(NxM_dataFrames)';
+                case 'meanad'
+                    Mx1_featureVector = mad(NxM_dataFrames,0)';
+                case 'medianad'
+                    Mx1_featureVector = mad(NxM_dataFrames,1)';
+                case 'median'
+                    Mx1_featureVector = median(NxM_dataFrames)';
+                case 'sum'
+                    Mx1_featureVector = sum(NxM_dataFrames)';
+                case 'var'
+                    Mx1_featureVector = var(NxM_dataFrames)';
+                case 'std'
+                    Mx1_featureVector = std(NxM_dataFrames)';
+                case {'mode','usagestate'}
+                    Mx1_featureVector = mode(NxM_dataFrames)';
+                otherwise
+                    Mx1_featureVector = [];
+                    fprintf(1,'Unknown method (%s)\n',featureFcn);
+            end
+            
+        end
+
+        
         
         % =================================================================
         %> @brief Removes periods of activity that are too short and groups
@@ -2965,6 +3000,7 @@ classdef PAData < handle
         end
         
         
+        %% Interface (can be moved to a controller class)
         %======================================================================
         %> @brief returns a cell of tag lines and the associated label
         %> describing the tag line.
@@ -3849,6 +3885,8 @@ classdef PAData < handle
         % --------------------------------------------------------------------
         function [featureStruct, varargout] = getFeatureDescriptionStruct()
             featureStruct.mean = 'Mean';
+            featureStruct.medianad = 'Median Absolute Deviation';
+            featureStruct.meanad = 'Mean Absolute Deviation';
             featureStruct.median = 'Median';
             featureStruct.std = 'Standard Deviation';
             featureStruct.rms = 'Root mean square';

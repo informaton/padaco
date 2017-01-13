@@ -1736,19 +1736,15 @@ classdef PAController < handle
                 paDataObj = obj.accelObj;
             end
             
-            
-            featureVec = zeros(numSections,1);
-            
             % Here we deal with features, which *should* already have the
             % correct number of sections needed.
+            featureStruct = paDataObj.getStruct('all','features');
             if(strcmpi(featureFcn,'psd'))
-                featureStruct = paDataObj.getStruct('all','features');
                 psdBand = strcat('psd_band_',fieldName(end));
                 if(isfield(featureStruct,psdBand))
                     featureVec = featureStruct.(psdBand);
                 else
                     switch fieldName(end)
-                        
                         case 'g'  % accel.count.vecMag
                             featureVec = featureStruct.psd_band_1;
                         case 'x'
@@ -1760,8 +1756,13 @@ classdef PAController < handle
                         otherwise
                             featureVec = featureStruct.psd_band_1;
                     end
-                end                
+                end
             else
+                %featureVec = zeros(numSections,1);
+            
+                featureVec = featureStruct.(featureFcn);
+                
+                % This was removed on 1/12/2017 in place of the call above
                 timeSeriesStruct = paDataObj.getStruct('all','timeSeries');
                 
                 % Can't get nested fields directly with
