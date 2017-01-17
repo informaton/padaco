@@ -1497,8 +1497,8 @@ classdef PAStatTool < handle
                        CreateStruct.WindowStyle='replace';
                        CreateStruct.Interpreter='tex';
                        resultStr = strrep(resultStr,'_',' ');
-                       resultStr = strrep(resultStr,'B=','{\Beta}= \beta ');
-                       msgbox(resultStr,resultStruct.covariateName,'custom',this.iconData,this.iconCMap,CreateStruct);
+                       resultStr = strrep(resultStr,'B=','\beta = ');
+                       msgbox(sprintf('%s',resultStr),resultStruct.covariateName,'custom',this.iconData,this.iconCMap,CreateStruct);
                    else
                        msgbox(resultStr,resultStruct.covariateName);
                    end
@@ -1645,6 +1645,8 @@ classdef PAStatTool < handle
       
         
         function refreshScatterPlot(this)
+            displayStrings = get(this.handles.line_coiInScatterPlot,'displayname');
+            
             this.initScatterPlotAxes();
             numCentroids = this.centroidObj.getNumCentroids();  %or numel(globalStruct.colnames).
             sortOrders = find( this.centroidObj.getCOIToggleOrder() );
@@ -1674,9 +1676,7 @@ classdef PAStatTool < handle
             %             set(this.handles.line_coiInScatterPlot,'ydata',y(coiSortOrders));
             
             set(this.handles.line_coiInScatterPlot,'xdata',sortOrders,'ydata',y(sortOrders));%,'displayName','blah');
-            legend(this.handles.axes_scatterplot,this.handles.line_coiInScatterPlot,'location','southwest');
-            
-            
+            legend(this.handles.axes_scatterplot,this.handles.line_coiInScatterPlot,displayStrings,'location','southwest');
             
         end
         
