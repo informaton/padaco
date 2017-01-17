@@ -18,7 +18,10 @@ classdef PAStatTool < handle
         resultsDirectory;
         featuresDirectory;
         cacheDirectory;
-        
+        %> @brief Bool (true: has icon/false: does not have icon)
+        hasIcon; 
+        iconData;
+        iconCMap;
         %> @brief Struct with key value pairs for clustering:
         %> - @c clusterMethod Cluster method employed {'kmeans','kmedoids'}
         %> - @c useDefaultRandomizer = widgetSettings.useDefaultRandomizer;
@@ -155,6 +158,9 @@ classdef PAStatTool < handle
 %                     };
 %             end
             
+            this.hasIcon = false;
+            this.iconData = [];
+            this.iconCMap = [];
             this.globalProfile  = [];
             this.coiProfile = [];
             this.allProfiles = [];
@@ -706,6 +712,18 @@ classdef PAStatTool < handle
         function isValid = hasValidCentroid(this)
             isValid = ~(isempty(this.centroidObj) || this.centroidObj.failedToConverge());
         end 
+        
+        
+        function didSet = setIcon(this, iconFilename)
+            if(nargin>1 && exist(iconFilename,'file'))
+                [icoData, icoMap] = imread(iconFilename);
+                didSet = this.setIconData(icoData,icoMap);
+            else
+                didSet = false;
+            end
+            
+        end
+
 
 
     end
@@ -742,6 +760,19 @@ classdef PAStatTool < handle
             else
                 set(lineH,'selected','off','color',this.COLOR_MEMBERSHAPE);
             end
+        end
+        
+        
+        function didSet = setIconData(this, iconData, iconCMap)
+            if(nargin==3)
+                didSet = true;
+                this.hasIcon = true;
+                this.iconData = iconData;
+                this.iconCMap = iconCMap;
+            else
+                didSet = false;
+            end
+            
         end
         
         %> @brief Database functionality
@@ -1460,9 +1491,18 @@ classdef PAStatTool < handle
                dependentVar = this.getProfileFieldSelection();
 %                'bmi_zscore'
 %                'bmi_zscore+'  %for logistic regression modeling
-               resultStr = gee_model(this.centroidObj.getCovariateStruct(this.centroidObj.getCOISortOrder()),dependentVar,{'age'; '(sex=1) as male'});
+               [resultStr, resultStruct] = gee_model(this.centroidObj.getCovariateStruct(this.centroidObj.getCOISortOrder()),dependentVar,{'age'; '(sex=1) as male'});
                if(~isempty(resultStr))
-                   msgbox(resultStr);
+                   if(this.hasIcon)
+                       CreateStruct.WindowStyle='replace';
+                       CreateStruct.Interpreter='tex';
+                       resultStr = strrep(resultStr,'_',' ');
+                       resultStr = strrep(resultStr,'B=','{\Beta}= \beta ');
+                       msgbox(resultStr,resultStruct.covariateName,'custom',this.iconData,this.iconCMap,CreateStruct);
+                   else
+                       msgbox(resultStr,resultStruct.covariateName);
+                   end
+                   
                end
                    
            catch me

@@ -12,7 +12,8 @@ function [filenames,fullfilenames, fileDatenums] = getFilenamesi(pathname,ext,so
     %> @param sortByDateFlag (boolean, optional, defaults to false) when true,
     %> filenames are sorted by date from most recent to least recent (i.e.
     %> newest to oldest)
-    %> @note Leading '.' in ext will be removed.
+    %> @note Leading '.' or '*.' in ext will be removed automatically (i.e. you
+    %> can leave them in when calling this function without problem.
     %> @note For example if ext = '.m', the method will correct it to 'm' for
     %> you.  Thus, the following commands are equivalent:
     %> - [filenames] = getFilenames(pwd,'m');
@@ -40,7 +41,7 @@ function [filenames,fullfilenames, fileDatenums] = getFilenamesi(pathname,ext,so
         [datenums, sortInd] = sort(datenums,'descend');
         filenames = filenames(sortInd);
     end
-    
+    ext = strrep(ext,'*.','');
     if(~isempty(ext) && ext(1)=='.')
         ext(1)=[];
     end

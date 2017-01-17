@@ -27,7 +27,9 @@ classdef PAController < handle
         %> String identifying Padaco's current view mode.  Values include
         %> - @c timeseries
         %> - @c results
-        viewMode;        
+        viewMode;   
+        
+        iconFilename;
         
     end
     properties
@@ -105,6 +107,7 @@ classdef PAController < handle
             obj.screenshotPathname = obj.SETTINGS.CONTROLLER.screenshotPathname;
             obj.resultsPathname = obj.SETTINGS.CONTROLLER.resultsPathname;
             
+            obj.iconFilename = fullfile(rootPathname,'resources','icons','logo','icon_64.png');
             obj.setVersionNum();
             obj.accelTypeShown = [];
             obj.figureH = Padaco_fig_h;
@@ -2047,6 +2050,7 @@ classdef PAController < handle
                     this.StatTool.init();  %calls a plot refresh
                 else
                     this.StatTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname,this.SETTINGS.StatTool);
+                    this.StatTool.setIcon(this.iconFilename);
                 end
                 success = this.StatTool.getCanPlot();
             end

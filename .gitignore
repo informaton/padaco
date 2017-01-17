@@ -52,3 +52,5 @@ src/testtools
 *.c~
 
 src/rawcsv2rawbin
+
+*.tmp
