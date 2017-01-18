@@ -58,7 +58,7 @@ classdef PACentroid < handle
         
         %> Cx1 vector that maps load shapes' original cluster indices to
         %> the equivalent cluster index after clusters have been sorted
-        %> by their load shape count.  Equivalen to coiIndex2SortOrder
+        %> by their load shape count.  Equivalent to coiIndex2SortOrder
         centroidSortMap;
         
         %> Alias for centroidSortMap
@@ -648,12 +648,25 @@ classdef PACentroid < handle
                     fprintf(1,'%s\n',msg);
                 end
                 [this.histogram, this.centroidSortMap] = this.calculateAndSortDistribution(this.loadshapeIndex2centroidIndexMap);%  was -->       calculateAndSortDistribution(this.loadshapeIndex2centroidIndexMap);
-                this.coiSortOrder2Index = this.centroidSortMap;
+                this.coiSortOrder2Index = this.centroidSortMap;  % coiSortOrder2Index(c) contains the original centroid index that corresponds to the c_th most popular position 
                 [~,this.coiIndex2SortOrder] = sort(this.centroidSortMap,1,'ascend');
+                
+                % Consider
+                % original centroid index, centroid count, (sort order ,/= coiSortOrder2Index)
+                % 1, 404, 1, 1
+                % 2, 233, 3, 3
+                % 3, 50, 4, 4
+                % 4, 354, 2, 2
+                
+                % sorted order, centroid count, original centroid index, coiSortOrder2Index   
+                % 1, 404, 1, 1 
+                % 2, 354, 4, 4
+                % 3, 233, 2, 2
+                % 4, 50, 3, 3
 
                 %                 [a,b]=sort([1,23,5,6],'ascend');
                 %                 [c,d] = sort(b,'ascend');  %for testings
-                if(~this.setCOISortOrder(this.numCentroids()))
+                if(~this.setCOISortOrder(1))  % Modified on 1/17/2017 from  ~this.setCOISortOrder(this.numCentroids()))
                     fprintf(1,'Warning - could not set the centroid of interest sort order to %u\n',this.numCentroids);
                 end
                 
@@ -1340,10 +1353,29 @@ classdef PACentroid < handle
         %> @retval sortedIndices Cx1 vector.  sortedIndices(c) is the
         %> centroid index with loadshape count of sortedCounts(c) at index c.
         %> It can be used to map the popularity of the original order of the loadShapeMap to the index of its position in sorted order.
+        %> @note originalIndices = 1:C.  sortedIndices == originalIndices(sortedIndices)        
         % ======================================================================
         function [sortedCounts, sortedIndices] = calculateAndSortDistribution(loadShapeMap)
             centroidCounts = histc(loadShapeMap,1:max(loadShapeMap));
-            [sortedCounts,sortedIndices] = sort(centroidCounts,'ascend');
+            
+            % Consider four centroids with following counts
+            % Index, Count
+            % 1, 404
+            % 2, 233
+            % 3, 50
+            % 4, 354
+            
+            [sortedCounts,sortedIndices] = sort(centroidCounts,'descend');
+            % Index, Sorted Count, Sorted indices
+            % 1, 404, 1
+            % 2, 354, 4
+            % 3, 233, 3
+            % 4, 50,  2
+            %
+            
+            % To make index 1 be the most popular, we sort in descending
+            % order (high to low)
+            
             % sortedIndexToCentroidIndex = sortedIndices;
             %   index of most popular centroid is
             %               sortedIndexToCentroidIndex(end)
