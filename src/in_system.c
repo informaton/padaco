@@ -10,6 +10,13 @@
 
 #include "in_system.h"
 
+const char PATH_SEPARATOR =
+#ifdef WIN32
+'\';
+#else
+'/';
+#endif
+
 
 bool is_dir(char * possiblePath){
     struct stat statStruct;
@@ -31,6 +38,8 @@ in_file_struct *getFileParts(char * filename){
         sz_filename = strlen(filename); // Does not include string terminator
         lastEXT_SEP = strrchr(filename,'.'); // get the place of the last . that is found. (or null)
         lastPATH_SEP = strrchr(filename,PATH_SEPARATOR); // get the place of the last PATH_SEPARATOR that is found. (or null)
+        
+        fsPtr->fullFilename = filename;
         if(lastPATH_SEP==NULL){ //No pathname given.
             fsPtr->pathname = NULL;
             lastPATH_SEP = filename-1;
@@ -50,7 +59,7 @@ in_file_struct *getFileParts(char * filename){
         
         sz_base = sz_filename - sz_extension - sz_path;
         fsPtr->basename = calloc(sz_base+1,1);  // +1 to account for string terminator; Initialize to all zeros;
-        strncpy(fsPtr->basename,lastEXT_SEP+1,sz_base);
+        strncpy(fsPtr->basename,lastPATH_SEP+1,sz_base);
         
         return fsPtr;
     }

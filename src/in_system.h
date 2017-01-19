@@ -20,21 +20,11 @@
 #include <stdarg.h> // For variable number of arguments to be accepted.  Ref:  https://www.tutorialspoint.com/cprogramming/c_variable_arguments.htm
 
 
-
-const char PATH_SEPARATOR =
-#ifdef WIN32
-'\';
-#else
-'/';
-#endif
-
 typedef struct{
     char * pathname;
     char * basename;
     char * extension;
     char * fullFilename;
-    
-    
 } in_file_struct, *in_file_structPtr; /* Type definitions new name goes here */
 
 void printFileStruct(in_file_struct * in_fp);

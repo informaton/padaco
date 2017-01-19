@@ -1,5 +1,5 @@
 // gcc testtools.c rawtools.c tictoc.c -o rawcsv2rawbin
-// gcc -std=iso9899:1990 -pedantic testtools.c rawtools.c tictoc.c -o testtools
+// gcc -std=iso9899:1990 -pedantic testtools.c rawtools.c tictoc.c in_system.c -o testtools
 #include "rawtools.h"
 #include "tictoc.h"
 #include "in_system.h"
@@ -9,7 +9,15 @@ void printUsage(char * programName){
 }
 
 void testFileparts(char * filename){
-    printFileStruct(getFileParts(filename));    
+    
+    in_file_structPtr in_fp = getFileParts(filename);
+    if(in_fp==NULL){
+        printf("Is NULL!\n");
+        return;
+    }
+    printf("Go this far\n");
+    
+    printFileStruct(in_fp);
 }
 
 
@@ -21,6 +29,11 @@ int main(int argc, char * argv[]){
     unsigned int recordCount = 0;
     fprintf(stdout,"sizeof(time_t)=%lu\n"
             "sizeof(unsigned long)=%lu\n",sizeof(time_t),sizeof(unsigned long));
+    
+    if(argc>1){
+        testFileparts(argv[1]);
+        return 0;
+    }
     if(argc==2){
         tic();
         tic();
