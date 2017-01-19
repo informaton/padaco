@@ -2,9 +2,17 @@
 // gcc -std=iso9899:1990 -pedantic testtools.c rawtools.c tictoc.c -o testtools
 #include "rawtools.h"
 #include "tictoc.h"
+#include "in_system.h"
+
 void printUsage(char * programName){
     //fprintf(stdout,"Usage: %s <raw accelerations .csv filename> <raw accelerations .bin filename>\n",programName);   
 }
+
+void testFileparts(char * filename){
+    printFileStruct(getFileParts(filename));    
+}
+
+
 
 int main(int argc, char * argv[]){
     bool shouldPrintUsage = true;
