@@ -1656,8 +1656,7 @@ classdef PAStatTool < handle
             x = 1:numCentroids;
             y = this.allProfiles(curProfileFieldIndex, 2, :);  % rows (1) = 
                         % columns (2) = 
-                        % dimension (3) = centroid popularity (1 to most
-                        % popular index)
+                        % dimension (3) = centroid popularity (1 to least popular index)
             
             globalMean = repmat(this.profileTableData{curProfileFieldIndex,5},size(x));
             profileSEM = this.profileTableData{curProfileFieldIndex,6};
@@ -2583,8 +2582,8 @@ classdef PAStatTool < handle
                     if(this.useDatabase)
                         set(this.handles.text_analysisTitle,'string',centroidTitle);
                         
-                        displayName = sprintf('Centroid #%u (%0.2f%%)\n',[coiSortOrders(:),coiPctMemberships(:)]');
-                        displayName(end-1:end) = []; %remove trailing '\n'
+                        displayName = sprintf('Centroid #%u (%0.2f%%)',[coiSortOrders(:),coiPctMemberships(:)]');
+                        % displayName(end-1:end) = []; %remove trailing '\n'
                         yData = get(this.handles.line_allScatterPlot,'ydata');
                         if(~isempty(yData))
                             set(this.handles.line_coiInScatterPlot,'xdata',coiSortOrders,'ydata',yData(coiSortOrders),'displayName',displayName);
@@ -2870,7 +2869,8 @@ classdef PAStatTool < handle
                 if(this.useDatabase && this.hasCentroid())
                     
                     % This gets the memberIDs attached to each centroid.
-                    % This gives us all 
+                    % This gives us all values with centroids interpreted
+                    % in sort order (1 is most popular)
                     globalStruct = this.centroidObj.getCovariateStruct();
                     
                     % globalProfile is an Nx3 mat, where N is the number of
@@ -2890,16 +2890,18 @@ classdef PAStatTool < handle
                     %                     this.allCOIProfiles = nan(numFields,3,numCentroids);
                     
                     % I would like to arrange the data in terms of the sort
-                    % order, so a remapping of the coiIndex occurs in this
-                    % loop with the call to getCOISortOrder(coiIndex).
-                    for coiIndex=1:numCentroids
-                        coiMemberIDs = globalStruct.memberIDs(globalStruct.values(:,coiIndex)>0);  % pull out the members contributing to index of the current centroid of interest (coi)
+                    % order.  The data from PA_Centroid.getCovariateStruct uses 
+                    % the coiSortOrder for identifying centroids; 
+                    % Previously a remapping would occur because the getCovariateStruct returned the coi index.
+                    % Now this is no longer necessary.
+                    for coiSO=1:numCentroids
+                        coiMemberIDs = globalStruct.memberIDs(globalStruct.values(:,coiSO)>0);  % pull out the members contributing to index of the current centroid of interest (coi)
                         
-                        sortOrder = this.centroidObj.getCOISortOrder(coiIndex);
+                        %sortOrder = this.centroidObj.getCOISortOrder(coiSO);
                         %                         if(sortOrder==21)
                         %                            disp(sortOrder);
                         %                         end
-                        this.allProfiles(:,:,sortOrder) = cell2mat(this.getProfileCell(coiMemberIDs, this.profileFields));
+                        this.allProfiles(:,:,coiSO) = cell2mat(this.getProfileCell(coiMemberIDs, this.profileFields));
                     end
                     
                     this.refreshScatterPlot();
@@ -2919,10 +2921,17 @@ classdef PAStatTool < handle
         end
         
         % ======================================================================
+        %> @brief Returns a profile for the primary database keys provided.
         %> @param Obtained from <PACentroid>.getCentroidOfInterest()
         %> or <PACentroid>.getCovariateStruct() for all subjects.
         %> @param Primary ID's to extract from the database.
         %> @param Field names to extract from the database.
+        %  @retval coiProfile 3xN cell where column 1 contains primary key,
+        %  column 2 contains mean value, column 3 contains the standard
+        %  error of the mean.
+        %> @param dataSummaryStruct A struct with field names naming the
+        %> statistical information about that field to include: n, mean, SEM,
+        %> var, and a string display)
         % ======================================================================
         function [coiProfile, dataSummaryStruct] = getProfileCell(this,primaryKeys,fieldsOfInterest)
             

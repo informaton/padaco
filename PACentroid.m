@@ -724,10 +724,10 @@ classdef PACentroid < handle
             for row=1:numSubjects
                 try
                     curSubject = subjectIDs(row);
-                    centroidsForSubject = this.coiIndex2SortOrder(this.loadshapeIndex2centroidIndexMap(this.loadShapeIDs==curSubject));
-                    for c=1:numel(centroidsForSubject)
-                        coi = centroidsForSubject(c);
-                        values(row,coi) = values(row,coi)+1;
+                    centroidsSortOrdersForSubject = this.coiIndex2SortOrder(this.loadshapeIndex2centroidIndexMap(this.loadShapeIDs==curSubject));
+                    for c=1:numel(centroidsSortOrdersForSubject)
+                        coiSO = centroidsSortOrdersForSubject(c);
+                        values(row,coiSO) = values(row,coiSO)+1;
                     end
                 catch me
                     showME(me);
