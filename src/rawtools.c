@@ -1,10 +1,12 @@
 #include <stdbool.h>
 #include "rawtools.h"
+#include "in_system.h"
 
 
 /***************
  *  Binary portion
  ***************/
+
 
 
 // Reading
@@ -75,7 +77,10 @@ bool writeRaw2Bin(char * rawCSVFilename, char * rawBinFilename){
     csv_header_t csvFileHeader;
     FILE * binFID = NULL;
     unsigned int rowCount = 0;
+
     float * accelerations = parseRawCSVFile(rawCSVFilename,&csvFileHeader,loadFast, &rowCount);
+    
+    
     if(accelerations==NULL){
         didWrite = false;
     }
@@ -158,8 +163,6 @@ void parseCSVFileHeader(FILE * fid, csv_header_t *header){
  	char buffer[2][lineSize];
  	
  	struct tm startTime, stopTime;
-    startTime.tm_isdst = 0;
-    stopTime.tm_isdst = 0;
  	time_t startTimer, stopTimer;
 	/*
 		for(i=0;i<HEADER_LINES;i++){
@@ -171,28 +174,36 @@ void parseCSVFileHeader(FILE * fid, csv_header_t *header){
 	fscanf(fid,"Serial Number: %s\n",header->serialID);  //Serial Number: MOS2B21140207
 	fscanf(fid,"Start Time %u:%u:%u\n",&startTime.tm_hour, &startTime.tm_min,&startTime.tm_sec);  //Start Time 00:00:00
 	fscanf(fid,"Start Date %u/%u/%u\n",&startTime.tm_mon, &startTime.tm_mday,&startTime.tm_year);  //Start Date 12/9/2015
-	fgets(buffer[1],lineSize,fid);  //Epoch Period (hh:mm:ss) 00:00:00	
+    
+    //printf("Start Date %u/%u/%u\n",startTime.tm_mon, startTime.tm_mday,startTime.tm_year);  //
+
+    fgets(buffer[1],lineSize,fid);  //Epoch Period (hh:mm:ss) 00:00:00
 	fscanf(fid,"Download Time %u:%u:%u\n",&stopTime.tm_hour, &stopTime.tm_min,&stopTime.tm_sec);  //Download Time 10:07:01
 	fscanf(fid,"Download Date %u/%u/%u\n",&stopTime.tm_mon, &stopTime.tm_mday,&stopTime.tm_year);  //Download Date 12/17/2015	 
 	fgets(buffer[1],lineSize,fid);  //Current Memory Address: 0
-	printf("%s",buffer[1]);
-	fgets(buffer[1],lineSize,fid);  //Current Battery Voltage: 3.93     Mode = 12
-	printf("%s",buffer[1]);
+	
+    //printf("%s",buffer[1]);
+	
+    fgets(buffer[1],lineSize,fid);  //Current Battery Voltage: 3.93     Mode = 12
+	//printf("%s",buffer[1]);
 	fgets(buffer[1],lineSize,fid);  //--------------------------------------------------
-	printf("%s",buffer[1]);
+	//printf("%s",buffer[1]);
 	fgets(buffer[1],lineSize,fid);  //Timestamp,Accelerometer X,Accelerometer Y,Accelerometer Z
-	printf("%s",buffer[1]);
+	//printf("%s",buffer[1]);
 	
 	sscanf(buffer[0],"------------ Data File Created By ActiGraph GT3X+ ActiLife %*s Firmware %s date format M/d/yyyy at %hu Hz",header->firmware,&header->samplerate);
     
+    //fprintf(stdout,"ID: %s\nFirmware: %s\n",header->serialID,header->firmware);
     
-    fprintf(stdout,"ID: %s\nFirmware: %s\n",header->serialID,header->firmware);
+    
 	startTime.tm_mon-=1;
 	startTime.tm_year-=1900;
-    
-    
 	stopTime.tm_mon-=1;
 	stopTime.tm_year-=1900;
+
+    // daylight savings is unknown
+    startTime.tm_isdst = -1;
+    stopTime.tm_isdst = -1;
     
     startTimer = mktime(&startTime);
     stopTimer = mktime(&stopTime);
@@ -206,13 +217,15 @@ void parseCSVFileHeader(FILE * fid, csv_header_t *header){
     
     header->start = startTimer;
     header->stop = stopTimer;    
-	header->duration_sec = difftime(stopTimer,startTimer);	
+	header->duration_sec = difftime(stopTimer,startTimer);
+    
 }
 
 // This is the C only version.
 float * parseRawCSVFile(const char * csvFilename, csv_header_t* fileHeader,bool loadFastOption, unsigned int * recordCount){
-    struct tm *tmp_time;
- 	unsigned int i, linesRead = 0, curRead = 0, actualRowCount = 0, expectedRowCount = 0;
+    // struct tm *tmp_time;
+ 	unsigned int i, linesRead = 0, curRead = 0, actualRowCount = 0, expectedRowCount = 0, rowCount=0;
+    unsigned long lineCountLeft = 0;
  	const int lineSize = 100;
  	char buffer[lineSize];
     float *accelerations=NULL,
@@ -229,17 +242,20 @@ float * parseRawCSVFile(const char * csvFilename, csv_header_t* fileHeader,bool 
         printf("Unable to open the csv file '%s'",csvFilename);
         return 0;
     }
-
-	// header = 'Date	 Time	 Axis1	Axis2	Axis3
-	//                        scanFormat = '//s //f32 //f32 //f32'; //load as a 'single' (not double) floating-point number
 	
 	parseCSVFileHeader(fid,fileHeader);
 	
-	printf("Sample rate is %u\n",fileHeader->samplerate);
-	//printf("Duration: %0.1f s\n",fileHeader->duration_sec);
-    printf("Duration: %u s\n",fileHeader->duration_sec);
+	/*
+     printf("Sample rate is %u\n",fileHeader->samplerate);
+     printf("Duration: %u s\n",fileHeader->duration_sec);
+    */
     expectedRowCount = (unsigned int)fileHeader->duration_sec*fileHeader->samplerate;
 	printf("Expected row count: %u\n",expectedRowCount);
+    lineCountLeft =fgetlinecount(fid);
+    printf("Lines remaining = %lu\n",lineCountLeft);
+    expectedRowCount = expectedRowCount>lineCountLeft?expectedRowCount: lineCountLeft;  // returns the max of two values
+    printf("Allocating for %u rows\n",++expectedRowCount);
+
 	
 		// MATLAB fills in matrices column-wise first.
 	if(loadFastOption){
@@ -256,8 +272,9 @@ float * parseRawCSVFile(const char * csvFilename, csv_header_t* fileHeader,bool 
 			fscanf(fid,"%*2u/%*2u/%*4u %*2u:%*2u:%*f,%f,%f,%f",(accelerations+curRead),(accelerations+curRead+1),(accelerations+curRead+2));
 			curRead+=NUM_COLUMNS_FAST;
 		}*/
-        while(EOF!=
-                fscanf(fid,"%*2u/%*2u/%*4u %*2u:%*2u:%*f,%f,%f,%f",(accelerations+curRead),(accelerations+curRead+1),(accelerations+curRead+2)))
+        // added the rowCount++ check to make sure we don't read more data than we have buffered for.
+        while((rowCount++ < expectedRowCount) &&
+              EOF!=fscanf(fid,"%*2u/%*2u/%*4u %*2u:%*2u:%*f,%f,%f,%f",(accelerations+curRead),(accelerations+curRead+1),(accelerations+curRead+2)))
         {
 			curRead+=NUM_COLUMNS_FAST;
 		}

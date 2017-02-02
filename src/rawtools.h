@@ -1,3 +1,8 @@
+#ifndef in_rawtools_h
+#define in_rawtools_h
+
+#include "in_system.h"
+
 #define HEADER_LINES 11 //number of lines to skip
 #define NUM_COLUMNS 9
 #define NUM_COLUMNS_FAST 3
@@ -45,3 +50,6 @@ bool write2bin(FILE *fid, csv_header_t*, float * data);
 bool writeRaw2Bin(char * rawCSVFilename, char * rawBinFilename);
 
 void printBinHeader(bin_header_t *binHeader);
+
+
+#endif /* in_rawtools_h */

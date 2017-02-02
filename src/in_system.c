@@ -6,9 +6,12 @@
 //
 //
 
-
-
 #include "in_system.h"
+
+
+// For statfs calls
+#include <sys/param.h>
+#include <sys/mount.h>
 
 const char PATH_SEPARATOR =
 #ifdef WIN32
@@ -17,6 +20,63 @@ const char PATH_SEPARATOR =
 '/';
 #endif
 
+
+unsigned long fgetlinecount(FILE * fp){
+    char * buffer;
+    fpos_t curPos;
+    unsigned long lineCount = 0, bytesRead = 0, i;
+    
+    // Thank you to http://stackoverflow.com/questions/24408006/fastest-way-to-count-number-of-lines
+    struct statfs fsInfo = {0};
+    int fd = fileno(fp); // Get file descriptor from FILE*.
+    long optimalSize;
+
+    if(fgetpos(fp, &curPos)==0){
+
+        if (fstatfs(fd, &fsInfo) == -1) {
+            // Querying failed! Fall back to a sane value, for example 8kB or 4MB.
+            optimalSize = 4 * 1024 * 1024;
+        } else {
+            optimalSize = fsInfo.f_bsize;
+        }
+        
+        buffer = malloc(optimalSize);
+        while(!feof(fp)){
+            // size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream);
+            bytesRead = fread(buffer, sizeof(char), optimalSize,fp);
+            for(i=0; i<bytesRead; lineCount += (buffer[i++]=='\n'));
+        }
+    
+        fsetpos(fp, &curPos);
+    }
+    
+    return lineCount;
+    
+    
+}
+
+// Returns the remaining number of lines in a text file as calculated by the number of '\n' occurrences
+// from the current position of fid.
+unsigned int fgetlinecountSlow(FILE *fid){
+    fpos_t curPos;
+    unsigned int lineCount = 0;
+    int tmpChar;
+    if(fgetpos(fid, &curPos)==0){
+        while(  (tmpChar=fgetc(fid))!=EOF){
+                lineCount += (tmpChar=='\n');
+        }
+        
+        // Sets the file position of the given stream to the given position. The argument pos is a position given by the function fgetpos. The end-of-file indicator is cleared.
+        fsetpos(fid, &curPos);
+        
+    }
+    else{
+        return 0;
+    }
+    return lineCount;
+    
+    
+}
 
 bool is_dir(char * possiblePath){
     struct stat statStruct;
@@ -33,7 +93,7 @@ char * fullfile(char * path, char * base){
     int sz_path = strlen(path);
     int sz_base = strlen(base);
     int sz_fullfile = 0;
-    if(path[sz_path]==PATH_SEPARATOR){
+    if(path[sz_path-1]==PATH_SEPARATOR){
         sz_path--;
     }
     
@@ -51,8 +111,8 @@ void changeFileExtension(in_file_struct* fileStructPtr,char * newExtensionStr){
     int sz_newExtension = strlen(newExtensionStr),
         sz_oldExtension = strlen(fileStructPtr->extension);
     
-    
     if(sz_newExtension != sz_oldExtension){
+         printf("YOu here exentensions not equal\n");
         // fileStructPtr = (sz_oldExtension>0   ? realloc(fileStructPtr->extension,sz_newExtension) : malloc(sz_newExtension)) + 1;
         fileStructPtr->extension = realloc(fileStructPtr->extension,sz_newExtension)+1; //+1 for null character.
         fileStructPtr->extension[sz_newExtension]='\0'; // = 0 ;
@@ -124,18 +184,18 @@ void printFileStruct(in_file_struct * in_fp){
 // needs to be freed
 char * createFilename(char * basename, char * extension){
     int sz_filename = strlen(basename)+strlen(extension)+1; //+1 for null character;
-    char * filename = malloc(sz_filename);
-    filename[sz_filename] = '\0';
+    char * filename = calloc(sz_filename,1);
     
     strcat(filename,basename);
     strcat(filename,extension);
     filename[sz_filename] = '\0'; //to be more certain.
+    
     return filename;
 }
 
 
 char * updateFilename(in_file_structPtr in_fp){
-    if(in_fp->filename!=NULL){
+    if(in_fp->filename!='\0'){
         free(in_fp->filename);
     }
     in_fp->filename = createFilename(in_fp->basename,in_fp->extension);

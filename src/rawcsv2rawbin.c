@@ -30,11 +30,17 @@ int main(int argc, char * argv[]){
                     // make an in_file_struct in order to maninpulate the file extension and
                     // create our destination filename
                     fileStructPtr = getFileParts(srcFilename);
+                
+                    // skip files like '.DS_STORE'
+                    if(strlen(fileStructPtr->basename)==0){
+                        continue;
+                    }
                     changeFileExtension(fileStructPtr,".bin");
-                    
                     //changeFilePath(fileStructPtr,destPath);
                     destFilename = fullfile(destPath,fileStructPtr->filename);
                     tic();
+                    printf("%s --> %s\n",srcFilename,destFilename);
+                    printToc();
                     if(writeRaw2Bin(srcFilename,destFilename)){
                         printf("File %i completed (%s):\t",++fileCount,entry->d_name);
                     }
@@ -48,6 +54,7 @@ int main(int argc, char * argv[]){
                 }
             }
             closedir(dir);
+            shouldPrintUsage = false;
         }
         else{
             tic();

@@ -33,6 +33,8 @@ void printFileStruct(in_file_struct * in_fp);
 char * getFullfilename(in_file_structPtr in_fp);
 char * createFilename(char * basename, char * extension);
 
+unsigned long fgetlinecount(FILE * fp);
+unsigned int fgetlinecountSlow(FILE *fid);
 
 in_file_structPtr getFileParts(char * fullFilename);
 void changeFileExtension(in_file_struct* fileStructPtr,char * newExtension);
