@@ -2,7 +2,7 @@
 //  in_system.h
 //
 //
-//  Created by (unknown) on 1/18/17.
+//  Created by InformaTon on 1/18/17.
 //
 //
 
@@ -24,18 +24,23 @@ typedef struct{
     char * pathname;
     char * basename;
     char * extension;
-    char * fullFilename;
+    char * filename; // basename + extension
+    char * fullFilename; // pathname + filename
+
 } in_file_struct, *in_file_structPtr; /* Type definitions new name goes here */
 
 void printFileStruct(in_file_struct * in_fp);
 char * getFullfilename(in_file_structPtr in_fp);
+char * createFilename(char * basename, char * extension);
 
 
 in_file_structPtr getFileParts(char * fullFilename);
+void changeFileExtension(in_file_struct* fileStructPtr,char * newExtension);
+char * updateFilename(in_file_structPtr in_fp);
 bool is_dir(char * possiblePath);
-char * fullfile(char * path, char * base);
 
-char * filename(int, ...);
+char * fullfile(char * path, char * base);
+// char * filename(int, ...);
 
 
 

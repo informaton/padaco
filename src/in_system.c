@@ -2,7 +2,7 @@
 //  in_system.c
 //
 //
-//  Created by (unknown) on 1/18/17.
+//  Created by InformaTon on 1/18/17.
 //
 //
 
@@ -28,57 +28,7 @@ bool is_file(char * possibleFile){
     return (stat(possibleFile,&statStruct)==0) && (S_ISREG(statStruct.st_mode));
 }
 
-
-in_file_struct *getFileParts(char * filename){
-    int sz_filename, sz_extension, sz_path, sz_base;
-    char *lastPATH_SEP, *lastEXT_SEP, * baseStart;
-    
-    if(is_file(filename)){
-        in_file_struct * fsPtr = malloc(sizeof(in_file_struct));
-        sz_filename = strlen(filename); // Does not include string terminator
-        lastEXT_SEP = strrchr(filename,'.'); // get the place of the last . that is found. (or null)
-        lastPATH_SEP = strrchr(filename,PATH_SEPARATOR); // get the place of the last PATH_SEPARATOR that is found. (or null)
-        
-        fsPtr->fullFilename = filename;
-        if(lastPATH_SEP==NULL){ //No pathname given.
-            fsPtr->pathname = NULL;
-            lastPATH_SEP = filename-1;
-        }
-        sz_path = (lastPATH_SEP-filename)+1;  // path\dog.txt  filename = 0, lastPATH_SEP = 4, but sz_path is 5 (4-0+1)
-        fsPtr->pathname = calloc(sz_path+1,1);  //+1 for null character; Initialize to all zeros;
-        strncpy(fsPtr->pathname,filename,sz_path); //copy values over
-        
-        // dog.txt  lastEXT_SEP = 3, filename = 0, extension = ".txt" sz_extension = 4 (not including \0, string terminator)
-        // sz_filename = 7 (not including \0)
-        if(lastEXT_SEP==NULL){
-            lastEXT_SEP=filename+sz_filename; // causes sz_extension to go to 0
-        }
-        sz_extension = sz_filename - (lastEXT_SEP-filename); //
-        fsPtr->extension = calloc(sz_extension+1,1);  // +1 to account for string terminator; Initialize to all zeros;
-        strncpy(fsPtr->extension,lastEXT_SEP,sz_extension);
-        
-        sz_base = sz_filename - sz_extension - sz_path;
-        fsPtr->basename = calloc(sz_base+1,1);  // +1 to account for string terminator; Initialize to all zeros;
-        strncpy(fsPtr->basename,lastPATH_SEP+1,sz_base);
-        
-        return fsPtr;
-    }
-    else{
-        return NULL;
-    }
-}
-
-char * filename(int argc,...){
-    va_list valist;
-    double sum = 0.0;
-    int i;
-    
-    /* initialize valist for num number of arguments */
-    va_start(valist, argc);
-    return NULL;
-}
-
-// Why not just use a sprintf call?
+// Returned character should be freed later.
 char * fullfile(char * path, char * base){
     int sz_path = strlen(path);
     int sz_base = strlen(base);
@@ -96,6 +46,73 @@ char * fullfile(char * path, char * base){
     return fullfilename;
 }
 
+
+void changeFileExtension(in_file_struct* fileStructPtr,char * newExtensionStr){
+    int sz_newExtension = strlen(newExtensionStr),
+        sz_oldExtension = strlen(fileStructPtr->extension);
+    
+    
+    if(sz_newExtension != sz_oldExtension){
+        // fileStructPtr = (sz_oldExtension>0   ? realloc(fileStructPtr->extension,sz_newExtension) : malloc(sz_newExtension)) + 1;
+        fileStructPtr->extension = realloc(fileStructPtr->extension,sz_newExtension)+1; //+1 for null character.
+        fileStructPtr->extension[sz_newExtension]='\0'; // = 0 ;
+    }
+    
+    if(sz_newExtension>0){
+        strncpy(fileStructPtr->extension,newExtensionStr,sz_newExtension);
+    }
+    updateFilename(fileStructPtr);
+}
+
+in_file_struct *getFileParts(char * fullFilename){
+    int sz_fullFilename, sz_filename, sz_extension, sz_path, sz_base;
+    char *lastPATH_SEP, *lastEXT_SEP, * baseStart;
+    
+    if(is_file(fullFilename)){
+        in_file_struct * fsPtr = malloc(sizeof(in_file_struct));
+        sz_fullFilename = strlen(fullFilename); // Does not include string terminator
+        lastEXT_SEP = strrchr(fullFilename,'.'); // get the place of the last . that is found. (or null)
+        lastPATH_SEP = strrchr(fullFilename,PATH_SEPARATOR); // get the place of the last PATH_SEPARATOR that is found. (or null)
+        
+        fsPtr->fullFilename = fullFilename;
+        if(lastPATH_SEP==NULL){ //No pathname given.
+            fsPtr->pathname = NULL;
+            lastPATH_SEP = fullFilename-1;
+        }
+        
+        // Path name
+        sz_path = (lastPATH_SEP-fullFilename)+1;  // path\dog.txt  fullFilename = 0, lastPATH_SEP = 4, but sz_path is 5 (4-0+1)
+        fsPtr->pathname = calloc(sz_path+1,1);  //+1 for null character; Initialize to all zeros;
+        strncpy(fsPtr->pathname,fullFilename,sz_path); //copy values over
+        
+        // Filename
+        sz_filename = sz_fullFilename - sz_path; // path\dog.txt  sz_fullFilename = 12, sz_path = 5, and sz_filename = 12-5 = 7 (correct)
+        fsPtr->filename = calloc(sz_filename+1,1);  //+1 for null character; Initialize to all zeros;
+        strncpy(fsPtr->filename,lastPATH_SEP+1,sz_filename); //copy values over
+        
+        // File extension
+        // dog.txt  lastEXT_SEP = 3, fullFilename = 0, extension = ".txt" sz_extension = 4 (not including \0, string terminator)
+        // sz_fullFilename = 7 (not including \0)
+        if(lastEXT_SEP==NULL){
+            lastEXT_SEP=fullFilename+sz_fullFilename; // causes sz_extension to go to 0
+        }
+        sz_extension = sz_fullFilename - (lastEXT_SEP-fullFilename); //
+        fsPtr->extension = calloc(sz_extension+1,1);  // +1 to account for string terminator; Initialize to all zeros;
+        strncpy(fsPtr->extension,lastEXT_SEP,sz_extension);
+        
+        // Basename - file name without the extension or path
+        sz_base = sz_fullFilename - sz_extension - sz_path;
+        fsPtr->basename = calloc(sz_base+1,1);  // +1 to account for string terminator; Initialize to all zeros;
+        strncpy(fsPtr->basename,lastPATH_SEP+1,sz_base);
+        
+        return fsPtr;
+    }
+    else{
+        return NULL;
+    }
+}
+
+
 void printFileStruct(in_file_struct * in_fp){
     fprintf(stdout,"Pathname = %s\n"
             "Basename = %s\n"
@@ -104,18 +121,41 @@ void printFileStruct(in_file_struct * in_fp){
             "getFullfilename = %s\n", in_fp->pathname, in_fp->basename, in_fp->extension, in_fp->fullFilename,getFullfilename(in_fp));
 }
 
+// needs to be freed
+char * createFilename(char * basename, char * extension){
+    int sz_filename = strlen(basename)+strlen(extension)+1; //+1 for null character;
+    char * filename = malloc(sz_filename);
+    filename[sz_filename] = '\0';
+    
+    strcat(filename,basename);
+    strcat(filename,extension);
+    filename[sz_filename] = '\0'; //to be more certain.
+    return filename;
+}
+
+
+char * updateFilename(in_file_structPtr in_fp){
+    if(in_fp->filename!=NULL){
+        free(in_fp->filename);
+    }
+    in_fp->filename = createFilename(in_fp->basename,in_fp->extension);
+    return in_fp->filename;
+}
 
 char * getFullfilename(in_file_structPtr in_fp){
     
     char * fullfilename;
     int sz_path = strlen(in_fp->pathname);
     int sz_filename = strlen(in_fp->pathname)+strlen(in_fp->basename)+strlen(in_fp->extension);
+    
+    // internal correction to add a path separator to the path if one is not already there.
+    // @question Is this problematic in the event that sz_path is 0?  Yes, but we have a check to only do this if sz_path>0
     if(sz_path>0 && in_fp->pathname[sz_path-1]!=PATH_SEPARATOR){
         sz_path++;
         in_fp->pathname = realloc(in_fp->pathname,sz_path);  // make it bigger now to accomodate the path separator
         in_fp->pathname[sz_path]=in_fp->pathname[sz_path-1]; //should copy up the string terminator
         in_fp->pathname[sz_path-1]=PATH_SEPARATOR; // add the path separator.
-        sz_filename++;
+        sz_filename++; // the filename's size has increased with the path's increase.
     }
     
     fullfilename = malloc(sz_filename);
@@ -123,11 +163,20 @@ char * getFullfilename(in_file_structPtr in_fp){
     strcat(fullfilename,in_fp->basename);
     strcat(fullfilename,in_fp->extension);
     return fullfilename;
-    
-    
 }
 
-
+// For another time
+/*
+char * filename(int argc,...){
+    va_list valist;
+    double sum = 0.0;
+    int i;
+    
+    // initialize valist for num number of arguments
+    va_start(valist, argc);
+    return NULL;
+}
+*/
 
 /*
  struct dirent *entry;

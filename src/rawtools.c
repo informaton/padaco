@@ -310,7 +310,7 @@ void printBinHeader(bin_header_t *binHeader)
     //fprintf(stdout,"stopTime:\t%llu\n",binHeader->stopTime);
     fprintf(stdout,"firmware:\t%s\n",binHeader->firmware);
     fprintf(stdout,"serialID:\t%s\n",binHeader->serialID);
-    fprintf(stdout,"duration_sec:\t%llu\n",binHeader->duration_sec);
+    fprintf(stdout,"duration_sec:\t%iu\n",binHeader->duration_sec);
     fprintf(stdout,"num_signals:\t%hhu\n",binHeader->num_signals);
     fprintf(stdout,"sz_per_signal:\t%hhu\n",binHeader->sz_per_signal);
     fprintf(stdout,"sz_remaining:\t%llu\n",binHeader->sz_remaining);
