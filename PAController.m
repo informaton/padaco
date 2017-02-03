@@ -749,8 +749,6 @@ classdef PAController < handle
                 obj.setRadioButton(displayType);
                 
                 
-                
-                
                 % This is disabled until the first time features are
                 % calculated.
                 obj.VIEW.enableTimeSeriesRadioButton();
@@ -805,14 +803,14 @@ classdef PAController < handle
                 numFeatures = obj.getFrameCount();
             end
             
-            featureFcn = obj.getExtractorMethod();
+            featureFcnName = obj.getExtractorMethod();
             
             numViews = obj.numViewsInSecondaryDisplay; %(numel(signalTagLines)+1);
             
             
             % update secondary axes y labels according to our feature
             % function.
-            if(strcmpi(featureFcn,'psd'))
+            if(strcmpi(featureFcnName,'psd'))
                 ytickLabels = {'Band 5','Band 4','Band 3','Band 2','Band 1'};
                 signalTags = {'b5','b4','b3','b2','b1'};                
             else
@@ -843,7 +841,7 @@ classdef PAController < handle
                 delete(obj.featureHandles);
             end
             obj.featureHandles = [];
-            startStopDatenums = obj.getFeatureStartStopDatenums(featureFcn,signalTagLines{1},numFeatures);
+            startStopDatenums = obj.getFeatureStartStopDatenums(featureFcnName,signalTagLines{1},numFeatures);
             
             % Normal behavior is to show each axes for the accelerometer
             % x, y, z, vecMag (i.e. accel.count.x, accel.count.y, ...)
@@ -854,10 +852,10 @@ classdef PAController < handle
             % 'z' - psd_band_4
             for s=1:numel(signalTagLines)
                 signalName = signalTagLines{s};
-                featureVec = obj.getFeatureVec(featureFcn,signalName,numFeatures);  %  redundant time stamp calculations benig done for start stpop dateneums in here.
+                featureVec = obj.getFeatureVec(featureFcnName,signalName,numFeatures);  %  redundant time stamp calculations benig done for start stpop dateneums in here.
                 
                 % x, y, z
-                if(s<numel(signalTagLines) || (s==numel(signalTagLines)&&strcmpi(featureFcn,'psd')))
+                if(s<numel(signalTagLines) || (s==numel(signalTagLines)&&strcmpi(featureFcnName,'psd')))
                     vecHandles = obj.VIEW.addFeaturesVecToSecondaryAxes(featureVec,startStopDatenums,deltaHeight,heightOffset);                    
                     heightOffset = heightOffset+deltaHeight;
                     
@@ -920,16 +918,13 @@ classdef PAController < handle
         %> signal (selected from its dropdown menu) are displayed in the
         %> secondary axes of PAView.
         % --------------------------------------------------------------------
-        function extractorMethod = getExtractorMethod(obj)
+        function extractorMethodName = getExtractorMethod(obj)
             extractorFcns = get(obj.VIEW.menuhandle.displayFeature,'userdata');
             extractorIndex =  get(obj.VIEW.menuhandle.displayFeature,'value');
             if(~iscell(extractorFcns))
-                extractorMethod = extractorFcns;
+                extractorMethodName = extractorFcns;
             else
-                extractorMethod = extractorFcns{extractorIndex};
-            end
-            if(strcmpi(extractorMethod,'rms'))
-                extractorMethod = @(data)sqrt(mean(data.^2))';
+                extractorMethodName = extractorFcns{extractorIndex};
             end
         end
         
@@ -1730,7 +1725,7 @@ classdef PAController < handle
         %> of samples.  In this case, the last section may be shorter or
         %> longer than the others.
         % --------------------------------------------------------------------
-        function [featureVec,varargout] = getFeatureVec(obj,featureFcn,fieldName,numSections,paDataObj)
+        function [featureVec,varargout] = getFeatureVec(obj,featureFcnName,fieldName,numSections,paDataObj)
             if(nargin<2 || isempty(numSections) || numSections <=1)
                 numSections = 100;
             end
@@ -1742,7 +1737,7 @@ classdef PAController < handle
             % Here we deal with features, which *should* already have the
             % correct number of sections needed.
             featureStruct = paDataObj.getStruct('all','features');
-            if(strcmpi(featureFcn,'psd'))
+            if(strcmpi(featureFcnName,'psd'))
                 psdBand = strcat('psd_band_',fieldName(end));
                 if(isfield(featureStruct,psdBand))
                     featureVec = featureStruct.(psdBand);
@@ -1761,11 +1756,11 @@ classdef PAController < handle
                     end
                 end
             else
-                %featureVec = zeros(numSections,1);
-            
-                featureVec = featureStruct.(featureFcn);
+                %featureVec = zeros(numSections,1);            
+                featureVec = featureStruct.(featureFcnName);
+                featureFcn = PAData.getFeatureFcn(featureFcnName);
+
                 
-                % This was removed on 1/12/2017 in place of the call above
                 timeSeriesStruct = paDataObj.getStruct('all','timeSeries');
                 
                 % Can't get nested fields directly with
@@ -1774,13 +1769,17 @@ classdef PAController < handle
                 fieldData = eval(['timeSeriesStruct.',fieldName]);
                 
                 indices = ceil(linspace(1,numel(fieldData),numSections+1));
-                for i=1:numSections
-                    featureVec(i) = feval(featureFcn,fieldData(indices(i):indices(i+1)));
+                try
+                    for i=1:numSections
+                        featureVec(i) = feval(featureFcn,fieldData(indices(i):indices(i+1)));
+                    end
+                catch me
+                    showME(me);
                 end
             end
             
             if(nargout>1)
-                varargout{1} = obj.getFeatureStartStopDatenums(featureFcn,fieldName,numSections,paDataObj);
+                varargout{1} = obj.getFeatureStartStopDatenums(featureFcnName,fieldName,numSections,paDataObj);
             end
         end
         
@@ -1793,7 +1792,7 @@ classdef PAController < handle
         % retrieved for different signals which all had the same number of
         % samples and startStopDatenums (so it was redundant to keep
         % calculating the same values.
-        function startStopDatenums = getFeatureStartStopDatenums(obj,featureFcn,fieldName,numSections,paDataObj)
+        function startStopDatenums = getFeatureStartStopDatenums(obj,featureFcnName,fieldName,numSections,paDataObj)
             if(nargin<2 || isempty(numSections) || numSections <=1)
                 numSections = 100;
             end
@@ -1804,7 +1803,7 @@ classdef PAController < handle
             
             startStopDatenums = zeros(numSections,2);
             
-            if(strcmpi(featureFcn,'psd'))
+            if(strcmpi(featureFcnName,'psd'))
                 indices = ceil(linspace(1,numel(paDataObj.dateTimeNum),numSections+1));
                 for i=1:numSections
                     startStopDatenums(i,:) = [paDataObj.dateTimeNum(indices(i)),paDataObj.dateTimeNum(indices(i+1))];
@@ -1872,7 +1871,7 @@ classdef PAController < handle
         %> - @c featureFcn
         %> - @c signalTagLine
         function pStruct = getSaveParameters(obj)
-            pStruct.featureFcn = obj.getExtractorMethod();
+            pStruct.featureFcnName = obj.getExtractorMethod();
             pStruct.signalTagLine = obj.getSignalSelection();
             
             % If we did not load a file then our signal selection will be
@@ -1957,7 +1956,7 @@ classdef PAController < handle
             
             %set signal choice
             signalSelection = obj.setSignalSelection(obj.SETTINGS.CONTROLLER.signalTagLine); %internally sets to 1st in list if not found..
-            obj.setExtractorMethod(obj.SETTINGS.CONTROLLER.featureFcn);
+            obj.setExtractorMethod(obj.SETTINGS.CONTROLLER.featureFcnName);
             
             % Go ahead and extract features using current settings.  This
             % is good because then we can use
@@ -2836,13 +2835,13 @@ classdef PAController < handle
         %> @brief Returns a structure of PAControllers default, saveable parameters as a struct.
         %> @retval pStruct A structure of parameters which include the following
         %> fields
-        %> - @c featureFcn
+        %> - @c featureFcnName
         %> - @c signalTagLine
         function pStruct = getDefaultParameters()
             [tagLines,~] = PAData.getDefaultTagLineLabels();
             featureStruct = PAData.getFeatureDescriptionStruct();
-            featureFcns = fieldnames(featureStruct);
-            pStruct.featureFcn = featureFcns{1};
+            featureFcnNames = fieldnames(featureStruct);
+            pStruct.featureFcnName = featureFcnNames{1};
             pStruct.signalTagLine = tagLines{1};
             
             mPath = fileparts(mfilename('fullpath'));

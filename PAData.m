@@ -2927,6 +2927,33 @@ classdef PAData < handle
             
         end
 
+        function featureFcn = getFeatureFcn(functionName)
+            switch(lower(functionName))
+                 case 'rms'
+                    featureFcn = @(data)sqrt(mean(data.^2))';
+                case 'mean'
+                    featureFcn = @(x)mean(x)';
+                case 'meanad'
+                    featureFcn = @(x)mad(x,0)';
+                case 'medianad'
+                    featureFcn = @(x)mad(x,1)';
+                case 'median'
+                    featureFcn = @(x)median(x)';
+                case 'sum'
+                    featureFcn = @(x)sum(x)';
+                case 'var'
+                    featureFcn = @(x)var(x)';
+                case 'std'
+                    featureFcn = @(x)std(x)';
+                case {'mode'}
+                    featureFcn = @(x)mode(x)';
+                otherwise
+                    featureFcn = @(x)x';
+                    fprintf(1,'Unknown method (%s)\n',featureFcn);
+            end
+            
+            
+        end
         
         
         % =================================================================
