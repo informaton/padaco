@@ -138,8 +138,9 @@ classdef PABatchTool < handle
             featureFcns = fieldnames(PAData.getFeatureDescriptionStruct()); %spits field-value pairs of feature names and feature description strings
             featureDesc = PAData.getExtractorDescriptions();  %spits out the string values      
 
-            featureFcns = [featureFcns; 'all']; 
-            featureLabels = [featureDesc; 'All'];
+            featureFcns = [featureFcns; 'all_sans_psd'; 'all']; 
+            featureLabels = [featureDesc;'All (sans PSD)'; 'All'];
+            
 
             featureLabel = this.settings.featureLabel;
             featureSelection = find(strcmpi(featureLabels,featureLabel));
@@ -366,16 +367,28 @@ classdef PABatchTool < handle
             dateMap.Sat = 6;
             
             % initialize batch processing file management
-            [filenames, fullFilenames] = getFilenamesi(this.getSourcePath(),'.csv');
+            [countFilenames, countFullFilenames] = getFilenamesi(this.getSourcePath(),'.csv');
+            
+            if(numel(countFilenames)>0)
+                accelType = 'count';
+                filenames = countFilenames;
+                fullFilenames = countFullFilenames;
+            else
+                accelType = 'raw';
+                [rawFilenames, rawFullFilenames] = getFilenamesi(this.getSourcePath(),{'.bin','.raw'});
+                filenames = rawFilenames;
+                fullFilenames = rawFullFilenames;
+            end
+            
             failedFiles = {};
             fileCount = numel(fullFilenames);
             fileCountStr = num2str(fileCount);
-            
+
             % Get batch processing settings from the GUI     
             
-            
             this.notify('BatchToolStarting',EventData_BatchTool(this.settings));
-            accelType = 'count';
+
+
             
             this.isRunning = true;
             
@@ -449,6 +462,9 @@ classdef PABatchTool < handle
                 featureStructWithPSDBands= PAData.getFeatureDescriptionStructWithPSDBands();
                 outputFeatureFcns = fieldnames(featureStructWithPSDBands);
                 outputFeatureLabels = struct2cell(featureStructWithPSDBands);  % leave it here for the sake of other coders; yes, you can assign this using a second output argument from getFeatureDescriptionWithPSDBands                
+            elseif(strcmpi(featureFcn,'all_sans_psd'))
+                [outputFeatureStruct, outputFeatureLabels]= PAData.getFeatureDescriptionStruct();
+                outputFeatureFcns = fieldnames(outputFeatureStruct);                
             else
                 outputFeatureFcns = {featureFcn};
                 outputFeatureLabels = {this.settings.featureLabel};

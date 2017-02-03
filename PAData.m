@@ -3936,7 +3936,7 @@ classdef PAData < handle
         %> @retval varargout Cell with descriptive labels in the same order
         %> as they appear in argument one's keyvalue paired struct.
         function [featureStructWithPSDBands, varargout] = getFeatureDescriptionStructWithPSDBands()
-            featureStruct = rmfield(PAData.getFeatureDescriptionStruct,'psd');
+            featureStruct = rmfield(PAData.getFeatureDescriptionStruct(),'psd');
             psdFeatureStruct = PAData.getPSDFeatureDescriptionStruct();
             featureStructWithPSDBands = PAData.mergeStruct(featureStruct,psdFeatureStruct);
             if(nargout>1)
