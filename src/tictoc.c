@@ -1,14 +1,16 @@
 #include "tictoc.h"
 void tic(){
-    startTime = time(NULL);
+    tic_startTime = time(NULL);
 }
 
 /* Returns difference between start and stop times in seconds. */
 double toc(){
-    stopTime = time(NULL);
-    return difftime(stopTime,startTime); 
+    tic_stopTime = time(NULL);
+    return difftime(tic_stopTime,tic_startTime);
 }
 
-void printToc(){
-    fprintf(stdout,"%0.2lf seconds elapsed.\n",toc());
+double printToc(){
+    double tocValue = toc();
+    fprintf(stdout,"%0.2lf seconds elapsed.\n",tocValue);
+    return tocValue;
 }

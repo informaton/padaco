@@ -15,6 +15,7 @@ int main(int argc, char * argv[]){
     struct dirent *entry;
     in_file_structPtr fileStructPtr;
     int fileCount = 0, skipCount=0;
+    double timeElapsed=0;
     if(argc==3){
         srcPathOrFile = argv[1];
         destPathOrFile = argv[2];
@@ -39,8 +40,7 @@ int main(int argc, char * argv[]){
                     //changeFilePath(fileStructPtr,destPath);
                     destFilename = fullfile(destPath,fileStructPtr->filename);
                     tic();
-                    printf("%s --> %s\n",srcFilename,destFilename);
-                    printToc();
+                    printf("%s --> %s\n",srcFilename,destFilename);                    
                     if(writeRaw2Bin(srcFilename,destFilename)){
                         printf("File %i completed (%s):\t",++fileCount,entry->d_name);
                     }
@@ -48,11 +48,15 @@ int main(int argc, char * argv[]){
                         printf("File %i failed to complete (%s):\t",++fileCount,entry->d_name);
                         skipCount++;
                     }
-                    printToc();
+                    timeElapsed+=printToc();
                     free(srcFilename);
                     free(destFilename);
                 }
             }
+            printf("Files encountered:\t %u\n"
+                    "Files skipped:\t %u\n"
+                    "Total time:\t %0.2f minutes\n",
+                    fileCount,skipCount,timeElapsed/60);
             closedir(dir);
             shouldPrintUsage = false;
         }

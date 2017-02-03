@@ -93,7 +93,11 @@ bool writeRaw2Bin(char * rawCSVFilename, char * rawBinFilename){
             didWrite =  write2bin(binFID, &csvFileHeader, accelerations);
             fclose(binFID);
         }
+        
+        free(accelerations);
     }
+    
+    
     return didWrite;
 }
 
@@ -207,13 +211,15 @@ void parseCSVFileHeader(FILE * fid, csv_header_t *header){
     
     startTimer = mktime(&startTime);
     stopTimer = mktime(&stopTime);
-	
+
+    /*
     printf("Start time: %s",asctime(&startTime));
     printf("Stop time: %s",asctime(&stopTime));
     
-//	printf("Start time: %s",asctime(localtime(&startTimer)));
-//	printf("Start time: %s %s",asctime(localtime(&startTimer)),asctime(localtime(&stopTimer)));
+	printf("Start time: %s",asctime(localtime(&startTimer)));
+	printf("Start time: %s %s",asctime(localtime(&startTimer)),asctime(localtime(&stopTimer)));
 	printf("Serial: %s\n",header->serialID);
+    */
     
     header->start = startTimer;
     header->stop = stopTimer;    
@@ -250,11 +256,11 @@ float * parseRawCSVFile(const char * csvFilename, csv_header_t* fileHeader,bool 
      printf("Duration: %u s\n",fileHeader->duration_sec);
     */
     expectedRowCount = (unsigned int)fileHeader->duration_sec*fileHeader->samplerate;
-	printf("Expected row count: %u\n",expectedRowCount);
+	printf("Expected row count: %u\t",expectedRowCount);
     lineCountLeft =fgetlinecount(fid);
-    printf("Lines remaining = %lu\n",lineCountLeft);
+    printf("|\tLines found: %lu\t",lineCountLeft);
     expectedRowCount = expectedRowCount>lineCountLeft?expectedRowCount: lineCountLeft;  // returns the max of two values
-    printf("Allocating for %u rows\n",++expectedRowCount);
+    printf("|\tAllocating for %u rows\n", expectedRowCount);
 
 	
 		// MATLAB fills in matrices column-wise first.
