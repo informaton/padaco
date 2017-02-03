@@ -269,11 +269,12 @@ classdef PABatchTool < handle
           
            %get the file count and update the file count text field. 
            rawFileCount = numel(getFilenamesi(sourcePathname,'.raw'));
+           binFileCount = numel(getFilenamesi(sourcePathname,'.bin'));           
            csvFileCount = numel(getFilenamesi(sourcePathname,'.csv'));
            msg = '';
-           if(rawFileCount==0 && csvFileCount==0)
+           if(rawFileCount==0 && csvFileCount==0 && binFileCount==0)
                msg = '0 files found.';
-               set(this.handles.button_go,'enable','off');
+               set(this.handles.button_go,'enable','off','tooltipstring','No files found!');
            else
               if(rawFileCount>0)
                   msg = sprintf('%u .raw file(s) found.\n',rawFileCount);
@@ -281,7 +282,7 @@ classdef PABatchTool < handle
               if(csvFileCount>0)
                   msg = sprintf('%s%u .csv file(s) found.',msg,csvFileCount);
               end
-              set(this.handles.button_go,'enable','on');
+              set(this.handles.button_go,'enable','on','tooltipstring','');
            end
            set(text_filesFound_h,'string',msg);
         end
