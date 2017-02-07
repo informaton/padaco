@@ -186,10 +186,14 @@ classdef PAView < handle
             handles = guidata(obj.getFigHandle());
             
             % get our panles looking nice and pretty.
-            set([
-                    handles.panel_timeseries;
-                    handles.panel_results
-                ],'backgroundcolor',[0.75,0.75,0.75]);
+            % This is taken care of in the initializeGUI call found in
+            % padaco.m now
+            %             set([
+            %                     handles.panel_timeseries;
+            %                     handles.panel_results
+            %                 ],'backgroundcolor',[0.75,0.75,0.75]);
+            
+            
             
             % Line our panels up to same top left position - do this here
             % so I can edit them easy in GUIDE and avoid to continually
@@ -208,8 +212,7 @@ classdef PAView < handle
             coiControlsPos = get(handles.panel_controlCentroid,'position');
             coiControlsPos(2) = sum(epochControlsPos([2,4]))-coiControlsPos(4);  % This is y_ = y^ + h^ - h_
             set(handles.panel_controlCentroid,'position',coiControlsPos);
-            drawnow();
-            
+            drawnow();            
             
             metaDataHandles = [handles.panel_study;get(handles.panel_study,'children')];
             set(metaDataHandles,'backgroundcolor',[0.94,0.94,0.94],'visible','off');

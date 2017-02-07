@@ -28,7 +28,14 @@ function handles = initializeGUI(hObject)
     figColor = get(hObject,'color');
     
     handles = guidata(hObject);
-    set(handles.text_status,'backgroundcolor',figColor,'units','normalized');
+    set([handles.text_status;
+        handles.panel_results;
+        handles.panel_timeseries],'backgroundcolor',figColor,'units','normalized');
+    
+    set([handles.panel_results;
+         handles.panel_timeseries],'backgroundcolor',figColor...
+                                   ,'units','normalized'...
+                                   ,'bordertype','none');
     
     % ch = findall(hObject,'type','uipanel');
     % set(ch,'units','normalized');
