@@ -2055,7 +2055,9 @@ classdef PAController < handle
             end
             
             if(~success)
-                this.StatTool.disable();
+                if(isfield(this,'StatTool') && isa(this.StatTool,'PAStatTool'))
+                    this.StatTool.disable();
+                end
                 
                 this.StatTool = [];
                 responseButton = questdlg('Results output pathname is either not set or was not found.  Would you like to choose one now?','Find results output path?');

@@ -1796,7 +1796,18 @@ classdef PAData < handle
             obj.frames_signalTagLine = signalTagLine;
             
             switch(lower(method))
-                case 'none'                    
+                case 'none'
+                case 'all_sans_psd'
+                    obj.features.rms = sqrt(mean(data.^2))';
+                    obj.features.mean = mean(data)';
+                    obj.features.meanad = mad(data,0)';
+                    obj.features.medianad = mad(data,1)';
+                    obj.features.median = median(data)';
+                    obj.features.sum = sum(data)';
+                    obj.features.var = var(data)';
+                    obj.features.std = std(data)';
+                    obj.features.mode = mode(data)';
+                    obj.features.usagestate = mode(obj.usageFrames)';
                 case 'all'
                     obj.features.rms = sqrt(mean(data.^2))';
                     obj.features.mean = mean(data)';

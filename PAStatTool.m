@@ -392,23 +392,43 @@ classdef PAStatTool < handle
         % ======================================================================
         function didCalc = calcFeatureStruct(this)
             pSettings = this.getPlotSettings();
-            inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
-
-            if(exist(inputFilename,'file'))
-
+            
+            countProcessType = this.base.processedTypes{1};
+            rawProcessType = this.base.processedTypes{2};
+            unknownProcessType = '*'; %anyProcessType ?
+            
+            inputCountFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,countProcessType,pSettings.curSignal);
+            inputRawFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,rawProcessType,pSettings.curSignal);
+            inputUnknownFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,unknownProcessType,pSettings.curSignal);
+            isCountData = false;
+            isRawData = false;
+            if(exist(inputCountFilename,'file'))
+                inputFilename = inputCountFilename;
+                isCountData = 1;
+            elseif(exist(inputRawFilename,'file'))
+                inputFilename = inputRawFilename;
+                isRawData = 1;
+            else
+                inputFilename = inputUnknownFilename;
+            end
+            
+            if(isRawData || isCountData)
                 usageFeature = 'usagestate';
                 usageFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,usageFeature,usageFeature,'count','vecMag');
-                
-                % Double check that we haven't switched paths somewhere and
-                % are still using a previous copy of usageStateStruct (i.e.
-                % check usageFilename against this.usageStateStruct.filename)
-                if(isempty(this.usageStateStruct) || ~strcmpi(usageFilename,this.usageStateStruct.filename))
-                    if(exist(usageFilename,'file'))
-                        this.usageStateStruct= this.loadAlignedFeatures(usageFilename);
-                    end
+
+                % Usage state based on count data
+                if(isCountData)
+                    % Double check that we haven't switched paths somewhere and
+                    % are still using a previous copy of usageStateStruct (i.e.
+                    % check usageFilename against this.usageStateStruct.filename)
+                    if(isempty(this.usageStateStruct) || ~strcmpi(usageFilename,this.usageStateStruct.filename))
+                        if(exist(usageFilename,'file'))
+                            this.usageStateStruct= this.loadAlignedFeatures(usageFilename);
+                        end
+                    end    
                 end
                 
-                loadFileRequired = isempty(this.originalFeatureStruct) || ~strcmpi(inputFilename,this.originalFeatureStruct.filename);                    
+                loadFileRequired = isempty(this.originalFeatureStruct) || ~strcmpi(inputFilename,this.originalFeatureStruct.filename);
                 if(loadFileRequired)
                     this.originalFeatureStruct = this.loadAlignedFeatures(inputFilename);                    
                     
@@ -424,7 +444,16 @@ classdef PAStatTool < handle
                 end
                 
                 tmpFeatureStruct = this.originalFeatureStruct;
-                tmpUsageStateStruct = this.usageStateStruct;
+                
+                if(isCountData)
+                    tmpUsageStateStruct = this.usageStateStruct;
+                else
+                    tmpUsageStateStruct = this.originalFeatureStruct; 
+                    tmpUsageStateStruct.shapes(:) = 7;%just make everything magically 7 for right now to avoid having refactor further.
+                    tmpUsageStateStruct.method = 'usagestate';
+                    tmpUsageStateStruct.filename = '';
+                end
+                
                 startTimeSelection = pSettings.startTimeSelection;
                 stopTimeSelection = pSettings.stopTimeSelection;
 %                 if(stopTimeSelection<1)
@@ -2245,6 +2274,7 @@ classdef PAStatTool < handle
             this.centroidObj = [];
             this.disableCentroidControls();  % disable further interaction with our centroid panel
             
+            resultsTextH = this.handles.text_resultsCentroid; % an alias
             % clear the analysis figure
             
             if(this.calcFeatureStruct())            
@@ -2286,7 +2316,7 @@ classdef PAStatTool < handle
                     end                    
                 end
                 
-                resultsTextH = this.handles.text_resultsCentroid;
+               
                 set(this.handles.axes_primary,'color',[1 1 1],'xlimmode','auto','ylimmode',pSettings.primaryAxis_yLimMode,'xtickmode','auto',...
                     'ytickmode',pSettings.primaryAxis_yLimMode,'xticklabelmode','auto','yticklabelmode',pSettings.primaryAxis_yLimMode,'xminortick','off','yminortick','off');
                 set(resultsTextH,'visible','on','foregroundcolor',[0.1 0.1 0.1],'string','');
@@ -2323,7 +2353,15 @@ classdef PAStatTool < handle
                     else
                         warnMsg{end} = 'See console for possible explanations';
                     end
-                    warndlg(warnMsg,'Warning','modal');
+                        if(this.hasIcon)
+                            CreateStruct.WindowStyle='replace';
+                            CreateStruct.Interpreter='tex';
+                            warndgl(warnMsg,'Warning','modal','custom',this.iconData,this.iconCMap,CreateStruct);
+                        else
+                            warndlg(warnMsg,'Warning','modal');
+                        end
+
+                    
                     this.centroidObj = [];
                 else
                     this.refreshGlobalProfile();
@@ -2331,7 +2369,16 @@ classdef PAStatTool < handle
                 end
             else
                 inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);                
-                warndlg(sprintf('Could not find the input file required (%s)!',inputFilename));
+                wrnMsg = sprintf('Could not find the input file required (%s)!',inputFilename);
+                fprintf(1,'%s\n',wrnMsg);
+                if(this.hasIcon)
+                    CreateStruct.WindowStyle='modal';
+                    CreateStruct.Interpreter='tex';
+                    warndlg(wrnMsg,'Warning',CreateStruct); %'custom',this.iconData,this.iconCMap,
+                else
+                    warndlg(wrnMsg,'Warning','modal');
+                end
+
             end
             
             if(this.hasValidCentroid()) % ~isempty(this.centroidObj))
@@ -2728,7 +2775,7 @@ classdef PAStatTool < handle
             userSettings.discardNonWearFeatures = this.originalWidgetSettings.discardNonWearFeatures;
             
             userSettings.showCentroidMembers = get(this.handles.check_showCentroidMembers,'value');
-            userSettings.processedTypeSelection = 1;
+            userSettings.processedTypeSelection = 1;  %defaults to count!
             userSettings.baseFeatureSelection = get(this.handles.menu_feature,'value');
             userSettings.signalSelection = get(this.handles.menu_signalsource,'value');
             userSettings.plotTypeSelection = get(this.handles.menu_plottype,'value');

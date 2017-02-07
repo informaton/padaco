@@ -278,11 +278,19 @@ classdef PABatchTool < handle
                set(this.handles.button_go,'enable','off','tooltipstring','No files found!');
            else
               if(rawFileCount>0)
-                  msg = sprintf('%u .raw file(s) found.\n',rawFileCount);
+                  msg = sprintf('%s%u .raw file(s) found.\n',msg,rawFileCount);
               end
               if(csvFileCount>0)
                   msg = sprintf('%s%u .csv file(s) found.',msg,csvFileCount);
               end
+              if(binFileCount>0)
+                  msg = sprintf('%s%u .bin file(s) found.',msg,binFileCount);
+              end
+              
+              if(binFileCount+rawFileCount>0 && csvFileCount>0)
+                 msg = sprintf('%s Only .csv file(s) will be processed; place .raw/.bin files in a separate directory for processing.',msg);
+              end
+              
               set(this.handles.button_go,'enable','on','tooltipstring','');
            end
            set(text_filesFound_h,'string',msg);
@@ -407,7 +415,7 @@ classdef PABatchTool < handle
             % We have a cancel button and an axes handle on our waitbar
             % window; so look for the one that has the title on it. 
             titleH = get(findobj(get(waitH,'children'),'flat','-property','title'),'title');
-            set(titleH,'interpreter','none');  % avoid '_' being interpreted as subscript instruction
+            set(titleH,'interpreter','none','fontsize',12);  % avoid '_' being interpreted as subscript instruction
             set(waitH,'visible','on');  %now show the results
             drawnow;
             
@@ -462,9 +470,10 @@ classdef PABatchTool < handle
                 featureStructWithPSDBands= PAData.getFeatureDescriptionStructWithPSDBands();
                 outputFeatureFcns = fieldnames(featureStructWithPSDBands);
                 outputFeatureLabels = struct2cell(featureStructWithPSDBands);  % leave it here for the sake of other coders; yes, you can assign this using a second output argument from getFeatureDescriptionWithPSDBands                
-            elseif(strcmpi(featureFcn,'all_sans_psd'))
-                [outputFeatureStruct, outputFeatureLabels]= PAData.getFeatureDescriptionStruct();
-                outputFeatureFcns = fieldnames(outputFeatureStruct);                
+            elseif(strcmpi(featureFcn,'all_sans_psd')) % and sans usage state
+                outputFeatureStruct = rmfield(PAData.getFeatureDescriptionStruct(),{'psd','usagestate'});
+                outputFeatureFcns = fieldnames(outputFeatureStruct);
+                outputFeatureLabels = struct2cell(outputFeatureStruct);
             else
                 outputFeatureFcns = {featureFcn};
                 outputFeatureLabels = {this.settings.featureLabel};
@@ -573,6 +582,12 @@ classdef PABatchTool < handle
                                     % days at N time intervals.
                                     result =[result(:,1:3), alignedVec];
                                 end
+                                % Added this because of issues with raw
+                                % data loaded as a single.
+                                if(~isa(result,'double'))
+                                    result = double(result);
+                                end
+
                                 save(featureFilename,'result','-ascii','-tabs','-append');
                             end
                             
@@ -643,9 +658,9 @@ classdef PABatchTool < handle
             end
             
             batchResultStr = sprintf(['%sProcessed %u files in (hh:mm:ss)\t %s.\n',...
-                '\tSucceeded:\t%u\n',...
-                '\tSkipped:\t%u\n',...
-                '\tFailed:\t%u\n\n'],userCanceledMsg,fileCount,elapsedTimeStr,successCount,skipCount,failCount);
+                '\tSucceeded:\t%5u\n',...
+                '\tSkipped:\t%5u\n',...
+                '\tFailed:\t%5u\n\n'],userCanceledMsg,fileCount,elapsedTimeStr,successCount,skipCount,failCount);
             
             fprintf(logFid,'\n====================SUMMARY===============\n');
             fprintf(logFid,batchResultStr);
