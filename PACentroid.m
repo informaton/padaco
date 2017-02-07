@@ -774,7 +774,7 @@ classdef PACentroid < handle
         %> @retval centroids - KxC matrix of cluster centroids.
         %> @retval The Calinski index for the returned idx and centroids
         %> @retrval Struct of X and Y fields containing the progression of
-        %> cluster sizes and corresponding Calinksi indices obtained for
+        %> cluster sizes and corresponding Calinski indices obtained for
         %> each iteration of k means.
         % ======================================================================
         function [idx, centroids, performanceIndex, performanceProgression] = adaptiveKmedoids(this,loadShapes,settings,performanceAxesH,textStatusH)
@@ -816,7 +816,7 @@ classdef PACentroid < handle
                 %performanceAxesH = axes('parent',calinskiFig,'box','on');
                 %calinskiLine = line('xdata',nan,'ydata',nan,'parent',performanceAxesH,'linestyle','none','marker','o');
                 xlabel(performanceAxesH,'K');
-                ylabel(performanceAxesH,'Calinksi Index');
+                ylabel(performanceAxesH,'Calinski Index');
             end
             
             K = settings.minClusters;
@@ -1054,7 +1054,7 @@ classdef PACentroid < handle
         %> @retval centroids - KxC matrix of cluster centroids.
         %> @retval The Calinski index for the returned idx and centroids
         %> @retrval Struct of X and Y fields containing the progression of
-        %> cluster sizes and corresponding Calinksi indices obtained for
+        %> cluster sizes and corresponding Calinski indices obtained for
         %> each iteration of k means.
         % ======================================================================
         function [idx, centroids, performanceIndex, performanceProgression] = adaptiveKmeans(this,loadShapes,settings,performanceAxesH,textStatusH)
@@ -1099,7 +1099,7 @@ classdef PACentroid < handle
                 %performanceAxesH = axes('parent',calinskiFig,'box','on');
                 %calinskiLine = line('xdata',nan,'ydata',nan,'parent',performanceAxesH,'linestyle','none','marker','o');
                 xlabel(performanceAxesH,'K');
-                ylabel(performanceAxesH,'Calinksi Index');
+                ylabel(performanceAxesH,'Calinski Index');
             end
             
             K = settings.minClusters;
@@ -1435,7 +1435,7 @@ classdef PACentroid < handle
             plotOptions = PACentroid.getPlotOptions();
             h=plot(performanceAxesH,X,Y,plotOptions{:});
             xlabel(performanceAxesH,'K');
-            ylabel(performanceAxesH,'Calinksi Index');
+            ylabel(performanceAxesH,'Calinski Index');
         end       
         
         function plotOptions = getPlotOptions()
