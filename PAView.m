@@ -205,6 +205,10 @@ classdef PAView < handle
             resultsPanelPos = get(handles.panel_results,'position');
             newResultsPanelY = sum(timeSeriesPanelPos([2,4]))-resultsPanelPos(4);
             set(handles.panel_results,'position',[timeSeriesPanelPos(1),newResultsPanelY,resultsPanelPos(3:4)]);
+            
+            
+            set(handles.panel_resultsContainer,'backgroundcolor',[0.9 0.9 0.9]);
+            set(handles.panel_resultsContainer,'backgroundcolor',[0.94 0.94 0.94]);
 
 
             % Line up panel_controlCentroid with panel_epochControls
@@ -214,17 +218,28 @@ classdef PAView < handle
             set(handles.panel_controlCentroid,'position',coiControlsPos);
             drawnow();            
             
+
+            
             metaDataHandles = [handles.panel_study;get(handles.panel_study,'children')];
             set(metaDataHandles,'backgroundcolor',[0.94,0.94,0.94],'visible','off');
             
-            whiteHandles = [handles.text_aggregate
-                handles.text_frameSizeMinutes
-                handles.text_frameSizeHours
-                handles.text_trimPct
-                handles.text_cullSuffix            
-                handles.edit_trimToPercent
-                handles.edit_cullToValue
-                handles.panel_features_prefilter
+            %             whiteHandles = [handles.text_aggregate
+            %                 handles.text_frameSizeMinutes
+            %                 handles.text_frameSizeHours
+            %                 handles.text_trimPct
+            %                 handles.text_cullSuffix
+            %                 handles.edit_trimToPercent
+            %                 handles.edit_cullToValue
+            %                 handles.panel_features_prefilter
+            %                 handles.panel_features_aggregate
+            %                 handles.panel_features_frame
+            %                 handles.panel_features_signal
+            %                 handles.panel_plotType
+            %                 handles.panel_plotSignal
+            %                 handles.panel_plotData
+            %                 handles.panel_controlCentroid
+            %                 handles.panel_plotCentroid];
+            whiteHandles = [handles.panel_features_prefilter
                 handles.panel_features_aggregate
                 handles.panel_features_frame
                 handles.panel_features_signal                
@@ -233,14 +248,19 @@ classdef PAView < handle
                 handles.panel_plotData
                 handles.panel_controlCentroid
                 handles.panel_plotCentroid];
-            set(whiteHandles,'backgroundcolor',[0.94,0.94,0.94]);
-%             set(findobj(whiteHandles,'-property','shadowcolor'),'shadowcolor',[0 0 0],'highlightcolor',[0 0 0]);
+            sethandles(whiteHandles,'backgroundcolor',[1 1 1]);
+            %set(whiteHandles,'backgroundcolor',[0.94,0.94,0.94]);
+            %            set(findobj(whiteHandles,'-property','backgroundcolor'),'backgroundcolor',[0.94 0.94 0.94]);
             
-            set([handles.panel_centroidSettings
-                handles.panel_centroid_timeFrame
-                handles.text_min_clusters
-                handles.text_threshold
-                handles.text_duration],'backgroundColor',[1 1 1]);
+            %             set(findobj(whiteHandles,'-property','shadowcolor'),'shadowcolor',[0 0 0],'highlightcolor',[0 0 0]);
+            
+            innerPanelHandles = [handles.panel_centroidSettings
+                handles.panel_centroid_timeFrame];
+            sethandles(innerPanelHandles,'backgroundcolor',[0.9 0.9 0.9]);
+            
+            % Make the inner edit boxes appear white
+            set([handles.edit_centroidMinimum
+                handles.edit_centroidThreshold],'backgroundcolor',[1 1 1]);
             
             set(handles.text_threshold,'tooltipstring','Smaller thresholds result in more stringent conversion requirements and often produce more clusters than when using higher threshold values.');
             
@@ -271,9 +291,9 @@ classdef PAView < handle
             obj.checkhandle.sortResults = handles.check_sortvalues;
             obj.checkhandle.trimResults = handles.check_trim;
             
-%             obj.timeseries.menuhandle = obj.menuhandle;
-%             obj.timeseries.texthandle = obj.texthandle;
-%             obj.timeseries.patchhandle = obj.patchhandle;
+            %             obj.timeseries.menuhandle = obj.menuhandle;
+            %             obj.timeseries.texthandle = obj.texthandle;
+            %             obj.timeseries.patchhandle = obj.patchhandle;
             
             obj.axeshandle.primary = handles.axes_primary;
             obj.axeshandle.secondary = handles.axes_secondary;
@@ -315,7 +335,7 @@ classdef PAView < handle
         function hiddenLineHandles = getHiddenLineHandles(obj)
             lineHandleStructs = obj.getLinehandle(obj.getDisplayType());
             lineHandles = PAData.struct2vec(lineHandleStructs);
-            visibleLineHandles = lineHandles(strcmpi(get(lineHandles,'visible'),'off'));            
+            hiddenLineHandles = lineHandles(strcmpi(get(lineHandles,'visible'),'off'));
             
         end
         %> @brief Want to redistribute or evenly distribute the lines displayed in
