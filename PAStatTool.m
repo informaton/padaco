@@ -1096,7 +1096,9 @@ classdef PAStatTool < handle
                 this.handles.edit_trimToPercent
                 this.handles.check_cull
                 this.handles.edit_cullToValue
-                this.handles.check_segment],'units','normalized',...% had been : 'points',...
+                this.handles.check_segment
+                this.handles.menu_precluster_reduction
+                this.handles.menu_number_of_data_segments],'units','normalized',...% had been : 'points',...
                 'callback',[],...
                 'enable','off');
 
@@ -1137,7 +1139,10 @@ classdef PAStatTool < handle
                         set(this.handles.menu_signalsource,'string',this.base.signalDescriptions,'userdata',this.base.signalTypes,'value',widgetSettings.signalSelection);
                         set(this.handles.menu_plottype,'userdata',this.base.plotTypes,'string',this.base.plotTypeDescriptions,'value',widgetSettings.plotTypeSelection);
                         
-                        % Centroid widgets                        
+                        % Centroid widgets 
+                        set(this.handles.menu_precluster_reduction,'string',this.base.preclusterReductionDescriptions,'userdata',this.base.preclusterReduction,'value',widgetSettings.preclusterReductionSelection);
+                        set(this.handles.menu_number_of_data_segments,'string',this.base.numDataSegmentsDescriptions,'userdata',this.base.numDataSegments,'value',widgetSettings.numDataSegmentsSelection);
+
                         if(strcmpi(this.base.weekdayTags{widgetSettings.weekdaySelection},'custom'))
                             customIndex = widgetSettings.weekdaySelection;
                             tooltipString = cell2str(this.base.daysOfWeekDescriptions(this.base.weekdayValues{customIndex}+1));
@@ -1165,7 +1170,9 @@ classdef PAStatTool < handle
                             this.handles.check_sortvalues;
                             this.handles.check_normalizevalues;                            
                             this.handles.menu_feature;                            
-                            this.handles.menu_signalsource],'callback',@this.refreshPlot);                        
+                            this.handles.menu_signalsource;
+                            this.handles.menu_precluster_reduction;
+                            this.handles.menu_number_of_data_segments],'callback',@this.refreshPlot);
                         set(this.handles.menu_plottype,'callback',@this.plotSelectionChange);
                        
                         set(this.handles.check_showCentroidMembers,'callback',@this.checkShowCentroidMembershipCallback);
@@ -1872,6 +1879,8 @@ classdef PAStatTool < handle
                 'check_cull'
                 'edit_cullToValue'
                 'check_segment'
+                'menu_precluster_reduction'
+                'menu_number_of_data_segments'
                 'check_showCentroidMembers'
                 'edit_centroidThreshold'
                 'edit_centroidMinimum'
@@ -2057,17 +2066,19 @@ classdef PAStatTool < handle
         % ======================================================================
         %> @brief Check button callback for segmenting centroid histogram 
         %> distributions into intervals across the time period covered.
+        %> @note When checked, the drop down menu containing the number of
+        %> data segments to use is enabled.  Otherwise, it is disabled.
         %> @param this Instance of PAStatTool
         %> @param hObject Handle of the checkbutton that is calling back.
         %> @param Variable number of arguments required by MATLAB gui callbacks
         % ======================================================================
         function checkSegmentHistogramsCallback(this,hObject,~)
-            %             if(get(hObject,'value'))
-            %                 enableState = 'on';
-            %             else
-            %                 enableState = 'off';
-            %             end
-
+            if(get(hObject,'value'))                
+                enableState = 'on';
+            else
+                enableState = 'off';
+            end
+            set(this.handles.menu_number_of_data_segments,'enable',enableState);
             this.refreshPlot();
         end
         
@@ -2776,9 +2787,14 @@ classdef PAStatTool < handle
             userSettings.baseFeatureSelection = get(this.handles.menu_feature,'value');
             userSettings.signalSelection = get(this.handles.menu_signalsource,'value');
             userSettings.plotTypeSelection = get(this.handles.menu_plottype,'value');
-            userSettings.sortValues = get(this.handles.check_sortvalues,'value');  %return 0 for unchecked, 1 for checked            
+            
+            userSettings.sortValues = get(this.handles.check_sortvalues,'value');  %return 0 for unchecked, 1 for checked
             userSettings.segmentSortValues = get(this.handles.check_segment,'value'); % returns 0 for unchecked, 1 for checked
-            userSettings.numSortedSegments = 6;
+            
+         
+            userSettings.numSortedSegments = getMenuUserData(this.handles.menu_number_of_data_segments);   % 6;
+            userSettings.reductionTransformationFcn = getMenuUserData(this.handles.menu_precluster_reduction);
+            
             userSettings.normalizeValues = get(this.handles.check_normalizevalues,'value');  %return 0 for unchecked, 1 for checked
             
             userSettings.processType = this.base.processedTypes{userSettings.processedTypeSelection};
@@ -3154,6 +3170,7 @@ classdef PAStatTool < handle
         %> - @c baseFeatureSelection
         %> - @c signalSelection
         %> - @c plotTypeSelection
+        %> - @c preclusterReductionSelection
         %> - @c trimToPercent
         %> - @c cullToValue
         %> - @c showCentroidMembers
@@ -3174,6 +3191,7 @@ classdef PAStatTool < handle
                 workingPath = fileparts(mfilename('fullpath'));                
             end
             
+            baseSettings = PAStatTool.getBaseSettings();  
             % Prime with cluster parameters.
             paramStruct = PACentroid.getDefaultParameters();
             
@@ -3188,6 +3206,17 @@ classdef PAStatTool < handle
             paramStruct.sortValues = 0;
             paramStruct.segmentSortValues = 0;
             paramStruct.numSortedSegments = 6;
+            paramStruct.numDataSegmentsSelection = find(baseSettings.numDataSegments==paramStruct.numSortedSegments,1); %results in number six
+            
+            % If we no longer have 6 as a choice, then just take the first
+            % choice that is available 
+            if(isempty(paramStruct.numDataSegmentsSelection))
+                paramStruct.numDataSegmentsSelection = 1;
+                paramStruct.numSortedSegments=baseSettings.numDataSegments(paramStruct.numDataSegmentsSelection);
+            end
+            
+            paramStruct.preclusterReductionSelection = 1; % defaults to 'none'
+            
             paramStruct.normalizeValues = 0;            
             paramStruct.processedTypeSelection = 1;
             paramStruct.baseFeatureSelection = 1;
@@ -3234,6 +3263,12 @@ classdef PAStatTool < handle
             baseSettings.featureTypes = fieldnames(featureDescriptionStruct);
             baseSettings.signalTypes = {'x','y','z','vecMag'};
             baseSettings.signalDescriptions = {'X','Y','Z','Vector Magnitude'};
+            
+            baseSettings.preclusterReduction = {'none','sort','sum','mean','median'};
+            baseSettings.preclusterReductionDescriptions = {'None','Sort (high->low)','Sum','Mean','Median'};
+            baseSettings.numDataSegments = [2,3,4,6,8,12]';
+            baseSettings.numDataSegmentsDescriptions = cellstr(num2str(baseSettings.numDataSegments(:)));
+
             
             baseSettings.plotTypes = {'dailyaverage','dailytally','morningheatmap','heatmap','rolling','morningrolling','centroids'};
             baseSettings.plotTypeDescriptions = {'Average Daily Tallies','Total Daily Tallies','Heat map (early morning)','Heat map','Time series','Time series (morning)','Centroids'};
