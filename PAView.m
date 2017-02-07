@@ -239,6 +239,8 @@ classdef PAView < handle
                 handles.text_threshold
                 handles.text_duration],'backgroundColor',[1 1 1]);
             
+            set(handles.text_threshold,'tooltipstring','Smaller thresholds result in more stringent conversion requirements and often produce more clusters than when using higher threshold values.');
+            
             obj.texthandle.status = handles.text_status;
             obj.texthandle.filename = handles.text_filename;
             obj.texthandle.studyinfo = handles.text_studyinfo;

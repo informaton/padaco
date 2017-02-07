@@ -1257,6 +1257,9 @@ classdef PAStatTool < handle
                             this.handles.menu_duration
                             ],'callback',@this.enableCentroidRecalculation);
                         
+                        set(this.handles.edit_centroidThreshold,'tooltipstring','Hint: Enter ''inf'' to fix the number of clusters to the min value');
+            
+                        
                         % add a context menu now to secondary axes
                         contextmenu_secondaryAxes = uicontextmenu('callback',@this.contextmenu_secondaryAxesCallback,'parent',this.figureH);
                         this.handles.contextmenu.secondaryAxes.performance = uimenu(contextmenu_secondaryAxes,'Label','Show adaptive separation performance progression','callback',{@this.centroidDistributionCallback,'performance'});
@@ -2353,13 +2356,7 @@ classdef PAStatTool < handle
                     else
                         warnMsg{end} = 'See console for possible explanations';
                     end
-                        if(this.hasIcon)
-                            CreateStruct.WindowStyle='replace';
-                            CreateStruct.Interpreter='tex';
-                            warndgl(warnMsg,'Warning','modal','custom',this.iconData,this.iconCMap,CreateStruct);
-                        else
-                            warndlg(warnMsg,'Warning','modal');
-                        end
+                    warndlg(warnMsg,'Warning','modal');
 
                     
                     this.centroidObj = [];
