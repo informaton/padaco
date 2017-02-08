@@ -262,7 +262,8 @@ classdef PAStatTool < handle
             
             % Create property/event listeners
             this.addlistener('ProfileFieldSelectionChange_Event',@this.profileFieldSelectionChangeCallback);
-            event.proplistener(this.handles.check_segment,{'enable','value'},'PostSet',@this.checkSegmentPropertyChgCallback)
+            addlistener(this.handles.check_segment,'Value','PostSet',@this.checkSegmentPropertyChgCallback);
+            addlistener(this.handles.menu_number_of_data_segments,'Enable','PostSet',@this.checkSegmentPropertyChgCallback);
             
         end
 
@@ -823,8 +824,8 @@ classdef PAStatTool < handle
                 if(this.useDatabase)
                     this.databaseObj = feval(this.originalWidgetSettings.databaseClass);
                     this.profileFields = this.databaseObj.getColumnNames('subjectInfo_t');
-                    addpath('/users/unknown/Google Drive/work/Stanford - Pediatrics/code/models');
-                    addpath('/Users/unknown/Google Drive/work/Informaton/code/matlab/gee');
+                    addpath('../matlab/models');
+                    addpath('../matlab/gee');
                     didInit = true;
                 else
                     this.databaseObj = [];
@@ -1176,7 +1177,8 @@ classdef PAStatTool < handle
                             this.handles.menu_feature;                            
                             this.handles.menu_signalsource;
                             this.handles.menu_precluster_reduction;
-                            this.handles.menu_number_of_data_segments],'callback',@this.refreshPlot);
+                            this.handles.menu_number_of_data_segments;
+                            this.handles.check_segment],'callback',@this.refreshPlot);
                         set(this.handles.menu_plottype,'callback',@this.plotSelectionChange);
                        
                         set(this.handles.check_showCentroidMembers,'callback',@this.checkShowCentroidMembershipCallback);
@@ -1198,8 +1200,14 @@ classdef PAStatTool < handle
                         end
                         set(this.handles.check_cull,'callback',@this.checkCullCallback);
                         set(this.handles.edit_cullToValue,'string',num2str(widgetSettings.cullToValue),'callback',@this.editCullToValueChange,'enable',enableState);
-                        set(this.handles.check_segment,'callback',@this.checkSegmentHistogramsCallback);
                         
+                        % Check results
+                        if(widgetSettings.segmentSortValues)
+                            enableState = 'on';
+                        else
+                            enableState = 'off';
+                        end
+                        set(this.handles.menu_number_of_data_segments,'enable',enableState);                        
                         
                         % Push buttons
                         % this should not normally be enabled if plotType
@@ -2066,26 +2074,7 @@ classdef PAStatTool < handle
             set(axesHandle,'xtick',weekdayticks,'xticklabel',daysofweekStr,'xlim',xlimits);
         end
 
-        
-        % ======================================================================
-        %> @brief Check button callback for segmenting centroid histogram 
-        %> distributions into intervals across the time period covered.
-        %> @note When checked, the drop down menu containing the number of
-        %> data segments to use is enabled.  Otherwise, it is disabled.
-        %> @param this Instance of PAStatTool
-        %> @param hObject Handle of the checkbutton that is calling back.
-        %> @param Variable number of arguments required by MATLAB gui callbacks
-        % ======================================================================
-        function checkSegmentHistogramsCallback(this,hObject,~)
-            if(get(hObject,'value'))                
-                enableState = 'on';
-            else
-                enableState = 'off';
-            end
-            set(this.handles.menu_number_of_data_segments,'enable',enableState);
-            this.refreshPlot();
-        end
-        
+                
         % ======================================================================
         %> @brief Callback for trim percent change edit box
         %> @param this Instance of PAStatTool
@@ -3020,8 +3009,9 @@ classdef PAStatTool < handle
         %> If it is enabled or disabled by a global enable or disable 'all'
         %> call, then we want to make sure that
         %> checkSegmentPropertyChgCallback also remains disabled.
-        function checkSegmentPropertyChgCallback(this,thisHandle, eventData)
-            if(get(thisHandle,'value')==1 && strcmpi(get(thisHandle,'enable'),'on'))
+        function checkSegmentPropertyChgCallback(this,~, ~)
+            check_handle = this.handles.check_segment;
+            if(get(check_handle,'value')==1 && strcmpi(get(check_handle,'enable'),'on'))
                 enableState = 'on';
             else
                 enableState = 'off';
