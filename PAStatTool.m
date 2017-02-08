@@ -259,7 +259,11 @@ classdef PAStatTool < handle
             else
                 fprintf('%s does not exist!\n',resultsPathname); 
             end
+            
+            % Create property/event listeners
             this.addlistener('ProfileFieldSelectionChange_Event',@this.profileFieldSelectionChangeCallback);
+            event.proplistener(this.handles.check_segment,{'enable','value'},'PostSet',@this.checkSegmentPropertyChgCallback)
+            
         end
 
         % ======================================================================
@@ -3010,6 +3014,20 @@ classdef PAStatTool < handle
             end
         end
         
+        
+        
+        %> @brief Listening and checking for changes to the split checkbox.
+        %> If it is enabled or disabled by a global enable or disable 'all'
+        %> call, then we want to make sure that
+        %> checkSegmentPropertyChgCallback also remains disabled.
+        function checkSegmentPropertyChgCallback(this,thisHandle, eventData)
+            if(get(thisHandle,'value')==1 && strcmpi(get(thisHandle,'enable'),'on'))
+                enableState = 'on';
+            else
+                enableState = 'off';
+            end
+            set(this.handles.menu_number_of_data_segments,'enable',enableState);
+        end
         
        
                  

@@ -209,6 +209,7 @@ classdef PAView < handle
             
             set(handles.panel_resultsContainer,'backgroundcolor',[0.9 0.9 0.9]);
             set(handles.panel_resultsContainer,'backgroundcolor',[0.94 0.94 0.94]);
+            set(handles.panel_resultsContainer,'backgroundcolor',[1 1 1]);
 
 
             % Line up panel_controlCentroid with panel_epochControls
