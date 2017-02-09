@@ -524,9 +524,16 @@ classdef PAStatTool < handle
                     % featuresPerCentroid = hoursPerCentroid*featuresPerHour;
                 end
                 
-                if(pSettings.sortValues)
+                if(~strcmpi(pSettings.preclusterReduction,'none')) % || pSettings.sortValues)
                     
                     if(pSettings.segmentSortValues && pSettings.numSortedSegments>1)
+                        % The other transformation will reduce the number
+                        % of columns, so we need to account for that here.
+                        if(~strcmpi(pSettings.preclusterReduction,'sort'))
+                            numRows = size(loadFeatures,1);
+                            numCols = pSettings.numSortedSegments;
+                            loadFeatures = nan(numRows,numCols);
+                        end
                         % 1. Reshape the loadFeatures by segments
                         % 2. Sort the loadfeatures
                         % 3. Resahpe the load features back to the original
@@ -536,11 +543,12 @@ classdef PAStatTool < handle
                         sections = round(linspace(0,size(loadFeatures,2),pSettings.numSortedSegments+1));  %Round to give integer indices
                         for s=1:numel(sections)-1
                             sectionInd = sections(s)+1:sections(s+1); % Create consecutive, non-overlapping sections of column indices.
-                            loadFeatures(:,sectionInd) = sort(loadFeatures(:,sectionInd),2,'descend');  %sort rows from high to low
+                            loadFeatures(:,sectionInd) = PAStatTool.featureSetAdjustment(loadFeatures(:,sectionInd),pSettings.preclusterReduction);
+                            %                             sort(loadFeatures(:,sectionInd),2,'descend');
                         end
-                        
                     else
-                        loadFeatures = sort(loadFeatures,2,'descend');  %sort rows from high to low
+                        loadFeatures = PAStatTool.featureSetAdjustment(loadFeatures,pSettings.preclusterReduction);                            
+                        % @2/9/2017 loadFeatures = sort(loadFeatures,2,'descend');  %sort rows from high to low
                     end
                 end
                 
@@ -1145,7 +1153,7 @@ classdef PAStatTool < handle
                         set(this.handles.menu_plottype,'userdata',this.base.plotTypes,'string',this.base.plotTypeDescriptions,'value',widgetSettings.plotTypeSelection);
                         
                         % Centroid widgets 
-                        set(this.handles.menu_precluster_reduction,'string',this.base.preclusterReductionDescriptions,'userdata',this.base.preclusterReduction,'value',widgetSettings.preclusterReductionSelection);
+                        set(this.handles.menu_precluster_reduction,'string',this.base.preclusterReductionDescriptions,'userdata',this.base.preclusterReductions,'value',widgetSettings.preclusterReductionSelection);
                         set(this.handles.menu_number_of_data_segments,'string',this.base.numDataSegmentsDescriptions,'userdata',this.base.numDataSegments,'value',widgetSettings.numDataSegmentsSelection);
 
                         if(strcmpi(this.base.weekdayTags{widgetSettings.weekdaySelection},'custom'))
@@ -2765,8 +2773,6 @@ classdef PAStatTool < handle
             this.showMouseReady();
         end
         
-
-        
         % Refresh the user settings from current GUI configuration.
         % ======================================================================
         %> @brief
@@ -2777,15 +2783,16 @@ classdef PAStatTool < handle
             userSettings.discardNonWearFeatures = this.originalWidgetSettings.discardNonWearFeatures;
             
             userSettings.showCentroidMembers = get(this.handles.check_showCentroidMembers,'value');
+            
             userSettings.processedTypeSelection = 1;  %defaults to count!
+            
             userSettings.baseFeatureSelection = get(this.handles.menu_feature,'value');
             userSettings.signalSelection = get(this.handles.menu_signalsource,'value');
             userSettings.plotTypeSelection = get(this.handles.menu_plottype,'value');
             
             userSettings.sortValues = get(this.handles.check_sortvalues,'value');  %return 0 for unchecked, 1 for checked
             userSettings.segmentSortValues = get(this.handles.check_segment,'value'); % returns 0 for unchecked, 1 for checked
-            
-         
+           
             userSettings.numSortedSegments = getMenuUserData(this.handles.menu_number_of_data_segments);   % 6;
             userSettings.reductionTransformationFcn = getMenuUserData(this.handles.menu_precluster_reduction);
             
@@ -2801,8 +2808,6 @@ classdef PAStatTool < handle
             userSettings.trimToPercent = str2double(get(this.handles.edit_trimToPercent,'string'));
             userSettings.cullResults = get(this.handles.check_cull,'value'); % returns 0 for unchecked, 1 for checked            
             userSettings.cullToValue = str2double(get(this.handles.edit_cullToValue,'string'));
-            
-                        
             
             userSettings.weekdaySelection = get(this.handles.menu_weekdays,'value');
 
@@ -2833,8 +2838,11 @@ classdef PAStatTool < handle
             userSettings.clusterMethod = this.clusterSettings.clusterMethod;
             userSettings.initCentroidWithPermutation = this.clusterSettings.initCentroidWithPermutation;
             userSettings.useDefaultRandomizer = this.clusterSettings.useDefaultRandomizer;
+            
+            % Cluster reduction settings
+            userSettings.preclusterReductionSelection = get(this.handles.menu_precluster_reduction,'value');
+            userSettings.preclusterReduction = this.base.preclusterReductions{userSettings.preclusterReductionSelection};  %singular entry now.    %  = getuserdata(this.handles.menu_precluster_reduction);
         end
-
         
         %> @brief Refreshes the centroid profile table based on current 
         %> profile statistics found in member variable @c profileTableData.
@@ -2865,12 +2873,10 @@ classdef PAStatTool < handle
             this.jhandles.table_centroidProfiles.repaint();
             
 %             this.jhandles.table_centroidProfiles.clearSelection();
-%              this.jhandles.table_centroidProfiles.setRowSelectionInterval(sRow,sRow);
-            
+%              this.jhandles.table_centroidProfiles.setRowSelectionInterval(sRow,sRow);  
 %          
             didRefresh = true;
-        end  
-        
+        end
         
         function analysisTableCellSelectionCallback(this, hObject, eventdata)
             if(~isempty(eventdata.Indices))
@@ -2880,8 +2886,7 @@ classdef PAStatTool < handle
                 if(rowSelectionIndex~=this.getProfileFieldIndex())
                     this.setProfileFieldIndex(rowSelectionIndex);
                 end
-            end
-            
+            end            
         end
         
         %> @brief Refreshes profile statistics for the current centroid of interest (COI).
@@ -3168,6 +3173,36 @@ classdef PAStatTool < handle
         end
         
         % ======================================================================
+        %> @brief Applies a reduction or sorting method along each row of the 
+        %> input data and returns the result.
+        %> @param featureSet NxM array of N feature sets, each of dimension M.
+        %> @param reductionMethod String specifying the reduction or
+        %> transformation method to apply across each row.  Recognized
+        %> values include:
+        %> - 'sort' sort rows from high to low
+        %> - 'sum'
+        %> - 'mean'
+        %> - 'median'
+        %> @param featureSet NxK array of N feature sets, each of dimension
+        %> K, where K is 1 when reductionMethod is 'mean','median', or 'sum', and K is
+        %> equal to M otherwise (eg. 'sort','none', or unrecognized)
+        % ======================================================================
+        function featureSet = featureSetAdjustment(featureSet, reductionMethod)
+            switch(lower(reductionMethod))
+                case 'sort'
+                    featureSet = sort(featureSet,2,'descend'); %sort rows from high to low
+                case 'mean'
+                    featureSet = mean(featureSet,2);
+                case 'sum'
+                    featureSet = sum(featureSet,2);
+                case 'median'
+                    featureSet = median(featureSet,2);
+                case 'none'
+                otherwise
+            end
+        end
+        
+        % ======================================================================
         %> @brief Gets parameters for default initialization of a
         %> PAStatTool object.
         %> @retval Struct of default paramters.  Fields include
@@ -3273,7 +3308,7 @@ classdef PAStatTool < handle
             baseSettings.signalTypes = {'x','y','z','vecMag'};
             baseSettings.signalDescriptions = {'X','Y','Z','Vector Magnitude'};
             
-            baseSettings.preclusterReduction = {'none','sort','sum','mean','median'};
+            baseSettings.preclusterReductions = {'none','sort','sum','mean','median'};
             baseSettings.preclusterReductionDescriptions = {'None','Sort (high->low)','Sum','Mean','Median'};
             baseSettings.numDataSegments = [2,3,4,6,8,12]';
             baseSettings.numDataSegmentsDescriptions = cellstr(num2str(baseSettings.numDataSegments(:)));
