@@ -2580,6 +2580,7 @@ classdef PAStatTool < handle
                             
                         end
                         pctMembership =  coi.dayOfWeek.numMembers/numLoadShapes*100;
+                        
                         legendStrings{c} = sprintf('Centroid #%u (%0.2f%%)',coi.sortOrder, pctMembership);
                         
                         coiSortOrders(c) = coi.sortOrder;
@@ -2629,8 +2630,8 @@ classdef PAStatTool < handle
                     %                 title(this.handles.axes_scatterplot,centroidTitle,'fontsize',12);
                     if(this.useDatabase)
                         set(this.handles.text_analysisTitle,'string',centroidTitle);
-                        
-                        displayName = sprintf('Centroid #%u (%0.2f%%)',[coiSortOrders(:),coiPctMemberships(:)]');
+                        displayName = sprintf('Centroid #%u (%0.2f%%)\n',[coiSortOrders(:),coiPctMemberships(:)]');
+                        displayName(end)=[];  %remove the final new line character
                         % displayName(end-1:end) = []; %remove trailing '\n'
                         yData = get(this.handles.line_allScatterPlot,'ydata');
                         if(~isempty(yData))
