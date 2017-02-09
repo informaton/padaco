@@ -529,11 +529,12 @@ classdef PAStatTool < handle
                     if(pSettings.segmentSortValues && pSettings.numSortedSegments>1)
                         % The other transformation will reduce the number
                         % of columns, so we need to account for that here.
+                        [numRows, numCols] = size(loadFeatures);
                         if(~strcmpi(pSettings.preclusterReduction,'sort'))
-                            numRows = size(loadFeatures,1);
                             numCols = pSettings.numSortedSegments;
-                            loadFeatures = nan(numRows,numCols);
                         end
+                        splitLoadFeatures = nan(numRows,numCols);
+
                         % 1. Reshape the loadFeatures by segments
                         % 2. Sort the loadfeatures
                         % 3. Resahpe the load features back to the original
@@ -543,9 +544,17 @@ classdef PAStatTool < handle
                         sections = round(linspace(0,size(loadFeatures,2),pSettings.numSortedSegments+1));  %Round to give integer indices
                         for s=1:numel(sections)-1
                             sectionInd = sections(s)+1:sections(s+1); % Create consecutive, non-overlapping sections of column indices.
-                            loadFeatures(:,sectionInd) = PAStatTool.featureSetAdjustment(loadFeatures(:,sectionInd),pSettings.preclusterReduction);
+                            if(numCols == pSettings.numSortedSegments) 
+                                % Case 1: we are we reducing the output, so
+                                % only 1 column per s
+                                splitLoadFeatures(:,s) = PAStatTool.featureSetAdjustment(loadFeatures(:,sectionInd),pSettings.preclusterReduction);
+                            else
+                                % otherwise do not reduce the output
+                                splitLoadFeatures(:,sectionInd) = PAStatTool.featureSetAdjustment(loadFeatures(:,sectionInd),pSettings.preclusterReduction);
+                            end
                             %                             sort(loadFeatures(:,sectionInd),2,'descend');
                         end
+                        loadFeatures = splitLoadFeatures;
                     else
                         loadFeatures = PAStatTool.featureSetAdjustment(loadFeatures,pSettings.preclusterReduction);                            
                         % @2/9/2017 loadFeatures = sort(loadFeatures,2,'descend');  %sort rows from high to low
