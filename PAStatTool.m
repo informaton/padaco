@@ -466,7 +466,11 @@ classdef PAStatTool < handle
                     % will go 24 hours
                 if(stopTimeSelection== startTimeSelection)
                     if(this.inClusterView())
+                        % Not sure why this is happening in some cases when
+                        % loading a new data file with different time
+                        % interval.
                         warndlg('Only one time epoch selected - defaulting to all epochs instead.');
+                        
                     end
                     %startTimeSelection = 1;
                     %stopTimeSelection = 
@@ -559,6 +563,8 @@ classdef PAStatTool < handle
                         loadFeatures = PAStatTool.featureSetAdjustment(loadFeatures,pSettings.preclusterReduction);                            
                         % @2/9/2017 loadFeatures = sort(loadFeatures,2,'descend');  %sort rows from high to low
                     end
+                    
+                    % Account for new times.
                 end
                 
                 if(pSettings.trimResults)
@@ -1188,14 +1194,18 @@ classdef PAStatTool < handle
                         set(this.handles.edit_centroidThreshold,'string',num2str(widgetSettings.clusterThreshold)); 
                         
                         %% set callbacks
+                        
+                        set([
+                            this.handles.menu_feature;                            
+                            this.handles.menu_signalsource;
+                            ],'callback',@this.refreshPlot);
                         set([
                             this.handles.check_sortvalues;
                             this.handles.check_normalizevalues;                            
-                            this.handles.menu_feature;                            
-                            this.handles.menu_signalsource;
                             this.handles.menu_precluster_reduction;
                             this.handles.menu_number_of_data_segments;
-                            this.handles.check_segment],'callback',@this.refreshPlot);
+                            this.handles.check_segment],'callback',@this.enableCentroidRecalculation);
+                        
                         set(this.handles.menu_plottype,'callback',@this.plotSelectionChange);
                        
                         set(this.handles.check_showCentroidMembers,'callback',@this.checkShowCentroidMembershipCallback);
