@@ -143,21 +143,12 @@ classdef PAStatTool < handle
             % This call ensures that we have at a minimum, the default parameter field-values in widgetSettings.
             % And eliminates later calls to determine if a field exists
             % or not in the input widgetSettings parameter
-            widgetSettings = PAData.mergeStruct(PAStatTool.getDefaultParameters,widgetSettings);
+            widgetSettings = PAData.mergeStruct(PAStatTool.getDefaultParameters(),widgetSettings);
             
             if(~isfield(widgetSettings,'useDatabase'))
                 widgetSettings.useDatabase = false;
             end
-            
-%             catch me
-%                 showME(me);
-%                 this.databaseObj = [];
-%                 this.profileFields = {
-%                     'bmi_zscore';
-%                     'insulin'
-%                     };
-%             end
-            
+                        
             this.hasIcon = false;
             this.iconData = [];
             this.iconCMap = [];
@@ -437,15 +428,9 @@ classdef PAStatTool < handle
                 if(loadFileRequired)
                     this.originalFeatureStruct = this.loadAlignedFeatures(inputFilename);                    
                     
-                    % The call to setStartTimes here is no longer
-                    % necessary here, if it ever was.  It results in
-                    % updating the start/stop GUI times with the original
-                    % widget settings that PAStatTool was constructed with,
-                    % which may very well be different than those loaded
-                    % now.  The problem of having a directory or file with
-                    % start/stop times outside the GUI range may still need
-                    % to be addressed at some point, somehow.
-                    %[pSettings.startTimeSelection, pSettings.stopTimeSelection] = this.setStartTimes(this.originalFeatureStruct.startTimes);
+                    % The call to setStartTimes here is necessary to 
+                    % updating the start/stop GUI times just loaded.
+                    [pSettings.startTimeSelection, pSettings.stopTimeSelection] = this.setStartTimes(this.originalFeatureStruct.startTimes);
                 end
                 
                 tmpFeatureStruct = this.originalFeatureStruct;
@@ -565,6 +550,16 @@ classdef PAStatTool < handle
                     end
                     
                     % Account for new times.
+                    % if we had a precluster feature set reduction
+                    if(~strcmpi(pSettings.preclusterReduction,'sort'))
+                        initialCount = this.featureStruct.totalCount;
+                        this.featureStruct.totalCount = pSettings.numSortedSegments;
+                        indicesToUse = floor(linspace(1,initialCount,this.featureStruct.totalCount));
+                        % intervalToUse = floor(initialCount/(pSettings.numSortedSegments+1));
+                        % indicesToUse = linspace(intervalToUse,intervalToUse*pSettings.numSortedSegments,pSettings.numSortedSegments);
+                        this.featureStruct.startTimes = this.featureStruct.startTimes(indicesToUse);
+                    end
+                    
                 end
                 
                 if(pSettings.trimResults)
@@ -620,7 +615,7 @@ classdef PAStatTool < handle
         %> @param this Instance of PAStatTool
         % ======================================================================        
         function init(this)
-            this.initWidgets(this.getPlotSettings);
+            this.initWidgets(this.getPlotSettings());
             this.plotSelectionChange(this.handles.menu_plottype);
         end
         
@@ -796,7 +791,16 @@ classdef PAStatTool < handle
             
             nextPlot = get(this.handles.axes_primary,'nextplot');
             set(this.handles.axes_primary,'nextplot','add');
-            plot(this.handles.axes_primary,memberLoadShapes','--','linewidth',1,'color', this.COLOR_MEMBERID);
+            if(size(memberLoadShapes,2)==1)
+                fields = {'marker','markeredgecolor','linestyle'};
+                lineProps = get(lineH,fields);
+                x = get(lineH,'xdata');
+                lineStruct = cell2struct(lineProps',fields);
+                plot(this.handles.axes_primary,x,memberLoadShapes,lineStruct);
+            else
+                plot(this.handles.axes_primary,memberLoadShapes','--','linewidth',1,'color', this.COLOR_MEMBERID);
+            end
+
             set(this.handles.axes_primary,'nextplot',nextPlot);
             %            msgbox(sprintf('Member ID: %u',memberID));
         end
@@ -2553,8 +2557,11 @@ classdef PAStatTool < handle
                     
                     numCOIs = numel(cois);
                     nextPlot = get(centroidAxes,'nextplot');
-                    coiColors = 'kbgrycm';
+                    coiMarkers = '+o*xv^.';
+                    coiColors =  'kbgrycm';
+                    
                     coiStyles = repmat('-:',size(coiColors));
+                    coiMarkers = [coiMarkers,coiMarkers];
                     coiColors = [coiColors, fliplr(coiColors)];
                     maxColorStyles = numel(coiColors);
                     
@@ -2598,14 +2605,21 @@ classdef PAStatTool < handle
                     for c=1:numCOIs
                         coi = cois{c};
                         if(centroidAndPlotSettings.showCentroidMembers)
-                            membersLineH = plot(centroidAxes,coi.dayOfWeek.memberShapes','-','linewidth',1,'color',this.COLOR_MEMBERSHAPE);
+                            if(numel(coi.shape)==1)
+                                markerType = 'hexagram';
+                                midPoint = mean(get(centroidAxes,'xlim'));
+                                membersLineH = plot(centroidAxes,midPoint,coi.dayOfWeek.memberShapes,'-','linewidth',1,'color',this.COLOR_MEMBERSHAPE,'marker',markerType);
+                            else
+                                membersLineH = plot(centroidAxes,coi.dayOfWeek.memberShapes','-','linewidth',1,'color',this.COLOR_MEMBERSHAPE);
+                            end
                             if(coi.numMembers<50)
                                 for m=1:coi.numMembers
-                                    set(membersLineH,'uicontextmenu',this.handles.contextmenu.clusterLineMember,'userdata',coi.memberIDs(m),'buttondownfcn',{@this.memberLineButtonDownCallback,coi.memberIDs(m)});
+                                    set(membersLineH(m),'uicontextmenu',this.handles.contextmenu.clusterLineMember,'userdata',coi.memberIDs(m),'buttondownfcn',{@this.memberLineButtonDownCallback,coi.memberIDs(m)});
                                 end
                             end
-                            
+                           
                         end
+                        
                         pctMembership =  coi.dayOfWeek.numMembers/numLoadShapes*100;
                         
                         legendStrings{c} = sprintf('Centroid #%u (%0.2f%%)',coi.sortOrder, pctMembership);
@@ -2620,7 +2634,20 @@ classdef PAStatTool < handle
                         % This changes my axes limit mode if nextplot is set to
                         % 'replace' instead of 'replacechildren'
                         colorStyleIndex = mod(c-1,maxColorStyles)+1;  %b/c MATLAB is one based, and 'mod' is not.
-                        centroidHandles(c) = plot(centroidAxes,coi.shape,'linewidth',2,'linestyle',coiStyles(colorStyleIndex),'color',coiColors(colorStyleIndex)); %[0 0 0]);
+                        if(numel(coi.shape)==1)
+                            midPoint = mean(get(centroidAxes,'xlim'));
+                            centroidHandles(c) = plot(centroidAxes,midPoint,coi.shape,'linestyle','none',...
+                                'marker',coiMarkers(colorStyleIndex),'markerfacecolor','none',...
+                                'markeredgecolor',coiColors(colorStyleIndex));
+                        else
+                            centroidHandles(c) = plot(centroidAxes,coi.shape,'linewidth',2,'linestyle',coiStyles(colorStyleIndex),'color',coiColors(colorStyleIndex),'marker',coiMarkers(colorStyleIndex),'markerfacecolor','none','markeredgecolor','k'); %[0 0 0]);
+                        end
+
+                        if(coi.numMembers==1)
+                            set(centroidHandles(c),'uicontextmenu',this.handles.contextmenu.clusterLineMember,...
+                                'userdata',coi.memberIDs,...
+                                'buttondownfcn',{@this.memberLineButtonDownCallback,coi.memberIDs});
+                        end
                         % 'displayname',legendStrings{c};
                     end
                     
@@ -2811,8 +2838,10 @@ classdef PAStatTool < handle
             
             userSettings.sortValues = get(this.handles.check_sortvalues,'value');  %return 0 for unchecked, 1 for checked
             userSettings.segmentSortValues = get(this.handles.check_segment,'value'); % returns 0 for unchecked, 1 for checked
-           
+            
+            
             userSettings.numSortedSegments = getMenuUserData(this.handles.menu_number_of_data_segments);   % 6;
+            userSettings.numDataSegmentsSelection = get(this.handles.menu_number_of_data_segments,'value');
             userSettings.reductionTransformationFcn = getMenuUserData(this.handles.menu_precluster_reduction);
             
             userSettings.normalizeValues = get(this.handles.check_normalizevalues,'value');  %return 0 for unchecked, 1 for checked
@@ -2861,6 +2890,7 @@ classdef PAStatTool < handle
             % Cluster reduction settings
             userSettings.preclusterReductionSelection = get(this.handles.menu_precluster_reduction,'value');
             userSettings.preclusterReduction = this.base.preclusterReductions{userSettings.preclusterReductionSelection};  %singular entry now.    %  = getuserdata(this.handles.menu_precluster_reduction);
+            
         end
         
         %> @brief Refreshes the centroid profile table based on current 
