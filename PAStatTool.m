@@ -2241,7 +2241,6 @@ classdef PAStatTool < handle
             end
         end
         
-
         
         % ======================================================================
         %> @brief Check button callback to refresh centroid display.
@@ -2259,7 +2258,6 @@ classdef PAStatTool < handle
             else
                 set(this.handles.axes_primary,'ygrid','off');
             end
-
         end
         
         %> @brief Creates a matlab struct with pertinent fields related to
@@ -2410,7 +2408,6 @@ classdef PAStatTool < handle
                 else
                     warndlg(wrnMsg,'Warning','modal');
                 end
-
             end
             
             if(this.hasValidCentroid()) % ~isempty(this.centroidObj))
@@ -2446,10 +2443,8 @@ classdef PAStatTool < handle
             
             xTickLabels = this.featureStruct.startTimes(xTicks);
             set(this.handles.axes_primary,'xlim',[1,this.featureStruct.totalCount],'xtick',xTicks,'xticklabel',xTickLabels);%,...
-%                 'fontsize',11);
-            
+%                 'fontsize',11); 
         end
-        
         
         %> @brief Hides the panel of centroid interaction controls.  For
         %> example, the forward and back buttons that appear in between the

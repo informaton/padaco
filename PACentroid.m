@@ -6,6 +6,7 @@
 classdef PACentroid < handle
     properties(Constant)
         WEEKDAY_ORDER = 0:6;  % for Sunday through Saturday
+        WEEKDAY_LABELS = {'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'};            
     end
     
     %> @brief The sort order can be difficult to understand.  First, the
@@ -45,7 +46,11 @@ classdef PACentroid < handle
         %> Nx1 vector of centroid index for loadShape profile associated with its row.
         loadshapeIndex2centroidIndexMap;
         
-        %> CxM array of C centroids of size M.
+        %> CxM array of C centroids of size M.  Ordered by clustering
+        %> output.  Not ordered from 1 to C based on popularity.  To get
+        %> popularity index from highest popularity (1) to lowest (C) use:
+        %>  coi_index = this.coiSortOrder2Index(sortOrder); 
+        %> which converts to match the index the centroid load shape corresponds to.
         centroidShapes;
         
         %> Sorted distribution of centroid shapes by frequency of children load shape members.
@@ -54,18 +59,22 @@ classdef PACentroid < handle
         
         %> Nx1 vector that maps the constructor's input load shapes matrix
         %> to the sorted  @c loadShapes matrix.
-        sortIndices;
+        sortIndices;  % centroidShapes(sortIndices(1),:) is the most popular centroid
         
         %> Cx1 vector that maps load shapes' original cluster indices to
         %> the equivalent cluster index after clusters have been sorted
-        %> by their load shape count.  Equivalent to coiIndex2SortOrder
+        %> by their load shape count.  Analog to coiSortOrder2Index
         centroidSortMap;
         
         %> Alias for centroidSortMap
+        %> map for going from sort order to coi index.  Use the desired sort
+        %> order as the index into coiSortOrder2Index to retrieve the 
+        %> original, unsorted index.
+        coiSortOrder2Index;  % To get original index of the most popular cluster (sort order =1 ) use index =  coiSortOrder2Index(1)
+         
+        
         coiIndex2SortOrder;
         
-        %> map for going from sort order to coi index.
-        coiSortOrder2Index;
         
         
         %> The sort order index for the centroid of interest (coi) 
@@ -225,6 +234,54 @@ classdef PACentroid < handle
                 this.calculateCentroids();
             end
         end
+        
+        
+        function exportDialog(this)
+            
+            
+        end
+        
+        %> @brief Returns text describing the centroids in a comma separated
+        %> value (csv) format.
+        %> @param this Instance of PACentroid
+        %> @retval headerStr Header line; helpful to place at the top of a
+        %> file.  It does not contain description of time based values of
+        %> the shape indices.  These can be added elsewhere.
+        %> @retval centroidStr String containg N lines for N centroids.
+        %> The nth line describes the nth centroid according to the descriptions given
+        %> by the header string.
+        function [headerStr, centroidStr] = exportCentroidShapes(this)
+            
+            if(this.getNumCentroids<=0)
+                headerStr = '# No centroids found!';
+                centroidStr = '';
+            else
+                % print header
+                headerStr = sprintf('# Centroid popularity (1 is highest), Centroid index, membership count');
+                for d=1:numel(this.WEEKDAY_ORDER)
+                    headerStr = sprintf('%s, %s (%d)',headerStr,this.WEEKDAY_LABELS{d},this.WEEKDAY_ORDER(d));
+                end
+                centroidStr = '';
+                for sortOrder=1:this.getNumCentroids()
+                    coi = this.getCentroidOfInterest(sortOrder);
+                    coiStr = sprintf('%i,%i, %i',coi.sortOrder,coi.index,coi.numMembers);
+                    dayStr = sprintf(', %i',coi.dayOfWeek.count);
+                    shapeStr = sprintf(', %f',coi.shape);
+                    centroidStr = sprintf('%s%s%s%s\n',centroidStr,coiStr,dayStr,shapeStr);
+                end
+            end
+            %             if(nargin<2 || isempty(filenameOut))
+            %
+            %             end
+            %
+            %             fid = fopen(filenameOut,'w');
+            %             if(fid>1)
+            %
+            %             else
+            %                 fprintf(1,'Could not open file (''%s'') for exporting centroid shapes.\n',filenameOut);
+            %             end
+        end
+        
         
         %> @brief Removes any graphic handle to references.  This is
         %> a helpful precursor to calling 'save' on the object, as it
@@ -521,13 +578,14 @@ classdef PACentroid < handle
             % clustered to the centroid index of interest.
             coi.memberShapes = this.loadShapes(coi.memberIndices,:);
             coi.memberIDs = this.loadShapeIDs(coi.memberIndices,:);
-            coi.numMembers = size(coi.memberShapes,1);
-            
+            coi.numMembers = size(coi.memberShapes,1);            
             
             coi.dayOfWeek.memberIndices = coi.memberIndices  & ismember(this.loadShapeDayOfWeek,this.WEEKDAY_ORDER(this.daysOfInterest));
             coi.dayOfWeek.memberShapes = this.loadShapes(coi.dayOfWeek.memberIndices,:);
             coi.dayOfWeek.memberIDs = this.loadShapeIDs(coi.dayOfWeek.memberIndices,:);
             coi.dayOfWeek.numMembers = size(coi.dayOfWeek.memberShapes,1);
+            coi.dayOfWeek.startDays = this.loadShapeDayOfWeek(coi.memberIndices);
+            coi.dayOfWeek.count = histc(coi.dayOfWeek.startDays,this.WEEKDAY_ORDER);
         end
 
 
@@ -705,7 +763,7 @@ classdef PACentroid < handle
             wcss = [];
         end
         
-        %> @brief Returns struct useful for logisitic or linear regression modelling.
+        %> @brief Returns struct useful for logisitic or linear regression modeling.
         %> @param Instance of PACentroid.
         %> @param Optional coi sort order index - index or indices to retrieve
         %> covariate structures of.
