@@ -388,8 +388,16 @@ classdef PAController < handle
             
             % export
             set(handles.menu_file_export,'callback',@obj.menu_file_exportMenu_callback);
-            set(handles.menu_file_export_dataObj,'callback',@obj.menu_file_export_dataObj_callback);
-            set(handles.menu_file_export_centroidObj,'callback',@obj.menu_file_export_centroidObj_callback);
+            if(~isdeployed)
+                set(handles.menu_file_export_dataObj,'callback',@obj.menu_file_export_dataObj_callback);
+                set(handles.menu_file_export_centroidObj,'callback',@obj.menu_file_export_centroidObj_callback);
+            % No point in sending data to the workspace on deployed
+            % version.  There is no 'workspace'.
+            else
+                set(handles.menu_file_export_dataObj,'visible','off');
+                set(handles.menu_file_export_centroidObj,'visible','off')
+            end
+            set(handles.menu_file_export_centroids_to_disk,'callback',@obj.menu_file_export_centroids_to_disk_callback);
             
             
             %% View Modes
@@ -1414,9 +1422,11 @@ classdef PAController < handle
                 set(handles.menu_file_export_dataObj,'enable','on');
             end
             if(isempty(this.StatTool) || ~this.StatTool.hasCentroid())
-                set(handles.menu_file_export_centroidObj,'enable','off');
+                set([handles.menu_file_export_centroidObj;
+                    handles.menu_file_export_centroids_to_disk],'enable','off');
             else
-                set(handles.menu_file_export_centroidObj,'enable','on');
+                set([handles.menu_file_export_centroidObj;
+                    handles.menu_file_export_centroids_to_disk],'enable','on');
             end
         end
         
@@ -1463,6 +1473,70 @@ classdef PAController < handle
                 uiwait(msgbox('An error occurred while trying to export the centroid object to a workspace variable.  See console for details.'));
             end
         end
+        
+         % --------------------------------------------------------------------
+        %> @brief Menubar callback for exporting PAController's data object
+        %> to disk, in two separate .csv files.
+        %> @param obj Instance of PAController
+        %> @param hObject    handle to menu_viewmode_batch (see GCBO)
+        %> @param eventdata  reserved - to be defined in a future version of MATLAB
+        %> @param handles    structure with handles and user data (see GUIDATA)
+        % --------------------------------------------------------------------
+        function menu_file_export_centroids_to_disk_callback(obj,hObject,~)
+            centroidObj = obj.StatTool.getCentroidObj();
+            if(isempty(centroidObj) || ~isa(centroidObj,'PACentroid'))
+                msg = 'No centroid object exists.  Nothing to save.'; 
+            else
+                try
+                    [covHeader, covDataStr] = centroidObj.exportCovariates();
+                    [shapesHeaderStr, shapesStr] = centroidObj.exportCentroidShapes();
+                    timeStamp = datestr(now,'DDmmmYYYY');
+                    shapeTimesInCSV = cell2str(obj.StatTool.getStartTimesCell(),',');
+                    
+                    covHeader = [covHeader,shapeTimesInCSV];
+                    covFilename = fullfile(pwd,sprintf('cluster_frequency_%s.csv',timeStamp));
+                    shapesFilename = fullfile(pwd,sprintf('cluster_shapes_%s.csv',timeStamp));
+                    settingsFilename = fullfile(pwd,sprintf('padaco_config_%s.txt',timeStamp));
+                        
+                    covFid = fopen(covFilename,'w');
+
+                    if(covFid>1)
+                        fprintf(covFid,'%s\n%s',covHeader,covDataStr);
+                        msg = sprintf('Cluster frequency data saved to %s\n',covFilename);
+                        fclose(covFid);
+                    else
+                        msg = sprintf('Cluster frequency data NOT saved.  Could not open file (%s) for writing!\n ',covFilename);
+                    end
+                    
+                    shapesFid = fopen(shapesFilename,'w');
+                    if(shapesFid>1)
+                        fprintf(shapesFid,'%s\n%s',shapesHeaderStr,shapesStr);
+                        msg = sprintf('%sCluster shapes saved to %s\n',msg,shapesFilename);
+                        fclose(shapesFid);
+                    else
+                        msg = sprintf('%sCluster shapes NOT saved.  Could not open file (%s) for writing!\n ',msg,shapesFilename);
+                    end 
+                    
+                    settingsFid = fopen(settingsFilename,'w');
+                    clusterSettings = obj.StatTool.getStateAtTimeOfLastClustering();
+
+                    if(settingsFid>1)
+                        PASettings.saveStruct(settingsFid,clusterSettings);
+                        msg = sprintf('%sPadaco cluster settings saved to %s\n',msg,settingsFilename);
+                        fclose(settingsFid);
+                    else
+                        msg = sprintf('%sPadaco cluster settings NOT saved.  Could not open file (%s) for writing!\n ',msg,settingsFilename);
+                    end 
+                    
+
+                catch me
+                    msg = 'An error occurred while trying to save the data to disk.  A thousand apologies.  I''m very sorry.';
+                    showME(me);
+                end
+            end
+            uiwait(msgbox(msg));            
+        end
+        
         
         
         function viewMode = getViewMode(obj)

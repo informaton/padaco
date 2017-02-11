@@ -2290,9 +2290,19 @@ classdef PAStatTool < handle
                     end
                 end
             end
-            
         end
 
+        function featureStruct = getFeatureStruct(this)
+            featureStruct = this.featureStruct;            
+        end
+        
+        function startTimes = getStartTimesCell(this)
+            if(isfield(this.featureStruct,'startTimes'))
+                startTimes = this.featureStruct.startTimes;
+            else
+                startTimes = {};
+            end            
+        end
         % ======================================================================
         %> @brief Push button callback for updating the centroids being displayed.
         %> @param this Instance of PAStatTool
@@ -2423,12 +2433,20 @@ classdef PAStatTool < handle
                 
                 this.plotCentroids(pSettings); 
                 this.enableCentroidControls();
+                this.originalWidgetSettings = PAData.mergeStruct(this.originalWidgetSettings,plotSettings); % keep a record of our most recent settings.
                 dissolve(resultsTextH,2.5);
+                
             else
                 set(resultsTextH,'visible','off');
                 this.initRefreshCentroidButton('on');  % want to initialize the button again so they can try again perhaps.
             end
             this.showReady();
+        end
+        
+        % Original widget settings from when the last cluster calculation
+        % was performed.
+        function widgetState = getStateAtTimeOfLastClustering(this)
+            widgetState = this.originalWidgetSettings;            
         end
         
         function drawCentroidXTicksAndLabels(this)

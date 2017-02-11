@@ -241,6 +241,16 @@ classdef PACentroid < handle
             
         end
         
+        
+        function [headerStr, membersStr] = exportCovariates(this)
+            cs = this.getCovariateStruct();
+            headerStr = [sprintf('# Centroid frequency for members listed in first column.  Centroid ID in the next header line refer to their popularity and correspond to the first column centroid ID listed in the companion text file.  The values in these columns represent the number of times the subject ID was a member of that cluster.\n'),'# memberID',sprintf(', Centroid %i',1:numel(cs.colnames))];
+            
+            allData = [cs.memberIDs,cs.values];
+            membersStr = num2str(allData,'%i,');
+            membersStr(:,end)=[];            
+        end
+        
         %> @brief Returns text describing the centroids in a comma separated
         %> value (csv) format.
         %> @param this Instance of PACentroid
@@ -770,7 +780,8 @@ classdef PACentroid < handle
         %> @retval Struct with fields defining dependent variables to use in the
         %> model.  Fields include:
         %> - @c values NxM array of counts for M centroids (the covariate index) for N subject
-        %> keys.
+        %> keys.  Centroids are presented in order of popularity (i.e. sort
+        %> order).  Thus the first centroid is the most popular.
         %> - @c memberIDs Nx1 array of unique keys corresponding to each row.
         %> - @c colnames 1xM cell string of names describing the covariate columns.
         function covariateStruct = getCovariateStruct(this,optionalCOISortOder)

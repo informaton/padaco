@@ -56,3 +56,7 @@ src/rawcsv2rawbin
 *.tmp
 
 *.tmp
+
+*.csv
+
+padaco_config_10Feb2017.txt
