@@ -3315,7 +3315,7 @@ classdef PAData < handle
             end
             
             
-            [synthDateNum, synthDateVec] = obj.datespace(startDateNum, stopDateNum, dateNumDelta);
+            [synthDateNum, synthDateVec] = PAData.datespace(startDateNum, stopDateNum, dateNumDelta);
             numSamples = size(synthDateVec,1);
             
             %make a cell with the same number of column as

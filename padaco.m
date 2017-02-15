@@ -19,7 +19,6 @@ function padaco()
             '\nChoose OK in the popup dialog to correct the settings file.\n']);
         resetDlg(hObject,fullfile(mPathname,parametersFile));
     end
-    
 
 end
 function handles = initializeGUI(hObject)

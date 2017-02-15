@@ -254,8 +254,7 @@ classdef PAStatTool < handle
             % Create property/event listeners
             this.addlistener('ProfileFieldSelectionChange_Event',@this.profileFieldSelectionChangeCallback);
             addlistener(this.handles.check_segment,'Value','PostSet',@this.checkSegmentPropertyChgCallback);
-            addlistener(this.handles.menu_number_of_data_segments,'Enable','PostSet',@this.checkSegmentPropertyChgCallback);
-            
+            addlistener(this.handles.menu_number_of_data_segments,'Enable','PostSet',@this.checkSegmentPropertyChgCallback);    
         end
 
         % ======================================================================
@@ -1251,49 +1250,43 @@ classdef PAStatTool < handle
                         set(this.handles.push_previousCentroid,'callback',@this.showPreviousCentroidCallback);
                         set(this.handles.push_nextCentroid,'callback',@this.showNextCentroidCallback);
                         
-                        set(this.handles.push_nextCentroid,'units','pixels');
-                        set(this.handles.push_previousCentroid,'units','pixels');
+%                         set(this.handles.push_nextCentroid,'units','pixels');
+%                         set(this.handles.push_previousCentroid,'units','pixels');
 
 %                         set(this.handles.push_nextCentroid,'units','normalized');
 %                         set(this.handles.push_previousCentroid,'units','normalized');
                         
-                        % Correct arrow positions - they seem to shift in
-                        % MATLAB R2014b from their guide set position.
-                        %                         pos = get(this.handles.push_nextCentroid,'position');
-                        %                         set(this.handles.push_nextCentroid,'position',pos.*[1 -1 1 1]);
-                        %                         pos = get(this.handles.push_previousCentroid,'position');
-                        %                         set(this.handles.push_previousCentroid,'position',pos.*[1 -1 1 1]);
-                        
-                        % Correct primary axes control widgets - they seem to shift in
-                        % MATLAB R2014b from their guide set position.
-                        %                         parentH = get(this.handles.check_holdYAxes,'parent');  %both widgets share the same parent panel here.
-                        %                         parentPos = get(parentH,'position');
-                        %                         pos = get(this.handles.check_holdYAxes,'position');
-                        %                         pos(2) = 0; %parentPos(4)/2-pos(4)/2; % get the lower position that results in the widget being placed in the center of the panel.
-                        %                         set(this.handles.check_holdYAxes,'position',pos);
-                        
-                        %                         pos = get(this.handles.check_holdPlots,'position');
-                        %                         pos(2) = 0; %parentPos(4)/2-pos(4)/2; % get the lower position that results in the widget being placed in the center of the panel.
-                        %                         set(this.handles.check_holdPlots,'position',pos);
-                        %
-                        %                         pos = get(this.handles.check_showAnalysisFigure,'position');
-                        %                         pos(2) = 0; %parentPos(4)/2-pos(4)/2; % get the lower position that results in the widget being placed in the center of the panel.
-                        %                         set(this.handles.check_showAnalysisFigure,'position',pos);
-                        
+
                         drawnow();
                         %
                         % bgColor = get(this.handles.panel_controlCentroid,'Backgroundcolor');
+                        RGB_MAX = 255;
                         bgColor = get(this.handles.push_nextCentroid,'backgroundcolor');
+                        imgBgColor = bgColor*RGB_MAX;
                         
+                        %    bgColor = [nan, nan, nan];
                         % bgColor = [0.94,0.94,0.94];
-                        nextImg = imread('arrow-right_16px.png','png','backgroundcolor',bgColor);
+                        originalImg = imread('arrow-right_16px.png','png','backgroundcolor',bgColor);
+                        [nRows, nCols, nColors] = size(originalImg);
+                        
+                        transparentIndices = false(size(originalImg));  % This is for obtaining logical matrix                        
+                        for i=1:nColors                            
+                            transparentIndices(:,:,i) = originalImg(:,:,i)==imgBgColor(i);
+                        end
+                        
+                        % This needs to start with NaNs, otherwise MATLAB
+                        % will convert nan to 0.
+                        transparentImg = nan(size(originalImg));                        
+                        nextImg = transparentImg;
+
+                        nextImg(~transparentIndices)=originalImg(~transparentIndices)/RGB_MAX; %normalize back to between 0.0 and 1.0 or NaN
                         previousImg = fliplr(nextImg);
                         
                         set(this.handles.push_nextCentroid,'cdata',nextImg,'string',[]);
                         set(this.handles.push_previousCentroid,'cdata',previousImg,'string',[]);
                         
-                        set(this.handles.push_nextCentroid,'units','normalized');
-                        set(this.handles.push_previousCentroid,'units','normalized');
+%                         set(this.handles.push_nextCentroid,'units','normalized');
+%                         set(this.handles.push_previousCentroid,'units','normalized');
 
                         set(this.handles.check_holdYAxes,'value',strcmpi(widgetSettings.primaryAxis_yLimMode,'manual'),'callback',@this.checkHoldYAxesCallback);
                         set(this.handles.check_holdPlots,'value',strcmpi(widgetSettings.primaryAxis_nextPlot,'add'),'callback',@this.checkHoldPlotsCallback);
@@ -1888,13 +1881,20 @@ classdef PAStatTool < handle
             %             jFrame = jFig.getRootPane.getParent();
             
             warning off MATLAB:HandleGraphics:ObsoletedProperty:JavaFrame
-            jFrame = get(this.analysisFigureH,'JavaFrame');
-            jFigPanel = get(jFrame,'FigurePanelContainer');
+            jAnalysisFrame = get(this.analysisFigureH,'JavaFrame');
+            jAnalysisFigPanel = get(jAnalysisFrame,'FigurePanelContainer');
 %             this.jhandles.table_centroidProfiles=jFigPanel.getComponent(0).getComponent(0).getComponent(0).getComponent(0).getComponent(0);
             
-            this.jhandles.table_centroidProfiles = jFigPanel.getComponent(0).getComponent(4).getComponent(0).getComponent(0).getComponent(0);
+            this.jhandles.table_centroidProfiles = jAnalysisFigPanel.getComponent(0).getComponent(4).getComponent(0).getComponent(0).getComponent(0);
             %             j.getUIClassID=='TableUI';
         
+            %countComponents(jFigPanel.getComponent(0))
+            %getName(this.jhandles.table_centroidProfiles)) -->
+            %table_centroidProfiles
+            
+            jStatToolFrame = get(this.figureH,'JavaFrame');
+            jStatToolFigPanel = get(jStatToolFrame,'FigurePanelContainer');            
+            
             % allocate line handle names here for organizational consistency
             this.handles.line_allScatterPlot = [];
             this.handles.line_coiInScatterPlot = [];
@@ -2168,15 +2168,13 @@ classdef PAStatTool < handle
             set(this.handles.edit_cullToValue,'enable',enableState);            
             this.refreshPlot();
         end
-        
-        
-
+       
         % ======================================================================
         %> @brief Push button callback for displaying the next centroid.
         %> @param this Instance of PAStatTool
         %> @param Variable number of arguments required by MATLAB gui callbacks
         % ======================================================================
-        function showNextCentroidCallback(this,varargin)
+        function showNextCentroidCallback(this, varargin)
             holdOn = get(this.handles.check_holdPlots,'value');
             this.showNextCentroid(holdOn);
         end
