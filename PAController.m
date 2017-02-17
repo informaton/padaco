@@ -24,6 +24,9 @@ classdef PAController < handle
         %> updateSecondaryFeaturesDisplayCallback
         accelTypeShown;
         
+        %> @brief Folder where exported files are saved to .
+        exportPathname;
+        
         %> String identifying Padaco's current view mode.  Values include
         %> - @c timeseries
         %> - @c results
@@ -106,6 +109,7 @@ classdef PAController < handle
             obj.SETTINGS = PASettings(rootPathname,parameters_filename);
             obj.screenshotPathname = obj.SETTINGS.CONTROLLER.screenshotPathname;
             obj.resultsPathname = obj.SETTINGS.CONTROLLER.resultsPathname;
+            obj.exportPathname = obj.SETTINGS.CONTROLLER.exportPathname;
             
             obj.iconFilename = fullfile(rootPathname,'resources','icons','logo','icon_64.png');
             obj.setVersionNum();
@@ -461,7 +465,7 @@ classdef PAController < handle
                 '\n\nSoftware license: To be decided',...
                 '\nCopyright Hyatt Moore IV (2014-2016)\n'
                 ],obj.getVersionNum());
-            h=msgbox(msg,'About');
+            h=pa_msgbox(msg,'About',obj.iconFilename);
             
             mbox_h=findobj(h,'tag','MessageBox');
             ok_h = findobj(h,'tag','OKButton');
@@ -1442,13 +1446,14 @@ classdef PAController < handle
         function menu_file_export_dataObj_callback(obj,hObject,~)
             dataObj = obj.accelObj;
             varName = 'dataObject';
+            makeModal = true;
             try
-                assignin('base',varName,dataObj);
-                uiwait(msgbox(sprintf('Data object was assigned to workspace variable %s',varName)));
+                assignin('base',varName,dataObj);                
+                pa_msgbox(sprintf('Data object was assigned to workspace variable %s',varName),obj.iconFilename,makeModal);
                 
             catch me
                 showME(me);
-                uiwait(msgbox('An error occurred while trying to export data object to a workspace variable.  See console for details.'));
+                pa_msgbox('An error occurred while trying to export data object to a workspace variable.  See console for details.',obj.iconFilename,makeModal);
             end
         end
         
@@ -1464,13 +1469,40 @@ classdef PAController < handle
         function menu_file_export_centroidObj_callback(obj,hObject,~)
             centroidObj = obj.StatTool.getCentroidObj();
             varName = 'centroidObj';
+            makeModal = true;
             try
                 assignin('base',varName,centroidObj);
-                uiwait(msgbox(sprintf('Centroid object was assigned to workspace variable %s',varName)));
+                pa_msgbox(sprintf('Centroid object was assigned to workspace variable %s',varName),this.iconFilename,makeModal);
                 
             catch me
                 showME(me);
-                uiwait(msgbox('An error occurred while trying to export the centroid object to a workspace variable.  See console for details.'));
+                msgbox('An error occurred while trying to export the centroid object to a workspace variable.  See console for details.',this.iconFilename,makeModal);
+            end
+        end
+        
+        % Helper functions for setting the export paths to be used when
+        % saving data about centroids and covariates to disk.
+        function didUpdate = updateExportPath(this)
+            displayMessage = 'Select a directory to place the exported files.';
+            initPath = this.getExportPath();
+            tmpOutputDirectory = uigetfulldir(initPath,displayMessage);
+            if(isempty(tmpOutputDirectory))
+                didUpdate = false;
+            else
+                didUpdate = this.setExportPath(tmpOutputDirectory);
+            end
+        end
+        
+        function exportPath = getExportPath(this)
+            exportPath = this.exportPathname;
+        end
+        function didSet = setExportPath(this, newPath)
+            try
+                this.exportPathname = newPath;
+                didSet = true;
+            catch me
+                showME(me);
+                didSet = false;
             end
         end
         
@@ -1483,10 +1515,16 @@ classdef PAController < handle
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
         function menu_file_export_centroids_to_disk_callback(obj,hObject,~)
+            didSave = false;
             centroidObj = obj.StatTool.getCentroidObj();
             if(isempty(centroidObj) || ~isa(centroidObj,'PACentroid'))
-                msg = 'No centroid object exists.  Nothing to save.'; 
-            else
+                msg = 'No centroid object exists.  Nothing to save.';
+                msgbox(msg,'Warning',obj.iconFilename);
+                
+           % If this is not true, then we can just leave this
+           % function since the user would have cancelled.
+                
+            elseif(obj.updateExportPath())                   
                 try
                     [covHeader, covDataStr] = centroidObj.exportCovariates();
                     [shapesHeaderStr, shapesStr] = centroidObj.exportCentroidShapes();
@@ -1494,12 +1532,13 @@ classdef PAController < handle
                     shapeTimesInCSV = cell2str(obj.StatTool.getStartTimesCell(),',');
                     
                     covHeader = [covHeader,shapeTimesInCSV];
-                    covFilename = fullfile(pwd,sprintf('cluster_frequency_%s.csv',timeStamp));
-                    shapesFilename = fullfile(pwd,sprintf('cluster_shapes_%s.csv',timeStamp));
-                    settingsFilename = fullfile(pwd,sprintf('padaco_config_%s.txt',timeStamp));
-                        
+                    exportPath = obj.getExportPath();
+                    covFilename = fullfile(exportPath,sprintf('cluster_frequency_%s.csv',timeStamp));
+                    shapesFilename = fullfile(exportPath,sprintf('cluster_shapes_%s.csv',timeStamp));
+                    settingsFilename = fullfile(exportPath,sprintf('padaco_config_%s.txt',timeStamp));
+                    
                     covFid = fopen(covFilename,'w');
-
+                    
                     if(covFid>1)
                         fprintf(covFid,'%s\n%s',covHeader,covDataStr);
                         msg = sprintf('Cluster frequency data saved to %s\n',covFilename);
@@ -1515,36 +1554,49 @@ classdef PAController < handle
                         fclose(shapesFid);
                     else
                         msg = sprintf('%sCluster shapes NOT saved.  Could not open file (%s) for writing!\n ',msg,shapesFilename);
-                    end 
+                    end
                     
                     settingsFid = fopen(settingsFilename,'w');
                     clusterSettings = obj.StatTool.getStateAtTimeOfLastClustering();
-
+                    
                     if(settingsFid>1)
                         PASettings.saveStruct(settingsFid,clusterSettings);
                         msg = sprintf('%sPadaco cluster settings saved to %s\n',msg,settingsFilename);
                         fclose(settingsFid);
+                        didSave = true;
                     else
                         msg = sprintf('%sPadaco cluster settings NOT saved.  Could not open file (%s) for writing!\n ',msg,settingsFilename);
-                    end 
+                    end
                     
-
                 catch me
                     msg = 'An error occurred while trying to save the data to disk.  A thousand apologies.  I''m very sorry.';
                     showME(me);
                 end
+                
+                % Give the option to look at the files in their saved folder.
+                if(didSave)
+                    dlgName = 'Export complete';
+                    closeStr = 'Close';
+                    showOutputFolderStr = 'Open output folder';
+                    options.Default = closeStr;
+                    options.Interpreter = 'none';
+                    buttonName = questdlg(msg,dlgName,closeStr,showOutputFolderStr,options);
+                    if(strcmpi(buttonName,showOutputFolderStr))
+                        openDirectory(obj.getExportPath())
+                    end                    
+                else
+                    makeModal = true;
+                    msgbox(msg,'Export',obj.iconFilename,makeModal);
+                end
             end
-            uiwait(msgbox(msg));            
         end
-        
-        
         
         function viewMode = getViewMode(obj)
             viewMode = obj.viewMode;
         end
         
-        function setViewModeCallback(this, hObject, eventData, viewMode)
-            this.setViewMode(viewMode);
+        function setViewModeCallback(obj, hObject, eventData, viewMode)
+            obj.setViewMode(viewMode);
         end
         
         % --------------------------------------------------------------------
@@ -1959,6 +2011,7 @@ classdef PAController < handle
             pStruct.screenshotPathname = obj.screenshotPathname;
             pStruct.viewMode = obj.viewMode;
             pStruct.resultsPathname = obj.resultsPathname;
+            pStruct.exportPathname = obj.getExportPath();
         end
         
         % ======================================================================
@@ -2922,10 +2975,12 @@ classdef PAController < handle
             
             mPath = fileparts(mfilename('fullpath'));
             pStruct.screenshotPathname = mPath;
+            pStruct.exportPathname = mPath;
             pStruct.viewMode = 'timeseries';
             pStruct.useSmoothing = true;
             batchSettings = PABatchTool.getDefaultParameters();
             pStruct.resultsPathname = batchSettings.outputDirectory;
+            
         end
     end
     
