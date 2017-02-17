@@ -62,3 +62,7 @@ src/rawcsv2rawbin
 padaco_config_10Feb2017.txt
 
 *.txt
+
+model/gee_model.m
+
+cache/results.tmp

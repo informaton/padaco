@@ -6,6 +6,5 @@ function mPathname = pathsetup()
         for s=1:numel(subPaths)
             addpath(fullfile(mPathname,subPaths{s}));
         end
-
     end
 end

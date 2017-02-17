@@ -245,10 +245,9 @@ classdef PACentroid < handle
         function [headerStr, membersStr] = exportCovariates(this)
             cs = this.getCovariateStruct();
             headerStr = [sprintf('# Centroid frequency for members listed in first column.  Centroid ID in the next header line refer to their popularity and correspond to the first column centroid ID listed in the companion text file.  The values in these columns represent the number of times the subject ID was a member of that cluster.\n'),'# memberID',sprintf(', Centroid %i',1:numel(cs.colnames))];
-            
             allData = [cs.memberIDs,cs.values];
-            membersStr = num2str(allData,'%i,');
-            membersStr(:,end)=[];            
+            strFmt = ['%i',repmat(', %i',1,size(allData,2)-1),'\n'];  % Make rows ('\n') of comma separated integers (', %i') 
+            membersStr = sprintf(strFmt,allData'); % Need to transpose here because arguments to sprintf are taken in column order, but I am output by row.
         end
         
         %> @brief Returns text describing the centroids in a comma separated

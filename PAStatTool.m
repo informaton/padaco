@@ -2431,7 +2431,7 @@ classdef PAStatTool < handle
                 
                 this.plotCentroids(pSettings); 
                 this.enableCentroidControls();
-                this.originalWidgetSettings = PAData.mergeStruct(this.originalWidgetSettings,plotSettings); % keep a record of our most recent settings.
+                this.originalWidgetSettings = PAData.mergeStruct(this.originalWidgetSettings,pSettings); % keep a record of our most recent settings.
                 dissolve(resultsTextH,2.5);
                 
             else

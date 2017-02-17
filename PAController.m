@@ -1472,11 +1472,10 @@ classdef PAController < handle
             makeModal = true;
             try
                 assignin('base',varName,centroidObj);
-                pa_msgbox(sprintf('Centroid object was assigned to workspace variable %s',varName),this.iconFilename,makeModal);
-                
+                pa_msgbox(sprintf('Centroid object was assigned to workspace variable %s',varName),obj.iconFilename,makeModal);                
             catch me
                 showME(me);
-                msgbox('An error occurred while trying to export the centroid object to a workspace variable.  See console for details.',this.iconFilename,makeModal);
+                pa_msgbox('An error occurred while trying to export the centroid object to a workspace variable.  See console for details.',obj.iconFilename,makeModal);
             end
         end
         
@@ -1519,7 +1518,7 @@ classdef PAController < handle
             centroidObj = obj.StatTool.getCentroidObj();
             if(isempty(centroidObj) || ~isa(centroidObj,'PACentroid'))
                 msg = 'No centroid object exists.  Nothing to save.';
-                msgbox(msg,'Warning',obj.iconFilename);
+                pa_msgbox(msg,'Warning',obj.iconFilename);
                 
            % If this is not true, then we can just leave this
            % function since the user would have cancelled.
@@ -1531,7 +1530,7 @@ classdef PAController < handle
                     timeStamp = datestr(now,'DDmmmYYYY');
                     shapeTimesInCSV = cell2str(obj.StatTool.getStartTimesCell(),',');
                     
-                    covHeader = [covHeader,shapeTimesInCSV];
+                    shapesHeaderStr = [shapesHeaderStr ',' shapeTimesInCSV];
                     exportPath = obj.getExportPath();
                     covFilename = fullfile(exportPath,sprintf('cluster_frequency_%s.csv',timeStamp));
                     shapesFilename = fullfile(exportPath,sprintf('cluster_shapes_%s.csv',timeStamp));
@@ -1540,8 +1539,9 @@ classdef PAController < handle
                     covFid = fopen(covFilename,'w');
                     
                     if(covFid>1)
-                        fprintf(covFid,'%s\n%s',covHeader,covDataStr);
-                        msg = sprintf('Cluster frequency data saved to %s\n',covFilename);
+                        fprintf(covFid,'%s\n',covHeader);
+                        fprintf(covFid,covDataStr);
+                        msg = sprintf('Cluster frequency data saved to:\n\t%s\n',covFilename);
                         fclose(covFid);
                     else
                         msg = sprintf('Cluster frequency data NOT saved.  Could not open file (%s) for writing!\n ',covFilename);
@@ -1550,7 +1550,7 @@ classdef PAController < handle
                     shapesFid = fopen(shapesFilename,'w');
                     if(shapesFid>1)
                         fprintf(shapesFid,'%s\n%s',shapesHeaderStr,shapesStr);
-                        msg = sprintf('%sCluster shapes saved to %s\n',msg,shapesFilename);
+                        msg = sprintf('%sCluster shapes saved to:\n\t%s\n',msg,shapesFilename);
                         fclose(shapesFid);
                     else
                         msg = sprintf('%sCluster shapes NOT saved.  Could not open file (%s) for writing!\n ',msg,shapesFilename);
@@ -1561,7 +1561,7 @@ classdef PAController < handle
                     
                     if(settingsFid>1)
                         PASettings.saveStruct(settingsFid,clusterSettings);
-                        msg = sprintf('%sPadaco cluster settings saved to %s\n',msg,settingsFilename);
+                        msg = sprintf('%sPadaco cluster settings saved to:\n\t%s\n',msg,settingsFilename);
                         fclose(settingsFid);
                         didSave = true;
                     else
@@ -1586,7 +1586,7 @@ classdef PAController < handle
                     end                    
                 else
                     makeModal = true;
-                    msgbox(msg,'Export',obj.iconFilename,makeModal);
+                    pa_msgbox(msg,'Export',obj.iconFilename,makeModal);
                 end
             end
         end
