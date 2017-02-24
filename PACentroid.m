@@ -676,6 +676,7 @@ classdef PACentroid < handle
                     set(this.statusTextHandle ,'string',{sprintf('Performing accelerated k-medians clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.clusterThreshold)});
                 end
                 [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression] = deal([],[],[],[]);
+                fprintf(1,'Empty results given.  Use ''kemedoids'' instead.\n');
             elseif(strcmpi(inputSettings.clusterMethod,'kmedoids'))
                 if(ishandle(this.statusTextHandle))
                     set(this.statusTextHandle ,'string',{sprintf('Performing adaptive k-medoids clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.clusterThreshold)});

@@ -1159,7 +1159,7 @@ classdef PAStatTool < handle
                         set(this.handles.check_segment,'min',0,'max',1,'value',widgetSettings.segmentSortValues);
                         set(this.handles.check_trim,'min',0,'max',1,'value',widgetSettings.trimResults);
                         set(this.handles.check_cull,'min',0,'max',1,'value',widgetSettings.cullResults);
-                        set(this.handles.check_showCentroidMembers,'min',0,'max',1,'value',widgetSettings.showCentroidMembers);
+                        set(this.handles.check_showCentroidMembers,'min',0,'max',1,'value',widgetSettings.showCentroidMembers);                                                
                         
                         set(this.handles.check_sortvalues,'min',0,'max',1,'value',widgetSettings.sortValues);                        
                         set(this.handles.check_normalizevalues,'min',0,'max',1,'value',widgetSettings.normalizeValues);
@@ -1401,8 +1401,9 @@ classdef PAStatTool < handle
                     % labels refresh otherwise.
                     this.drawCentroidXTicksAndLabels();
 
-                    this.plotCentroids();                     
                     this.enableCentroidControls();
+
+                    this.plotCentroids();                     
                 else
                     this.disableCentroidControls();
                     this.refreshCentroidsAndPlot();
@@ -1618,10 +1619,26 @@ classdef PAStatTool < handle
             if(~isempty(intersect(lower(gridState),{'on','off'})))
                 set(this.handles.axes_primary,'ygrid',gridState);
             end
+        end        
+        
+         
+         
+        function primaryAxesClusterSummaryContextmenuCallback(this,hObject,~)
+            wasChecked = strcmpi(get(hObject,'checked'),'on');
+            if(wasChecked)
+                set(hObject,'checked','off');
+                set(this.handles.text_resultsCentroid,'visible','off');
+            else
+                set(hObject,'checked','on');
+                set(this.handles.text_resultsCentroid,'visible','on');
+            end
         end
+        
 
         
 
+        
+        
         function primaryAxesScalingContextmenuCallback(this,hObject,~)
             set(get(hObject,'children'),'checked','off');            
             set(this.handles.contextmenu.axesYLimMode.(get(this.handles.axes_primary,'ylimmode')),'checked','on');
@@ -2497,11 +2514,26 @@ classdef PAStatTool < handle
             this.handles.contextmenu.axesYLimMode.auto = uimenu(axesScalingMenu,'Label','Auto','callback',{@this.primaryAxesScalingCallback,'auto'});
             this.handles.contextmenu.axesYLimMode.manual = uimenu(axesScalingMenu,'Label','Manual','callback',{@this.primaryAxesScalingCallback,'manual'});
             
+
             nextPlotmenu = uimenu(contextmenu_primaryAxes,'Label','Next plot','callback',@this.primaryAxesNextPlotContextmenuCallback);
             this.handles.contextmenu.nextPlot.add = uimenu(nextPlotmenu,'Label','Add','callback',{@this.primaryAxesNextPlotCallback,'add'});
             this.handles.contextmenu.nextPlot.replace = uimenu(nextPlotmenu,'Label','Replace','callback',{@this.primaryAxesNextPlotCallback,'replace'});
             this.handles.contextmenu.nextPlot.replacechildren = uimenu(nextPlotmenu,'Label','Replace children','callback',{@this.primaryAxesNextPlotCallback,'replacechildren'});
             set(this.handles.axes_primary,'uicontextmenu',contextmenu_primaryAxes);            
+            
+            this.handles.contextmenu.showMenu = uimenu(contextmenu_primaryAxes,'Label','Show'); %,'callback',@this.primaryAxesClusterSummaryContextmenuCallback);
+            
+            % Possibly use this.originalWidgetSettings.
+            if(this.originalWidgetSettings.showCentroidSummary)
+                checkedState = 'on';
+            else
+                checkedState = 'off';
+            end
+            
+            this.handles.contextmenu.show.clusterSummary = uimenu( this.handles.contextmenu.showMenu,...
+                'Label','Cluster summary','callback',@this.primaryAxesClusterSummaryContextmenuCallback,...
+                'checked',checkedState);
+            
         end
         
         %> @brief Does not alter panel_plotCentroid controls, which we want to
@@ -2607,12 +2639,16 @@ classdef PAStatTool < handle
                     %                 daysofweekStr = xtickLabels;
                     
                     legendStrings = cell(numCOIs,1);
+                    summaryStrings = cell(numCOIs,1);
                     centroidHandles = nan(numCOIs,1);
                     coiSortOrders = centroidHandles;
                     coiPctMemberships = coiSortOrders;
                     %                 coiIndices = centroidHandles;
                     totalMembers = 0;
                     coiMemberIDs = [];
+                    
+                    summaryTextH = this.handles.text_resultsCentroid;
+                    
                     for c=1:numCOIs
                         coi = cois{c};
                         if(centroidAndPlotSettings.showCentroidMembers)
@@ -2634,7 +2670,7 @@ classdef PAStatTool < handle
                         pctMembership =  coi.dayOfWeek.numMembers/numLoadShapes*100;
                         
                         legendStrings{c} = sprintf('Centroid #%u (%0.2f%%)',coi.sortOrder, pctMembership);
-                        
+                        summaryStrings{c} = sprintf('#%u (%0.2f%%) Sum=%0.2f\tMean=%0.2f',coi.sortOrder, pctMembership,sum(coi.shape),mean(coi.shape));
                         coiSortOrders(c) = coi.sortOrder;
                         coiPctMemberships(c) =  coi.dayOfWeek.numMembers/numLoadShapes*100;
                         %                     coiIndices(c) = coi.index;
@@ -2689,6 +2725,10 @@ classdef PAStatTool < handle
                             this.featureStruct.method, numCentroids-coi.sortOrder+1,numCentroids, coi.dayOfWeek.numMembers, numLoadShapes, pctMembership, numUniqueMemberIDs, totalMemberIDsCount, pctOfTotalMemberIDs);
                     end
                     title(centroidAxes,centroidTitle,'fontsize',14,'interpreter','none');
+
+                    set(summaryTextH,'string',summaryStrings);
+
+
                     
                     
                     %% Analysis figure and scatter plot
@@ -2840,7 +2880,7 @@ classdef PAStatTool < handle
             userSettings.discardNonWearFeatures = this.originalWidgetSettings.discardNonWearFeatures;
             
             userSettings.showCentroidMembers = get(this.handles.check_showCentroidMembers,'value');
-            
+            userSettings.showCentroidSummary = strcmpi(get(this.handles.contextmenu.show.clusterSummary,'checked'),'on');
             userSettings.processedTypeSelection = 1;  %defaults to count!
             
             userSettings.baseFeatureSelection = get(this.handles.menu_feature,'value');
@@ -3259,6 +3299,10 @@ classdef PAStatTool < handle
                     featureSet = median(featureSet,2);
                 case 'max'
                     featureSet = max(featureSet,[],2);
+                case 'above_100'
+                    featureSet = sum(featureSet>100,2);
+                case 'above_50'
+                    featureSet = sum(featureSet>50,2);                    
                 case 'none'
                 otherwise
             end
@@ -3331,6 +3375,7 @@ classdef PAStatTool < handle
             paramStruct.trimToPercent = 100;
             paramStruct.cullToValue = 0;
             paramStruct.showCentroidMembers = 0;
+            paramStruct.showCentroidSummary = 0;
             
             paramStruct.weekdaySelection = 1;
             paramStruct.startTimeSelection = 1;
@@ -3370,8 +3415,8 @@ classdef PAStatTool < handle
             baseSettings.signalTypes = {'x','y','z','vecMag'};
             baseSettings.signalDescriptions = {'X','Y','Z','Vector Magnitude'};
             
-            baseSettings.preclusterReductions = {'none','sort','sum','mean','median','max'};
-            baseSettings.preclusterReductionDescriptions = {'None','Sort (high->low)','Sum','Mean','Median','Maximum'};
+            baseSettings.preclusterReductions = {'none','sort','sum','mean','median','max','above_100','above_50'};
+            baseSettings.preclusterReductionDescriptions = {'None','Sort (high->low)','Sum','Mean','Median','Maximum','Occurrences > 100','Occurrences > 50'};
             baseSettings.numDataSegments = [2,3,4,6,8,12]';
             baseSettings.numDataSegmentsDescriptions = cellstr(num2str(baseSettings.numDataSegments(:)));
 
