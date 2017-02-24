@@ -3257,6 +3257,8 @@ classdef PAStatTool < handle
                     featureSet = sum(featureSet,2);
                 case 'median'
                     featureSet = median(featureSet,2);
+                case 'max'
+                    featureSet = max(featureSet,[],2);
                 case 'none'
                 otherwise
             end
@@ -3368,8 +3370,8 @@ classdef PAStatTool < handle
             baseSettings.signalTypes = {'x','y','z','vecMag'};
             baseSettings.signalDescriptions = {'X','Y','Z','Vector Magnitude'};
             
-            baseSettings.preclusterReductions = {'none','sort','sum','mean','median'};
-            baseSettings.preclusterReductionDescriptions = {'None','Sort (high->low)','Sum','Mean','Median'};
+            baseSettings.preclusterReductions = {'none','sort','sum','mean','median','max'};
+            baseSettings.preclusterReductionDescriptions = {'None','Sort (high->low)','Sum','Mean','Median','Maximum'};
             baseSettings.numDataSegments = [2,3,4,6,8,12]';
             baseSettings.numDataSegmentsDescriptions = cellstr(num2str(baseSettings.numDataSegments(:)));
 

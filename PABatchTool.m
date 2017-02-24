@@ -374,6 +374,8 @@ classdef PABatchTool < handle
             dateMap.Fri = 5;
             dateMap.Sat = 6;
             
+            maxNumDays = 7;
+            
             % initialize batch processing file management
             [countFilenames, countFullFilenames] = getFilenamesi(this.getSourcePath(),'.csv');
             
@@ -445,7 +447,7 @@ classdef PABatchTool < handle
             % setup developer friendly variable names
             elapsedStartHour  = this.settings.alignment.elapsedStartHours;
             intervalDurationHours = this.settings.alignment.intervalLengthHours;
-            maxNumIntervals = 24/intervalDurationHours*7;  %set maximum to a week
+            maxNumIntervals = 24/intervalDurationHours*maxNumDays;  %set maximum to a week
             %this.settings.alignment.singalName = 'X';
             
             signalNames = strcat('accel.',accelType,'.',{'x','y','z','vecMag'})';
@@ -633,7 +635,7 @@ classdef PABatchTool < handle
             end
             elapsedTimeStr = datestr(now-startTime,'HH:MM:SS');
             
-            % Let the user have a glimplse of the most recent update -
+            % Let the user have a glimpse of the most recent update -
             % otherwise they have been waiting for this point long enough
             % already because they pressed the 'cancel' button 
             if(this.isRunning)
