@@ -6,6 +6,43 @@
 % ======================================================================
 classdef PABatchTool < handle
    
+    properties(Constant)
+        % In minutes
+        featureDurationStr = {
+            %'1 second'
+            '15 seconds'
+            '30 seconds'
+            '1 minute'
+            '5 minutes'
+            '10 minutes'
+            '15 minutes'
+            '20 minutes'
+            '30 minutes'
+            '1 hour'};
+        featureDurationVal = {
+            % 0  % 0 is used to represent 1 sample frames.
+            0.25
+            0.5
+            1
+            5
+            10
+            15
+            20
+            30
+            60};
+        
+        maxDaysAllowedStr = {
+            '1 day'
+            '7 days'
+            'No Limit'
+            };
+        maxDaysVal = {
+            1
+            7
+            Inf
+            };
+    end
+    
     events
         BatchToolStarting;
         BatchToolRunning;
@@ -93,29 +130,12 @@ classdef PABatchTool < handle
             this.toggleOutputToInputPathLinkageCallbackFcn(this.handles.check_linkInOutPaths,[]);            
             %             set(this.handles.check_usageState,'value',this.settings.classifyUsageState);
 
-            durationStr = {
-                %'1 second'
-                '15 seconds'
-                '30 seconds'
-                '1 minute'
-                '5 minutes'
-                '10 minutes'
-                '15 minutes'
-                '20 minutes'
-                '30 minutes'
-                '1 hour'};
-            durationVal = {
-                % 0  % 0 is used to represent 1 sample frames.
-                0.25
-                0.5
-                1
-                5
-                10
-                15
-                20
-                30};
             
-            set(this.handles.menu_frameDurationMinutes,'string',durationStr,'userdata',durationVal,'value',find(cellfun(@(x)(x==15),durationVal)));
+            
+            set(this.handles.menu_frameDurationMinutes,'string',this.featureDurationStr,'userdata',this.featureDurationVal,'value',find(cellfun(@(x)(x==15),this.featureDurationVal)));
+            set(this.handles.menu_maxDaysAllowed,'string',this.maxDaysAllowedStr,'userdata',this.maxDaysVal,'value',find(cellfun(@(x)(x==7),this.maxDaysVal)));
+            
+            
             set(this.handles.button_go,'callback',@this.startBatchProcessCallback);
 
             % try and set the source and output paths.  In the event that
@@ -374,7 +394,6 @@ classdef PABatchTool < handle
             dateMap.Fri = 5;
             dateMap.Sat = 6;
             
-            maxNumDays = 7;
             
             % initialize batch processing file management
             [countFilenames, countFullFilenames] = getFilenamesi(this.getSourcePath(),'.csv');
@@ -411,17 +430,33 @@ classdef PABatchTool < handle
             %             waitH = waitbar(pctDone,filenames{1},'name','Batch processing','visible','on','CreateCancelBtn',{@(hObject,eventData) feval(get(get(hObject,'parent'),'closerequestfcn'),get(hObject,'parent'),[])},'closerequestfcn',{@(varargin) delete(varargin{1})});
            
             % Program security:
-            waitH = waitbar(0,'Configuring rules and output file headers','name','Batch processing','visible','on','CreateCancelBtn',@this.waitbarCancelCallback,'closerequestfcn',@this.waitbarCloseRequestCallback);
-           
+            waitH = waitbar(0,{'','','Configuring rules and output file headers',''},'name','Batch processing','visible','off',...
+                'CreateCancelBtn',@this.waitbarCancelCallback,'closerequestfcn',@this.waitbarCloseRequestCallback,...
+                'resize','off','windowstyle','modal','color',[0.9 0.9 0.9]);         
             
             % We have a cancel button and an axes handle on our waitbar
             % window; so look for the one that has the title on it. 
             titleH = get(findobj(get(waitH,'children'),'flat','-property','title'),'title');
-            set(titleH,'interpreter','none','fontsize',12);  % avoid '_' being interpreted as subscript instruction
+            buttonH = findobj(get(waitH,'children'),'flat','style','pushbutton');
+            
+            newFontSize = 12;
+            oldFontSize = get(buttonH,'fontsize');
+            changeRatio = newFontSize/oldFontSize;
+            oldButtonPos = get(buttonH,'position');
+            newW = oldButtonPos(3)*changeRatio;
+            newH = oldButtonPos(4)*changeRatio;
+            dW = newW-oldButtonPos(3);
+            dH = newH-oldButtonPos(4);
+            newButtonPos = [oldButtonPos(1)-dW/2, oldButtonPos(2)+dH/2, newW, newH];
+
+            set(titleH,'interpreter','none','fontsize',newFontSize);  % avoid '_' being interpreted as subscript instruction       
+            set(buttonH,'fontsize',newFontSize,'position',newButtonPos);
             set(waitH,'visible','on');  %now show the results
             drawnow;
             
             
+            % Get maximum days allowed for any one subject
+            maximumDaysAllowed = getMenuUserData(this.handles.menu_maxDaysAllowed);
             
             % get feature settings
             % determine which feature to process
@@ -447,7 +482,7 @@ classdef PABatchTool < handle
             % setup developer friendly variable names
             elapsedStartHour  = this.settings.alignment.elapsedStartHours;
             intervalDurationHours = this.settings.alignment.intervalLengthHours;
-            maxNumIntervals = 24/intervalDurationHours*maxNumDays;  %set maximum to a week
+            maxNumIntervals = 24/intervalDurationHours*maximumDaysAllowed;  %set maximum to a week
             %this.settings.alignment.singalName = 'X';
             
             signalNames = strcat('accel.',accelType,'.',{'x','y','z','vecMag'})';
@@ -535,8 +570,7 @@ classdef PABatchTool < handle
                     setFrameDurMin = curData.setFrameDurationMinutes(frameDurationMinutes);
                     if(frameDurationMinutes~=setFrameDurMin)
                         fprintf('There was an error in setting the frame duration.\n');
-                    else
-                        
+                    else                        
                         % [~,filename,~] = fileparts(curData.getFilename());
                         
                         for s=1:numel(signalNames)

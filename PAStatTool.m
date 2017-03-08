@@ -2880,7 +2880,14 @@ classdef PAStatTool < handle
             userSettings.discardNonWearFeatures = this.originalWidgetSettings.discardNonWearFeatures;
             
             userSettings.showCentroidMembers = get(this.handles.check_showCentroidMembers,'value');
-            userSettings.showCentroidSummary = strcmpi(get(this.handles.contextmenu.show.clusterSummary,'checked'),'on');
+            
+            if(isfield(this.handles.contextmenu,'show'))
+                userSettings.showCentroidSummary = strcmpi(get(this.handles.contextmenu.show.clusterSummary,'checked'),'on');
+            else
+                userSettings.showCentroidSummary = false;
+            end
+            
+            
             userSettings.processedTypeSelection = 1;  %defaults to count!
             
             userSettings.baseFeatureSelection = get(this.handles.menu_feature,'value');
@@ -3417,7 +3424,7 @@ classdef PAStatTool < handle
             
             baseSettings.preclusterReductions = {'none','sort','sum','mean','median','max','above_100','above_50'};
             baseSettings.preclusterReductionDescriptions = {'None','Sort (high->low)','Sum','Mean','Median','Maximum','Occurrences > 100','Occurrences > 50'};
-            baseSettings.numDataSegments = [2,3,4,6,8,12]';
+            baseSettings.numDataSegments = [2,3,4,6,8,12,24]';
             baseSettings.numDataSegmentsDescriptions = cellstr(num2str(baseSettings.numDataSegments(:)));
 
             
