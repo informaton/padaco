@@ -437,8 +437,8 @@ classdef PACentroid < handle
         function didChange = setCOISortOrder(this, sortOrder)
             sortOrder = round(sortOrder);
             if(sortOrder<=this.numCentroids() && sortOrder>0)
-                this.coiSortOrder = sortOrder;
-                this.coiToggleOrder(:) = false;
+                this.coiSortOrder = sortOrder;                
+                this.coiToggleOrder = false(size(sortOrder));
                 this.coiToggleOrder(sortOrder) = true;
                 didChange = true;
                 
@@ -532,6 +532,12 @@ classdef PACentroid < handle
             else
                 sortOrder = this.coiIndex2SortOrder(coiIndex);
             end
+        end
+        
+        % Returns an array of sort order values, one per centroids of
+        % interest.  (or just a single value when only one COI exists).
+        function sortOrders = getAllCOISortOrders(this)
+            sortOrders = find(this.coiToggleOrder);            
         end
         
         function toggleOrder = getCOIToggleOrder(this)
@@ -905,7 +911,7 @@ classdef PACentroid < handle
                 while(numNotCloseEnough>0 && K<=settings.maxClusters && ~this.getUserCancelled())
                     if(~firstLoop)
                         if(numNotCloseEnough==1)
-                            statusStr = sprintf('1 cluster was not close enough.  Setting desired number of clusters to %u.',numNotCloseEnough,K);
+                            statusStr = sprintf('1 cluster was not close enough.  Setting desired number of clusters to %u.',K);
                         else
                             statusStr = sprintf('%u clusters were not close enough.  Setting desired number of clusters to %u.',numNotCloseEnough,K);
                         end
@@ -1189,7 +1195,7 @@ classdef PACentroid < handle
                 while(numNotCloseEnough>0 && K<=settings.maxClusters && ~this.getUserCancelled())
                     if(~firstLoop)
                         if(numNotCloseEnough==1)
-                            statusStr = sprintf('1 cluster was not close enough.  Setting desired number of clusters to %u.',numNotCloseEnough,K);
+                            statusStr = sprintf('1 cluster was not close enough.  Setting desired number of clusters to %u.',K);
                         else
                             statusStr = sprintf('%u clusters were not close enough.  Setting desired number of clusters to %u.',numNotCloseEnough,K);
                         end
