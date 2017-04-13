@@ -1,1 +1,3 @@
-/Users/unknown/git/matlab/widgets/viewTextFileCallback.m
+function viewTextFileCallback(hObject, eventData, textFullFilename)
+    textFileViewer(textFullFilename);
+end

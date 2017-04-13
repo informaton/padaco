@@ -6,6 +6,43 @@
 % ======================================================================
 classdef PABatchTool < handle
    
+    properties(Constant)
+        % In minutes
+        featureDurationStr = {
+            %'1 second'
+            '15 seconds'
+            '30 seconds'
+            '1 minute'
+            '5 minutes'
+            '10 minutes'
+            '15 minutes'
+            '20 minutes'
+            '30 minutes'
+            '1 hour'};
+        featureDurationVal = {
+            % 0  % 0 is used to represent 1 sample frames.
+            0.25
+            0.5
+            1
+            5
+            10
+            15
+            20
+            30
+            60};
+        
+        maxDaysAllowedStr = {
+            '1 day'
+            '7 days'
+            'No Limit'
+            };
+        maxDaysVal = {
+            1
+            7
+            Inf
+            };
+    end
+    
     events
         BatchToolStarting;
         BatchToolRunning;
@@ -34,10 +71,10 @@ classdef PABatchTool < handle
     
     methods(Access=private)
         function disable(this)
-            disablehandles(this.figureH);
+            disableHandles(this.figureH);
         end
         function enable(this)
-            enablehandles(this.figureH);
+            enableHandles(this.figureH);
         end
         
         function hide(this)
@@ -93,29 +130,12 @@ classdef PABatchTool < handle
             this.toggleOutputToInputPathLinkageCallbackFcn(this.handles.check_linkInOutPaths,[]);            
             %             set(this.handles.check_usageState,'value',this.settings.classifyUsageState);
 
-            durationStr = {
-                %'1 second'
-                '15 seconds'
-                '30 seconds'
-                '1 minute'
-                '5 minutes'
-                '10 minutes'
-                '15 minutes'
-                '20 minutes'
-                '30 minutes'
-                '1 hour'};
-            durationVal = {
-                % 0  % 0 is used to represent 1 sample frames.
-                0.25
-                0.5
-                1
-                5
-                10
-                15
-                20
-                30};
             
-            set(this.handles.menu_frameDurationMinutes,'string',durationStr,'userdata',durationVal,'value',find(cellfun(@(x)(x==15),durationVal)));
+            
+            set(this.handles.menu_frameDurationMinutes,'string',this.featureDurationStr,'userdata',this.featureDurationVal,'value',find(cellfun(@(x)(x==15),this.featureDurationVal)));
+            set(this.handles.menu_maxDaysAllowed,'string',this.maxDaysAllowedStr,'userdata',this.maxDaysVal,'value',find(cellfun(@(x)(x==7),this.maxDaysVal)));
+            
+            
             set(this.handles.button_go,'callback',@this.startBatchProcessCallback);
 
             % try and set the source and output paths.  In the event that
@@ -138,8 +158,9 @@ classdef PABatchTool < handle
             featureFcns = fieldnames(PAData.getFeatureDescriptionStruct()); %spits field-value pairs of feature names and feature description strings
             featureDesc = PAData.getExtractorDescriptions();  %spits out the string values      
 
-            featureFcns = [featureFcns; 'all']; 
-            featureLabels = [featureDesc; 'All'];
+            featureFcns = [featureFcns; 'all_sans_psd'; 'all']; 
+            featureLabels = [featureDesc;'All (sans PSD)'; 'All'];
+            
 
             featureLabel = this.settings.featureLabel;
             featureSelection = find(strcmpi(featureLabels,featureLabel));
@@ -269,25 +290,31 @@ classdef PABatchTool < handle
           
            %get the file count and update the file count text field. 
            rawFileCount = numel(getFilenamesi(sourcePathname,'.raw'));
+           binFileCount = numel(getFilenamesi(sourcePathname,'.bin'));           
            csvFileCount = numel(getFilenamesi(sourcePathname,'.csv'));
            msg = '';
-           if(rawFileCount==0 && csvFileCount==0)
+           if(rawFileCount==0 && csvFileCount==0 && binFileCount==0)
                msg = '0 files found.';
-               set(this.handles.button_go,'enable','off');
+               set(this.handles.button_go,'enable','off','tooltipstring','No files found!');
            else
               if(rawFileCount>0)
-                  msg = sprintf('%u .raw file(s) found.\n',rawFileCount);
+                  msg = sprintf('%s%u .raw file(s) found.\n',msg,rawFileCount);
               end
               if(csvFileCount>0)
                   msg = sprintf('%s%u .csv file(s) found.',msg,csvFileCount);
               end
-              set(this.handles.button_go,'enable','on');
+              if(binFileCount>0)
+                  msg = sprintf('%s%u .bin file(s) found.',msg,binFileCount);
+              end
+              
+              if(binFileCount+rawFileCount>0 && csvFileCount>0)
+                 msg = sprintf('%s Only .csv file(s) will be processed; place .raw/.bin files in a separate directory for processing.',msg);
+              end
+              
+              set(this.handles.button_go,'enable','on','tooltipstring','');
            end
            set(text_filesFound_h,'string',msg);
         end
-        
-                
-
                
         % --------------------------------------------------------------------
         %> @brief Determines the number of actigraph files located in the
@@ -364,17 +391,30 @@ classdef PABatchTool < handle
             dateMap.Fri = 5;
             dateMap.Sat = 6;
             
+            
             % initialize batch processing file management
-            [filenames, fullFilenames] = getFilenamesi(this.getSourcePath(),'.csv');
+            [countFilenames, countFullFilenames] = getFilenamesi(this.getSourcePath(),'.csv');
+            
+            if(numel(countFilenames)>0)
+                accelType = 'count';
+                filenames = countFilenames;
+                fullFilenames = countFullFilenames;
+            else
+                accelType = 'raw';
+                [rawFilenames, rawFullFilenames] = getFilenamesi(this.getSourcePath(),{'.bin','.raw'});
+                filenames = rawFilenames;
+                fullFilenames = rawFullFilenames;
+            end
+            
             failedFiles = {};
             fileCount = numel(fullFilenames);
             fileCountStr = num2str(fileCount);
-            
+
             % Get batch processing settings from the GUI     
             
-            
             this.notify('BatchToolStarting',EventData_BatchTool(this.settings));
-            accelType = 'count';
+
+
             
             this.isRunning = true;
             
@@ -387,17 +427,33 @@ classdef PABatchTool < handle
             %             waitH = waitbar(pctDone,filenames{1},'name','Batch processing','visible','on','CreateCancelBtn',{@(hObject,eventData) feval(get(get(hObject,'parent'),'closerequestfcn'),get(hObject,'parent'),[])},'closerequestfcn',{@(varargin) delete(varargin{1})});
            
             % Program security:
-            waitH = waitbar(0,'Configuring rules and output file headers','name','Batch processing','visible','on','CreateCancelBtn',@this.waitbarCancelCallback,'closerequestfcn',@this.waitbarCloseRequestCallback);
-           
+            waitH = waitbar(0,{'','','Configuring rules and output file headers',''},'name','Batch processing','visible','off',...
+                'CreateCancelBtn',@this.waitbarCancelCallback,'closerequestfcn',@this.waitbarCloseRequestCallback,...
+                'resize','off','windowstyle','modal','color',[0.9 0.9 0.9]);         
             
             % We have a cancel button and an axes handle on our waitbar
             % window; so look for the one that has the title on it. 
             titleH = get(findobj(get(waitH,'children'),'flat','-property','title'),'title');
-            set(titleH,'interpreter','none');  % avoid '_' being interpreted as subscript instruction
+            buttonH = findobj(get(waitH,'children'),'flat','style','pushbutton');
+            
+            newFontSize = 12;
+            oldFontSize = get(buttonH,'fontsize');
+            changeRatio = newFontSize/oldFontSize;
+            oldButtonPos = get(buttonH,'position');
+            newW = oldButtonPos(3)*changeRatio;
+            newH = oldButtonPos(4)*changeRatio;
+            dW = newW-oldButtonPos(3);
+            dH = newH-oldButtonPos(4);
+            newButtonPos = [oldButtonPos(1)-dW/2, oldButtonPos(2)+dH/2, newW, newH];
+
+            set(titleH,'interpreter','none','fontsize',newFontSize);  % avoid '_' being interpreted as subscript instruction       
+            set(buttonH,'fontsize',newFontSize,'position',newButtonPos);
             set(waitH,'visible','on');  %now show the results
             drawnow;
             
             
+            % Get maximum days allowed for any one subject
+            maximumDaysAllowed = getMenuUserData(this.handles.menu_maxDaysAllowed);
             
             % get feature settings
             % determine which feature to process
@@ -423,7 +479,7 @@ classdef PABatchTool < handle
             % setup developer friendly variable names
             elapsedStartHour  = this.settings.alignment.elapsedStartHours;
             intervalDurationHours = this.settings.alignment.intervalLengthHours;
-            maxNumIntervals = 24/intervalDurationHours*7;  %set maximum to a week
+            maxNumIntervals = 24/intervalDurationHours*maximumDaysAllowed;  %set maximum to a week
             %this.settings.alignment.singalName = 'X';
             
             signalNames = strcat('accel.',accelType,'.',{'x','y','z','vecMag'})';
@@ -448,6 +504,10 @@ classdef PABatchTool < handle
                 featureStructWithPSDBands= PAData.getFeatureDescriptionStructWithPSDBands();
                 outputFeatureFcns = fieldnames(featureStructWithPSDBands);
                 outputFeatureLabels = struct2cell(featureStructWithPSDBands);  % leave it here for the sake of other coders; yes, you can assign this using a second output argument from getFeatureDescriptionWithPSDBands                
+            elseif(strcmpi(featureFcn,'all_sans_psd')) % and sans usage state
+                outputFeatureStruct = rmfield(PAData.getFeatureDescriptionStruct(),{'psd','usagestate'});
+                outputFeatureFcns = fieldnames(outputFeatureStruct);
+                outputFeatureLabels = struct2cell(outputFeatureStruct);
             else
                 outputFeatureFcns = {featureFcn};
                 outputFeatureLabels = {this.settings.featureLabel};
@@ -507,8 +567,7 @@ classdef PABatchTool < handle
                     setFrameDurMin = curData.setFrameDurationMinutes(frameDurationMinutes);
                     if(frameDurationMinutes~=setFrameDurMin)
                         fprintf('There was an error in setting the frame duration.\n');
-                    else
-                        
+                    else                        
                         % [~,filename,~] = fileparts(curData.getFilename());
                         
                         for s=1:numel(signalNames)
@@ -556,6 +615,12 @@ classdef PABatchTool < handle
                                     % days at N time intervals.
                                     result =[result(:,1:3), alignedVec];
                                 end
+                                % Added this because of issues with raw
+                                % data loaded as a single.
+                                if(~isa(result,'double'))
+                                    result = double(result);
+                                end
+
                                 save(featureFilename,'result','-ascii','-tabs','-append');
                             end
                             
@@ -601,7 +666,7 @@ classdef PABatchTool < handle
             end
             elapsedTimeStr = datestr(now-startTime,'HH:MM:SS');
             
-            % Let the user have a glimplse of the most recent update -
+            % Let the user have a glimpse of the most recent update -
             % otherwise they have been waiting for this point long enough
             % already because they pressed the 'cancel' button 
             if(this.isRunning)
@@ -626,9 +691,9 @@ classdef PABatchTool < handle
             end
             
             batchResultStr = sprintf(['%sProcessed %u files in (hh:mm:ss)\t %s.\n',...
-                '\tSucceeded:\t%u\n',...
-                '\tSkipped:\t%u\n',...
-                '\tFailed:\t%u\n\n'],userCanceledMsg,fileCount,elapsedTimeStr,successCount,skipCount,failCount);
+                '\tSucceeded:\t%5u\n',...
+                '\tSkipped:\t%5u\n',...
+                '\tFailed:\t%5u\n\n'],userCanceledMsg,fileCount,elapsedTimeStr,successCount,skipCount,failCount);
             
             fprintf(logFid,'\n====================SUMMARY===============\n');
             fprintf(logFid,batchResultStr);

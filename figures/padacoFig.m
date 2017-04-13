@@ -26,7 +26,7 @@ function varargout = padacoFig(varargin)
 
 % Edit the above text to modify the response to help padacoFig
 
-% Last Modified by GUIDE v2.5 09-Mar-2016 11:14:03
+% Last Modified by GUIDE v2.5 07-Feb-2017 12:04:11
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -115,8 +115,6 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-
-
 function menu_weekdays_CreateFcn(hObject, eventdata, handles)
 
 % Hint: popupmenu controls usually have a white background on Windows.
@@ -124,7 +122,6 @@ function menu_weekdays_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
-
 
 function menu_duration_CreateFcn(hObject, eventdata, handles)
 
@@ -156,6 +153,42 @@ end
 
 
 function menu_centroidStopTime_CreateFcn(hObject, eventdata, handles)
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes during object creation, after setting all properties.
+function menu_number_of_data_segments_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to menu_number_of_data_segments (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on selection change in menu_precluster_reduction.
+function menu_precluster_reduction_Callback(hObject, eventdata, handles)
+% hObject    handle to menu_precluster_reduction (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns menu_precluster_reduction contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from menu_precluster_reduction
+
+
+% --- Executes during object creation, after setting all properties.
+function menu_precluster_reduction_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to menu_precluster_reduction (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
 
 % Hint: popupmenu controls usually have a white background on Windows.
 %       See ISPC and COMPUTER.

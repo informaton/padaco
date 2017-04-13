@@ -186,10 +186,14 @@ classdef PAView < handle
             handles = guidata(obj.getFigHandle());
             
             % get our panles looking nice and pretty.
-            set([
-                    handles.panel_timeseries;
-                    handles.panel_results
-                ],'backgroundcolor',[0.75,0.75,0.75]);
+            % This is taken care of in the initializeGUI call found in
+            % padaco.m now
+            %             set([
+            %                     handles.panel_timeseries;
+            %                     handles.panel_results
+            %                 ],'backgroundcolor',[0.75,0.75,0.75]);
+            
+            
             
             % Line our panels up to same top left position - do this here
             % so I can edit them easy in GUIDE and avoid to continually
@@ -201,6 +205,11 @@ classdef PAView < handle
             resultsPanelPos = get(handles.panel_results,'position');
             newResultsPanelY = sum(timeSeriesPanelPos([2,4]))-resultsPanelPos(4);
             set(handles.panel_results,'position',[timeSeriesPanelPos(1),newResultsPanelY,resultsPanelPos(3:4)]);
+            
+            
+            set(handles.panel_resultsContainer,'backgroundcolor',[0.9 0.9 0.9]);
+            set(handles.panel_resultsContainer,'backgroundcolor',[0.94 0.94 0.94]);
+            set(handles.panel_resultsContainer,'backgroundcolor',[1 1 1]);
 
 
             % Line up panel_controlCentroid with panel_epochControls
@@ -208,20 +217,30 @@ classdef PAView < handle
             coiControlsPos = get(handles.panel_controlCentroid,'position');
             coiControlsPos(2) = sum(epochControlsPos([2,4]))-coiControlsPos(4);  % This is y_ = y^ + h^ - h_
             set(handles.panel_controlCentroid,'position',coiControlsPos);
-            drawnow();
+            drawnow();            
             
+
             
             metaDataHandles = [handles.panel_study;get(handles.panel_study,'children')];
             set(metaDataHandles,'backgroundcolor',[0.94,0.94,0.94],'visible','off');
             
-            whiteHandles = [handles.text_aggregate
-                handles.text_frameSizeMinutes
-                handles.text_frameSizeHours
-                handles.text_trimPct
-                handles.text_cullSuffix            
-                handles.edit_trimToPercent
-                handles.edit_cullToValue
-                handles.panel_features_prefilter
+            %             whiteHandles = [handles.text_aggregate
+            %                 handles.text_frameSizeMinutes
+            %                 handles.text_frameSizeHours
+            %                 handles.text_trimPct
+            %                 handles.text_cullSuffix
+            %                 handles.edit_trimToPercent
+            %                 handles.edit_cullToValue
+            %                 handles.panel_features_prefilter
+            %                 handles.panel_features_aggregate
+            %                 handles.panel_features_frame
+            %                 handles.panel_features_signal
+            %                 handles.panel_plotType
+            %                 handles.panel_plotSignal
+            %                 handles.panel_plotData
+            %                 handles.panel_controlCentroid
+            %                 handles.panel_plotCentroid];
+            whiteHandles = [handles.panel_features_prefilter
                 handles.panel_features_aggregate
                 handles.panel_features_frame
                 handles.panel_features_signal                
@@ -230,14 +249,21 @@ classdef PAView < handle
                 handles.panel_plotData
                 handles.panel_controlCentroid
                 handles.panel_plotCentroid];
-            set(whiteHandles,'backgroundcolor',[0.94,0.94,0.94]);
-%             set(findobj(whiteHandles,'-property','shadowcolor'),'shadowcolor',[0 0 0],'highlightcolor',[0 0 0]);
+            sethandles(whiteHandles,'backgroundcolor',[1 1 1]);
+            %set(whiteHandles,'backgroundcolor',[0.94,0.94,0.94]);
+            %            set(findobj(whiteHandles,'-property','backgroundcolor'),'backgroundcolor',[0.94 0.94 0.94]);
             
-            set([handles.panel_centroidSettings
-                handles.panel_centroid_timeFrame
-                handles.text_min_clusters
-                handles.text_threshold
-                handles.text_duration],'backgroundColor',[1 1 1]);
+            %             set(findobj(whiteHandles,'-property','shadowcolor'),'shadowcolor',[0 0 0],'highlightcolor',[0 0 0]);
+            
+            innerPanelHandles = [handles.panel_centroidSettings
+                handles.panel_centroid_timeFrame];
+            sethandles(innerPanelHandles,'backgroundcolor',[0.9 0.9 0.9]);
+            
+            % Make the inner edit boxes appear white
+            set([handles.edit_centroidMinimum
+                handles.edit_centroidThreshold],'backgroundcolor',[1 1 1]);
+            
+            set(handles.text_threshold,'tooltipstring','Smaller thresholds result in more stringent conversion requirements and often produce more clusters than when using higher threshold values.');
             
             obj.texthandle.status = handles.text_status;
             obj.texthandle.filename = handles.text_filename;
@@ -266,9 +292,9 @@ classdef PAView < handle
             obj.checkhandle.sortResults = handles.check_sortvalues;
             obj.checkhandle.trimResults = handles.check_trim;
             
-%             obj.timeseries.menuhandle = obj.menuhandle;
-%             obj.timeseries.texthandle = obj.texthandle;
-%             obj.timeseries.patchhandle = obj.patchhandle;
+            %             obj.timeseries.menuhandle = obj.menuhandle;
+            %             obj.timeseries.texthandle = obj.texthandle;
+            %             obj.timeseries.patchhandle = obj.patchhandle;
             
             obj.axeshandle.primary = handles.axes_primary;
             obj.axeshandle.secondary = handles.axes_secondary;
@@ -300,6 +326,40 @@ classdef PAView < handle
             obj.initWidgets(viewMode);
         end
         
+        % returns visible linehandles in the upper axes of padaco.
+        function visibleLineHandles = getVisibleLineHandles(obj)
+            lineHandleStructs = obj.getLinehandle(obj.getDisplayType());
+            lineHandles = PAData.struct2vec(lineHandleStructs);
+            visibleLineHandles = lineHandles(strcmpi(get(lineHandles,'visible'),'on'));
+        end
+        
+        function hiddenLineHandles = getHiddenLineHandles(obj)
+            lineHandleStructs = obj.getLinehandle(obj.getDisplayType());
+            lineHandles = PAData.struct2vec(lineHandleStructs);
+            hiddenLineHandles = lineHandles(strcmpi(get(lineHandles,'visible'),'off'));
+            
+        end
+        %> @brief Want to redistribute or evenly distribute the lines displayed in
+        %> this axis.
+        function redistributePrimaryAxesLineHandles(obj)
+            visibleLineHandles = obj.getVisibleLineHandles();
+            numLines = numel(visibleLineHandles);
+            if(numLines>0)
+                curYLim = get(obj.axeshandle.primary,'ylim');
+                
+                axesHeight = diff(curYLim);
+                deltaHeight = axesHeight/numLines;
+                offset = deltaHeight/2;
+                for n=1:numLines
+                    curH = visibleLineHandles(n);
+                    curTag = get(curH,'tag');
+                    obj.dataObj.setOffset(curTag,offset);
+                    offset = offset+deltaHeight;
+                end
+            end
+            obj.draw()
+        end
+
         % --------------------------------------------------------------------
         %> @brief Retrieves the window duration drop down menu's current value as a number.
         %> @param obj Instance of PAView.
@@ -785,8 +845,11 @@ classdef PAView < handle
             axesProps.primary.xlim = PADataObject.getCurWindowRange();
             axesProps.primary.ylim = PADataObject.getDisplayMinMax();
             
-            
-            ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Lumens','Daylight'};
+            if(strcmpi(obj.dataObj.getAccelType(),'raw'))
+                ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Daylight'};
+            else
+                ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Lumens','Daylight'};
+            end
 
             axesProps.secondary.ytick = obj.getTicksForLabels(ytickLabel);
             axesProps.secondary.yticklabel = ytickLabel;
@@ -976,7 +1039,6 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         function featureHandles = addFeaturesVecToSecondaryAxes(obj, featureVector, startStopDatenum, overlayHeight, overlayOffset)
             featureHandles = obj.addFeaturesVecToAxes(featureVector, startStopDatenum, overlayHeight, overlayOffset,obj.axeshandle.secondary, obj.getUseSmoothing());
-
         end
         
         % --------------------------------------------------------------------
@@ -1135,7 +1197,9 @@ classdef PAView < handle
             % axes...
             zombieLines = findobj([obj.axeshandle.primary;obj.axeshandle.secondary],'type','line');
             zombiePatches = findobj([obj.axeshandle.primary;obj.axeshandle.secondary],'type','patch');
-            zombieHandles = [zombieLines(:);zombiePatches(:)];
+            zombieText = findobj([obj.axeshandle.primary;obj.axeshandle.secondary],'type','text');
+            
+            zombieHandles = [zombieLines(:);zombiePatches(:);zombieText(:)];
             delete(zombieHandles);
             
             obj.linehandle = [];
@@ -1503,6 +1567,13 @@ classdef PAView < handle
             if(useSmoothing)
                 n = 10;
                 b = repmat(1/n,1,n);
+                % Sometimes 'single' data is loaded, particularly with raw
+                % accelerations.  We need to convert to double in such
+                % cases for filtfilt to work.
+                if(~isa(normalizedFeatureVector,'double'))
+                    normalizedFeatureVector = double(normalizedFeatureVector);
+                end
+
                 smoothY = filtfilt(b,1,normalizedFeatureVector);
             else
                 smoothY = normalizedFeatureVector;
@@ -1548,12 +1619,21 @@ classdef PAView < handle
             n = 10;
             b = repmat(1/n,1,n);
             
+            
             if(useSmoothing)
+                % Sometimes 'single' data is loaded, particularly with raw
+                % accelerations.  We need to convert to double in such
+                % cases for filtfilt to work.
+                if(~isa(featureVector,'double'))
+                    featureVector = double(featureVector);
+                end
                 smoothY = filtfilt(b,1,featureVector);
             else
                 smoothY = featureVector;
             end
-            normalizedY = smoothY/max(smoothY)*overlayHeight+overlayOffset;
+            smoothY = smoothY-min(smoothY);
+            normalizedY = smoothY/max(smoothY)*overlayHeight+overlayOffset;%drop it right down in place, center vertically
+            
             featureHandles(1) = line('parent',axesH,'ydata',normalizedY,'xdata',startStopDatenum(:,1),'color','b','hittest','off','userdata',featureVector);
             %draw some boundaries around our features - put in rails
             railsBottom = [overlayOffset,overlayOffset]+0.001;
@@ -1695,17 +1775,23 @@ classdef PAView < handle
         %==================================================================
         function recurseHandleSetter(handleStruct, propertyStruct)
             fnames = fieldnames(handleStruct);
+            % Add some checking to make sure we match properties correctly.
+            % Experience showed that 'raw' accelTypes do not contain all
+            % fields that exist for display which leads to exception throws.
+            matchingFields = isfield(propertyStruct,fnames);
+            fnames = fnames(matchingFields);
             for f=1:numel(fnames)
                 fname = fnames{f};
                 curField = handleStruct.(fname);
+                curPropertyStruct = propertyStruct.(fname);
                 try
-                if(isstruct(curField))
-                    PAView.recurseHandleSetter(curField,propertyStruct.(fname));
-                else
-                    if(ishandle(curField))                        
-                       set(curField,propertyStruct.(fname));
+                    if(isstruct(curField))
+                        PAView.recurseHandleSetter(curField,curPropertyStruct);
+                    else
+                        if(ishandle(curField))
+                            set(curField,curPropertyStruct);
+                        end
                     end
-                end
                 catch me
                     showME(me);
                 end
