@@ -24,10 +24,15 @@ classdef PAController < handle
         %> updateSecondaryFeaturesDisplayCallback
         accelTypeShown;
         
+        %> @brief Folder where exported files are saved to .
+        exportPathname;
+        
         %> String identifying Padaco's current view mode.  Values include
         %> - @c timeseries
         %> - @c results
-        viewMode;        
+        viewMode;   
+        
+        iconFilename;
         
     end
     properties
@@ -104,7 +109,9 @@ classdef PAController < handle
             obj.SETTINGS = PASettings(rootPathname,parameters_filename);
             obj.screenshotPathname = obj.SETTINGS.CONTROLLER.screenshotPathname;
             obj.resultsPathname = obj.SETTINGS.CONTROLLER.resultsPathname;
+            obj.exportPathname = obj.SETTINGS.CONTROLLER.exportPathname;
             
+            obj.iconFilename = fullfile(rootPathname,'resources','icons','logo','icon_64.png');
             obj.setVersionNum();
             obj.accelTypeShown = [];
             obj.figureH = Padaco_fig_h;
@@ -383,17 +390,28 @@ classdef PAController < handle
             set(handles.menu_file_quit,'callback',{@obj.menuFileQuitCallback,guidata(figH)});
             set(handles.menu_file_restart,'callback',@restartDlg);
             
-            %% Tools
             % export
             set(handles.menu_file_export,'callback',@obj.menu_file_exportMenu_callback);
-            set(handles.menu_file_export_dataObj,'callback',@obj.menu_file_export_dataObj_callback);
-            set(handles.menu_file_export_centroidObj,'callback',@obj.menu_file_export_centroidObj_callback);
-            set(handles.menu_viewmode_batch,'callback',@obj.menuViewmodeBatchCallback);
+            if(~isdeployed)
+                set(handles.menu_file_export_dataObj,'callback',@obj.menu_file_export_dataObj_callback);
+                set(handles.menu_file_export_centroidObj,'callback',@obj.menu_file_export_centroidObj_callback);
+            % No point in sending data to the workspace on deployed
+            % version.  There is no 'workspace'.
+            else
+                set(handles.menu_file_export_dataObj,'visible','off');
+                set(handles.menu_file_export_centroidObj,'visible','off')
+            end
+            set(handles.menu_file_export_centroids_to_disk,'callback',@obj.menu_file_export_centroids_to_disk_callback);
             
             
             %% View Modes
             set(handles.menu_viewmode_timeseries,'callback',{@obj.setViewModeCallback,'timeSeries'});
             set(handles.menu_viewmode_results,'callback',{@obj.setViewModeCallback,'results'});
+            set(handles.menu_viewmode_batch,'callback',@obj.menuViewmodeBatchCallback);
+            
+            %% Tools
+            set(handles.menu_tools_raw2bin,'callback',@obj.menuToolsRaw2BinCallback);
+            
             
             %% Help
             set(handles.menu_help_faq,'callback',@obj.menuHelpFAQCallback);
@@ -447,7 +465,7 @@ classdef PAController < handle
                 '\n\nSoftware license: To be decided',...
                 '\nCopyright Hyatt Moore IV (2014-2016)\n'
                 ],obj.getVersionNum());
-            h=msgbox(msg,'About');
+            h=pa_msgbox(msg,'About',obj.iconFilename);
             
             mbox_h=findobj(h,'tag','MessageBox');
             ok_h = findobj(h,'tag','OKButton');
@@ -743,8 +761,6 @@ classdef PAController < handle
                 obj.setRadioButton(displayType);
                 
                 
-                
-                
                 % This is disabled until the first time features are
                 % calculated.
                 obj.VIEW.enableTimeSeriesRadioButton();
@@ -799,32 +815,45 @@ classdef PAController < handle
                 numFeatures = obj.getFrameCount();
             end
             
-            featureFcn = obj.getExtractorMethod();
+            featureFcnName = obj.getExtractorMethod();
+            
+            numViews = obj.numViewsInSecondaryDisplay; %(numel(signalTagLines)+1);
+            
             
             % update secondary axes y labels according to our feature
             % function.
-            if(strcmpi(featureFcn,'psd'))
-                ytickLabels = {'Band 5','Band 4','Band 3','Band 2','Band 1','Activity','Lumens','Daylight'};
+            if(strcmpi(featureFcnName,'psd'))
+                ytickLabels = {'Band 5','Band 4','Band 3','Band 2','Band 1'};
                 signalTags = {'b5','b4','b3','b2','b1'};                
             else
                 signalTags = {'x','y','z','vecMag'};
-                ytickLabels = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Lumens','Daylight'};
+                ytickLabels = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|'};
             end
-            obj.updateSecondaryAxesLabels('y',ytickLabels);
+            %axesHeight = 1;
+            if(strcmpi(obj.getAccelType(),'raw'))
+                ytickLabels = [ytickLabels,'Activity','Daylight'];
+                %                 deltaHeight = 1/(numViews+1);
+                %                 heightOffset = deltaHeight/2;
+            else
+                ytickLabels = [ytickLabels,'Activity','Lumens','Daylight'];
+            end
             
+            deltaHeight = 1/numViews;
+            heightOffset = 0;
+            
+            % This has already been updated though?
+            obj.updateSecondaryAxesLabels('y',ytickLabels);
+
             %  signalTagLine = obj.getSignalSelection();
             %  obj.drawFeatureVecPatches(featureFcn,signalTagLine,numFrames);
             
             signalTagLines = strcat('accel.',obj.accelTypeShown,'.',signalTags)';
             
-            numViews = obj.numViewsInSecondaryDisplay; %(numel(signalTagLines)+1);
-            height = 1/numViews;
-            heightOffset = 0;
             if(any(ishandle(obj.featureHandles)))
                 delete(obj.featureHandles);
             end
             obj.featureHandles = [];
-            startStopDatenums = obj.getFeatureStartStopDatenums(featureFcn,signalTagLines{1},numFeatures);
+            startStopDatenums = obj.getFeatureStartStopDatenums(featureFcnName,signalTagLines{1},numFeatures);
             
             % Normal behavior is to show each axes for the accelerometer
             % x, y, z, vecMag (i.e. accel.count.x, accel.count.y, ...)
@@ -835,20 +864,20 @@ classdef PAController < handle
             % 'z' - psd_band_4
             for s=1:numel(signalTagLines)
                 signalName = signalTagLines{s};
-                featureVec = obj.getFeatureVec(featureFcn,signalName,numFeatures);  %  redundant time stamp calculations benig done for start stpop dateneums in here.
+                featureVec = obj.getFeatureVec(featureFcnName,signalName,numFeatures);  %  redundant time stamp calculations benig done for start stpop dateneums in here.
                 
                 % x, y, z
-                if(s<numel(signalTagLines) || (s==numel(signalTagLines)&&strcmpi(featureFcn,'psd')))
-                    vecHandles = obj.VIEW.addFeaturesVecToSecondaryAxes(featureVec,startStopDatenums,height,heightOffset);                    
-                    heightOffset = heightOffset+height;
+                if(s<numel(signalTagLines) || (s==numel(signalTagLines)&&strcmpi(featureFcnName,'psd')))
+                    vecHandles = obj.VIEW.addFeaturesVecToSecondaryAxes(featureVec,startStopDatenums,deltaHeight,heightOffset);                    
+                    heightOffset = heightOffset+deltaHeight;
                     
                     % vecMag
                 else
                     % This requires twice the height because it will have a
                     % feature line and heat map
-                    [patchH, lineH, cumsumH] = obj.VIEW.addFeaturesVecAndOverlayToSecondaryAxes(featureVec,startStopDatenums,height*2,heightOffset);
+                    [patchH, lineH, cumsumH] = obj.VIEW.addFeaturesVecAndOverlayToSecondaryAxes(featureVec,startStopDatenums,deltaHeight*2,heightOffset);
                     vecHandles = [patchH, lineH, cumsumH];
-                    heightOffset = heightOffset+height*2;
+                    heightOffset = heightOffset+deltaHeight*2;
                 end
                 obj.featureHandles = [obj.featureHandles(:);vecHandles(:)];
             end
@@ -901,16 +930,13 @@ classdef PAController < handle
         %> signal (selected from its dropdown menu) are displayed in the
         %> secondary axes of PAView.
         % --------------------------------------------------------------------
-        function extractorMethod = getExtractorMethod(obj)
+        function extractorMethodName = getExtractorMethod(obj)
             extractorFcns = get(obj.VIEW.menuhandle.displayFeature,'userdata');
             extractorIndex =  get(obj.VIEW.menuhandle.displayFeature,'value');
             if(~iscell(extractorFcns))
-                extractorMethod = extractorFcns;
+                extractorMethodName = extractorFcns;
             else
-                extractorMethod = extractorFcns{extractorIndex};
-            end
-            if(strcmpi(extractorMethod,'rms'))
-                extractorMethod = @(data)sqrt(mean(data.^2))';
+                extractorMethodName = extractorFcns{extractorIndex};
             end
         end
         
@@ -928,6 +954,23 @@ classdef PAController < handle
             if(~isempty(extractorInd))
                 set(obj.VIEW.menuhandle.displayFeature,'value',extractorInd);
             end
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Returns the accelType parameter of the accelObj object
+        %> when it exists and 'none' otherwise.
+        %> @param obj Instance of PAController
+        %> @retval accelType String value that can be:
+        %> - @c all
+        %> - @c raw
+        %> - @c count
+        %> - @c none (not loaded)
+        % --------------------------------------------------------------------
+        function accelType = getAccelType(obj)
+            accelType = 'none';
+            if(~isempty(obj.accelObj))
+                accelType = obj.accelObj.accelType;
+            end            
         end
         
         % --------------------------------------------------------------------
@@ -961,7 +1004,6 @@ classdef PAController < handle
             if(isempty(selectionIndex))
                 selectionIndex = 1;
                 signalTagLine = signalTagLines{selectionIndex};
-                
             end
             
             set(obj.VIEW.menuhandle.signalSelection,'value',selectionIndex);
@@ -975,7 +1017,6 @@ classdef PAController < handle
                     obj.accelTypeShown = v{1}{1};
                 end
             end
-            
             %             obj.SETTINGS.CONTROLLER.signalTagLine = signalTagLine;
         end
         
@@ -1191,6 +1232,7 @@ classdef PAController < handle
                     
                     
                     obj.VIEW.showBusy('Loading','all');
+                    obj.VIEW.disableWidgets();
                     [pathname,basename, baseext] = fileparts(f);
                     obj.SETTINGS.DATA.pathname = pathname;
                     obj.SETTINGS.DATA.filename = strcat(basename,baseext);
@@ -1279,6 +1321,7 @@ classdef PAController < handle
         function menuFileOpenResultsPathCallback(obj,hObject,eventdata)
             initialPath = obj.resultsPathname;
             resultsPath = uigetfulldir(initialPath, 'Select path containing PADACO''s features directory');
+            try
             if(~isempty(resultsPath))
                 % Say good bye to your old stat tool if you selected a
                 % directory.  This ensures that if a breakdown occurs in
@@ -1305,6 +1348,11 @@ classdef PAController < handle
                 % No - maybe we already were in a results view
                 % Yes - maybe we were not in a results view
                 
+            end
+            
+            catch me
+                warndlg('An error occurred while trying to load the feature set.  See the console log for details.');
+                showME(me);
             end
         end
         
@@ -1378,9 +1426,11 @@ classdef PAController < handle
                 set(handles.menu_file_export_dataObj,'enable','on');
             end
             if(isempty(this.StatTool) || ~this.StatTool.hasCentroid())
-                set(handles.menu_file_export_centroidObj,'enable','off');
+                set([handles.menu_file_export_centroidObj;
+                    handles.menu_file_export_centroids_to_disk],'enable','off');
             else
-                set(handles.menu_file_export_centroidObj,'enable','on');
+                set([handles.menu_file_export_centroidObj;
+                    handles.menu_file_export_centroids_to_disk],'enable','on');
             end
         end
         
@@ -1396,13 +1446,14 @@ classdef PAController < handle
         function menu_file_export_dataObj_callback(obj,hObject,~)
             dataObj = obj.accelObj;
             varName = 'dataObject';
+            makeModal = true;
             try
-                assignin('base',varName,dataObj);
-                uiwait(msgbox(sprintf('Data object was assigned to workspace variable %s',varName)));
+                assignin('base',varName,dataObj);                
+                pa_msgbox(sprintf('Data object was assigned to workspace variable %s',varName),obj.iconFilename,makeModal);
                 
             catch me
                 showME(me);
-                uiwait(msgbox('An error occurred while trying to export data object to a workspace variable.  See console for details.'));
+                pa_msgbox('An error occurred while trying to export data object to a workspace variable.  See console for details.',obj.iconFilename,makeModal);
             end
         end
         
@@ -1418,23 +1469,149 @@ classdef PAController < handle
         function menu_file_export_centroidObj_callback(obj,hObject,~)
             centroidObj = obj.StatTool.getCentroidObj();
             varName = 'centroidObj';
+            makeModal = true;
             try
                 assignin('base',varName,centroidObj);
-                uiwait(msgbox(sprintf('Centroid object was assigned to workspace variable %s',varName)));
-                
+                pa_msgbox(sprintf('Centroid object was assigned to workspace variable %s',varName),obj.iconFilename,makeModal);                
             catch me
                 showME(me);
-                uiwait(msgbox('An error occurred while trying to export the centroid object to a workspace variable.  See console for details.'));
+                pa_msgbox('An error occurred while trying to export the centroid object to a workspace variable.  See console for details.',obj.iconFilename,makeModal);
             end
         end
         
+        % Helper functions for setting the export paths to be used when
+        % saving data about centroids and covariates to disk.
+        function didUpdate = updateExportPath(this)
+            displayMessage = 'Select a directory to place the exported files.';
+            initPath = this.getExportPath();
+            tmpOutputDirectory = uigetfulldir(initPath,displayMessage);
+            if(isempty(tmpOutputDirectory))
+                didUpdate = false;
+            else
+                didUpdate = this.setExportPath(tmpOutputDirectory);
+            end
+        end
+        
+        function exportPath = getExportPath(this)
+            exportPath = this.exportPathname;
+        end
+        function didSet = setExportPath(this, newPath)
+            try
+                this.exportPathname = newPath;
+                didSet = true;
+            catch me
+                showME(me);
+                didSet = false;
+            end
+        end
+        
+         % --------------------------------------------------------------------
+        %> @brief Menubar callback for exporting PAController's data object
+        %> to disk, in two separate .csv files.
+        %> @param obj Instance of PAController
+        %> @param hObject    handle to menu_viewmode_batch (see GCBO)
+        %> @param eventdata  reserved - to be defined in a future version of MATLAB
+        %> @param handles    structure with handles and user data (see GUIDATA)
+        % --------------------------------------------------------------------
+        function menu_file_export_centroids_to_disk_callback(obj,hObject,~)
+            didSave = false;
+            centroidObj = obj.StatTool.getCentroidObj();
+            if(isempty(centroidObj) || ~isa(centroidObj,'PACentroid'))
+                msg = 'No centroid object exists.  Nothing to save.';
+                pa_msgbox(msg,'Warning',obj.iconFilename);
+                
+           % If this is not true, then we can just leave this
+           % function since the user would have cancelled.
+                
+            elseif(obj.updateExportPath())                   
+                try
+                    [covHeader, covDataStr] = centroidObj.exportCovariates();
+                    [cov2Header, cov2DataStr] = centroidObj.exportCovariates2();
+                    
+                    [shapesHeaderStr, shapesStr] = centroidObj.exportCentroidShapes();
+                    timeStamp = datestr(now,'DDmmmYYYY');
+                    shapeTimesInCSV = cell2str(obj.StatTool.getStartTimesCell(),',');
+                    
+                    shapesHeaderStr = [shapesHeaderStr ',' shapeTimesInCSV];
+                    exportPath = obj.getExportPath();
+                    cov2Filename = fullfile(exportPath,sprintf('cluster_by_weekday_%s.csv',timeStamp));
+                    covFilename = fullfile(exportPath,sprintf('cluster_frequency_%s.csv',timeStamp));
+                    shapesFilename = fullfile(exportPath,sprintf('cluster_shapes_%s.csv',timeStamp));
+                    settingsFilename = fullfile(exportPath,sprintf('padaco_config_%s.txt',timeStamp));
+                    
+                    covFid = fopen(covFilename,'w');
+                    
+                    if(covFid>1)
+                        fprintf(covFid,'%s\n',covHeader);
+                        fprintf(covFid,covDataStr);
+                        msg = sprintf('Cluster frequency data saved to:\n\t%s\n',covFilename);
+                        fclose(covFid);
+                    else
+                        msg = sprintf('Cluster frequency data NOT saved.  Could not open file (%s) for writing!\n ',covFilename);
+                    end
+                    
+                    cov2Fid = fopen(cov2Filename,'w');
+                    
+                    if(cov2Fid>1)
+                        fprintf(cov2Fid,'%s\n',cov2Header);
+                        fprintf(cov2Fid,cov2DataStr);
+                        msg = sprintf('%sCluster by weekday data saved to:\n\t%s\n',msg,cov2Filename);
+                        fclose(cov2Fid);
+                    else
+                        msg = sprintf('%sCluster by weekday data NOT saved.  Could not open file (%s) for writing!\n ',msg,cov2Filename);
+                    end
+                    
+                    
+                    shapesFid = fopen(shapesFilename,'w');
+                    if(shapesFid>1)
+                        fprintf(shapesFid,'%s\n%s',shapesHeaderStr,shapesStr);
+                        msg = sprintf('%sCluster shapes saved to:\n\t%s\n',msg,shapesFilename);
+                        fclose(shapesFid);
+                    else
+                        msg = sprintf('%sCluster shapes NOT saved.  Could not open file (%s) for writing!\n ',msg,shapesFilename);
+                    end
+                    
+                    settingsFid = fopen(settingsFilename,'w');
+                    clusterSettings = obj.StatTool.getStateAtTimeOfLastClustering();
+                    
+                    if(settingsFid>1)
+                        PASettings.saveStruct(settingsFid,clusterSettings);
+                        msg = sprintf('%sPadaco cluster settings saved to:\n\t%s\n',msg,settingsFilename);
+                        fclose(settingsFid);
+                        didSave = true;
+                    else
+                        msg = sprintf('%sPadaco cluster settings NOT saved.  Could not open file (%s) for writing!\n ',msg,settingsFilename);
+                    end
+                    
+                catch me
+                    msg = 'An error occurred while trying to save the data to disk.  A thousand apologies.  I''m very sorry.';
+                    showME(me);
+                end
+                
+                % Give the option to look at the files in their saved folder.
+                if(didSave)
+                    dlgName = 'Export complete';
+                    closeStr = 'Close';
+                    showOutputFolderStr = 'Open output folder';
+                    options.Default = closeStr;
+                    options.Interpreter = 'none';
+                    buttonName = questdlg(msg,dlgName,closeStr,showOutputFolderStr,options);
+                    if(strcmpi(buttonName,showOutputFolderStr))
+                        openDirectory(obj.getExportPath())
+                    end                    
+                else
+                    makeModal = true;
+                    pa_msgbox(msg,'Export',obj.iconFilename,makeModal);
+                end
+            end
+        end
         
         function viewMode = getViewMode(obj)
             viewMode = obj.viewMode;
         end
         
-        function setViewModeCallback(this, hObject, eventData, viewMode)
-            this.setViewMode(viewMode);
+        function setViewModeCallback(obj, hObject, eventData, viewMode)
+            obj.setViewMode(viewMode);
         end
         
         % --------------------------------------------------------------------
@@ -1495,6 +1672,19 @@ classdef PAController < handle
             batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
             batchTool.addlistener('SwitchToResults',@obj.setResultsViewModeCallback);
         end
+
+        % --------------------------------------------------------------------
+        %> @brief Menubar callback for starting the raw .csv to .bin file
+        %> converter.
+        %> @param obj Instance of PAController
+        %> @param hObject    handle to the menu item (see GCBO)
+        %> @param eventdata  reserved - to be defined in a future version of MATLAB
+        % --------------------------------------------------------------------
+        function menuToolsRaw2BinCallback(obj,hObject,eventdata)
+            batchTool = PABatchTool(obj.SETTINGS.BATCH);
+            batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
+            batchTool.addlistener('SwitchToResults',@obj.setResultsViewModeCallback);
+        end        
         
         % Pass through callback for setViewModeCallback method with
         % 'results' argument.
@@ -1676,7 +1866,7 @@ classdef PAController < handle
         %> of samples.  In this case, the last section may be shorter or
         %> longer than the others.
         % --------------------------------------------------------------------
-        function [featureVec,varargout] = getFeatureVec(obj,featureFcn,fieldName,numSections,paDataObj)
+        function [featureVec,varargout] = getFeatureVec(obj,featureFcnName,fieldName,numSections,paDataObj)
             if(nargin<2 || isempty(numSections) || numSections <=1)
                 numSections = 100;
             end
@@ -1685,19 +1875,15 @@ classdef PAController < handle
                 paDataObj = obj.accelObj;
             end
             
-            
-            featureVec = zeros(numSections,1);
-            
             % Here we deal with features, which *should* already have the
             % correct number of sections needed.
-            if(strcmpi(featureFcn,'psd'))
-                featureStruct = paDataObj.getStruct('all','features');
+            featureStruct = paDataObj.getStruct('all','features');
+            if(strcmpi(featureFcnName,'psd'))
                 psdBand = strcat('psd_band_',fieldName(end));
                 if(isfield(featureStruct,psdBand))
                     featureVec = featureStruct.(psdBand);
                 else
                     switch fieldName(end)
-                        
                         case 'g'  % accel.count.vecMag
                             featureVec = featureStruct.psd_band_1;
                         case 'x'
@@ -1709,8 +1895,13 @@ classdef PAController < handle
                         otherwise
                             featureVec = featureStruct.psd_band_1;
                     end
-                end                
+                end
             else
+                %featureVec = zeros(numSections,1);            
+                featureVec = featureStruct.(featureFcnName);
+                featureFcn = PAData.getFeatureFcn(featureFcnName);
+
+                
                 timeSeriesStruct = paDataObj.getStruct('all','timeSeries');
                 
                 % Can't get nested fields directly with
@@ -1719,13 +1910,17 @@ classdef PAController < handle
                 fieldData = eval(['timeSeriesStruct.',fieldName]);
                 
                 indices = ceil(linspace(1,numel(fieldData),numSections+1));
-                for i=1:numSections
-                    featureVec(i) = feval(featureFcn,fieldData(indices(i):indices(i+1)));
+                try
+                    for i=1:numSections
+                        featureVec(i) = feval(featureFcn,fieldData(indices(i):indices(i+1)));
+                    end
+                catch me
+                    showME(me);
                 end
             end
             
             if(nargout>1)
-                varargout{1} = obj.getFeatureStartStopDatenums(featureFcn,fieldName,numSections,paDataObj);
+                varargout{1} = obj.getFeatureStartStopDatenums(featureFcnName,fieldName,numSections,paDataObj);
             end
         end
         
@@ -1738,7 +1933,7 @@ classdef PAController < handle
         % retrieved for different signals which all had the same number of
         % samples and startStopDatenums (so it was redundant to keep
         % calculating the same values.
-        function startStopDatenums = getFeatureStartStopDatenums(obj,featureFcn,fieldName,numSections,paDataObj)
+        function startStopDatenums = getFeatureStartStopDatenums(obj,featureFcnName,fieldName,numSections,paDataObj)
             if(nargin<2 || isempty(numSections) || numSections <=1)
                 numSections = 100;
             end
@@ -1749,7 +1944,7 @@ classdef PAController < handle
             
             startStopDatenums = zeros(numSections,2);
             
-            if(strcmpi(featureFcn,'psd'))
+            if(strcmpi(featureFcnName,'psd'))
                 indices = ceil(linspace(1,numel(paDataObj.dateTimeNum),numSections+1));
                 for i=1:numSections
                     startStopDatenums(i,:) = [paDataObj.dateTimeNum(indices(i)),paDataObj.dateTimeNum(indices(i+1))];
@@ -1817,7 +2012,7 @@ classdef PAController < handle
         %> - @c featureFcn
         %> - @c signalTagLine
         function pStruct = getSaveParameters(obj)
-            pStruct.featureFcn = obj.getExtractorMethod();
+            pStruct.featureFcnName = obj.getExtractorMethod();
             pStruct.signalTagLine = obj.getSignalSelection();
             
             % If we did not load a file then our signal selection will be
@@ -1831,6 +2026,7 @@ classdef PAController < handle
             pStruct.screenshotPathname = obj.screenshotPathname;
             pStruct.viewMode = obj.viewMode;
             pStruct.resultsPathname = obj.resultsPathname;
+            pStruct.exportPathname = obj.getExportPath();
         end
         
         % ======================================================================
@@ -1888,7 +2084,8 @@ classdef PAController < handle
             
             obj.initSignalSelectionMenu();
             
-            if(strcmpi(obj.accelObj.accelType,'all'))
+            curAccelType = obj.getAccelType();
+            if(any(strcmpi(curAccelType, {'all','raw'})))
                 obj.accelTypeShown = 'raw';
             else
                 obj.accelTypeShown = 'count';
@@ -1901,14 +2098,14 @@ classdef PAController < handle
             
             %set signal choice
             signalSelection = obj.setSignalSelection(obj.SETTINGS.CONTROLLER.signalTagLine); %internally sets to 1st in list if not found..
-            obj.setExtractorMethod(obj.SETTINGS.CONTROLLER.featureFcn);
+            obj.setExtractorMethod(obj.SETTINGS.CONTROLLER.featureFcnName);
             
             % Go ahead and extract features using current settings.  This
             % is good because then we can use
             obj.VIEW.showBusy('Calculating features','all');
-            
+            tic
             obj.accelObj.extractFeature(signalSelection,'all');
-            
+            toc
             
             % This was disabled until the first time features are
             % calculated.
@@ -1928,15 +2125,19 @@ classdef PAController < handle
             obj.setCurWindow(obj.accelObj.getCurWindow());
             
             % Update the secondary axes
-            % Items to display = 8;
-            obj.numViewsInSecondaryDisplay = 8;
-            
+            % Items to display = 8 when count or all views exist.  
+            if(strcmpi(obj.getAccelType(),'raw'))
+                obj.numViewsInSecondaryDisplay = 7;
+            else
+                obj.numViewsInSecondaryDisplay = 8;
+                
+            end
             % Items 1-5
             % Starting from the bottom of the axes - display the features
             % for x, y, z, vec magnitude, and 1-d values
             heightOffset = obj.updateSecondaryFeaturesDisplay();
             
-            itemsToDisplay = 3; % usage state, mean lumens, daylight approx
+            itemsToDisplay = obj.numViewsInSecondaryDisplay-5; % usage state, mean lumens, daylight approx
             remainingHeight = 1-heightOffset;
             height = remainingHeight/itemsToDisplay;
             if(obj.accelObj.getSampleRate()<=1)
@@ -1947,19 +2148,26 @@ classdef PAController < handle
             else
                 vecHandles = [];
             end
-            % Next, add lumens intensity to secondary axes
-            heightOffset = heightOffset+height;
-            maxLumens = 250;
+            
             numFrames = obj.getFrameCount();
-            [meanLumens,startStopDatenums] = obj.getMeanLumenPatches(numFrames);
-            obj.VIEW.addOverlayToSecondaryAxes(meanLumens,startStopDatenums,height,heightOffset,maxLumens);
-            %             [medianLumens,startStopDatenums] = obj.getMedianLumenPatches(1000);
-            %             obj.VIEW.addLumensOverlayToSecondaryAxes(meanLumens,startStopDatenums);
+            
+            if(~strcmpi(obj.getAccelType(),'raw'))
+                % Next, add lumens intensity to secondary axes
+                heightOffset = heightOffset+height;
+                maxLumens = 250;
+
+                [meanLumens,startStopDatenums] = obj.getMeanLumenPatches(numFrames);
+                obj.VIEW.addOverlayToSecondaryAxes(meanLumens,startStopDatenums,height,heightOffset,maxLumens);
+
+                %             [medianLumens,startStopDatenums] = obj.getMedianLumenPatches(1000);
+                %             obj.VIEW.addLumensOverlayToSecondaryAxes(meanLumens,startStopDatenums);
+            end
             
             % Finally Add daylight to the top.
-            heightOffset = heightOffset+height;
-            maxDaylight = 1;
+            maxDaylight = 1;            
             [daylight,startStopDatenums] = obj.getDaylight(numFrames);
+            heightOffset = heightOffset+height;
+
             obj.VIEW.addOverlayToSecondaryAxes(daylight,startStopDatenums,height-0.005,heightOffset,maxDaylight);
             
             obj.initCallbacks(); %initialize callbacks now that we have some data we can interact with.
@@ -1983,12 +2191,15 @@ classdef PAController < handle
                     this.StatTool.init();  %calls a plot refresh
                 else
                     this.StatTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname,this.SETTINGS.StatTool);
+                    this.StatTool.setIcon(this.iconFilename);
                 end
                 success = this.StatTool.getCanPlot();
             end
             
             if(~success)
-                this.StatTool.disable();
+                if(isfield(this,'StatTool') && isa(this.StatTool,'PAStatTool'))
+                    this.StatTool.disable();
+                end
                 
                 this.StatTool = [];
                 responseButton = questdlg('Results output pathname is either not set or was not found.  Would you like to choose one now?','Find results output path?');
@@ -2083,8 +2294,15 @@ classdef PAController < handle
             end
             
             % Added this to keep consistency with updateSecondaryFeaturesDisplay method
+            ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|'};
             
-            ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Lumens','Daylight'};
+            if(strcmpi(obj.getAccelType(),'raw'))
+                ytickLabel = [ytickLabel,'Activity','Daylight'];
+            else
+                ytickLabel = [ytickLabel,'Activity','Lumens','Daylight'];
+            end
+
+            
             numViews = numel(ytickLabel);
             startStopDatenum = [startStopDatenums(1),startStopDatenums(end)];
             axesProps.yticklabel = ytickLabel;
@@ -2234,6 +2452,7 @@ classdef PAController < handle
             contextmenu_mainaxes_h = uicontextmenu('parent',obj.figureH);
             hideH =uimenu(contextmenu_mainaxes_h,'Label','Hide','tag','hide');
             unhideH = uimenu(contextmenu_mainaxes_h,'Label','Unhide','tag','unhide');
+            uimenu(contextmenu_mainaxes_h,'Label','Evenly distribute lines','tag','redistribute','callback',@obj.contextmenu_redistributeLines_callback);
             set(contextmenu_mainaxes_h,'callback',{@obj.contextmenu_primaryAxes_callback,hideH,unhideH});
             
         end
@@ -2243,6 +2462,12 @@ classdef PAController < handle
             %configure sub contextmenus
             obj.configure_contextmenu_unhideSignals(unhide_uimenu_h);
             obj.configure_contextmenu_hideSignals(hide_uimenu_h);
+        end
+        
+        %> @brief Want to redistribute or evenly distribute the lines displayed in
+        %> this axis.
+        function contextmenu_redistributeLines_callback(obj, hObject, eventdata)
+            obj.VIEW.redistributePrimaryAxesLineHandles();
         end
         
         % =================================================================
@@ -2557,7 +2782,7 @@ classdef PAController < handle
             %axes_h is the axes that the current object (channel_object) is in
             pos = get(obj.VIEW.axeshandle.primary,'currentpoint');
             curOffset = max(min(pos(1,2),y_lim(2)),y_lim(1));
-            obj.accelObj.setOffset(lineTag,curOffset);
+            obj.accelObj.setOffset(lineTag,curOffset);            
             obj.VIEW.draw();
         end
         
@@ -2754,21 +2979,23 @@ classdef PAController < handle
         %> @brief Returns a structure of PAControllers default, saveable parameters as a struct.
         %> @retval pStruct A structure of parameters which include the following
         %> fields
-        %> - @c featureFcn
+        %> - @c featureFcnName
         %> - @c signalTagLine
         function pStruct = getDefaultParameters()
             [tagLines,~] = PAData.getDefaultTagLineLabels();
             featureStruct = PAData.getFeatureDescriptionStruct();
-            featureFcns = fieldnames(featureStruct);
-            pStruct.featureFcn = featureFcns{1};
+            featureFcnNames = fieldnames(featureStruct);
+            pStruct.featureFcnName = featureFcnNames{1};
             pStruct.signalTagLine = tagLines{1};
             
             mPath = fileparts(mfilename('fullpath'));
             pStruct.screenshotPathname = mPath;
+            pStruct.exportPathname = mPath;
             pStruct.viewMode = 'timeseries';
             pStruct.useSmoothing = true;
             batchSettings = PABatchTool.getDefaultParameters();
             pStruct.resultsPathname = batchSettings.outputDirectory;
+            
         end
     end
     

@@ -15,6 +15,7 @@ classdef PAData < handle
         %> - @c raw This is not processed
         %> - @c count This is preprocessed
         %> - @c all - This is both @c raw and @c count accel fields.
+        %> - @c none No data loaded.
         accelType;
         %> @brief Structure of count and raw accelerations structs (x,y,z).  Fields are:
         %> - @c raw Structure of raw x,y,z accelerations.  Fields are:
@@ -67,11 +68,16 @@ classdef PAData < handle
         startTime;
         %> @brief Start Date
         startDate;
+        %> @brief stop Time
+        stopTime;
+        %> @brief stop Date
+        stopDate;
         %> Durtion of the sampled data in seconds.
         durationSec;
         %> @brief The numeric value for each date time sample provided by
-        %the file name.
+        %> the file name.
         dateTimeNum;
+
         
         %> @brief Numeric values for date time sample for the start of
         %> extracted features.
@@ -146,8 +152,7 @@ classdef PAData < handle
         frames_signalTagLine;
         
         %> @brief Mode of usage state vector (i.e. taken from getUsageActivity) for current frame rate.
-        usageFrames;
-        
+        usageFrames;        
         
         %> @brief Struct of rules for classifying usage state.
         %> See getDefaultParameters for initial values.
@@ -163,6 +168,11 @@ classdef PAData < handle
         
         %> @brief Sample rate of time series data.
         sampleRate;
+        
+        % Flags for determining if counts and or raw data is loaded.
+        hasCounts
+        hasRaw;
+               
     end
     
     
@@ -187,7 +197,9 @@ classdef PAData < handle
                 pStruct = obj.getDefaultParameters();
             end
             
-            obj.accelType = [];
+            obj.hasCounts = false;
+            obj.hasRaw = false;
+            obj.accelType = 'none';
             obj.startDatenums = [];
             
             obj.durationSec = 0;  %ensures we get valid, non-empty values from  getWindowCount() when we do not have any data loaded.
@@ -697,6 +709,8 @@ classdef PAData < handle
                 offAccelType = 'count';
             elseif(strcmpi(accelTypeStr,'all'))
                 offAccelType = [];
+            elseif(strcmpi(accelTypeTypeStr,'none'))
+                offAccelType = [];
             else
                 fprintf('Unrecognized accelTypeStr (%s)\n',accelTypeStr);
                 offAccelType = [];
@@ -818,6 +832,15 @@ classdef PAData < handle
             if(nargout>0)
                 varargout = cell(1,nargout);
             end
+        end
+        
+        function accelType = getAccelType(obj)
+            if(isempty(obj.accelType))
+                accelType = 'none';
+            else
+                accelType = obj.accelType;
+            end
+            
         end
         
         % --------------------------------------------------------------------
@@ -982,6 +1005,8 @@ classdef PAData < handle
                     commentLine = '------------';
                     %make sure we are dealing with a file which has a header
                     if(strncmp(tline,commentLine, numel(commentLine)))
+                        fs = regexp(tline,'.* at (\d+) Hz .*','tokens');
+                        
                         fgetl(fid);
                         tline = fgetl(fid);
                         exp = regexp(tline,'^Start Time (.*)','tokens');
@@ -994,11 +1019,43 @@ classdef PAData < handle
                         tline = fgetl(fid);
                         obj.startDate = strrep(tline,'Start Date ','');
                         
+                        % Window period (hh:mm:ss) 00:00:01
+                        tline = fgetl(fid);
+                        tmpPeriod = sscanf(tline,'Epoch Period (hh:mm:ss) %u:%u:%u');
+                        obj.countPeriodSec = [3600,60,1]*tmpPeriod(:);
+                        
+                        if(~isempty(fs))
+                            obj.sampleRate = str2double(fs{1}{1});
+                        else
+                            if(obj.countPeriodSec~=0)
+                                obj.sampleRate = 1/obj.countPeriodSec;
+                            else
+                                obj.sampeRate = obj.countPeriodSec;
+                            end
+                        end
+                        
+                        
                         % Pull the following line from the file and convert hh:mm:ss
                         % to total seconds
                         %  Window Period (hh:mm:ss) 00:00:01
-                        a=fscanf(fid,'%*s %*s %*s %d:%d:%d');
-                        obj.countPeriodSec = [3600 60 1]* a;
+                        % [a, c]=fscanf(fid,'%*s %*s %*s %d:%d:%d');  %
+                        % This causes a read of the second line as well->
+                        % which is very strange.  So don't use this way.
+                        % obj.countPeriodSec = [3600 60 1]* a;
+                                                
+                        tline = fgetl(fid);
+                        exp = regexp(tline,'^Download Time (.*)','tokens');
+                        if(~isempty(exp))
+                            obj.stopTime = exp{1}{1};
+                        else
+                            obj.stopTime = 'N/A';
+                        end
+                        %  Download Date 1/23/2014
+                        tline = fgetl(fid);
+                        obj.stopDate = strrep(tline,'Download Date ','');                       
+                        
+                        
+
                     else
                         % unset - we don't know - assume 1 per second
                         obj.countPeriodSec = 1;
@@ -1046,6 +1103,7 @@ classdef PAData < handle
         function didLoad = loadFile(obj,fullfilename)
             % Ensure that we have a negative number or some way of making sure
             % that we have sequential data (fill in all with Nan or -1 eg)
+            didLoad = false;
             
             if(nargin<2 || ~exist(fullfilename,'file'))
                 fullfilename = obj.getFullFilename();
@@ -1068,93 +1126,119 @@ classdef PAData < handle
                     
                     if(exist(fullCountFilename,'file'))
                         
-                        obj.loadCountFile(fullCountFilename);
+                        didLoad = obj.loadCountFile(fullCountFilename);
                         
-                        obj.accelType = 'count'; % this is modified, below, to 'all' if a
-                        % a raw acceleration file (.csv or
-                        % .bin) is being loaded, in which
-                        % case the count data is replaced
-                        % with the raw data.
-                        obj.classifyUsageForAllAxes();
+                        if(didLoad)
+                            obj.accelType = 'count'; % this is modified, below, to 'all' if a
+                            % a raw acceleration file (.csv or
+                            % .bin) is being loaded, in which
+                            % case the count data is replaced
+                            % with the raw data.
+                        end
+                        obj.hasCounts = didLoad;
                     end
                     
                     % For .raw files, load the count data first so that it can
                     % then be reshaped by the sampling rate found in .raw
                     if(strcmpi(ext,'.raw'))
-                        tic
-                        didLoad = obj.loadRawCSVFile(fullfilename);
-                        toc
-                        obj.accelType = 'all';
+                        if(~exist(fullCountFilename,'file'))
+                             obj.loadFileHeader(fullfilename);
+                        end
+                        loadFast = true;
+                        didLoad = obj.loadRawCSVFile(fullfilename,loadFast);
+                        obj.hasRaw = didLoad;
                     elseif(strcmpi(ext,'.bin'))
                         %determine firmware version
                         %                        infoFile = fullfile(pathName,strcat(baseName,'.info.txt'));
                         infoFile = fullfile(pathName,'info.txt');
                         
-                        %load meta data from info.txt
-                        [infoStruct, firmwareVersion] = obj.parseInfoTxt(infoFile);
-                        
-                        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                        % Ensure firmware version is either 2.2.1, 2.5.0 or 3.1.0
-                        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                        if(strcmp(firmwareVersion,'2.5.0')||strcmp(firmwareVersion,'3.1.0') || strcmp(firmwareVersion,'2.2.1') || strcmp(firmwareVersion,'1.5.0'))
-                            obj.setFullFilename(fullfilename);
-                            obj.sampleRate = str2double(infoStruct.Sample_Rate);
-                            
-                            obj.accelType = 'all';
-                            
-                            didLoad = true;  % will be changed to false if none of the strcmp find a match
-                            % Version 2.5.0 firmware
-                            if(strcmp(firmwareVersion,'2.5.0'))
-                                
-                                unitsTimePerDay = 24*3600*10^7;
-                                matlabDateTimeOffset = 365+1+1;  %367, 365 days for the first year + 1 day for the first month + 1 day for the first day of the month
-                                %start, stop and delta date nums
-                                binStartDatenum = str2double(infoStruct.Start_Date)/unitsTimePerDay+matlabDateTimeOffset;
-                                
-                                if(~isempty(obj.startDate))
-                                    countStartDatenum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
-                                
-                                    if(binStartDatenum~=countStartDatenum)
-                                        fprintf('There is a discrepancy between the start date-time in the count file and the binary file.  I''m not sure what is going to happen because of this.\n');
-                                    end
-                                else
-                                    
-                                end
-                                    
-                                
-                                obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
-                                
-                                obj.durationSec = floor(obj.durationSamples()/obj.sampleRate);
-                                
-                                binDatenumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
-                                binStopDatenum = datenum(binDatenumDelta*obj.durSamples)+binStartDatenum;
-                                synthDateVec = datevec(binStartDatenum:binDatenumDelta:binStopDatenum);
-                                synthDateVec(:,6) = round(synthDateVec(:,6)*1000)/1000;
-                                
-                                %This takes 2.0 seconds!
-                                obj.dateTimeNum = datenum(synthDateVec);
-                                
-                                % Version 3.1.0 firmware                                % Version 2.2.1 firmware
-                                
-                            elseif(strcmp(firmwareVersion,'3.1.0') || strcmp(firmwareVersion,'2.2.1') || strcmp(firmwareVersion,'1.5.0'))
-                                obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
-                            else
-                                didLoad = false;
-                            end
-                            
+                        % Is it a padaco exported raw bin file?  
+                        if(~exist(infoFile,'file'))
+                            obj.hasRaw = obj.loadPadacoRawBinFile(fullfilename);
                         else
-                            % for future firmware version loaders
-                            % Not 2.2.1, 2.5.0 or 3.1.0 - skip - cannot handle right now.
-                            fprintf(1,'Firmware version (%s) either not found or unrecognized in %s.\n',firmwareVersion,infoFile);
+                            %load meta data from info.txt
+                            [infoStruct, firmwareVersion] = obj.parseInfoTxt(infoFile);
                             
+                            
+                            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                            % Ensure firmware version is either 2.2.1, 2.5.0 or 3.1.0
+                            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                            if(strcmp(firmwareVersion,'2.5.0')||strcmp(firmwareVersion,'3.1.0') || strcmp(firmwareVersion,'2.2.1') || strcmp(firmwareVersion,'1.5.0'))
+                                obj.setFullFilename(fullfilename);
+                                obj.sampleRate = str2double(infoStruct.Sample_Rate);
+                                
+                                % Version 2.5.0 firmware
+                                if(strcmp(firmwareVersion,'2.5.0'))
+                                    
+                                    unitsTimePerDay = 24*3600*10^7;
+                                    matlabDateTimeOffset = 365+1+1;  %367, 365 days for the first year + 1 day for the first month + 1 day for the first day of the month
+                                    %start, stop and delta date nums
+                                    binStartDatenum = str2double(infoStruct.Start_Date)/unitsTimePerDay+matlabDateTimeOffset;
+                                    
+                                    if(~isempty(obj.startDate))
+                                        countStartDatenum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
+                                        
+                                        if(binStartDatenum~=countStartDatenum)
+                                            fprintf('There is a discrepancy between the start date-time in the count file and the binary file.  I''m not sure what is going to happen because of this.\n');
+                                        end
+                                    else
+                                        
+                                    end
+                                    
+                                    
+                                    didLoad = obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
+                                    
+                                    obj.durationSec = floor(obj.durationSamples()/obj.sampleRate);
+                                    
+                                    binDatenumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
+                                    binStopDatenum = datenum(binDatenumDelta*obj.durSamples)+binStartDatenum;
+                                    synthDateVec = datevec(binStartDatenum:binDatenumDelta:binStopDatenum);
+                                    synthDateVec(:,6) = round(synthDateVec(:,6)*1000)/1000;
+                                    
+                                    %This takes 2.0 seconds!
+                                    obj.dateTimeNum = datenum(synthDateVec);
+                                    
+                                    % Version 3.1.0 firmware                                % Version 2.2.1 firmware
+                                    
+                                elseif(strcmp(firmwareVersion,'3.1.0') || strcmp(firmwareVersion,'2.2.1') || strcmp(firmwareVersion,'1.5.0'))
+                                    didLoad = obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
+                                else
+                                    didLoad = false;
+                                end
+                                obj.hasRaw = didLoad;
+                                
+                            else
+                                
+                                % for future firmware version loaders
+                                % Not 2.2.1, 2.5.0 or 3.1.0 - skip - cannot handle right now.
+                                fprintf(1,'Firmware version (%s) either not found or unrecognized in %s.\n',firmwareVersion,infoFile);
+                                obj.hasRaw = false;
+                            end
                         end
-                        
-                    else  % if it was not .bin or .raw
-                        obj.accelType = 'count';
                     end
                 end
             else
                 didLoad = false;
+            end
+            
+            if(obj.hasRaw && obj.hasCounts)
+                obj.accelType = 'all';
+            elseif(obj.hasRaw)
+                obj.accelType = 'raw';
+                obj.setVisible('lux','off');
+                obj.setVisible('steps','off');
+                obj.setVisible('inclinometer.standing','off');
+                obj.setVisible('inclinometer.sitting','off');
+                obj.setVisible('inclinometer.lying','off');
+                obj.setVisible('inclinometer.off','off');
+            elseif(obj.hasCounts)
+                obj.accelType = 'count';
+            else
+                obj.accelType = [];
+            end
+            
+            if(obj.hasCounts || obj.hasRaw)
+                obj.classifyUsageForAllAxes();
             end
         end
         
@@ -1164,7 +1248,6 @@ classdef PAData < handle
         %> @param fullCountFilename The full (i.e. with path) filename to load.
         % =================================================================
         function didLoad = loadCountFile(obj,fullCountFilename)
-            
             if(exist(fullCountFilename,'file'))
                 fid = fopen(fullCountFilename,'r');
                 if(fid>0)
@@ -1225,8 +1308,8 @@ classdef PAData < handle
                         % The following call to mergedCell ensures the data
                         % is chronologically ordered and data is not
                         % missing.
-                        [dataCell, ~, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,missingValue);
-                        
+                        [dataCell, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,missingValue);
+                       
                         tmpDataCell = []; %free up this memory;
                         
                         %MATLAB has some strange behaviour with date num -
@@ -1302,134 +1385,110 @@ classdef PAData < handle
         %> @param obj Instance of PAData.
         %> @param fullRawCSVFilename The full (i.e. with path) filename for raw data to load.
         % =================================================================
-        function didLoad = loadRawCSVFile(obj,fullRawCSVFilename)
+        function didLoad = loadRawCSVFile(obj,fullRawCSVFilename, loadFastOption)
+            if(nargin<3 || isempty(loadFastOption))
+                loadFastOption = false;
+            end
             if(exist(fullRawCSVFilename,'file'))
-                
-                fid = fopen(fullRawCSVFilename,'r');
-                if(fid>0)
-                    try
-                        delimiter = ',';
-                        % header = 'Date	 Time	 Axis1	Axis2	Axis3
-                        headerLines = 11; %number of lines to skip
-                        %                        scanFormat = '%s %f32 %f32 %f32'; %load as a 'single' (not double) floating-point number
-                        scanFormat = '%f/%f/%f %f:%f:%f %f32 %f32 %f32';
+                try
+                    if(exist('loadrawcsv','file')==3) % If the mex file exists and is compiled
+                    %if(exist('loadrawcsv','file')==-3) % If the mex file exists and is compiled
                         tic
-                        tmpDataCell = textscan(fid,scanFormat,'delimiter',delimiter,'headerlines',headerLines);
+                        rawMat = loadrawcsv(fullRawCSVFilename, loadFastOption)';  %loadrawcsv loads rows as columns so we need to transpose the results.
                         toc
-                        
-                        %                        scanFormat = '%2d/%2d/%4d %2d:%2d:%f,%f32,%f32,%f32';
-                        %                        frewind(fid);
-                        %                        for f=1:headerLines
-                        %                            fgetl(fid);
-                        %                        end
-                        %
-                        %                        %This takes 46 seconds; //or 24 seconds or 4.547292
-                        %                        %or 8.8 ...
-                        %                        %seconds. or 219.960772 seconds (what is going on
-                        %                        %here?)
-                        %                        tic
-                        %                        A  = fread(fid,'*char');
-                        %                        toc
-                        %                        tic
-                        %                        tmpDataCell = textscan(A,scanFormat);
-                        %                        toc
-                        %                        toc
-                        %                        pattern = '(?<datetimestamp>[^,]+),(?<axis1>[^,]+),(?<axis2>[^,]+),(?<axis3>[^\s]+)\s*';
-                        %                        tic
-                        %                        result = regexp(A(1:2e+8)',pattern,'names')  % seconds
-                        % %                        result = regexp(A(1:1e+8)',pattern,'names')  %23.7 seconds
-                        %                        toc
-                        
-                        %                        scanFormat = '%u8/%u8/%u16 %2d:%2d:%f,%f32,%f32,%f32';
-                        %tmpDataCell = textscan(A(1:1e+9),scanFormat)
-                        %                        tmpDataCell = textscan(A(1:1e+8),scanFormat)
-                        %                        tmpDataCell = textscan(A(1e+8+2:2e+8),scanFormat)
-                        %                        tmpDataCell = textscan(A(2e+8-15:3e+8),scanFormat)
-                        %                        tmpDataCell = textscan(A(3e+8:4e+8),scanFormat) %12.7 seconds
-                        %                        tmpDataCell = textscan(A(4e+8-3:5e+8),scanFormat) %8.8 seconds
-                        %                        tmpDataCell = textscan(A(5e+8+10:6e+8+100)',scanFormat) %7.9 seconds
-                        %                        tmpDataCell = textscan(A(6e+8+15:7e+8+100)',scanFormat) %7.86 seconds
-                        %                        tmpDataCell = textscan(A(7e+8+7:8e+8+100)',scanFormat) %7.8 seconds
-                        %                        tmpDataCell = textscan(A(8e+8-13:9e+8+100)',scanFormat) %7.9 seconds
-                        %                        tmpDataCell = textscan(A(9e+8-1:10e+8+100)',scanFormat) %7.87 seconds
-                        %
-                        % tic
-                        % tmpDataCell = textscan(A(10e+8-17:11e+8+100)',scanFormat) %7.94 seconds
-                        % toc,tic
-                        % tmpDataCell = textscan(A(11e+8+4:12e+8+100)',scanFormat) %7.73 seconds
-                        % toc,tic
-                        % tmpDataCell = textscan(A(12e+8-2:13e+8+100)',scanFormat) %8.08 seconds
-                        % toc,tic
-                        % tmpDataCell = textscan(A(13e+8-3:14e+8+100)',scanFormat) %9.45 seconds
-                        % toc,tic
-                        % tmpDataCell = textscan(A(14e+8+4:14.106e+8)',scanFormat) %1.03 seconds
-                        % toc
-                        %                        toc
-                        
-                        
                         %Date time handling
-                        dateVecFound = double([tmpDataCell{3},tmpDataCell{1},tmpDataCell{2},tmpDataCell{4},tmpDataCell{5},tmpDataCell{6}]);
-                        
-                        %Date time handling
-                        %dateVecFound = datevec(tmpDataCell{1},'mm/dd/yyyy HH:MM:SS.FFF');
-                        
-                        
-                        obj.sampleRate = 40;
-                        samplesFound = size(dateVecFound,1);
-                        
-                        %start, stop and delta date nums
-                        startDateNum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
-                        stopDateNum = datenum(dateVecFound(end,:));
-                        windowDateNumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
-                        missingValue = nan;
-                        
-                        % NOTE:  Chopping off the first six columns: date time values;
-                        tmpDataCell(1:6) = [];
-                        [dataCell, ~, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,missingValue);
-                        tmpDataCell = []; %free up this memory;
-                        
-                        obj.durSamples = numel(obj.dateTimeNum);
-                        obj.durationSec = floor(obj.durationSamples()/obj.sampleRate);
-                        
-                        numMissing = obj.durationSamples() - samplesFound;
-                        
-                        if(obj.durationSamples()==samplesFound)
-                            fprintf('%d rows loaded from %s\n',samplesFound,fullRawCSVFilename);
+                        if(loadFastOption)
+                            tmpDataCell = {rawMat(:,1),rawMat(:,2),rawMat(:,3)};
                         else
-                            
-                            if(numMissing>0)
-                                fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullCountFilename,numMissing,num2str(missingValue));
-                            else
-                                fprintf('This case is not handled yet.\n');
-                                fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullCountFilename,numMissing,num2str(missingValue));
-                            end
+                            dateVecFound = double([rawMat(:,3),rawMat(:,1),rawMat(:,2),rawMat(:,4),rawMat(:,5),rawMat(:,6)]);
+                            tmpDataCell = {rawMat(:,7),rawMat(:,8),rawMat(:,9)};
                         end
-                        
-                        obj.accel.raw.x = dataCell{1};
-                        obj.accel.raw.y = dataCell{2};
-                        obj.accel.raw.z = dataCell{3};
-                        
-                        fclose(fid);
-                        
-                        obj.resampleCountData();
-                        didLoad = true;
-                        
-                    catch me
-                        showME(me);
-                        fclose(fid);
-                        didLoad = false;
+                    else
+                        fid = fopen(fullRawCSVFilename,'r');
+                        if(fid>0)
+                            delimiter = ',';
+                            % header = 'Date	 Time	 Axis1	Axis2	Axis3
+                            headerLines = 11; %number of lines to skip
+                            %                        scanFormat = '%s %f32 %f32 %f32'; %load as a 'single' (not double) floating-point number
+                            if(loadFastOption)
+                                scanFormat = '%*f/%*f/%*f %*f:%*f:%*f %f32 %f32 %f32';
+                            else
+                                scanFormat = '%f/%f/%f %f:%f:%f %f32 %f32 %f32';
+                            end
+                            tic
+                            tmpDataCell = textscan(fid,scanFormat,'delimiter',delimiter,'headerlines',headerLines);
+                            toc
+                            %Date time handling
+                            
+                            if(~loadFastOption)
+                                dateVecFound = double([tmpDataCell{3},tmpDataCell{1},tmpDataCell{2},tmpDataCell{4},tmpDataCell{5},tmpDataCell{6}]);
+                                %dateVecFound = datevec(tmpDataCell{1},'mm/dd/yyyy HH:MM:SS.FFF');
+                                
+                                % NOTE:  Chopping off the first six columns: date time values;
+                                tmpDataCell(1:6) = [];
+                            end
+                            
+                            fclose(fid);
+                       
+                        else
+                            fprintf('Warning - could not open %s for reading!\n',fullRawCSVFilename);
+                            % didLoad = false;
+                            MException('MATLAB:Padaco:FileIO','Could not open file for reading');
+                        end
                     end
-                else
-                    fprintf('Warning - could not open %s for reading!\n',fullRawCSVFilename);
+                    
+                    samplesFound = numel(tmpDataCell{1}); %size(dateVecFound,1);
+                    
+                    %start, stop and delta date nums
+                    startDateNum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
+                    windowDateNumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
+                    missingValue = nan;
+                    
+                    if(loadFastOption)
+                        stopDateNum = datenum(strcat(obj.stopDate,{' '},obj.stopTime),'mm/dd/yyyy HH:MM:SS');
+                        obj.dateTimeNum = obj.datespace(startDateNum,stopDateNum,windowDateNumDelta);
+                        obj.dateTimeNum(end)=[];  %remove the very last sample, since it is not actually recorded in the dataset, but represents when the data was downloaded, which happens one sample after the device stops.
+                    else
+                        stopDateNum = datenum(dateVecFound(end,:));
+                        [tmpDataCell, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,missingValue);                        
+                    end
+
+                    obj.durSamples = numel(obj.dateTimeNum);
+                    obj.durationSec = floor(obj.durationSamples()/obj.sampleRate);
+
+                    numMissing = obj.durationSamples() - samplesFound;
+
+                    obj.setRawXYZ(tmpDataCell{1},tmpDataCell{2},tmpDataCell{3});
+                    
+                    if(obj.durationSamples()==samplesFound)
+                        fprintf('%d rows loaded from %s\n',samplesFound,fullRawCSVFilename);
+                    else
+                        if(numMissing>0)
+                            fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullRawCSVFilename,numMissing,num2str(missingValue));
+                        else
+                            fprintf('This case is not handled yet.\n');
+                            fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullRawCSVFilename,numMissing,num2str(missingValue));
+                        end
+                    end
+                    
+                    % No longer thing resampling count data is the way to
+                    % go here.
+                    if(obj.hasCounts)
+                        obj.resampleCountData();
+                    end
+                    didLoad = true;
+                catch me
+                    showME(me);
                     didLoad = false;
+                    if(exist('fid','var'))
+                        fclose(fid);
+                    end
                 end
             else
                 fprintf('Warning - %s does not exist!\n',fullRawCSVFilename);
                 didLoad = false;
             end
         end
-        
-        
         
         % ======================================================================
         %> @brief Loads an accelerometer's raw data from binary files stored
@@ -1504,7 +1563,32 @@ classdef PAData < handle
             end
         end
         
-        
+                
+        % ======================================================================
+        %> @brief Resamples previously loaded 'count' data to match sample rate of
+        %> raw accelerometer data that has been loaded in a following step (see loadFile()).
+        %> @param obj Instance of PAData.       %
+        %> @note countPeriodSec, sampleRate, steps, lux, and accel values
+        %> must be set in advance of this call.
+        % ======================================================================
+        function setRawXYZ(obj, rawXorXYZ, rawY, rawZ)
+            if(nargin==2)
+                if(size(rawXorXYZ,1)==3 && size(rawXorXYZ,2)>3)
+                    rawXorXYZ = rawXorXYZ';
+                end
+                rawY = rawXorXYZ(:,2);
+                rawZ = rawXorXYZ(:,3);
+                rawX = rawXorXYZ(:,1);
+            elseif(nargin==4)
+                rawX = rawXorXYZ;
+            end
+            obj.accel.raw.x = rawX;
+            obj.accel.raw.y = rawY;
+            obj.accel.raw.z = rawZ;
+            obj.accel.raw.vecMag = sqrt(obj.accel.raw.x.^2+obj.accel.raw.y.^2+obj.accel.raw.z.^2);
+            obj.durSamples = numel(rawX);
+        end
+
         
         % ======================================================================
         %> @brief Resamples previously loaded 'count' data to match sample rate of
@@ -1637,8 +1721,9 @@ classdef PAData < handle
         %> - c none
         %> - c all
         %> - c rms
-        %> - c median
         %> - c mean
+        %> - c mad        
+        %> - c median
         %> - c sum
         %> - c var
         %> - c std
@@ -1659,6 +1744,7 @@ classdef PAData < handle
                 data = eval(['data.',signalTagLine]);
                 tagParts = strsplit(signalTagLine,'.');  %break it up and give me the 'vecMag' in the default case.
                 axisName = tagParts{end};
+                
                 usageVec = obj.usage.(axisName);
             catch me                
                 rethrow(me);  %this is just for debugging.
@@ -1711,11 +1797,23 @@ classdef PAData < handle
             
             switch(lower(method))
                 case 'none'
-                    
+                case 'all_sans_psd'
+                    obj.features.rms = sqrt(mean(data.^2))';
+                    obj.features.mean = mean(data)';
+                    obj.features.meanad = mad(data,0)';
+                    obj.features.medianad = mad(data,1)';
+                    obj.features.median = median(data)';
+                    obj.features.sum = sum(data)';
+                    obj.features.var = var(data)';
+                    obj.features.std = std(data)';
+                    obj.features.mode = mode(data)';
+                    obj.features.usagestate = mode(obj.usageFrames)';
                 case 'all'
                     obj.features.rms = sqrt(mean(data.^2))';
-                    obj.features.median = median(data)';
                     obj.features.mean = mean(data)';
+                    obj.features.meanad = mad(data,0)';
+                    obj.features.medianad = mad(data,1)';
+                    obj.features.median = median(data)';
                     obj.features.sum = sum(data)';
                     obj.features.var = var(data)';
                     obj.features.std = std(data)';
@@ -1723,29 +1821,20 @@ classdef PAData < handle
                     obj.features.usagestate = mode(obj.usageFrames)';
                     obj.calculatePSD(signalTagLine);
                     %                    obj.features.count = obj.getCount(data)';
-                    
-                case 'rms'
-                    obj.features.rms = sqrt(mean(data.^2))';
-                case 'median'
-                    obj.features.median = median(data)';
-                case 'mean'
-                    obj.features.mean = mean(data)';
-                case 'sum'
-                    obj.features.sum = sum(data)';
-                case 'var'
-                    obj.features.var = var(data)';
-                case 'std'
-                    obj.features.std = std(data)';
-                case 'mode'
-                    obj.features.mode = mode(data)';
-                case 'usagestate'
-                    obj.features.usagestate = mode(obj.usageFrames)';
                 case 'psd'
                     obj.calculatePSD(signalTagLine);        
+                case 'usagestate'
+                    obj.features.usagestate = mode(obj.usageFrames)'; 
                 otherwise
-                    fprintf(1,'Unknown method (%s)\n',method);
+                    featureVector = obj.calcFeatureVectorFromFrames(data,method);
+                    if(~isempty(featureVector))
+                         obj.features.(method) = featureVector;                      
+                    else
+                        
+                    end
             end
         end
+        
         
         %> @brief Calculates the PSD for the current frames and assigns the
         %> result to obj.psd.frames.  Will also assign
@@ -1879,14 +1968,30 @@ classdef PAData < handle
         % ======================================================================        
         function didClassify = classifyUsageForAllAxes(obj)
             try
-                countStruct = obj.getStruct('all');
-                countStruct = countStruct.accel.count;
-                axesNames = fieldnames(countStruct);
-                for a=1:numel(axesNames)
-                    axesName=axesNames{a};
-                    obj.usage.(axesName) = obj.classifyUsageState(countStruct.(axesName));
+                if(obj.hasCounts || obj.hasRaw)
+                    dataStruct = obj.getStruct('all');
+                    if(obj.hasCounts)
+                        dataStruct = dataStruct.accel.count;
+                    else
+                        dataStruct = dataStruct.accel.raw;
+                    end
+                    axesNames = fieldnames(dataStruct);
+                    for a=1:numel(axesNames)
+                        axesName=axesNames{a};
+                        % This branch can be merged with the one above as soon
+                        % as there is a better/faster way to classify usage
+                        % state from raw data.
+                        if(obj.hasCounts)
+                            obj.usage.(axesName) = obj.classifyUsageState(dataStruct.(axesName));
+                            didClassify = true;
+                        else
+                            obj.usage.(axesName) = zeros(size(dataStruct.(axesName)));
+                        end
+                    end
+                else
+                    didClassify = false;
+                    fprintf(1,'No data available to classify the usage state with.\n');
                 end
-                didClassify=true;
             catch me
                 showME(me);
                 didClassify=false;
@@ -1945,11 +2050,6 @@ classdef PAData < handle
             awakeVsAsleepCountsPerSecondCutoff = obj.usageStateRules.awakeVsAsleepCountsPerSecondCutoff;  %1;  % exceeding the cutoff means you are awake
             activeVsInactiveCountsPerSecondCutoff = obj.usageStateRules.activeVsInactiveCountsPerSecondCutoff; %10; % exceeding the cutoff indicates active
             onBodyVsOffBodyCountsPerMinuteCutoff = obj.usageStateRules.onBodyVsOffBodyCountsPerMinuteCutoff; %1; % exceeding the cutoff indicates on body (wear)
-
-
-            
-            
-            
                         
             samplesPerMinute = obj.getSampleRate()*60; % samples per second * 60 seconds per minute
             samplesPerHour = 60*samplesPerMinute;
@@ -2187,12 +2287,17 @@ classdef PAData < handle
                         dat.accel.(obj.accelType).z = double(obj.accel.(obj.accelType).z(indices));
                         dat.accel.(obj.accelType).vecMag = double(obj.accel.(obj.accelType).vecMag(indices));
                     end
-                    dat.steps = double(obj.steps(indices));
-                    dat.lux = double(obj.lux(indices));
-                    dat.inclinometer.standing = double(obj.inclinometer.standing(indices));
-                    dat.inclinometer.sitting = double(obj.inclinometer.sitting(indices));
-                    dat.inclinometer.lying = double(obj.inclinometer.lying(indices));
-                    dat.inclinometer.off = double(double(obj.inclinometer.off(indices)));
+                    
+                    % Raw accelerometer data does not include these fields
+                    % in their data file.
+                    if(~strcmpi(obj.accelType,'raw'))
+                        dat.steps = double(obj.steps(indices));
+                        dat.lux = double(obj.lux(indices));
+                        dat.inclinometer.standing = double(obj.inclinometer.standing(indices));
+                        dat.inclinometer.sitting = double(obj.inclinometer.sitting(indices));
+                        dat.inclinometer.lying = double(obj.inclinometer.lying(indices));
+                        dat.inclinometer.off = double(double(obj.inclinometer.off(indices)));
+                    end
                 case 'features'
                     dat = PAData.subsStruct(obj.features,indices);
                 case 'bins'
@@ -2201,8 +2306,6 @@ classdef PAData < handle
                     fprintf('Warning!  This case is not handled (%s).\n',structType);
             end
         end
-        
-        
         
         function [sref,varargout] = subsref(obj,s)
             
@@ -2280,8 +2383,6 @@ classdef PAData < handle
             end
         end
         
-        
-        
         % ======================================================================
         %> @brief Returns a structure of PAData's saveable parameters as a struct.
         %> @param obj Instance of PAData.
@@ -2320,7 +2421,52 @@ classdef PAData < handle
     end
     
     methods (Access = protected)
+            
         
+        function [didLoad,recordCount] = loadPadacoRawBinFile(obj,fullBinFilename)
+            didLoad = false;
+            recordCount = 0;
+            if(exist(fullBinFilename,'file'))
+                fid = fopen(fullBinFilename,'r','n');  %Let's go with native format...
+                
+                if(fid>0)
+                    binHeader = obj.loadPadacoRawBinFileHeader(fid);
+                    recordCount1 = binHeader.sz_remaining/binHeader.num_signals/binHeader.sz_per_signal;
+                    recordCount2 = binHeader.samplerate*binHeader.duration_sec;
+                    if(recordCount1~=recordCount2)
+                        fprintf(1,'A mismatch exists for record count as specified in the binary file %s',fullBinFilename);
+                        recordCount = max(recordCount1,recordCount2); % Take the largest of the two for pre-allocation.
+                    else
+                        recordCount = recordCount1;
+                    end
+                    %                     curPos = ftell(fid);
+                    %                     a=fread(fid, [binHeader.num_signals,inf],'*float')';
+                    %                     fseek(fid,curPos,'bof');
+                    %                     tic
+                    xyzData=fread(fid, [binHeader.num_signals,recordCount],'*float')';
+                    obj.setRawXYZ(xyzData);
+                    
+                    obj.sampleRate = binHeader.samplerate;
+                    obj.durationSec = binHeader.duration_sec;
+                    
+                    % Thu Feb  7 00:00:00 2013
+                    daVec = datevec(binHeader.startDateTimeStr,'ddd mmm dd HH:MM:SS yyyy');
+                    startDatenum = datenum(daVec);
+                    obj.startDate = datestr(startDatenum,'mm/dd/yyyy');
+                    obj.startTime = datestr(startDatenum,'HH:MM:SS');
+                    daVec(end)=daVec(end)+obj.durationSec-1/obj.sampleRate;
+                    stopDatenum = datenum(daVec);
+                    obj.stopDate = datestr(stopDatenum,'mm/dd/yyyy');
+                    obj.stopTime = datestr(stopDatenum,'HH:MM:SS');
+                    
+                    datenumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
+                    obj.dateTimeNum = obj.datespace(startDatenum,stopDatenum,datenumDelta);
+                     
+                    didLoad = true;
+                end
+            end
+        end
+
         % ======================================================================
         %> @brief Loads raw accelerometer data from binary file produced via
         %> actigraph Firmware 2.5.0 or 3.1.0.  This function is
@@ -2475,12 +2621,8 @@ classdef PAData < handle
                             
                             axesFloatData = (-bitand(axesUBitData,2048)+bitand(axesUBitData,2047))*encodingEPS;
                             
-                            obj.accel.raw.x = axesFloatData(:,1);
-                            obj.accel.raw.y = axesFloatData(:,2);
-                            obj.accel.raw.z = axesFloatData(:,3);
-                            obj.accel.raw.vecMag = sqrt(obj.accel.raw.x.^2+obj.accel.raw.y.^2+obj.accel.raw.z.^2);
-                            recordCount = size(axesFloatData,1);
-                            obj.durSamples = recordCount;
+                            obj.setRawXYZ(axesFloatData);
+                            
                             
                             toc;
                         end
@@ -2668,6 +2810,45 @@ classdef PAData < handle
         
         % File I/O
         
+        %> @param fid File identifier is expected to be a file resource
+        %> for a binary file obainted using fopen(<filename>,'r');
+        %> @retval fileHeader A struct with file header field value pairs.
+        %> An empty value is returned in the event that the fid is bad.
+        function fileHeader = loadPadacoRawBinFileHeader(fid)
+            goodFile = fseek(fid,0,'bof')==0;
+            
+            if(~goodFile)
+                fprintf(1,'Not a good file identifier.  The following error message was received:\n\t%s\n',ferror(fid));
+                fileHeader = [];
+            else
+                
+                fileHeader.samplerate = fread(fid,1,'uint16');
+                fileHeader.startDateTimeStr = fread(fid,[1,24],'*char');
+                %                 fileHeader.tm_sec=fread(fid,1,'int');    % seconds after the minute (0 to 61) */
+                %                 fileHeader.tm_min=fread(fid,1,'int');    % minutes after the hour (0 to 59) */
+                %                 fileHeader.tm_hour=fread(fid,1,'int');   % hours since midnight (0 to 23) */
+                %                 fileHeader.tm_mday=fread(fid,1,'int');   % day of the month (1 to 31) */
+                %                 fileHeader.tm_mon=fread(fid,1,'int');    % months since January (0 to 11) */
+                %                 fileHeader.tm_year=fread(fid,1,'int')+1900;   % years since 1900 */
+                %                 fileHeader.tm_wday=fread(fid,1,'int');   % days since Sunday (0 to 6 Sunday=0) */
+                %                 fileHeader.tm_yday=fread(fid,1,'int');   % days since January 1 (0 to 365) */
+                %                 fileHeader.tm_isdst=fread(fid,1,'int');  % Daylight Savings Time */
+                
+                fileHeader.firmware = fread(fid,[1,10],'*char');
+                fileHeader.serialID = fread(fid,[1,20],'*char');
+                fileHeader.duration_sec = fread(fid,1,'uint32');
+                fileHeader.num_signals = fread(fid,1,'uint8');
+                fileHeader.sz_per_signal = fread(fid,1,'uint8');
+                fileHeader.sz_remaining = fread(fid,1,'*uint64');
+                if(feof(fid))
+                    fprintf(1,'Not a good file identifier.  The following error message was received:\n\t%s\n',ferror(fid));
+                    fileHeader = [];
+                end
+            end
+            
+        end
+
+        
         % ======================================================================
         %> @brief Parses the information found in input file name and returns
         %> the result as a struct of field-value pairs.
@@ -2706,7 +2887,85 @@ classdef PAData < handle
             end
         end
         
-        % Analysis
+        
+        %% Analysis
+        
+        % =================================================================
+        %> @brief Calculates a feature vector for the provided data and feature function.
+        %> @param dataVector An N*Mx1 row vector.
+        %> @param samplesPerFrame The number of samples to be used per
+        %> frame.  The dataVector is reshaped into an NxM matrix whose
+        %> columns are taken sample by sample from the dataVector.  Thus,
+        %> each column represents a frame that the feature function is
+        %> applied to.
+        %> @param featureFcn String name of the feature function to be
+        %> applied.  See calcFeatureVectorFromFrames for a list of
+        %> supported feature functions and corresponding labels.
+        %> @retval featureVector Mx1 vector of feature values.  The ith row
+        %> entry corresponds to the ith frame's feature value.
+        function featureVector = calcFeatureVector(dataVector,samplesPerFrame,featureFcn)
+            numelements = numel(dataVector);
+            numFrames = floor(numelements/samplesPerFrame);
+            frameableSamples = numelements*numFrames;
+            NxM_dataFrames =  reshape(dataVector(1:frameableSamples),[],numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
+            featureVector = PAData.calcFeatureVectorFromFrames(NxM_dataFrames,featureFcn);
+        end
+        
+        function Mx1_featureVector = calcFeatureVectorFromFrames(NxM_dataFrames,featureFcn)
+            switch(lower(featureFcn))
+                 case 'rms'
+                    Mx1_featureVector = sqrt(mean(NxM_dataFrames.^2))';
+                case 'mean'
+                    Mx1_featureVector = mean(NxM_dataFrames)';
+                case 'meanad'
+                    Mx1_featureVector = mad(NxM_dataFrames,0)';
+                case 'medianad'
+                    Mx1_featureVector = mad(NxM_dataFrames,1)';
+                case 'median'
+                    Mx1_featureVector = median(NxM_dataFrames)';
+                case 'sum'
+                    Mx1_featureVector = sum(NxM_dataFrames)';
+                case 'var'
+                    Mx1_featureVector = var(NxM_dataFrames)';
+                case 'std'
+                    Mx1_featureVector = std(NxM_dataFrames)';
+                case {'mode','usagestate'}
+                    Mx1_featureVector = mode(NxM_dataFrames)';
+                otherwise
+                    Mx1_featureVector = [];
+                    fprintf(1,'Unknown method (%s)\n',featureFcn);
+            end
+            
+        end
+
+        function featureFcn = getFeatureFcn(functionName)
+            switch(lower(functionName))
+                 case 'rms'
+                    featureFcn = @(data)sqrt(mean(data.^2))';
+                case 'mean'
+                    featureFcn = @(x)mean(x)';
+                case 'meanad'
+                    featureFcn = @(x)mad(x,0)';
+                case 'medianad'
+                    featureFcn = @(x)mad(x,1)';
+                case 'median'
+                    featureFcn = @(x)median(x)';
+                case 'sum'
+                    featureFcn = @(x)sum(x)';
+                case 'var'
+                    featureFcn = @(x)var(x)';
+                case 'std'
+                    featureFcn = @(x)std(x)';
+                case {'mode'}
+                    featureFcn = @(x)mode(x)';
+                otherwise
+                    featureFcn = @(x)x';
+                    fprintf(1,'Unknown method (%s)\n',featureFcn);
+            end
+            
+            
+        end
+        
         
         % =================================================================
         %> @brief Removes periods of activity that are too short and groups
@@ -2737,12 +2996,9 @@ classdef PAData < handle
                     diff_samples = (candidate_events(:,2)-candidate_events(:,1));
                     candidate_events = candidate_events(diff_samples>=min_duration_samples,:);
                 end
-            end
-            
+            end            
             processVec = PAData.unrollEvents(candidate_events,numel(logicalVec));
-            
         end
-        
         
         %======================================================================
         %> @brief Moving summer finite impulse response filter.
@@ -2782,6 +3038,7 @@ classdef PAData < handle
         end
         
         
+        %% Interface (can be moved to a controller class)
         %======================================================================
         %> @brief returns a cell of tag lines and the associated label
         %> describing the tag line.
@@ -2939,14 +3196,14 @@ classdef PAData < handle
             
             
             pStruct.color.timeSeries.accel.raw.x.color = 'r';
-            pStruct.color.timeSeries.accel.raw.y.color = 'b';
-            pStruct.color.timeSeries.accel.raw.z.color = 'g';
-            pStruct.color.timeSeries.accel.raw.vecMag.color = 'm';
+            pStruct.color.timeSeries.accel.raw.y.color = 'g';
+            pStruct.color.timeSeries.accel.raw.z.color = 'b';
+            pStruct.color.timeSeries.accel.raw.vecMag.color = 'k';
             pStruct.color.timeSeries.accel.count.x.color = 'r';
-            pStruct.color.timeSeries.accel.count.y.color = 'b';
-            pStruct.color.timeSeries.accel.count.z.color = 'g';
-            pStruct.color.timeSeries.accel.count.vecMag.color = 'm';
-            pStruct.color.timeSeries.steps.color = 'k'; %[1 0.5 0.5];
+            pStruct.color.timeSeries.accel.count.y.color = 'g';
+            pStruct.color.timeSeries.accel.count.z.color = 'b';
+            pStruct.color.timeSeries.accel.count.vecMag.color = 'k';
+            pStruct.color.timeSeries.steps.color = 'm'; %[1 0.5 0.5];
             pStruct.color.timeSeries.lux.color = 'y';
             pStruct.color.timeSeries.inclinometer.standing.color = 'k';
             pStruct.color.timeSeries.inclinometer.lying.color = 'k';
@@ -3036,30 +3293,29 @@ classdef PAData < handle
         %> @param sampledDateVec Vector of date number values taken between startDateNum
         %> and stopDateNum (inclusive) and are in the order and size as the
         %> individual cell components of tmpDataCell
-        %> @param tmpDataCell A cell of vectors whose individual values correspond to
-        %> the order of sampledDateVec
+        %> @param tmpDataCellOrMatrix A cell or matrix of row vectors whose individual values correspond to
+        %> the order of sampledDateVec.  @note tmpDataMatrix(:,x)==tempDataCell{x}       
         %> @param missingValue (Optional) Value to be used in the ordered output data
         %> cell where the tmpDataCell does not have corresponding values.
         %> The default is 'nan'.
         %> @retval orderedDataCell A cell of vectors that are taken from tmpDataCell but
         %> initially filled with the missing value parameter and ordered
         %> according to synthDateNum.
+        %> @retval synthDateNum Vector of date numbers corresponding to the date vector
+        %> matrix return argument.
         %> @retval synthDateVec Matrix of date vectors ([Y, Mon,Day, Hr, Mn, Sec]) generated by
         %> startDateNum:dateNumDelta:stopDateNum which correponds to the
         %> row order of orderedDataCell cell values/vectors
-        %> @retval synthDateNum Vector of date numbers corresponding to the date vector
-        %> matrix return argument.
         %> @note This is a helper function for loading raw and count file
         %> formats to ensure proper ordering and I/O error handling.
         %======================================================================
-        function [orderedDataCell, synthDateVec, synthDateNum] = mergedCell(startDateNum, stopDateNum, dateNumDelta, sampledDateVec,tmpDataCell,missingValue)
+        function [orderedDataCell, synthDateNum, synthDateVec] = mergedCell(startDateNum, stopDateNum, dateNumDelta, sampledDateVec,tmpDataCellOrMatrix,missingValue)
             if(nargin<6 || isempty(missingValue))
                 missingValue = nan;
             end
             
-            %sampledDateNum = datenum(sampledDateVec);
-            synthDateVec = datevec(startDateNum:dateNumDelta:stopDateNum);
-            synthDateVec(:,6) = round(synthDateVec(:,6)*1000)/1000;
+            
+            [synthDateNum, synthDateVec] = PAData.datespace(startDateNum, stopDateNum, dateNumDelta);
             numSamples = size(synthDateVec,1);
             
             %make a cell with the same number of column as
@@ -3067,10 +3323,9 @@ classdef PAData < handle
             %b/c already have these, with each column entry
             %having an array with as many missing values as
             %originally found.
-            orderedDataCell =  repmat({repmat(missingValue,numSamples,1)},1,size(tmpDataCell,2));
+            orderedDataCell =  repmat({repmat(missingValue,numSamples,1)},1,size(tmpDataCellOrMatrix,2));
             
             %This takes 2.0 seconds!
-            synthDateNum = datenum(synthDateVec);
             sampledDateNum = datenum(sampledDateVec);
             [~,IA,~] = intersect(synthDateNum,sampledDateNum);
             
@@ -3078,9 +3333,37 @@ classdef PAData < handle
             %here.
             %            [~,IA,~] = intersect(synthDateVec,sampledDateVec,'rows');
             for c=1:numel(orderedDataCell)
-                orderedDataCell{c}(IA) = tmpDataCell{c};
+                if(iscell(tmpDataCellOrMatrix))
+                    orderedDataCell{c}(IA) = tmpDataCellOrMatrix{c};
+                else
+                    orderedDataCell{c}(IA) = tmpDataCellOrMatrix(:,c);
+                end
             end
         end
+        
+        
+        
+        % ======================================================================
+        %> @brief Linearly spaced dates from start to stop dates provided.
+        %> @param startDateNum The start date number that the ordered data cell should
+        %> begin at.  (should be generated using datenum())
+        %> @param stopDateNum The date number (generated using datenum()) that the ordered data cell
+        %> ends at.
+        %> @param dateNumDelta The difference between two successive date number samples.
+        %> @param sampledDateVec Vector of date number values taken between startDateNum
+        %> and stopDateNum (inclusive) and are in the order and size as the
+        %> individual cell components of tmpDataCell
+        %> @retval synthDateNum Vector of date numbers corresponding to the date vector
+        %> matrix return argument.
+        %> @retval synthDateVec Matrix of date vectors ([Y, Mon,Day, Hr, Mn, Sec]) generated by
+        %> startDateNum:dateNumDelta:stopDateNum which correponds to the
+        %> row order of orderedDataCell cell values/vectors
+        %======================================================================
+        function [synthDateNum, synthDateVec] = datespace(startDateNum, stopDateNum, dateNumDelta)            
+            synthDateVec = datevec(startDateNum:dateNumDelta:stopDateNum);
+            synthDateVec(:,6) = round(synthDateVec(:,6)*1000)/1000;
+            synthDateNum = datenum(synthDateVec);
+        end     
         
         % ======================================================================
         %> @brief Evaluates the two structures, field for field, using the function name
@@ -3640,6 +3923,8 @@ classdef PAData < handle
         % --------------------------------------------------------------------
         function [featureStruct, varargout] = getFeatureDescriptionStruct()
             featureStruct.mean = 'Mean';
+            featureStruct.medianad = 'Median Absolute Deviation';
+            featureStruct.meanad = 'Mean Absolute Deviation';
             featureStruct.median = 'Median';
             featureStruct.std = 'Standard Deviation';
             featureStruct.rms = 'Root mean square';
@@ -3662,7 +3947,7 @@ classdef PAData < handle
         %> @retval varargout Cell with descriptive labels in the same order
         %> as they appear in argument one's keyvalue paired struct.
         function [featureStructWithPSDBands, varargout] = getFeatureDescriptionStructWithPSDBands()
-            featureStruct = rmfield(PAData.getFeatureDescriptionStruct,'psd');
+            featureStruct = rmfield(PAData.getFeatureDescriptionStruct(),'psd');
             psdFeatureStruct = PAData.getPSDFeatureDescriptionStruct();
             featureStructWithPSDBands = PAData.mergeStruct(featureStruct,psdFeatureStruct);
             if(nargout>1)
@@ -3812,7 +4097,11 @@ classdef PAData < handle
         %> @retval Study ID
         function studyID = getStudyIDFromBasename(baseName)
             % Appropriate for GOALS output
-            studyID = baseName(1:6);
+            try
+                studyID = baseName(1:6);
+            catch me
+                studyID = baseName;
+            end
         end
         
         function tagStruct = getActivityTags()
@@ -3867,3 +4156,55 @@ end
 % obj.color.features.rms.color = 'b';
 % obj.color.features.std.color = 'k';
 % obj.color.features.variance.color = 'y';
+
+
+%  File load Raw notes:
+%                        scanFormat = '%2d/%2d/%4d %2d:%2d:%f,%f32,%f32,%f32';
+%                        frewind(fid);
+%                        for f=1:headerLines
+%                            fgetl(fid);
+%                        end
+%
+%                        %This takes 46 seconds; //or 24 seconds or 4.547292
+%                        %or 8.8 ...
+%                        %seconds. or 219.960772 seconds (what is going on
+%                        %here?)
+%                        tic
+%                        A  = fread(fid,'*char');
+%                        toc
+%                        tic
+%                        tmpDataCell = textscan(A,scanFormat);
+%                        toc
+%                        toc
+%                        pattern = '(?<datetimestamp>[^,]+),(?<axis1>[^,]+),(?<axis2>[^,]+),(?<axis3>[^\s]+)\s*';
+%                        tic
+%                        result = regexp(A(1:2e+8)',pattern,'names')  % seconds
+% %                        result = regexp(A(1:1e+8)',pattern,'names')  %23.7 seconds
+%                        toc
+
+%                        scanFormat = '%u8/%u8/%u16 %2d:%2d:%f,%f32,%f32,%f32';
+%tmpDataCell = textscan(A(1:1e+9),scanFormat)
+%                        tmpDataCell = textscan(A(1:1e+8),scanFormat)
+%                        tmpDataCell = textscan(A(1e+8+2:2e+8),scanFormat)
+%                        tmpDataCell = textscan(A(2e+8-15:3e+8),scanFormat)
+%                        tmpDataCell = textscan(A(3e+8:4e+8),scanFormat) %12.7 seconds
+%                        tmpDataCell = textscan(A(4e+8-3:5e+8),scanFormat) %8.8 seconds
+%                        tmpDataCell = textscan(A(5e+8+10:6e+8+100)',scanFormat) %7.9 seconds
+%                        tmpDataCell = textscan(A(6e+8+15:7e+8+100)',scanFormat) %7.86 seconds
+%                        tmpDataCell = textscan(A(7e+8+7:8e+8+100)',scanFormat) %7.8 seconds
+%                        tmpDataCell = textscan(A(8e+8-13:9e+8+100)',scanFormat) %7.9 seconds
+%                        tmpDataCell = textscan(A(9e+8-1:10e+8+100)',scanFormat) %7.87 seconds
+%
+% tic
+% tmpDataCell = textscan(A(10e+8-17:11e+8+100)',scanFormat) %7.94 seconds
+% toc,tic
+% tmpDataCell = textscan(A(11e+8+4:12e+8+100)',scanFormat) %7.73 seconds
+% toc,tic
+% tmpDataCell = textscan(A(12e+8-2:13e+8+100)',scanFormat) %8.08 seconds
+% toc,tic
+% tmpDataCell = textscan(A(13e+8-3:14e+8+100)',scanFormat) %9.45 seconds
+% toc,tic
+% tmpDataCell = textscan(A(14e+8+4:14.106e+8)',scanFormat) %1.03 seconds
+% toc
+%                        toc
+

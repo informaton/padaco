@@ -25,6 +25,8 @@ archive/processResults.m
 
 huh/bartest.m
 
+*.mat
+
 matlab_workspace.mat
 
 matlab.mat
@@ -35,8 +37,6 @@ utility/lib
 
 model/model_summary.m
 model/table_summary.m
-*.tmp
-
 *.tmp
 
 *.csv
@@ -50,3 +50,20 @@ padaco_config_15Feb2017.txt
 model/gee_model.m
 
 *.raw
+*.o
+
+src/test.raw
+
+*.bin
+
+src/testtools
+
+*.c~
+
+src/rawcsv2rawbin
+
+*.tmp
+
+*.txt
+
+cache/results.tmp

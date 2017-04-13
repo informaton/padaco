@@ -22,7 +22,7 @@ function varargout = batchTool(varargin)
 
 % Edit the above text to modify the response to help batchTool
 
-% Last Modified by GUIDE v2.5 08-Mar-2016 10:15:09
+% Last Modified by GUIDE v2.5 07-Mar-2017 08:16:31
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -71,3 +71,15 @@ function varargout = batchTool_OutputFcn(hObject, eventdata, handles)
 
 % Get default command line output from handles structure
 varargout{1} = handles.output;
+
+
+function menu_maxDaysAllowed_Callback(hObject, eventdata, handles)
+
+
+function menu_maxDaysAllowed_CreateFcn(hObject, eventdata, handles)
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end

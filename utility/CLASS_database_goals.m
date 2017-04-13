@@ -33,8 +33,6 @@ classdef CLASS_database_goals < CLASS_database
                 stat = [];
             end
             
-            
-            
             % This calculates summary stats directly within MySQL server
             selectStatFieldsStr = this.cellstr2statcsv(fieldNames,stat);
             sqlStatStr = sprintf('SELECT %s FROM %s WHERE %s in %s',selectStatFieldsStr,this.tableNames.subjectInfo,this.primaryKeys.subjectInfo, wherePrimaryKeysIn);
@@ -60,7 +58,10 @@ classdef CLASS_database_goals < CLASS_database
             this.dbStruct = this.getDBStruct();
             this.tableNames.studyInfo = 'studyinfo_t';
             this.tableNames.subjectInfo = 'subjectinfo_t';
+            this.tableNames.dictionary = 'dictionary_t';
+            
             this.primaryKeys.subjectInfo = 'kidid';  % Note:  subjectInfo table actually has two primary keys; not a problem for now because study num is always 1.
+            this.primaryKeys.dictionary = 'short_name';  % Note:  subjectInfo table actually has two primary keys; not a problem for now because study num is always 1.
         end
 
         % ======== ABSTRACT implementations for database_goals =========
@@ -79,14 +80,13 @@ classdef CLASS_database_goals < CLASS_database
             %these functions create the named tables
             this.createSubjectInfo_T();
             this.loadSubjectInfo_T();
+            this.createDictionary_T();
+            this.loadDictionary_T();
         end    
         
         % ======================================================================
-        %> @brief This creates the 'subjectinfo_t'  table for the goals datbase.
-        %> @param dbStruct A structure containing database accessor fields:
-        %> @li @c name Name of the database to use (string)
-        %> @li @c user Database user (string)
-        %> @li @c password Password for @c user (string)        
+        %> @brief This creates the 'subjectinfo_t'  table for the goals database.
+        %> @param Instance of CLASS_database_goals      
         % =================================================================
         function createSubjectInfo_T(this)                        
             
@@ -125,43 +125,57 @@ classdef CLASS_database_goals < CLASS_database
             this.createTable(this.tableNames.subjectInfo, tableStr);
         end
         
-        function loadSubjectInfo_T(this,subjectinfo_csv_filename)
+        % ======================================================================
+        %> @brief This creates the 'dictionary_t' table for the goals database.
+        %> The dictionary maps table column names to verbose descriptions and printable
+        %> long names.
+        %> @param Instance of CLASS_database_goals       
+        % =================================================================
+        function createDictionary_T(this)                        
             
-            if(nargin<2 || ~exist(subjectinfo_csv_filename,'file'))  
-                subjectinfo_csv_filename = uigetfullfile({'*.csv','Comma separated values (*.csv)'},...
-                    'Select GOALS subject data file');
-                
-            end
-            
-%             if(nargin<3 || ~isnumeric(visitNum))
-%                 visitResponse = questdlg('Which visit is this data from?','GOALS subject data','Visit 1','Visit 2','Visit 3','Visit 1');
-%                 visitNum = str2num(strrep(visitResponse,'Visit ',''));    
-%             end
-%           if(isfile(subjectinfo_csv_filename) && isnumeric(visitNum))
-            
-            if(exist(subjectinfo_csv_filename,'file'))
-                tableName = this.tableNames.subjectInfo;
-                loadStr = sprintf([
-                    'LOAD DATA LOCAL INFILE ''%s'' INTO TABLE %s ',...
-                    ' FIELDS TERMINATED BY '',''',...
-                    ' LINES TERMINATED BY ''\\r''',...
-                    ' IGNORE 1 LINES'],subjectinfo_csv_filename,tableName);
-                
-                this.open();                
-                mym(loadStr);
-                this.selectSome(tableName);
-                this.close();
-                %                     'set visitNum=%u'],subjectinfo_csv_filename,tableName,visitNum);
-            else
-                throw(MException('CLASS_database','Invalid arguments for loadSubjectInfo_T'));
-            end
-            
+            tableStr = [
+                '  short_name VARCHAR(20) NOT NULL'...
+                ', long_name VARCHAR(40) DEFAULT NULL'...
+                ', description VARCHAR(200) DEFAULT NULL'...
+                ', PRIMARY KEY (short_name)'
+                ]; 
+
+            this.createTable(this.tableNames.dictionary, tableStr);
         end
         
+        function loadSubjectInfo_T(this,subjectinfo_csv_filename)
+            this.importCSV('subjectinfo_t',subjectinfo_csv_filename,'Select GOALS subject data file');
+        end
         
+        function loadDictionary_T(this, dictionary_csv_filename)
+            this.importCSV('dictionary_t',dictionary_csv_filename,'Select GOALS dictionary mapping file');            
+        end
     end
-    
- 
-    
 end
 
+% Old notes, can be deleted if you are reading this:
+%         function loadSubjectInfo_T(this,subjectinfo_csv_filename)
+%             if(nargin<2 || ~exist(subjectinfo_csv_filename,'file'))  
+%                 subjectinfo_csv_filename = uigetfullfile({'*.csv','Comma separated values (*.csv)'},...
+%                     'Select GOALS subject data file');
+%                 
+%             end
+            
+%             if(exist(subjectinfo_csv_filename,'file'))
+%                 tableName = this.tableNames.subjectInfo;
+%                 loadStr = sprintf([
+%                     'LOAD DATA LOCAL INFILE ''%s'' INTO TABLE %s ',...
+%                     ' FIELDS TERMINATED BY '',''',...
+%                     ' LINES TERMINATED BY ''\\r''',...
+%                     ' IGNORE 1 LINES'],subjectinfo_csv_filename,tableName);
+%                 
+%                 this.open();                
+%                 mym(loadStr);
+%                 this.selectSome(tableName);
+%                 this.close();
+%                 %                     'set visitNum=%u'],subjectinfo_csv_filename,tableName,visitNum);
+%             else
+%                 throw(MException('CLASS_database','Invalid arguments for loadSubjectInfo_T'));
+%             end
+            
+%         end

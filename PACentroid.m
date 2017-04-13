@@ -6,6 +6,7 @@
 classdef PACentroid < handle
     properties(Constant)
         WEEKDAY_ORDER = 0:6;  % for Sunday through Saturday
+        WEEKDAY_LABELS = {'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'};            
     end
     
     %> @brief The sort order can be difficult to understand.  First, the
@@ -37,15 +38,19 @@ classdef PACentroid < handle
         %> dimensionality)
         loadShapes;
         
-        loadShapeIDs;
-        uniqueLoadShapeIDs;
+        loadShapeIDs;  % more accurrately, the loadShapeParentID or the ID of the subject a load shape is associated with.
+        uniqueLoadShapeIDs; % unique participants or load shape generators.
         loadShapeDayOfWeek;  %Nx1 vector with values in [0,6] representing [Sunday, Monday, Tuesday ..., Saturday]
         daysOfInterest; % 7x1 boolean vector representing if the correspondning day of week is of interest.  [1] => Sunday, [2]=> Monday, ... , [7]=> Saturday
         
         %> Nx1 vector of centroid index for loadShape profile associated with its row.
         loadshapeIndex2centroidIndexMap;
         
-        %> CxM array of C centroids of size M.
+        %> CxM array of C centroids of size M.  Ordered by clustering
+        %> output; the original ordering.  Not ordered from 1 to C based on popularity.  To get
+        %> popularity index from highest popularity (1) to lowest (C) use:
+        %>  coi_index = this.coiSortOrder2Index(sortOrder); 
+        %> which converts to match the index the centroid load shape corresponds to.
         centroidShapes;
         
         %> Sorted distribution of centroid shapes by frequency of children load shape members.
@@ -54,18 +59,22 @@ classdef PACentroid < handle
         
         %> Nx1 vector that maps the constructor's input load shapes matrix
         %> to the sorted  @c loadShapes matrix.
-        sortIndices;
+        %sortIndices;  % centroidShapes(sortIndices(1),:) is the most popular centroid
         
         %> Cx1 vector that maps load shapes' original cluster indices to
         %> the equivalent cluster index after clusters have been sorted
-        %> by their load shape count.  Equivalen to coiIndex2SortOrder
+        %> by their load shape count.  Analog to coiSortOrder2Index
         centroidSortMap;
         
         %> Alias for centroidSortMap
+        %> map for going from sort order to coi index.  Use the desired sort
+        %> order as the index into coiSortOrder2Index to retrieve the 
+        %> original, unsorted index.
+        coiSortOrder2Index;  % To get original index of the most popular cluster (sort order =1 ) use index =  coiSortOrder2Index(1)
+         
+        
         coiIndex2SortOrder;
         
-        %> map for going from sort order to coi index.
-        coiSortOrder2Index;
         
         
         %> The sort order index for the centroid of interest (coi) 
@@ -124,7 +133,7 @@ classdef PACentroid < handle
         %> - @c clusterThreshold [1.5]                  
         %> - @c method - {'kmeans','kmedoids','kmedians'}; clustering method.  Default
         %> is kmeans.
-        %> @param Optional axes or line handle for displaying clustering progress.
+        %> @param axesOrLineH Optional axes or line handle for displaying clustering progress.
         %> - If argument is a handle to a MATLAB @b axes, then a line handle
         %> will be added to the axes and adjusted with clustering progress.
         %> - If argument is a handle to a MATLAB @b line, then the handle
@@ -135,11 +144,11 @@ classdef PACentroid < handle
         %> (default)
         %> @note Including a handle increases processing time as additional calculations
         %> are made to measuring clustering separation and performance.
-        %> @param Optional text handle to send status updates to via set(textHandle,'string',statusString) type calls.
+        %> @param textHandle Optional text handle to send status updates to via set(textHandle,'string',statusString) type calls.
         %> Status updates are sent to the command window by default.
-        %> @param Optional Nx1 cell string with load shape source
+        %> @param loadShapeIDs Optional Nx1 cell string with load shape source
         %> identifiers (e.g. which participant they came from).
-        %> @param Optional Nx1 vector with entries defining day of week
+        %> @param loadShapeDayOfWeek Optional Nx1 vector with entries defining day of week
         %> corresponding to the load shape entry found at the same row index
         %> in the loadShapes matrix.  
         %> @param delayedStart Boolean.  If true, the centroids are not
@@ -148,6 +157,8 @@ classdef PACentroid < handle
         %> 'false': centroids are calculated in the constructor.
         %> @retval Instance of PACentroid on success.  Empty matrix on
         %> failure.
+        %> @note PACentroid can be used apart from Padaco.  For example
+        %> obj = PACentroid(loadShapes,settings,[],[],loadShapeIDs,loadShapeDayOfWeek)
         % ======================================================================        
         function this = PACentroid(loadShapes,settings,axesOrLineH,textHandle,loadShapeIDs,loadShapeDayOfWeek, delayedStart)    
             
@@ -223,6 +234,71 @@ classdef PACentroid < handle
                 this.calculateCentroids();
             end
         end
+        
+        
+        function exportDialog(this)
+            
+            
+        end
+        
+        function [headerStr, dataStr] = exportCovariates2(this)
+            csMat = this.getCovariateMat();
+            headerStr = '# memberID, Day of week (Sun=0 to Sat=6), Cluster index, cluster popularity';
+            strFmt = ['%i',repmat(', %i',1,size(csMat,2)-1),'\n'];  % Make rows ('\n') of comma separated integers (', %i') 
+            dataStr = sprintf(strFmt,csMat'); % Need to transpose here because arguments to sprintf are taken in column order, but I am output by row.
+            
+            
+        end
+        
+        function [headerStr, membersStr] = exportCovariates(this)
+            cs = this.getCovariateStruct();
+            headerStr = [sprintf('# Centroid frequency for members listed in first column.  Centroid ID in the next header line refer to their popularity and correspond to the first column centroid ID listed in the companion text file.  The values in these columns represent the number of times the subject ID was a member of that cluster.\n'),'# memberID',sprintf(', Centroid %i',1:numel(cs.colnames))];
+            allData = [cs.memberIDs,cs.values];
+            strFmt = ['%i',repmat(', %i',1,size(allData,2)-1),'\n'];  % Make rows ('\n') of comma separated integers (', %i') 
+            membersStr = sprintf(strFmt,allData'); % Need to transpose here because arguments to sprintf are taken in column order, but I am output by row.
+        end
+        
+        %> @brief Returns text describing the centroids in a comma separated
+        %> value (csv) format.
+        %> @param this Instance of PACentroid
+        %> @retval headerStr Header line; helpful to place at the top of a
+        %> file.  It does not contain description of time based values of
+        %> the shape indices.  These can be added elsewhere.
+        %> @retval centroidStr String containg N lines for N centroids.
+        %> The nth line describes the nth centroid according to the descriptions given
+        %> by the header string.
+        function [headerStr, centroidStr] = exportCentroidShapes(this)
+            
+            if(this.getNumCentroids<=0)
+                headerStr = '# No centroids found!';
+                centroidStr = '';
+            else
+                % print header
+                headerStr = sprintf('# Centroid popularity (1 is highest), Centroid index, membership count');
+                for d=1:numel(this.WEEKDAY_ORDER)
+                    headerStr = sprintf('%s, %s (%d)',headerStr,this.WEEKDAY_LABELS{d},this.WEEKDAY_ORDER(d));
+                end
+                centroidStr = '';
+                for sortOrder=1:this.getNumCentroids()
+                    coi = this.getCentroidOfInterest(sortOrder);
+                    coiStr = sprintf('%i,%i, %i',coi.sortOrder,coi.index,coi.numMembers);
+                    dayStr = sprintf(', %i',coi.dayOfWeek.count);
+                    shapeStr = sprintf(', %f',coi.shape);
+                    centroidStr = sprintf('%s%s%s%s\n',centroidStr,coiStr,dayStr,shapeStr);
+                end
+            end
+            %             if(nargin<2 || isempty(filenameOut))
+            %
+            %             end
+            %
+            %             fid = fopen(filenameOut,'w');
+            %             if(fid>1)
+            %
+            %             else
+            %                 fprintf(1,'Could not open file (''%s'') for exporting centroid shapes.\n',filenameOut);
+            %             end
+        end
+        
         
         %> @brief Removes any graphic handle to references.  This is
         %> a helpful precursor to calling 'save' on the object, as it
@@ -313,7 +389,7 @@ classdef PACentroid < handle
         %> - centroidShapes
         %> - histogram
         %> - loadShapes
-        %> - sortIndices
+        % %> - sortIndices
         %> - coiSortOrder        
         % ======================================================================                
         function init(this)
@@ -321,7 +397,7 @@ classdef PACentroid < handle
             this.centroidShapes = [];
             this.histogram = [];
             this.loadShapes = [];
-            this.sortIndices = [];
+            % this.sortIndices = [];
             this.coiSortOrder = [];
             this.coiToggleOrder = [];
             this.loadShapeDayOfWeek = [];  %Nx1 vector with values in [0,6] representing [Sunday, Monday, Tuesday ..., Saturday]
@@ -369,8 +445,8 @@ classdef PACentroid < handle
         function didChange = setCOISortOrder(this, sortOrder)
             sortOrder = round(sortOrder);
             if(sortOrder<=this.numCentroids() && sortOrder>0)
-                this.coiSortOrder = sortOrder;
-                this.coiToggleOrder(:) = false;
+                this.coiSortOrder = sortOrder;                
+                this.coiToggleOrder = false(size(sortOrder));
                 this.coiToggleOrder(sortOrder) = true;
                 didChange = true;
                 
@@ -466,6 +542,12 @@ classdef PACentroid < handle
             end
         end
         
+        % Returns an array of sort order values, one per centroids of
+        % interest.  (or just a single value when only one COI exists).
+        function sortOrders = getAllCOISortOrders(this)
+            sortOrders = find(this.coiToggleOrder);            
+        end
+        
         function toggleOrder = getCOIToggleOrder(this)
             toggleOrder = this.coiToggleOrder;
         end
@@ -519,13 +601,14 @@ classdef PACentroid < handle
             % clustered to the centroid index of interest.
             coi.memberShapes = this.loadShapes(coi.memberIndices,:);
             coi.memberIDs = this.loadShapeIDs(coi.memberIndices,:);
-            coi.numMembers = size(coi.memberShapes,1);
-            
+            coi.numMembers = size(coi.memberShapes,1);            
             
             coi.dayOfWeek.memberIndices = coi.memberIndices  & ismember(this.loadShapeDayOfWeek,this.WEEKDAY_ORDER(this.daysOfInterest));
             coi.dayOfWeek.memberShapes = this.loadShapes(coi.dayOfWeek.memberIndices,:);
             coi.dayOfWeek.memberIDs = this.loadShapeIDs(coi.dayOfWeek.memberIndices,:);
             coi.dayOfWeek.numMembers = size(coi.dayOfWeek.memberShapes,1);
+            coi.dayOfWeek.startDays = this.loadShapeDayOfWeek(coi.memberIndices);
+            coi.dayOfWeek.count = histc(coi.dayOfWeek.startDays,this.WEEKDAY_ORDER);
         end
 
 
@@ -607,6 +690,7 @@ classdef PACentroid < handle
                     set(this.statusTextHandle ,'string',{sprintf('Performing accelerated k-medians clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.clusterThreshold)});
                 end
                 [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression] = deal([],[],[],[]);
+                fprintf(1,'Empty results given.  Use ''kemedoids'' instead.\n');
             elseif(strcmpi(inputSettings.clusterMethod,'kmedoids'))
                 if(ishandle(this.statusTextHandle))
                     set(this.statusTextHandle ,'string',{sprintf('Performing adaptive k-medoids clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.clusterThreshold)});
@@ -646,12 +730,25 @@ classdef PACentroid < handle
                     fprintf(1,'%s\n',msg);
                 end
                 [this.histogram, this.centroidSortMap] = this.calculateAndSortDistribution(this.loadshapeIndex2centroidIndexMap);%  was -->       calculateAndSortDistribution(this.loadshapeIndex2centroidIndexMap);
-                this.coiSortOrder2Index = this.centroidSortMap;
+                this.coiSortOrder2Index = this.centroidSortMap;  % coiSortOrder2Index(c) contains the original centroid index that corresponds to the c_th most popular position 
                 [~,this.coiIndex2SortOrder] = sort(this.centroidSortMap,1,'ascend');
+                
+                % Consider
+                % original centroid index, centroid count, (sort order ,/= coiSortOrder2Index)
+                % 1, 404, 1, 1
+                % 2, 233, 3, 3
+                % 3, 50, 4, 4
+                % 4, 354, 2, 2
+                
+                % sorted order, centroid count, original centroid index, coiSortOrder2Index   
+                % 1, 404, 1, 1 
+                % 2, 354, 4, 4
+                % 3, 233, 2, 2
+                % 4, 50, 3, 3
 
                 %                 [a,b]=sort([1,23,5,6],'ascend');
                 %                 [c,d] = sort(b,'ascend');  %for testings
-                if(~this.setCOISortOrder(this.numCentroids()))
+                if(~this.setCOISortOrder(1))  % Modified on 1/17/2017 from  ~this.setCOISortOrder(this.numCentroids()))
                     fprintf(1,'Warning - could not set the centroid of interest sort order to %u\n',this.numCentroids);
                 end
                 
@@ -690,15 +787,18 @@ classdef PACentroid < handle
             wcss = [];
         end
         
-        %> @brief Returns struct useful for logisitic or linear regression modelling.
+        %> @brief Returns struct useful for logisitic or linear regression modeling.
         %> @param Instance of PACentroid.
+        %> @param Optional coi sort order index - index or indices to retrieve
+        %> covariate structures of.
         %> @retval Struct with fields defining dependent variables to use in the
         %> model.  Fields include:
         %> - @c values NxM array of counts for M centroids (the covariate index) for N subject
-        %> keys.
+        %> keys.  Centroids are presented in order of popularity (i.e. sort
+        %> order).  Thus the first centroid is the most popular.
         %> - @c memberIDs Nx1 array of unique keys corresponding to each row.
         %> - @c colnames 1xM cell string of names describing the covariate columns.
-        function covariateStruct = getCovariateStruct(this,optionalCOISortOrder)
+        function covariateStruct = getCovariateStruct(this,optionalCOISortOder)
             subjectIDs = this.getUniqueLoadShapeIDs(); %    unique(this.loadShapeIDs);
             numSubjects = numel(subjectIDs);
             
@@ -707,10 +807,10 @@ classdef PACentroid < handle
             for row=1:numSubjects
                 try
                     curSubject = subjectIDs(row);
-                    centroidsForSubject = this.loadshapeIndex2centroidIndexMap(this.loadShapeIDs==curSubject);
-                    for c=1:numel(centroidsForSubject)
-                        coi = centroidsForSubject(c);
-                        values(row,coi) = values(row,coi)+1;
+                    centroidsSortOrdersForSubject = this.coiIndex2SortOrder(this.loadshapeIndex2centroidIndexMap(this.loadShapeIDs==curSubject));
+                    for c=1:numel(centroidsSortOrdersForSubject)
+                        coiSO = centroidsSortOrdersForSubject(c);
+                        values(row,coiSO) = values(row,coiSO)+1;
                     end
                 catch me
                     showME(me);
@@ -718,18 +818,37 @@ classdef PACentroid < handle
                 end
             end
             
+            % This states the columns should be in sorted order with #1
+            % first (on the left) and #K on the end (far right).  This is
+            % okay because we have converted centroid indices to centroid
+            % sort order indices in the above for loop.
             colnames = regexp(sprintf('Centroid #%u\n',1:this.numCentroids),'\n','split');            
 
             colnames(end) = [];  %remove the last cell entry which will be empty.
-            if(nargin>1 && ~isempty(optionalCOISortOrder))
-                values = values(:,optionalCOISortOrder);
-                colnames = colnames(optionalCOISortOrder);
+            if(nargin>1 && ~isempty(optionalCOISortOder))
+                values = values(:,optionalCOISortOder);
+                colnames = colnames(optionalCOISortOder);
             end
             covariateStruct.memberIDs = subjectIDs;
             covariateStruct.values = values;
             covariateStruct.colnames = colnames;
             
         end
+        
+        %> @brief Returns Nx3 matrix useful for logisitic or linear regression modeling.
+        %> @param Instance of PACentroid.
+        %> @retval cMat Covariate matrix with following column values
+        %> - cMat(:,1) load shape parent ids
+        %> - cMat(:,2) load shape day of week (0= sunday, 1 = monday, ... 6 = saturday)
+        %> - cMat(:,3) centroid index for that load shape
+        %> - cMat(:,4) popularity of the centroid index in that row
+        function cMat = getCovariateMat(this)
+            clusterIDs = this.loadshapeIndex2centroidIndexMap;
+            clusterPopularity = this.coiIndex2SortOrder(clusterIDs);
+            cMat = [this.loadShapeIDs, this.loadShapeDayOfWeek, clusterIDs, clusterPopularity];
+                
+            
+        end        
         
     end
 
@@ -753,7 +872,7 @@ classdef PACentroid < handle
         %> @retval centroids - KxC matrix of cluster centroids.
         %> @retval The Calinski index for the returned idx and centroids
         %> @retrval Struct of X and Y fields containing the progression of
-        %> cluster sizes and corresponding Calinksi indices obtained for
+        %> cluster sizes and corresponding Calinski indices obtained for
         %> each iteration of k means.
         % ======================================================================
         function [idx, centroids, performanceIndex, performanceProgression] = adaptiveKmedoids(this,loadShapes,settings,performanceAxesH,textStatusH)
@@ -795,7 +914,7 @@ classdef PACentroid < handle
                 %performanceAxesH = axes('parent',calinskiFig,'box','on');
                 %calinskiLine = line('xdata',nan,'ydata',nan,'parent',performanceAxesH,'linestyle','none','marker','o');
                 xlabel(performanceAxesH,'K');
-                ylabel(performanceAxesH,'Calinksi Index');
+                ylabel(performanceAxesH,'Calinski Index');
             end
             
             K = settings.minClusters;
@@ -815,7 +934,7 @@ classdef PACentroid < handle
                 while(numNotCloseEnough>0 && K<=settings.maxClusters && ~this.getUserCancelled())
                     if(~firstLoop)
                         if(numNotCloseEnough==1)
-                            statusStr = sprintf('1 cluster was not close enough.  Setting desired number of clusters to %u.',numNotCloseEnough,K);
+                            statusStr = sprintf('1 cluster was not close enough.  Setting desired number of clusters to %u.',K);
                         else
                             statusStr = sprintf('%u clusters were not close enough.  Setting desired number of clusters to %u.',numNotCloseEnough,K);
                         end
@@ -1033,7 +1152,7 @@ classdef PACentroid < handle
         %> @retval centroids - KxC matrix of cluster centroids.
         %> @retval The Calinski index for the returned idx and centroids
         %> @retrval Struct of X and Y fields containing the progression of
-        %> cluster sizes and corresponding Calinksi indices obtained for
+        %> cluster sizes and corresponding Calinski indices obtained for
         %> each iteration of k means.
         % ======================================================================
         function [idx, centroids, performanceIndex, performanceProgression] = adaptiveKmeans(this,loadShapes,settings,performanceAxesH,textStatusH)
@@ -1078,7 +1197,7 @@ classdef PACentroid < handle
                 %performanceAxesH = axes('parent',calinskiFig,'box','on');
                 %calinskiLine = line('xdata',nan,'ydata',nan,'parent',performanceAxesH,'linestyle','none','marker','o');
                 xlabel(performanceAxesH,'K');
-                ylabel(performanceAxesH,'Calinksi Index');
+                ylabel(performanceAxesH,'Calinski Index');
             end
             
             K = settings.minClusters;
@@ -1099,7 +1218,7 @@ classdef PACentroid < handle
                 while(numNotCloseEnough>0 && K<=settings.maxClusters && ~this.getUserCancelled())
                     if(~firstLoop)
                         if(numNotCloseEnough==1)
-                            statusStr = sprintf('1 cluster was not close enough.  Setting desired number of clusters to %u.',numNotCloseEnough,K);
+                            statusStr = sprintf('1 cluster was not close enough.  Setting desired number of clusters to %u.',K);
                         else
                             statusStr = sprintf('%u clusters were not close enough.  Setting desired number of clusters to %u.',numNotCloseEnough,K);
                         end
@@ -1332,10 +1451,29 @@ classdef PACentroid < handle
         %> @retval sortedIndices Cx1 vector.  sortedIndices(c) is the
         %> centroid index with loadshape count of sortedCounts(c) at index c.
         %> It can be used to map the popularity of the original order of the loadShapeMap to the index of its position in sorted order.
+        %> @note originalIndices = 1:C.  sortedIndices == originalIndices(sortedIndices)        
         % ======================================================================
         function [sortedCounts, sortedIndices] = calculateAndSortDistribution(loadShapeMap)
             centroidCounts = histc(loadShapeMap,1:max(loadShapeMap));
-            [sortedCounts,sortedIndices] = sort(centroidCounts,'ascend');
+            
+            % Consider four centroids with following counts
+            % Index, Count
+            % 1, 404
+            % 2, 233
+            % 3, 50
+            % 4, 354
+            
+            [sortedCounts,sortedIndices] = sort(centroidCounts,'descend');
+            % Index, Sorted Count, Sorted indices
+            % 1, 404, 1
+            % 2, 354, 4
+            % 3, 233, 3
+            % 4, 50,  2
+            %
+            
+            % To make index 1 be the most popular, we sort in descending
+            % order (high to low)
+            
             % sortedIndexToCentroidIndex = sortedIndices;
             %   index of most popular centroid is
             %               sortedIndexToCentroidIndex(end)
@@ -1395,7 +1533,7 @@ classdef PACentroid < handle
             plotOptions = PACentroid.getPlotOptions();
             h=plot(performanceAxesH,X,Y,plotOptions{:});
             xlabel(performanceAxesH,'K');
-            ylabel(performanceAxesH,'Calinksi Index');
+            ylabel(performanceAxesH,'Calinski Index');
         end       
         
         function plotOptions = getPlotOptions()
