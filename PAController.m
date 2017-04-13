@@ -1526,12 +1526,15 @@ classdef PAController < handle
             elseif(obj.updateExportPath())                   
                 try
                     [covHeader, covDataStr] = centroidObj.exportCovariates();
+                    [cov2Header, cov2DataStr] = centroidObj.exportCovariates2();
+                    
                     [shapesHeaderStr, shapesStr] = centroidObj.exportCentroidShapes();
                     timeStamp = datestr(now,'DDmmmYYYY');
                     shapeTimesInCSV = cell2str(obj.StatTool.getStartTimesCell(),',');
                     
                     shapesHeaderStr = [shapesHeaderStr ',' shapeTimesInCSV];
                     exportPath = obj.getExportPath();
+                    cov2Filename = fullfile(exportPath,sprintf('cluster_by_weekday_%s.csv',timeStamp));
                     covFilename = fullfile(exportPath,sprintf('cluster_frequency_%s.csv',timeStamp));
                     shapesFilename = fullfile(exportPath,sprintf('cluster_shapes_%s.csv',timeStamp));
                     settingsFilename = fullfile(exportPath,sprintf('padaco_config_%s.txt',timeStamp));
@@ -1546,6 +1549,18 @@ classdef PAController < handle
                     else
                         msg = sprintf('Cluster frequency data NOT saved.  Could not open file (%s) for writing!\n ',covFilename);
                     end
+                    
+                    cov2Fid = fopen(cov2Filename,'w');
+                    
+                    if(cov2Fid>1)
+                        fprintf(cov2Fid,'%s\n',cov2Header);
+                        fprintf(cov2Fid,cov2DataStr);
+                        msg = sprintf('%sCluster by weekday data saved to:\n\t%s\n',msg,cov2Filename);
+                        fclose(cov2Fid);
+                    else
+                        msg = sprintf('%sCluster by weekday data NOT saved.  Could not open file (%s) for writing!\n ',msg,cov2Filename);
+                    end
+                    
                     
                     shapesFid = fopen(shapesFilename,'w');
                     if(shapesFid>1)

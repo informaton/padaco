@@ -315,9 +315,6 @@ classdef PABatchTool < handle
            end
            set(text_filesFound_h,'string',msg);
         end
-        
-                
-
                
         % --------------------------------------------------------------------
         %> @brief Determines the number of actigraph files located in the

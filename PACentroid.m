@@ -38,8 +38,8 @@ classdef PACentroid < handle
         %> dimensionality)
         loadShapes;
         
-        loadShapeIDs;
-        uniqueLoadShapeIDs;
+        loadShapeIDs;  % more accurrately, the loadShapeParentID or the ID of the subject a load shape is associated with.
+        uniqueLoadShapeIDs; % unique participants or load shape generators.
         loadShapeDayOfWeek;  %Nx1 vector with values in [0,6] representing [Sunday, Monday, Tuesday ..., Saturday]
         daysOfInterest; % 7x1 boolean vector representing if the correspondning day of week is of interest.  [1] => Sunday, [2]=> Monday, ... , [7]=> Saturday
         
@@ -47,7 +47,7 @@ classdef PACentroid < handle
         loadshapeIndex2centroidIndexMap;
         
         %> CxM array of C centroids of size M.  Ordered by clustering
-        %> output.  Not ordered from 1 to C based on popularity.  To get
+        %> output; the original ordering.  Not ordered from 1 to C based on popularity.  To get
         %> popularity index from highest popularity (1) to lowest (C) use:
         %>  coi_index = this.coiSortOrder2Index(sortOrder); 
         %> which converts to match the index the centroid load shape corresponds to.
@@ -59,7 +59,7 @@ classdef PACentroid < handle
         
         %> Nx1 vector that maps the constructor's input load shapes matrix
         %> to the sorted  @c loadShapes matrix.
-        sortIndices;  % centroidShapes(sortIndices(1),:) is the most popular centroid
+        %sortIndices;  % centroidShapes(sortIndices(1),:) is the most popular centroid
         
         %> Cx1 vector that maps load shapes' original cluster indices to
         %> the equivalent cluster index after clusters have been sorted
@@ -241,6 +241,14 @@ classdef PACentroid < handle
             
         end
         
+        function [headerStr, dataStr] = exportCovariates2(this)
+            csMat = this.getCovariateMat();
+            headerStr = '# memberID, Day of week (Sun=0 to Sat=6), Cluster index, cluster popularity';
+            strFmt = ['%i',repmat(', %i',1,size(csMat,2)-1),'\n'];  % Make rows ('\n') of comma separated integers (', %i') 
+            dataStr = sprintf(strFmt,csMat'); % Need to transpose here because arguments to sprintf are taken in column order, but I am output by row.
+            
+            
+        end
         
         function [headerStr, membersStr] = exportCovariates(this)
             cs = this.getCovariateStruct();
@@ -381,7 +389,7 @@ classdef PACentroid < handle
         %> - centroidShapes
         %> - histogram
         %> - loadShapes
-        %> - sortIndices
+        % %> - sortIndices
         %> - coiSortOrder        
         % ======================================================================                
         function init(this)
@@ -389,7 +397,7 @@ classdef PACentroid < handle
             this.centroidShapes = [];
             this.histogram = [];
             this.loadShapes = [];
-            this.sortIndices = [];
+            % this.sortIndices = [];
             this.coiSortOrder = [];
             this.coiToggleOrder = [];
             this.loadShapeDayOfWeek = [];  %Nx1 vector with values in [0,6] representing [Sunday, Monday, Tuesday ..., Saturday]
@@ -826,6 +834,21 @@ classdef PACentroid < handle
             covariateStruct.colnames = colnames;
             
         end
+        
+        %> @brief Returns Nx3 matrix useful for logisitic or linear regression modeling.
+        %> @param Instance of PACentroid.
+        %> @retval cMat Covariate matrix with following column values
+        %> - cMat(:,1) load shape parent ids
+        %> - cMat(:,2) load shape day of week (0= sunday, 1 = monday, ... 6 = saturday)
+        %> - cMat(:,3) centroid index for that load shape
+        %> - cMat(:,4) popularity of the centroid index in that row
+        function cMat = getCovariateMat(this)
+            clusterIDs = this.loadshapeIndex2centroidIndexMap;
+            clusterPopularity = this.coiIndex2SortOrder(clusterIDs);
+            cMat = [this.loadShapeIDs, this.loadShapeDayOfWeek, clusterIDs, clusterPopularity];
+                
+            
+        end        
         
     end
 

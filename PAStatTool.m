@@ -1567,12 +1567,21 @@ classdef PAStatTool < handle
                dependentVar = this.getProfileFieldSelection();
                %                'bmi_zscore'
                %                'bmi_zscore+'  %for logistic regression modeling
+               % all
+               covariateStruct = this.centroidObj.getCovariateStruct();
+               [resultStr, resultStruct] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'});
+               
+               % current selection
+               
+               
                covariateStruct = this.centroidObj.getCovariateStruct(this.centroidObj.getAllCOISortOrders());
                if(size(covariateStruct.values,2)>1)
                    covariateStruct.colnames = {cell2str(covariateStruct.colnames,' AND ')};
                    covariateStruct.values = sum(covariateStruct.values,2); %sum each row
                end
                
+               
+               % current selection
                [resultStr, resultStruct] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'});
                %                [resultStr, resultStruct] = gee_model(this.centroidObj.getCovariateStruct(this.centroidObj.getCOISortOrder()),dependentVar,{'age'; '(sex=1) as male'});
                if(~isempty(resultStr))
