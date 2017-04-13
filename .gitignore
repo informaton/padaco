@@ -38,3 +38,15 @@ model/table_summary.m
 *.tmp
 
 *.tmp
+
+*.csv
+
+padaco_config_10Feb2017.txt
+
+padaco_config_15Feb2017.txt
+
+*.log
+
+model/gee_model.m
+
+*.raw
