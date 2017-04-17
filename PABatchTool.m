@@ -586,13 +586,13 @@ classdef PABatchTool < handle
                                 featureFilename = fullfile(features_pathname,strcat('features.',outputFeatureFcn,'.',signalName,'.txt'));
                                 [alignedVec, alignedStartDateVecs] = curData.getAlignedFeatureVecs(outputFeatureFcn,signalName,elapsedStartHour, intervalDurationHours);
                                 
-                                
                                 numIntervals = size(alignedVec,1);
                                 if(numIntervals>maxNumIntervals)
                                     alignedVec = alignedVec(1:maxNumIntervals,:);
                                     alignedStartDateVecs = alignedStartDateVecs(1:maxNumIntervals, :);
                                     numIntervals = maxNumIntervals;
                                 end
+                                
                                 % Currently, only x,y,z or vector magnitude
                                 % are considered for signal names.  And
                                 % they all have the same number of samples.
@@ -656,8 +656,7 @@ classdef PABatchTool < handle
                         ['Elapsed Time: ',datestr(now-startTime,'HH:MM:SS')],...
                         ['Time Remaining: ',est_str]};
                     fprintf('%s\n',msg{2});
-                    if(ishandle(waitH))
-                        
+                    if(ishandle(waitH))                        
                         waitbar(pctDone,waitH,char(msg));
                     else
                         %                     waitHandle = findall(0,'tag','waitbarHTag');

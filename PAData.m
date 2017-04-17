@@ -540,6 +540,13 @@ classdef PAData < handle
             curFrameDurationHour = obj.frameDurHour;
         end
         
+        
+        function frameDurationHours = getFrameDurationInHours(obj)
+            [curFrameDurationMin, curFrameDurationHour] = obj.getFrameDuration();
+            frameDurationHours = curFrameDurationMin/60+curFrameDurationHour;
+        end
+        
+        
         function frameDurationMin = getFrameDurationInMinutes(obj)
             [curFrameDurationMin, curFrameDurationHour] = obj.getFrameDuration();
             frameDurationMin = curFrameDurationMin+curFrameDurationHour*60;
@@ -1712,7 +1719,8 @@ classdef PAData < handle
         end
         
         % ======================================================================
-        %> @brief Extracts features from the identified signal
+        %> @brief Extracts features from the identified signal using the
+        %> given method.
         %> @param obj Instance of PAData.
         %> @param signalTagLine Tag identifying the signal to extract
         %> features from.  Default is 'accel.count.vecMag'
@@ -1755,7 +1763,7 @@ classdef PAData < handle
             
             % recalculate based on a change in frame size ...
             if(currentNumFrames~=obj.numFrames)
-                obj.numFrames =currentNumFrames;
+                obj.numFrames = currentNumFrames;
                 
                 numColumns = frameableSamples/obj.numFrames;  % This could go replace the '[]' in the reshape() methods below
                 
@@ -1896,6 +1904,55 @@ classdef PAData < handle
             Fs = obj.getSampleRate();
         end
         
+        
+        % --------------------------------------------------------------------
+        %> @brief Calculates the number of complete days and the number of
+        %> incomplete days available in the data for the most recently
+        %> defined feature vector.
+        %> @param obj Instance of PAData
+        %> @param featureFcn Function name or handle to use to obtain
+        % --------------------------------------------------------------------
+        function [completeDayCount, incompleteDayCount, totalDayCount] = getDayCount(obj,elapsedStartHour, intervalDurationHours)
+            if(nargin<3)
+                intervalDurationHours=24;
+                if(nargin<2)
+                    elapsedStartHour = 0;
+                end
+            end
+
+
+            totalDayCount = 0;
+            incompleteDayCount = 0;
+            completeDayCount = 0;
+
+            if(~isempty(obj.startDatenums))                
+                totalDayCount = ceil(obj.startDatenums(end))-floor(obj.startDatenums(1)); %round up to nearest whole day.  
+                
+                elapsedStopHour = mod(elapsedStartHour+intervalDurationHours,24)-obj.getFrameDurationInHours();                
+                
+                % find the first Start Time
+                startDateVecs = datevec(obj.startDatenums);
+                elapsedStartHours = startDateVecs*[0; 0; 0; 1; 1/60; 1/3600];
+                
+                firstStartIndex = find(elapsedStartHours==elapsedStartHour,1,'first');
+                firstStopIndex = find(elapsedStartHours==elapsedStopHour,1,'first');
+                lastStartIndex = find(elapsedStartHours==elapsedStartHour,1,'last');
+                lastStopIndex = find(elapsedStartHours==elapsedStopHour,1,'last');
+                
+                lastStartDateVec = startDateVecs(lastStopIndex,:)-[0 0 0 intervalDurationHour 0 0];
+                completeDayCount = datenum(lastStartDateVec - startDateVec);
+                
+                if(firstStopIndex<firstStartIndex)
+                    incompleteDayCount = incompleteDayCount+1;
+                end
+                if(lastStopIndex < lastStartIndex)
+                    incompleteDayCount = incompleteDayCount+1;
+                end
+                
+            end
+            
+        end
+        
         % --------------------------------------------------------------------
         %> @brief Calculates a desired feature for a particular acceleration object's field value.
         %> and returns it as a matrix of elapsed time aligned vectors.
@@ -1918,11 +1975,21 @@ classdef PAData < handle
         function [alignedFeatureVecs, alignedStartDateVecs] = getAlignedFeatureVecs(obj,featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours)
             %featureVec = getStruct('featureFcn',signalTagLine);
             
+            if(nargin<5)
+                intervalDurationHours=24;
+                if(nargin<4)
+                    elapsedStartHour = 0;
+                    if(nargin<3)
+                        signalTagLine = obj.frames_signalTagLine;
+                    end
+                end
+            end
+            
             featureStruct = obj.getStruct('all','features');
             alignedFeatureVecs = [];
             if(isempty(featureStruct) || ~isfield(featureStruct,featureFcn) || isempty(featureStruct.(featureFcn)))
                 obj.extractFeature(signalTagLine,featureFcn);
-                featureStruct = obj.getStruct('all','features');
+                featureStruct = obj.getStruct('all','features');                
             end
             if(isempty(featureStruct) || ~isfield(featureStruct,featureFcn) || isempty(featureStruct.(featureFcn)))
                 fprintf('There was an error.  Could not extract features!\n');
