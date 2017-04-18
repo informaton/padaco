@@ -1925,10 +1925,11 @@ classdef PAData < handle
             incompleteDayCount = 0;
             completeDayCount = 0;
 
-            if(~isempty(obj.startDatenums))                
+            if(~isempty(obj.startDatenums))  
+                frameDurationInHours = obj.getFrameDurationInHours();
                 totalDayCount = ceil(obj.startDatenums(end))-floor(obj.startDatenums(1)); %round up to nearest whole day.  
                 
-                elapsedStopHour = mod(elapsedStartHour+intervalDurationHours,24)-obj.getFrameDurationInHours();                
+                elapsedStopHour = mod(elapsedStartHour+intervalDurationHours-frameDurationInHours,24);                
                 
                 % find the first Start Time
                 startDateVecs = datevec(obj.startDatenums);
@@ -1939,15 +1940,24 @@ classdef PAData < handle
                 lastStartIndex = find(elapsedStartHours==elapsedStartHour,1,'last');
                 lastStopIndex = find(elapsedStartHours==elapsedStopHour,1,'last');
                 
-                lastStartDateVec = startDateVecs(lastStopIndex,:)-[0 0 0 intervalDurationHour 0 0];
-                completeDayCount = datenum(lastStartDateVec - startDateVec);
+                firstStartDateVec = startDateVecs(firstStartIndex,:);
+                
                 
                 if(firstStopIndex<firstStartIndex)
                     incompleteDayCount = incompleteDayCount+1;
                 end
+                
                 if(lastStopIndex < lastStartIndex)
                     incompleteDayCount = incompleteDayCount+1;
+                    % get the last start date vector that is used for a
+                    % complete day; which is not at lastStartIndex in this
+                    % case
+                    lastStartDateVec = startDateVecs(lastStopIndex,:)-[0 0 0 intervalDurationHours-frameDurationInHours 0 0];                
+                else                    
+                    lastStartDateVec = startDateVecs(lastStartIndex,:);
                 end
+                
+                completeDayCount = datenum(lastStartDateVec) - datenum(firstStartDateVec);
                 
             end
             
@@ -2380,13 +2390,16 @@ classdef PAData < handle
                 % Note that obj.Data is passed to subsref
                 sref = obj.subsindex(cell2mat(s.subs));
             else
-                if(~isempty(intersect(lower(s(1).subs),lower({'getFrameDuration','getAlignedFeatureVecs'}))))
-                    [sref, varargout{1}] = builtin('subsref',obj,s);
-                elseif(~isempty(intersect(lower(s(1).subs),lower({'classifyUsageState'}))))
-                    [sref, varargout{1}, varargout{2}] = builtin('subsref',obj,s);
-                else
-                    sref = builtin('subsref',obj,s);
-                end
+                varargout = cell(1,nargout-1);
+                [sref,varargout{:}] = builtin('subsref',obj,s);
+% 
+%                 if(~isempty(intersect(lower(s(1).subs),lower({'getFrameDuration','getAlignedFeatureVecs'}))))
+%                     [sref, varargout{1}] = builtin('subsref',obj,s);
+%                 elseif(~isempty(intersect(lower(s(1).subs),lower({'classifyUsageState'}))))
+%                     [sref, varargout{1}, varargout{2}] = builtin('subsref',obj,s);
+%                 else
+%                     sref = builtin('subsref',obj,s);
+%                 end
             end
         end
         

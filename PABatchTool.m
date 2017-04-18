@@ -459,8 +459,7 @@ classdef PABatchTool < handle
             % determine which feature to process
             
             featureFcn = getMenuUserData(this.handles.menu_featureFcn);
-            this.settings.featureLabel = getMenuString(this.handles.menu_featureFcn);
-            
+            this.settings.featureLabel = getMenuString(this.handles.menu_featureFcn);            
             
             % determine frame aggreation size - size to calculate each
             % feature from
@@ -543,12 +542,15 @@ classdef PABatchTool < handle
                 end            
             end
             
+            totalDayCount = 0;
+            completeDayCount = 0;
+            incompleteDayCount = 0;            
            
             % setup timers
             pctDone = 0;
             pctDelta = 1/fileCount;
             
-            waitbar(pctDone,waitH,filenames{1});
+            waitbar(pctDone,waitH,filenames{1});            
             
             startTime = now;
             startClock = clock;
@@ -578,6 +580,8 @@ classdef PABatchTool < handle
                             % the given feature function (e.g.
                             % 'mode','psd','all')
                             curData.extractFeature(signalName,featureFcn);
+                            
+                            
                                 
                             for fn=1:numel(outputFeatureFcns)
                                 outputFeatureFcn = outputFeatureFcns{fn};
@@ -600,12 +604,20 @@ classdef PABatchTool < handle
                                 % following caluclations on the first
                                 % iteration through.
                                 if(s==1)
-                                    alignedStartDaysOfWeek = datestr(alignedStartDateVecs,'ddd');
+                                    % Need to apply datenum to get back to
+                                    % proper time for datestr to work.  
+                                    startDatenums = datenum(alignedStartDateVecs);
+                                    % There is a bug if you try to do this
+                                    % datestr(alignedStartDateVecs,'ddd')
+                                    % and the date vecs have a different
+                                    % number of days due to extra or less
+                                    % time in other columns (e.g. hours,
+                                    % minutes).
+                                    alignedStartDaysOfWeek = datestr(startDatenums,'ddd');
                                     alignedStartNumericDaysOfWeek = nan(numIntervals,1);
                                     for a=1:numIntervals
                                         alignedStartNumericDaysOfWeek(a)=dateMap.(alignedStartDaysOfWeek(a,:));
                                     end
-                                    startDatenums = datenum(alignedStartDateVecs);
                                     studyIDs = repmat(curData.getStudyID('numeric'),numIntervals,1);
                                 
                                     result = [studyIDs,startDatenums,alignedStartNumericDaysOfWeek,alignedVec];
@@ -620,13 +632,15 @@ classdef PABatchTool < handle
                                 if(~isa(result,'double'))
                                     result = double(result);
                                 end
-
                                 save(featureFilename,'result','-ascii','-tabs','-append');
-                            end
-                            
+                            end                            
                         end
-                    end
-                    
+                        
+                        [tmpCompleteDayCount, tmpIncompleteDayCount, tmpTotalDayCount] = curData.getDayCount(elapsedStartHour, intervalDurationHours);
+                        totalDayCount = totalDayCount + tmpTotalDayCount;
+                        completeDayCount = completeDayCount + tmpCompleteDayCount;
+                        incompleteDayCount = incompleteDayCount + tmpIncompleteDayCount;           
+                    end                    
                 catch me
                     showME(me);
                     failedFiles{end+1} = filenames{f};
@@ -693,6 +707,10 @@ classdef PABatchTool < handle
                 '\tSucceeded:\t%5u\n',...
                 '\tSkipped:\t%5u\n',...
                 '\tFailed:\t%5u\n\n'],userCanceledMsg,fileCount,elapsedTimeStr,successCount,skipCount,failCount);
+            
+            batchResultStr = sprintf(['%sTotal day count:\t%5u\n',...
+                'Complete day count:\t%5u\n',...
+                'Incomplete day count:\t%5u\n'],batchResultStr,totalDayCount, completeDayCount, incompleteDayCount);
             
             fprintf(logFid,'\n====================SUMMARY===============\n');
             fprintf(logFid,batchResultStr);

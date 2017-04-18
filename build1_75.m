@@ -26,3 +26,15 @@ deploytool -build Padaco.prj
 % projectName = ['Padaco_',buildNum,'.prj'];
 % deploytool('-build',projectName);
 openDirectory(sprintf('/Users/unknown/code/MATLAB_compiled/%s/',buildNum));
+
+
+% Once deploytool finishes then we should move on to
+srcIconSet = 'resources/icons/logo/icon.icns';
+destIconSet = sprintf('/Users/unknown/code/MATLAB_compiled/%s/package/PadacoInstaller_web.app/Contents/Resources/installer.icns',buildNum);
+InstallerName = sprintf('/Users/unknown/code/MATLAB_compiled/%s/package/PadacoInstaller_web.app',buildNum);
+[SUCCESS,MESSAGE,MESSAGEID] = copyfile(srcIconSet, destIconSet);
+
+% update the cache so it uses the new installer icon set
+[status, result] = system(['touch ',InstallerName]);  % status == 0 on success.
+
+

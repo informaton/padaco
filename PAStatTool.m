@@ -1,6 +1,7 @@
 % ======================================================================
 %> @file PAStatTool.cpp
-%> @brief PAStatTool serves as Padaco's batch results analysis controller
+%> @brief PAStatTool serves as Padaco's controller for visualization and
+%> analysis of batch results.
 % ======================================================================
 classdef PAStatTool < handle
     events
@@ -107,7 +108,6 @@ classdef PAStatTool < handle
         %> @note Database must be developed and maintained externally
         %> to Padaco.
         coiProfile;
-        
         
         %> @brief Fx3xC matrix where N is the number of covariate fields
         %> to be analyzed and C is the number of centroids.  '3' represents
