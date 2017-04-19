@@ -262,7 +262,7 @@ classdef PAData < handle
         %> @retval A 2x1 vector with start, stop range of the current window returned as
         %> samples beginning with 1 for the first sample.  The second value
         %> (i.e. the stop sample) is capped at the current value of
-        %> durationSamples().
+        %> getDurationSamples().
         %> @note This uses instance variables windowDurSec, curWindow, and sampleRate to
         %> determine the sample range for the current window.
         % =================================================================
@@ -275,7 +275,7 @@ classdef PAData < handle
             
             switch structType
                 case 'timeSeries'
-                    maxValue = obj.durationSamples();
+                    maxValue = obj.getDurationSamples();
                 case 'bins'
                     maxValue = obj.getBinCount();
                 case 'features'
@@ -365,6 +365,46 @@ classdef PAData < handle
         % --------------------------------------------------------------------
         function fs = getSampleRate(obj)
             fs = obj.sampleRate;
+        end
+        
+        function [x, varargout] = getCountsPerMinute(obj, signalToGet)
+            if(obj.hasCounts && obj.durationSec>0)
+                secPerMin = 60;
+                samplesPerSec =  obj.getSampleRate();
+                samplesPerMin = samplesPerSec*secPerMin;
+                studyDurationSamples = obj.getDurationSamples();        
+                
+                if(nargin<2)
+                    signalToGet = [];
+                else
+                    signalToGet = intersect(signalToGet,{'x','y','z','vecMag'});
+                end
+                %just get one of them.  
+                if(~isempty(signalToGet))
+                    x = sum(obj.accel.count.(signalToGet))/studyDurationSamples*samplesPerMin;
+                else
+                    x = sum(obj.accel.count.x)/studyDurationSamples*samplesPerMin;
+                    y = sum(obj.accel.count.y)/studyDurationSamples*samplesPerMin;
+                    z = sum(obj.accel.count.z)/studyDurationSamples*samplesPerMin;
+                    vecMag = sum(obj.accel.count.vecMag)/studyDurationSamples*samplesPerMin;
+                    if(nargout==1)
+                        x = [x,y,z,vecMag];
+                    else
+                        if(nargout>1)
+                            varargout{1} = y;
+                            if(nargout>2)
+                                varargout{2} = z;
+                                if(nargout>3)
+                                    varargout{3} = vecMag;
+                                end
+                            end
+                        end
+                    end
+                end
+            else
+                x = [];
+                varargout = cell(1,nargout-1);
+            end
         end
         
         
@@ -573,7 +613,7 @@ classdef PAData < handle
         %> @retval durationSamp Number of elements contained in durSamples instance var
         %> (initialized by number of elements in accelRaw.x
         % --------------------------------------------------------------------
-        function durationSamp = durationSamples(obj)
+        function durationSamp = getDurationSamples(obj)
             durationSamp = obj.durSamples;
         end
         
@@ -1195,7 +1235,7 @@ classdef PAData < handle
                                     
                                     didLoad = obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
                                     
-                                    obj.durationSec = floor(obj.durationSamples()/obj.sampleRate);
+                                    obj.durationSec = floor(obj.getDurationSamples()/obj.sampleRate);
                                     
                                     binDatenumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
                                     binStopDatenum = datenum(binDatenumDelta*obj.durSamples)+binStartDatenum;
@@ -1328,9 +1368,9 @@ classdef PAData < handle
                         %                        dateTimeDelta == dateTimeDelta2  %what is going on here???
                         
                         obj.durSamples = numel(obj.dateTimeNum);
-                        numMissing = obj.durationSamples() - samplesFound;
+                        numMissing = obj.getDurationSamples() - samplesFound;
                         
-                        if(obj.durationSamples()==samplesFound)
+                        if(obj.getDurationSamples()==samplesFound)
                             fprintf('%d rows loaded from %s\n',samplesFound,fullCountFilename);
                         else
                             if(numMissing>0)
@@ -1359,7 +1399,7 @@ classdef PAData < handle
                         %either use countPeriodSec or use samplerate.
                         if(obj.countPeriodSec>0)
                             obj.sampleRate = 1/obj.countPeriodSec;
-                            obj.durationSec = floor(obj.durationSamples()*obj.countPeriodSec);
+                            obj.durationSec = floor(obj.getDurationSamples()*obj.countPeriodSec);
                         else
                             fprintf('There was an error when loading the window period second value (non-positive value found in %s).\n',fullCountFilename);
                             obj.durationSec = 0;
@@ -1461,13 +1501,13 @@ classdef PAData < handle
                     end
 
                     obj.durSamples = numel(obj.dateTimeNum);
-                    obj.durationSec = floor(obj.durationSamples()/obj.sampleRate);
+                    obj.durationSec = floor(obj.getDurationSamples()/obj.sampleRate);
 
-                    numMissing = obj.durationSamples() - samplesFound;
+                    numMissing = obj.getDurationSamples() - samplesFound;
 
                     obj.setRawXYZ(tmpDataCell{1},tmpDataCell{2},tmpDataCell{3});
                     
-                    if(obj.durationSamples()==samplesFound)
+                    if(obj.getDurationSamples()==samplesFound)
                         fprintf('%d rows loaded from %s\n',samplesFound,fullRawCSVFilename);
                     else
                         if(numMissing>0)
@@ -2209,9 +2249,9 @@ classdef PAData < handle
             % the study is clearly not over then (i.e. there is more
             % activity being presented).
             if(~isempty(studyover_events))
-                diff_hours = (obj.durationSamples()-studyover_events(end))/samplesPerHour; %      obj.getSampleRate()/3600;
+                diff_hours = (obj.getDurationSamples()-studyover_events(end))/samplesPerHour; %      obj.getSampleRate()/3600;
                 if(diff_hours<=obj.usageStateRules.mergeWithinHoursForStudyOver)
-                    studyover_events(end) = obj.durationSamples();
+                    studyover_events(end) = obj.getDurationSamples();
                 end
             end
             
