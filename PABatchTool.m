@@ -350,7 +350,6 @@ classdef PABatchTool < handle
            %get the log files with most recent ones first on the list.
            sortNewestToOldest = true;
            [filenames, fullfilenames, filedates] = getFilenamesi(outputPathname,'.txt',sortNewestToOldest);
-
            
            newestIndex = find(strncmpi(filenames,'batchRun',numel('batchRun')),1);
            if(~isempty(newestIndex))
@@ -824,7 +823,7 @@ classdef PABatchTool < handle
                 end
             end
             
-            
+            this.updateOutputLogs();
             this.isRunning = false;
             this.enable();
             
