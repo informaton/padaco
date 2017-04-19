@@ -1671,6 +1671,8 @@ classdef PAController < handle
             batchTool = PABatchTool(obj.SETTINGS.BATCH);
             batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
             batchTool.addlistener('SwitchToResults',@obj.setResultsViewModeCallback);
+            batchTool.addlistener('BatchToolClosing',@obj.updateBatchToolSettingsCallback);
+            
         end
 
         % --------------------------------------------------------------------
