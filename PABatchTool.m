@@ -901,6 +901,7 @@ classdef PABatchTool < handle
             pStruct.isOutputPathLinked = false;  
         end            
         
+        
         % --------------------------------------------------------------------
         %> @brief Prepares the current run's log and summary files.
         %> @param this Instance of PABatchTool
