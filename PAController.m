@@ -1351,8 +1351,11 @@ classdef PAController < handle
             end
             
             catch me
-                warndlg('An error occurred while trying to load the feature set.  See the console log for details.');
                 showME(me);
+                f=warndlg('An error occurred while trying to load the feature set.  See the console log for details.');
+                waitfor(f);
+                obj.VIEW.showReady();
+                
             end
         end
         

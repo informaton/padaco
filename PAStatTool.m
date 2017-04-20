@@ -434,7 +434,8 @@ classdef PAStatTool < handle
                 
                 tmpFeatureStruct = this.originalFeatureStruct;
                 
-                if(isCountData)
+                % Make sure we actually have a usage state struct
+                if(isCountData && ~isempty(this.usageStateStruct))
                     tmpUsageStateStruct = this.usageStateStruct;
                 else
                     tmpUsageStateStruct = this.originalFeatureStruct; 
