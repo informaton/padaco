@@ -7,7 +7,7 @@
     clear classes;
     clear ans;
     set(0,'showhiddenhandles','off');
-    
+    fclose('all');
 %         whos
 %     clearvars -global
 

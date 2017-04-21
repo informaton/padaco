@@ -262,7 +262,7 @@ classdef PAData < handle
         %> @retval A 2x1 vector with start, stop range of the current window returned as
         %> samples beginning with 1 for the first sample.  The second value
         %> (i.e. the stop sample) is capped at the current value of
-        %> durationSamples().
+        %> getDurationSamples().
         %> @note This uses instance variables windowDurSec, curWindow, and sampleRate to
         %> determine the sample range for the current window.
         % =================================================================
@@ -275,7 +275,7 @@ classdef PAData < handle
             
             switch structType
                 case 'timeSeries'
-                    maxValue = obj.durationSamples();
+                    maxValue = obj.getDurationSamples();
                 case 'bins'
                     maxValue = obj.getBinCount();
                 case 'features'
@@ -365,6 +365,46 @@ classdef PAData < handle
         % --------------------------------------------------------------------
         function fs = getSampleRate(obj)
             fs = obj.sampleRate;
+        end
+        
+        function [x, varargout] = getCountsPerMinute(obj, signalToGet)
+            if(obj.hasCounts && obj.durationSec>0)
+                secPerMin = 60;
+                samplesPerSec =  obj.getSampleRate();
+                samplesPerMin = samplesPerSec*secPerMin;
+                studyDurationSamples = obj.getDurationSamples();        
+                
+                if(nargin<2)
+                    signalToGet = [];
+                else
+                    signalToGet = intersect(signalToGet,{'x','y','z','vecMag'});
+                end
+                %just get one of them.  
+                if(~isempty(signalToGet))
+                    x = sum(obj.accel.count.(signalToGet))/studyDurationSamples*samplesPerMin;
+                else
+                    x = sum(obj.accel.count.x)/studyDurationSamples*samplesPerMin;
+                    y = sum(obj.accel.count.y)/studyDurationSamples*samplesPerMin;
+                    z = sum(obj.accel.count.z)/studyDurationSamples*samplesPerMin;
+                    vecMag = sum(obj.accel.count.vecMag)/studyDurationSamples*samplesPerMin;
+                    if(nargout==1)
+                        x = [x,y,z,vecMag];
+                    else
+                        if(nargout>1)
+                            varargout{1} = y;
+                            if(nargout>2)
+                                varargout{2} = z;
+                                if(nargout>3)
+                                    varargout{3} = vecMag;
+                                end
+                            end
+                        end
+                    end
+                end
+            else
+                x = [];
+                varargout = cell(1,nargout-1);
+            end
         end
         
         
@@ -540,6 +580,13 @@ classdef PAData < handle
             curFrameDurationHour = obj.frameDurHour;
         end
         
+        
+        function frameDurationHours = getFrameDurationInHours(obj)
+            [curFrameDurationMin, curFrameDurationHour] = obj.getFrameDuration();
+            frameDurationHours = curFrameDurationMin/60+curFrameDurationHour;
+        end
+        
+        
         function frameDurationMin = getFrameDurationInMinutes(obj)
             [curFrameDurationMin, curFrameDurationHour] = obj.getFrameDuration();
             frameDurationMin = curFrameDurationMin+curFrameDurationHour*60;
@@ -566,7 +613,7 @@ classdef PAData < handle
         %> @retval durationSamp Number of elements contained in durSamples instance var
         %> (initialized by number of elements in accelRaw.x
         % --------------------------------------------------------------------
-        function durationSamp = durationSamples(obj)
+        function durationSamp = getDurationSamples(obj)
             durationSamp = obj.durSamples;
         end
         
@@ -1188,7 +1235,7 @@ classdef PAData < handle
                                     
                                     didLoad = obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
                                     
-                                    obj.durationSec = floor(obj.durationSamples()/obj.sampleRate);
+                                    obj.durationSec = floor(obj.getDurationSamples()/obj.sampleRate);
                                     
                                     binDatenumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
                                     binStopDatenum = datenum(binDatenumDelta*obj.durSamples)+binStartDatenum;
@@ -1321,9 +1368,9 @@ classdef PAData < handle
                         %                        dateTimeDelta == dateTimeDelta2  %what is going on here???
                         
                         obj.durSamples = numel(obj.dateTimeNum);
-                        numMissing = obj.durationSamples() - samplesFound;
+                        numMissing = obj.getDurationSamples() - samplesFound;
                         
-                        if(obj.durationSamples()==samplesFound)
+                        if(obj.getDurationSamples()==samplesFound)
                             fprintf('%d rows loaded from %s\n',samplesFound,fullCountFilename);
                         else
                             if(numMissing>0)
@@ -1352,7 +1399,7 @@ classdef PAData < handle
                         %either use countPeriodSec or use samplerate.
                         if(obj.countPeriodSec>0)
                             obj.sampleRate = 1/obj.countPeriodSec;
-                            obj.durationSec = floor(obj.durationSamples()*obj.countPeriodSec);
+                            obj.durationSec = floor(obj.getDurationSamples()*obj.countPeriodSec);
                         else
                             fprintf('There was an error when loading the window period second value (non-positive value found in %s).\n',fullCountFilename);
                             obj.durationSec = 0;
@@ -1454,13 +1501,13 @@ classdef PAData < handle
                     end
 
                     obj.durSamples = numel(obj.dateTimeNum);
-                    obj.durationSec = floor(obj.durationSamples()/obj.sampleRate);
+                    obj.durationSec = floor(obj.getDurationSamples()/obj.sampleRate);
 
-                    numMissing = obj.durationSamples() - samplesFound;
+                    numMissing = obj.getDurationSamples() - samplesFound;
 
                     obj.setRawXYZ(tmpDataCell{1},tmpDataCell{2},tmpDataCell{3});
                     
-                    if(obj.durationSamples()==samplesFound)
+                    if(obj.getDurationSamples()==samplesFound)
                         fprintf('%d rows loaded from %s\n',samplesFound,fullRawCSVFilename);
                     else
                         if(numMissing>0)
@@ -1712,7 +1759,8 @@ classdef PAData < handle
         end
         
         % ======================================================================
-        %> @brief Extracts features from the identified signal
+        %> @brief Extracts features from the identified signal using the
+        %> given method.
         %> @param obj Instance of PAData.
         %> @param signalTagLine Tag identifying the signal to extract
         %> features from.  Default is 'accel.count.vecMag'
@@ -1755,7 +1803,7 @@ classdef PAData < handle
             
             % recalculate based on a change in frame size ...
             if(currentNumFrames~=obj.numFrames)
-                obj.numFrames =currentNumFrames;
+                obj.numFrames = currentNumFrames;
                 
                 numColumns = frameableSamples/obj.numFrames;  % This could go replace the '[]' in the reshape() methods below
                 
@@ -1896,6 +1944,65 @@ classdef PAData < handle
             Fs = obj.getSampleRate();
         end
         
+        
+        % --------------------------------------------------------------------
+        %> @brief Calculates the number of complete days and the number of
+        %> incomplete days available in the data for the most recently
+        %> defined feature vector.
+        %> @param obj Instance of PAData
+        %> @param featureFcn Function name or handle to use to obtain
+        % --------------------------------------------------------------------
+        function [completeDayCount, incompleteDayCount, totalDayCount] = getDayCount(obj,elapsedStartHour, intervalDurationHours)
+            if(nargin<3)
+                intervalDurationHours=24;
+                if(nargin<2)
+                    elapsedStartHour = 0;
+                end
+            end
+
+
+            totalDayCount = 0;
+            incompleteDayCount = 0;
+            completeDayCount = 0;
+
+            if(~isempty(obj.startDatenums))  
+                frameDurationInHours = obj.getFrameDurationInHours();
+                totalDayCount = ceil(obj.startDatenums(end))-floor(obj.startDatenums(1)); %round up to nearest whole day.  
+                
+                elapsedStopHour = mod(elapsedStartHour+intervalDurationHours-frameDurationInHours,24);                
+                
+                % find the first Start Time
+                startDateVecs = datevec(obj.startDatenums);
+                elapsedStartHours = startDateVecs*[0; 0; 0; 1; 1/60; 1/3600];
+                
+                firstStartIndex = find(elapsedStartHours==elapsedStartHour,1,'first');
+                firstStopIndex = find(elapsedStartHours==elapsedStopHour,1,'first');
+                lastStartIndex = find(elapsedStartHours==elapsedStartHour,1,'last');
+                lastStopIndex = find(elapsedStartHours==elapsedStopHour,1,'last');
+                
+                firstStartDateVec = startDateVecs(firstStartIndex,:);
+                
+                
+                if(firstStopIndex<firstStartIndex)
+                    incompleteDayCount = incompleteDayCount+1;
+                end
+                
+                if(lastStopIndex < lastStartIndex)
+                    incompleteDayCount = incompleteDayCount+1;
+                    % get the last start date vector that is used for a
+                    % complete day; which is not at lastStartIndex in this
+                    % case
+                    lastStartDateVec = startDateVecs(lastStopIndex,:)-[0 0 0 intervalDurationHours-frameDurationInHours 0 0];                
+                else                    
+                    lastStartDateVec = startDateVecs(lastStartIndex,:);
+                end
+                
+                completeDayCount = datenum(lastStartDateVec) - datenum(firstStartDateVec);
+                
+            end
+            
+        end
+        
         % --------------------------------------------------------------------
         %> @brief Calculates a desired feature for a particular acceleration object's field value.
         %> and returns it as a matrix of elapsed time aligned vectors.
@@ -1918,11 +2025,21 @@ classdef PAData < handle
         function [alignedFeatureVecs, alignedStartDateVecs] = getAlignedFeatureVecs(obj,featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours)
             %featureVec = getStruct('featureFcn',signalTagLine);
             
+            if(nargin<5)
+                intervalDurationHours=24;
+                if(nargin<4)
+                    elapsedStartHour = 0;
+                    if(nargin<3)
+                        signalTagLine = obj.frames_signalTagLine;
+                    end
+                end
+            end
+            
             featureStruct = obj.getStruct('all','features');
             alignedFeatureVecs = [];
             if(isempty(featureStruct) || ~isfield(featureStruct,featureFcn) || isempty(featureStruct.(featureFcn)))
                 obj.extractFeature(signalTagLine,featureFcn);
-                featureStruct = obj.getStruct('all','features');
+                featureStruct = obj.getStruct('all','features');                
             end
             if(isempty(featureStruct) || ~isfield(featureStruct,featureFcn) || isempty(featureStruct.(featureFcn)))
                 fprintf('There was an error.  Could not extract features!\n');
@@ -2132,9 +2249,9 @@ classdef PAData < handle
             % the study is clearly not over then (i.e. there is more
             % activity being presented).
             if(~isempty(studyover_events))
-                diff_hours = (obj.durationSamples()-studyover_events(end))/samplesPerHour; %      obj.getSampleRate()/3600;
+                diff_hours = (obj.getDurationSamples()-studyover_events(end))/samplesPerHour; %      obj.getSampleRate()/3600;
                 if(diff_hours<=obj.usageStateRules.mergeWithinHoursForStudyOver)
-                    studyover_events(end) = obj.durationSamples();
+                    studyover_events(end) = obj.getDurationSamples();
                 end
             end
             
@@ -2313,13 +2430,16 @@ classdef PAData < handle
                 % Note that obj.Data is passed to subsref
                 sref = obj.subsindex(cell2mat(s.subs));
             else
-                if(~isempty(intersect(lower(s(1).subs),lower({'getFrameDuration','getAlignedFeatureVecs'}))))
-                    [sref, varargout{1}] = builtin('subsref',obj,s);
-                elseif(~isempty(intersect(lower(s(1).subs),lower({'classifyUsageState'}))))
-                    [sref, varargout{1}, varargout{2}] = builtin('subsref',obj,s);
-                else
-                    sref = builtin('subsref',obj,s);
-                end
+                varargout = cell(1,nargout-1);
+                [sref,varargout{:}] = builtin('subsref',obj,s);
+% 
+%                 if(~isempty(intersect(lower(s(1).subs),lower({'getFrameDuration','getAlignedFeatureVecs'}))))
+%                     [sref, varargout{1}] = builtin('subsref',obj,s);
+%                 elseif(~isempty(intersect(lower(s(1).subs),lower({'classifyUsageState'}))))
+%                     [sref, varargout{1}, varargout{2}] = builtin('subsref',obj,s);
+%                 else
+%                     sref = builtin('subsref',obj,s);
+%                 end
             end
         end
         

@@ -123,7 +123,7 @@ classdef PABatchTool < handle
             set(this.handles.text_outputPath,'string',this.settings.outputDirectory,'uicontextmenu',contextmenu_directory);
             set(this.handles.text_sourcePath,'string','','uicontextmenu',contextmenu_directory);
             
-            set(this.handles.check_linkInOutPaths,'callback',@this.toggleOutputToInputPathLinkageCallbackFcn,'value',batchSettings.isOutputPathLinked);
+            set(this.handles.check_linkInOutPaths,'callback',@this.toggleOutputToInputPathLinkageCallbackFcn,'value',this.settings.isOutputPathLinked);
             
             % Send a refresh to the widgets that may be effected by the
             % current value of the linkage checkbox.
@@ -132,8 +132,8 @@ classdef PABatchTool < handle
 
             
             
-            set(this.handles.menu_frameDurationMinutes,'string',this.featureDurationStr,'userdata',this.featureDurationVal,'value',find(cellfun(@(x)(x==15),this.featureDurationVal)));
-            set(this.handles.menu_maxDaysAllowed,'string',this.maxDaysAllowedStr,'userdata',this.maxDaysVal,'value',find(cellfun(@(x)(x==7),this.maxDaysVal)));
+            set(this.handles.menu_frameDurationMinutes,'string',this.featureDurationStr,'userdata',this.featureDurationVal,'value',find(cellfun(@(x)(x==this.settings.frameDurationMinutes),this.featureDurationVal)));
+            set(this.handles.menu_maxDaysAllowed,'string',this.maxDaysAllowedStr,'userdata',this.maxDaysVal,'value',find(cellfun(@(x)(x==this.settings.numDaysAllowed),this.maxDaysVal)));
             
             
             set(this.handles.button_go,'callback',@this.startBatchProcessCallback);
@@ -175,8 +175,18 @@ classdef PABatchTool < handle
             set(this.figureH,'visible','on','closerequestFcn',@this.close);
         end
             
+        function refreshSettings(this)
+            if(ishandle(this.figureH))
+                this.settings.featureLabel = getMenuString(this.handles.menu_featureFcn);            
+                this.settings.frameDurationMinutes = getSelectedMenuUserData(this.handles.menu_frameDurationMinutes);
+                this.settings.numDaysAllowed = getMenuUserData(this.handles.menu_maxDaysAllowed);
+            end            
+        end
+        
         function close(this, varargin)
             if(ishandle(this.figureH))
+                this.refreshSettings();
+                this.notify('BatchToolClosing',EventData_BatchTool(this.settings));
                 delete(this.figureH);
             end
             delete(this);
@@ -215,11 +225,12 @@ classdef PABatchTool < handle
         
         function didUpdate = toggleOutputToInputPathLinkageCallbackFcn(this, checkboxHandle, eventData)
             try
-                if(this.isOutputPathLinkedToInputPath())
+                this.settings.isOutputPathLinked = this.isOutputPathLinkedToInputPath();
+                if(this.settings.isOutputPathLinked)
                     this.setOutputPath(this.getSourcePath());
-                    set(this.handles.button_getOutputPath,'enable','off');
+                    set(this.handles.button_getOutputPath,'enable','off');                    
                 else
-                    set(this.handles.button_getOutputPath,'enable','on');                    
+                    set(this.handles.button_getOutputPath,'enable','on');
                 end
                 didUpdate = true;
             catch me
@@ -259,7 +270,11 @@ classdef PABatchTool < handle
                 didSet = false;
             end            
         end
-        
+
+        function featurePathname = getFeaturePathname(this)
+            featurePathname = fullfile(this.getOutputPath(),'features');
+        end
+
         function pathName = getOutputPath(this)
             pathName = this.settings.outputDirectory;
         end
@@ -315,6 +330,7 @@ classdef PABatchTool < handle
            end
            set(text_filesFound_h,'string',msg);
         end
+        
                
         % --------------------------------------------------------------------
         %> @brief Determines the number of actigraph files located in the
@@ -339,7 +355,6 @@ classdef PABatchTool < handle
            %get the log files with most recent ones first on the list.
            sortNewestToOldest = true;
            [filenames, fullfilenames, filedates] = getFilenamesi(outputPathname,'.txt',sortNewestToOldest);
-
            
            newestIndex = find(strncmpi(filenames,'batchRun',numel('batchRun')),1);
            if(~isempty(newestIndex))
@@ -452,15 +467,15 @@ classdef PABatchTool < handle
             drawnow;
             
             
-            % Get maximum days allowed for any one subject
+            % Get maximum days allowed for any one subject            
             maximumDaysAllowed = getMenuUserData(this.handles.menu_maxDaysAllowed);
+            this.settings.numDaysAllowed = maximumDaysAllowed;
             
             % get feature settings
             % determine which feature to process
             
             featureFcn = getMenuUserData(this.handles.menu_featureFcn);
-            this.settings.featureLabel = getMenuString(this.handles.menu_featureFcn);
-            
+            this.settings.featureLabel = getMenuString(this.handles.menu_featureFcn);            
             
             % determine frame aggreation size - size to calculate each
             % feature from
@@ -491,7 +506,7 @@ classdef PABatchTool < handle
             timeAxis = datenum(startDateVec):datenum(frameInterval):datenum(stopDateVec);
             timeAxisStr = datestr(timeAxis,'HH:MM:SS');
             
-            [logFid, logFullFilename] = this.prepLogFile(this.settings);
+            [logFid, logFullFilename, summaryFid, summaryFullFilename] = this.prepLogAndSummaryFiles(this.settings,this.getFeaturePathname());
             fprintf(logFid,'File count:\t%u',fileCount);
 
             %% Setup output folders
@@ -513,7 +528,7 @@ classdef PABatchTool < handle
                 outputFeatureLabels = {this.settings.featureLabel};
             end
             
-            outputFeaturePathnames =   strcat(fullfile(this.getOutputPath(),'features'),filesep,outputFeatureFcns);
+            outputFeaturePathnames =   strcat(this.getFeaturePathname(),filesep,outputFeatureFcns);
             
             for fn=1:numel(outputFeatureFcns)
                 
@@ -543,12 +558,15 @@ classdef PABatchTool < handle
                 end            
             end
             
+            totalDayCount = 0;
+            completeDayCount = 0;
+            incompleteDayCount = 0;            
            
             % setup timers
             pctDone = 0;
-            pctDelta = 1/fileCount;
+            pctDelta = (1/fileCount);
             
-            waitbar(pctDone,waitH,filenames{1});
+            waitbar(pctDone,waitH,filenames{1});            
             
             startTime = now;
             startClock = clock;
@@ -564,6 +582,12 @@ classdef PABatchTool < handle
                     fprintf('Processing %s\n',filenames{f});
                     curData = PAData(fullFilenames{f});%,this.SETTINGS.DATA
                     
+                    curStudyID = curData.getStudyID('numeric');
+                    if(isnan(curStudyID))
+                        curStudyID = f;
+                    end
+                    
+                    
                     setFrameDurMin = curData.setFrameDurationMinutes(frameDurationMinutes);
                     if(frameDurationMinutes~=setFrameDurMin)
                         fprintf('There was an error in setting the frame duration.\n');
@@ -578,6 +602,8 @@ classdef PABatchTool < handle
                             % the given feature function (e.g.
                             % 'mode','psd','all')
                             curData.extractFeature(signalName,featureFcn);
+                            
+                            
                                 
                             for fn=1:numel(outputFeatureFcns)
                                 outputFeatureFcn = outputFeatureFcns{fn};
@@ -586,13 +612,13 @@ classdef PABatchTool < handle
                                 featureFilename = fullfile(features_pathname,strcat('features.',outputFeatureFcn,'.',signalName,'.txt'));
                                 [alignedVec, alignedStartDateVecs] = curData.getAlignedFeatureVecs(outputFeatureFcn,signalName,elapsedStartHour, intervalDurationHours);
                                 
-                                
                                 numIntervals = size(alignedVec,1);
                                 if(numIntervals>maxNumIntervals)
                                     alignedVec = alignedVec(1:maxNumIntervals,:);
                                     alignedStartDateVecs = alignedStartDateVecs(1:maxNumIntervals, :);
                                     numIntervals = maxNumIntervals;
                                 end
+                                
                                 % Currently, only x,y,z or vector magnitude
                                 % are considered for signal names.  And
                                 % they all have the same number of samples.
@@ -600,13 +626,22 @@ classdef PABatchTool < handle
                                 % following caluclations on the first
                                 % iteration through.
                                 if(s==1)
-                                    alignedStartDaysOfWeek = datestr(alignedStartDateVecs,'ddd');
+                                    % Need to apply datenum to get back to
+                                    % proper time for datestr to work.  
+                                    startDatenums = datenum(alignedStartDateVecs);
+                                    % There is a bug if you try to do this
+                                    % datestr(alignedStartDateVecs,'ddd')
+                                    % and the date vecs have a different
+                                    % number of days due to extra or less
+                                    % time in other columns (e.g. hours,
+                                    % minutes).
+                                    alignedStartDaysOfWeek = datestr(startDatenums,'ddd');
                                     alignedStartNumericDaysOfWeek = nan(numIntervals,1);
                                     for a=1:numIntervals
                                         alignedStartNumericDaysOfWeek(a)=dateMap.(alignedStartDaysOfWeek(a,:));
                                     end
-                                    startDatenums = datenum(alignedStartDateVecs);
-                                    studyIDs = repmat(curData.getStudyID('numeric'),numIntervals,1);
+
+                                    studyIDs = repmat(curStudyID,numIntervals,1);
                                 
                                     result = [studyIDs,startDatenums,alignedStartNumericDaysOfWeek,alignedVec];
                                 else
@@ -620,13 +655,19 @@ classdef PABatchTool < handle
                                 if(~isa(result,'double'))
                                     result = double(result);
                                 end
-
                                 save(featureFilename,'result','-ascii','-tabs','-append');
-                            end
-                            
+                            end                            
                         end
-                    end
-                    
+                        [curCPM_x, curCPM_y, curCPM_z, curCPM_vm] = curData.getCountsPerMinute();
+                        
+                        [curCompleteDayCount, curIncompleteDayCount, curTotalDayCount] = curData.getDayCount(elapsedStartHour, intervalDurationHours);
+                        totalDayCount = totalDayCount + curTotalDayCount;
+                        completeDayCount = completeDayCount + curCompleteDayCount;
+                        incompleteDayCount = incompleteDayCount + curIncompleteDayCount; 
+                        
+                        fprintf(summaryFid,'%d, %s, %d, %d, %d, %d, %d, %d, %d\n',curStudyID, fullFilenames{f}, curTotalDayCount, curCompleteDayCount, curIncompleteDayCount, curCPM_x, curCPM_y, curCPM_z, curCPM_vm);
+
+                    end                    
                 catch me
                     showME(me);
                     failedFiles{end+1} = filenames{f};
@@ -644,7 +685,7 @@ classdef PABatchTool < handle
                 pctDone = pctDone+pctDelta;
                 
                 elapsed_dur_sec = toc(ticStart);
-                fprintf('File %d of %d (%0.2f%%) Completed in %0.2f seconds\n',num_files_completed,fileCount,pctDone,elapsed_dur_sec);
+                fprintf('File %d of %d (%0.2f%%) Completed in %0.2f seconds\n',num_files_completed,fileCount,pctDone*100,elapsed_dur_sec);
                 elapsed_dur_total_sec = etime(clock,startClock);
                 avg_dur_sec = elapsed_dur_total_sec/num_files_completed;
                 
@@ -656,8 +697,7 @@ classdef PABatchTool < handle
                         ['Elapsed Time: ',datestr(now-startTime,'HH:MM:SS')],...
                         ['Time Remaining: ',est_str]};
                     fprintf('%s\n',msg{2});
-                    if(ishandle(waitH))
-                        
+                    if(ishandle(waitH))                        
                         waitbar(pctDone,waitH,char(msg));
                     else
                         %                     waitHandle = findall(0,'tag','waitbarHTag');
@@ -695,6 +735,10 @@ classdef PABatchTool < handle
                 '\tSkipped:\t%5u\n',...
                 '\tFailed:\t%5u\n\n'],userCanceledMsg,fileCount,elapsedTimeStr,successCount,skipCount,failCount);
             
+            batchResultStr = sprintf(['%sTotal day count:\t%5u\n',...
+                'Complete day count:\t%5u\n',...
+                'Incomplete day count:\t%5u\n'],batchResultStr,totalDayCount, completeDayCount, incompleteDayCount);
+            
             fprintf(logFid,'\n====================SUMMARY===============\n');
             fprintf(logFid,batchResultStr);
             fprintf(1,batchResultStr);
@@ -711,6 +755,7 @@ classdef PABatchTool < handle
                 end
                 
                 fclose(logFid);
+                fclose(summaryFid);
                 
                 % Only handle the case where non-skipped files fail here.
                 if(failCount>0)
@@ -744,36 +789,43 @@ classdef PABatchTool < handle
                     
                     dlgName = 'Errors found';
                     showLogFileStr = 'Open log file';
+                    showSummaryFileStr = 'Open summary file';
                     returnToBatchToolStr = 'Return to batch tool';
+                    cancelStr = 'Cancel';
                     options.Default = showLogFileStr;
 
                     options.Interpreter = 'none';
-                    buttonName = questdlg(batchResultStr,dlgName,showLogFileStr,returnToBatchToolStr,options);
+                    buttonName = questdlg(batchResultStr,dlgName,showLogFileStr,returnToBatchToolStr,cancelStr,options);
                     switch buttonName
                         case returnToBatchToolStr
                             % Bring the figure to the front/onscreen
-                            movegui(this.figureH);
+                            figure(this.figureH);
                         case showLogFileStr
                             textFileViewer(logFullFilename);
+                        case showSummaryFileStr
+                            textFileViewer(summaryFullFilename);
                         otherwise
                     end
                 
                 end
             else
                 fclose(logFid);
-                
+                fclose(summaryFid);
                 
                 dlgName = 'Batch complete';
                 showResultsStr = 'Switch to results';
                 showOutputFolderStr = 'Open output folder';
+                showLogFileStr = 'Open log file';
+                showSummaryFileStr = 'Open summary file';
                 returnToBatchToolStr = 'Return to batch tool';
+                cancelStr = 'Cancel';
                 options.Default = showResultsStr;
                 options.Interpreter = 'none';
                 buttonName = questdlg(batchResultStr,dlgName,showResultsStr,showOutputFolderStr,returnToBatchToolStr,options);
                 switch buttonName
                     case returnToBatchToolStr
                         % Bring the figure to the front/onscreen
-                        movegui(this.figureH);
+                        figure(this.figureH);
                     case showResultsStr
                         % Close the batch mode
                         
@@ -785,11 +837,15 @@ classdef PABatchTool < handle
                         return;       %  and go to the results view
                     case showOutputFolderStr
                         openDirectory(this.getOutputPath())
+                    case showLogFileStr
+                        textFileViewer(logFullFilename);
+                    case showSummaryFileStr
+                        textFileViewer(summaryFullFilename);
                     otherwise
                 end
             end
             
-            
+            this.updateOutputLogs();
             this.isRunning = false;
             this.enable();
             
@@ -801,6 +857,7 @@ classdef PABatchTool < handle
         function waitbarCloseRequestCallback(this,hWaitbar, ~)
             this.isRunning = false;
             waitbar(100,hWaitbar,'Cancelling .... please wait while current iteration finishes.');
+            drawnow();
         end
         
         function waitbarCancelCallback(this,hCancelBtn, eventData) 
@@ -837,24 +894,46 @@ classdef PABatchTool < handle
             pStruct.alignment.elapsedStartHours = 0; %when to start the first measurement
             pStruct.alignment.intervalLengthHours = 24;  %duration of each interval (in hours) once started
             pStruct.frameDurationMinutes = 15;
+            pStruct.numDaysAllowed = 7;
             pStruct.featureLabel = 'All';
             pStruct.logFilename = 'batchRun_@TIMESTAMP.txt'; 
+            pStruct.summaryFilename = 'batchSummary_@TIMESTAMP.txt';            
             pStruct.isOutputPathLinked = false;  
         end            
         
+        
         % --------------------------------------------------------------------
-        %> @brief Prepares the current run's log file.
+        %> @brief Prepares the current run's log and summary files.
         %> @param this Instance of PABatchTool
         %> @param settings
         %> @retval logFID The <i>open</i> file identifier of the created
         %> log file.
         % --------------------------------------------------------------------        
-        function [logFID, logFullFilename] = prepLogFile(settings)
+        function [logFID, logFullFilename, summaryFID, summaryFullFilename] = prepLogAndSummaryFiles(settings,featurePathname)
         % --------------------------------------------------------------------        
-            startDateTime = datestr(now);            
+            startDateTime = datestr(now,'ddmmmyyyy_HHMM');
+            
+            summaryFilename = strrep(settings.summaryFilename,'@TIMESTAMP',startDateTime);
+            
+            isormkdir(featurePathname);
+            
+            summaryFullFilename = fullfile(featurePathname,summaryFilename); 
+            summaryFID = fopen(summaryFullFilename,'w');
+            
+            if(summaryFID<0)
+                fprintf(1,'Cannot open or create summary file: %s\nSending summary output to the console.\n',summaryFullFilename);
+                summaryFID = 1;
+            end
+            fprintf(summaryFID,'studyID, study_filename, total day count, complete day count, incomplete day count, counts per minute (x), counts per minute (y), counts per minute (z), counts per minute (vec magnitude)\n');
+            
             logFilename = strrep(settings.logFilename,'@TIMESTAMP',startDateTime);
             logFullFilename = fullfile(settings.outputDirectory,logFilename);
+            
             logFID = fopen(logFullFilename,'w');
+            if(logFID<0)
+                fprintf(1,'Cannot open or create the log file: %s\nSending log output to the console.\n',logFullFilename);
+                logFID = 1;
+            end
             versionStr = PAController.getVersionInfo('num');
             fprintf(logFID,'Padaco batch processing log\nStart time:\t%s\n',startDateTime);
             fprintf(logFID,'Padaco version %s\n',versionStr);
@@ -866,6 +945,7 @@ classdef PABatchTool < handle
             fprintf(logFID,'Alignment settings:\n');
             fprintf(logFID,'\tElapsed start (hours):\t%u\n',settings.alignment.elapsedStartHours);
             fprintf(logFID,'\tInterval length (hours):\t%u\n',settings.alignment.intervalLengthHours);
+            fprintf(logFID,'Summary file:\t%s\n',summaryFullFilename);
         end
                 
         

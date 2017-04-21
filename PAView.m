@@ -1,8 +1,7 @@
 %> @file PAView.cpp
-%> @brief PAView serves as Padaco's view component (i.e. in the model, view, controller paradigm).
+%> @brief PAView serves as Padaco's time series view controller
 % ======================================================================
-%> @brief PAView serves as Padaco's view component.
-%> In the model, view, controller paradigm, this is the view.
+%> @brief PAView serves as Padaco's time series view controller.
 classdef PAView < handle
     
     properties (Access = private)

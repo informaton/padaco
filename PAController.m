@@ -1351,8 +1351,11 @@ classdef PAController < handle
             end
             
             catch me
-                warndlg('An error occurred while trying to load the feature set.  See the console log for details.');
                 showME(me);
+                f=warndlg('An error occurred while trying to load the feature set.  See the console log for details.');
+                waitfor(f);
+                obj.VIEW.showReady();
+                
             end
         end
         
@@ -1670,7 +1673,11 @@ classdef PAController < handle
             
             batchTool = PABatchTool(obj.SETTINGS.BATCH);
             batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
+            
             batchTool.addlistener('SwitchToResults',@obj.setResultsViewModeCallback);
+            
+            batchTool.addlistener('BatchToolClosing',@obj.updateBatchToolSettingsCallback);
+            
         end
 
         % --------------------------------------------------------------------
@@ -2188,7 +2195,36 @@ classdef PAController < handle
             % this.VIEW.initWidgets('results',false);
             if(isdir(this.resultsPathname))
                 if(~isempty(this.StatTool))
-                    this.StatTool.init();  %calls a plot refresh
+                    
+                    statToolResultsPath = this.StatTool.getResultsDirectory();
+                    
+                    refreshPath = false;
+                    if(~strcmpi(statToolResultsPath,this.resultsPathname))
+                        msgStr = sprintf('There has been a change to the results path.\nWould you like to load features from the updated path?\n%s',this.resultsPathname);
+                        titleStr = 'Refresh results path?';
+                        buttonName = questdlg(msgStr,titleStr,'Yes','No','Yes');
+                        switch(buttonName)
+                            case 'Yes'
+                                refreshPath = true;
+                            case 'No'
+                                refreshPath = false;
+                                %make it so we do not ask the quesiton
+                                %again by matching the pathname to the one
+                                %the user wants to use.
+                                this.resultsPathname = statToolResultsPath;  
+                            otherwise
+                                refreshPath = false;
+                        end                                
+                    end
+
+                    if(refreshPath)
+                        this.StatTool.setResultsDirectory(this.resultsPathname);
+                    else
+                        % Make sure the resultsPath is up to date (e.g. when
+                        % switching back from a batch mode.
+                        this.StatTool.init();  %calls a plot refresh
+                        
+                    end
                 else
                     this.StatTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname,this.SETTINGS.StatTool);
                     this.StatTool.setIcon(this.iconFilename);

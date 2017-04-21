@@ -1,6 +1,7 @@
 % ======================================================================
 %> @file PAStatTool.cpp
-%> @brief PAStatTool serves as Padaco's batch results analysis controller
+%> @brief PAStatTool serves as Padaco's controller for visualization and
+%> analysis of batch results.
 % ======================================================================
 classdef PAStatTool < handle
     events
@@ -108,7 +109,6 @@ classdef PAStatTool < handle
         %> to Padaco.
         coiProfile;
         
-        
         %> @brief Fx3xC matrix where N is the number of covariate fields
         %> to be analyzed and C is the number of centroids.  '3' represents
         %> the columns: n, mean, and standard error of the mean for the
@@ -179,8 +179,38 @@ classdef PAStatTool < handle
             this.featureInputFileFieldnames = {'inputPathname','displaySeletion','processType','curSignal'};       
             
             if(isdir(resultsPathname))
-                this.resultsDirectory = resultsPathname;
-                featuresPath = fullfile(resultsPathname,'features');
+                this.setResultsDirectory(resultsPathname); % a lot of initialization code in side this call.
+            else
+                fprintf('%s does not exist!\n',resultsPathname); 
+            end
+            
+            % Create property/event listeners
+            this.addlistener('ProfileFieldSelectionChange_Event',@this.profileFieldSelectionChangeCallback);
+            addlistener(this.handles.check_segment,'Value','PostSet',@this.checkSegmentPropertyChgCallback);
+            addlistener(this.handles.menu_number_of_data_segments,'Enable','PostSet',@this.checkSegmentPropertyChgCallback);    
+        end
+
+        % ======================================================================
+        %> @brief Overload delete method to ensure we get rid of the
+        %> analysis figure
+        % ======================================================================
+        function delete(this)
+            if(ishandle(this.analysisFigureH))
+                delete(this.analysisFigureH)
+            end
+            
+            % call the parent/superclass method
+            delete@handle(this);
+        end
+
+        function resultsPath = getResultsDirectory(this)
+            resultsPath = this.resultsDirectory;
+        end
+        
+        function didSet = setResultsDirectory(this, resultsPath)
+            if(isdir(resultsPath))
+                this.resultsDirectory = resultsPath;
+                featuresPath = fullfile(resultsPath,'features');
                 
                 % We are allowing user to pick a folder that contains
                 % 'features' as a subfolder, or the folder whose subfolders
@@ -188,14 +218,13 @@ classdef PAStatTool < handle
                 % little more flexibility to the user and hopefully hide
                 % some of the more mundane parts of loading a path.
                 if(~isdir(featuresPath))
-                    featuresPath = resultsPathname;
+                    featuresPath = resultsPath;
                     % fprintf('Assuming features pathFeatures pathname (%s) does not exist!\n',featuresPath);
                 end
                 this.featuresDirectory = featuresPath;
-                
-                this.initWidgets(widgetSettings);  %initializes previousstate.plotType on success
+                this.initWidgets(this.originalWidgetSettings);  %initializes previousstate.plotType on success
 
-                plotType = this.base.plotTypes{get(this.handles.menu_plottype,'value')};
+                plotType = this.getPlotType();
                 this.clearPlots();
                 
                 if(exist(this.getFullCentroidCacheFilename(),'file') && this.useCache)
@@ -233,11 +262,9 @@ classdef PAStatTool < handle
                         end
                     catch me
                         showME(me);
-                    end
-                    
+                    end                    
                 end
-                
-                set(padaco_fig_h,'visible','on');                
+                set(this.figureH,'visible','on');                
 
                 if(this.getCanPlot())
                     switch(plotType)
@@ -246,30 +273,13 @@ classdef PAStatTool < handle
                         otherwise
                             this.switchFromClustering();
                     end
-                end
+                end     
+                didSet = true;
             else
-                fprintf('%s does not exist!\n',resultsPathname); 
-            end
-            
-            % Create property/event listeners
-            this.addlistener('ProfileFieldSelectionChange_Event',@this.profileFieldSelectionChangeCallback);
-            addlistener(this.handles.check_segment,'Value','PostSet',@this.checkSegmentPropertyChgCallback);
-            addlistener(this.handles.menu_number_of_data_segments,'Enable','PostSet',@this.checkSegmentPropertyChgCallback);    
-        end
-
-        % ======================================================================
-        %> @brief Overload delete method to ensure we get rid of the
-        %> analysis figure
-        % ======================================================================
-        function delete(this)
-            if(ishandle(this.analysisFigureH))
-                delete(this.analysisFigureH)
-            end
-            
-            % call the parent/superclass method
-            delete@handle(this);
-        end
-
+                didSet = false; 
+            end    
+        end        
+        
         %> @brief Returns boolean indicator if results view is showing
         %> clusters (plot type 'centroids') or not.
         function clusterView = inClusterView(this)
@@ -434,7 +444,8 @@ classdef PAStatTool < handle
                 
                 tmpFeatureStruct = this.originalFeatureStruct;
                 
-                if(isCountData)
+                % Make sure we actually have a usage state struct
+                if(isCountData && ~isempty(this.usageStateStruct))
                     tmpUsageStateStruct = this.usageStateStruct;
                 else
                     tmpUsageStateStruct = this.originalFeatureStruct; 
