@@ -179,8 +179,39 @@ classdef PAStatTool < handle
             this.featureInputFileFieldnames = {'inputPathname','displaySeletion','processType','curSignal'};       
             
             if(isdir(resultsPathname))
-                this.resultsDirectory = resultsPathname;
-                featuresPath = fullfile(resultsPathname,'features');
+                this.setResultsDirectory(resultsPathname); % a lot of initialization code in side this call.
+            else
+                fprintf('%s does not exist!\n',resultsPathname); 
+            end
+            
+            % Create property/event listeners
+            this.addlistener('ProfileFieldSelectionChange_Event',@this.profileFieldSelectionChangeCallback);
+            addlistener(this.handles.check_segment,'Value','PostSet',@this.checkSegmentPropertyChgCallback);
+            addlistener(this.handles.menu_number_of_data_segments,'Enable','PostSet',@this.checkSegmentPropertyChgCallback);    
+        end
+
+        % ======================================================================
+        %> @brief Overload delete method to ensure we get rid of the
+        %> analysis figure
+        % ======================================================================
+        function delete(this)
+            if(ishandle(this.analysisFigureH))
+                delete(this.analysisFigureH)
+            end
+            
+            % call the parent/superclass method
+            delete@handle(this);
+        end
+
+
+        function resultsPath = getResultsDirectory(this)
+            resultsPath = this.resultsDirectory;
+        end
+        
+        function didSet = setResultsDirectory(this, resultsPath)
+            if(isdir(resultsPath))
+                this.resultsDirectory = resultsPath;
+                featuresPath = fullfile(resultsPath,'features');
                 
                 % We are allowing user to pick a folder that contains
                 % 'features' as a subfolder, or the folder whose subfolders
@@ -188,14 +219,13 @@ classdef PAStatTool < handle
                 % little more flexibility to the user and hopefully hide
                 % some of the more mundane parts of loading a path.
                 if(~isdir(featuresPath))
-                    featuresPath = resultsPathname;
+                    featuresPath = resultsPath;
                     % fprintf('Assuming features pathFeatures pathname (%s) does not exist!\n',featuresPath);
                 end
                 this.featuresDirectory = featuresPath;
-                
                 this.initWidgets(widgetSettings);  %initializes previousstate.plotType on success
 
-                plotType = this.base.plotTypes{get(this.handles.menu_plottype,'value')};
+                plotType = this.getPlotType();
                 this.clearPlots();
                 
                 if(exist(this.getFullCentroidCacheFilename(),'file') && this.useCache)
@@ -247,29 +277,14 @@ classdef PAStatTool < handle
                             this.switchFromClustering();
                     end
                 end
+                
+                didSet = true;
             else
-                fprintf('%s does not exist!\n',resultsPathname); 
-            end
-            
-            % Create property/event listeners
-            this.addlistener('ProfileFieldSelectionChange_Event',@this.profileFieldSelectionChangeCallback);
-            addlistener(this.handles.check_segment,'Value','PostSet',@this.checkSegmentPropertyChgCallback);
-            addlistener(this.handles.menu_number_of_data_segments,'Enable','PostSet',@this.checkSegmentPropertyChgCallback);    
+                didSet = false; 
+            end    
         end
-
-        % ======================================================================
-        %> @brief Overload delete method to ensure we get rid of the
-        %> analysis figure
-        % ======================================================================
-        function delete(this)
-            if(ishandle(this.analysisFigureH))
-                delete(this.analysisFigureH)
-            end
-            
-            % call the parent/superclass method
-            delete@handle(this);
-        end
-
+        
+        
         %> @brief Returns boolean indicator if results view is showing
         %> clusters (plot type 'centroids') or not.
         function clusterView = inClusterView(this)
