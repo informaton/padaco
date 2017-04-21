@@ -2202,7 +2202,7 @@ classdef PAController < handle
                     if(~strcmpi(statToolResultsPath,this.resultsPathname))
                         msgStr = sprintf('There has been a change to the results path.\nWould you like to load features from the updated path?\n%s',this.resultsPathname);
                         titleStr = 'Refresh results path?';
-                        buttonName = questdlg(msgStr,titleStr,'Yes','No');
+                        buttonName = questdlg(msgStr,titleStr,'Yes','No','Yes');
                         switch(buttonName)
                             case 'Yes'
                                 refreshPath = true;

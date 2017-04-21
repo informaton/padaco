@@ -203,7 +203,6 @@ classdef PAStatTool < handle
             delete@handle(this);
         end
 
-
         function resultsPath = getResultsDirectory(this)
             resultsPath = this.resultsDirectory;
         end
@@ -223,7 +222,7 @@ classdef PAStatTool < handle
                     % fprintf('Assuming features pathFeatures pathname (%s) does not exist!\n',featuresPath);
                 end
                 this.featuresDirectory = featuresPath;
-                this.initWidgets(widgetSettings);  %initializes previousstate.plotType on success
+                this.initWidgets(this.originalWidgetSettings);  %initializes previousstate.plotType on success
 
                 plotType = this.getPlotType();
                 this.clearPlots();
@@ -263,11 +262,9 @@ classdef PAStatTool < handle
                         end
                     catch me
                         showME(me);
-                    end
-                    
+                    end                    
                 end
-                
-                set(padaco_fig_h,'visible','on');                
+                set(this.figureH,'visible','on');                
 
                 if(this.getCanPlot())
                     switch(plotType)
@@ -276,14 +273,12 @@ classdef PAStatTool < handle
                         otherwise
                             this.switchFromClustering();
                     end
-                end
-                
+                end     
                 didSet = true;
             else
                 didSet = false; 
             end    
-        end
-        
+        end        
         
         %> @brief Returns boolean indicator if results view is showing
         %> clusters (plot type 'centroids') or not.
