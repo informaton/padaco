@@ -224,7 +224,6 @@ classdef PAStatTool < handle
                 this.featuresDirectory = featuresPath;
                 this.initWidgets(this.originalWidgetSettings);  %initializes previousstate.plotType on success
 
-                plotType = this.getPlotType();
                 this.clearPlots();
                 
                 if(exist(this.getFullCentroidCacheFilename(),'file') && this.useCache)
@@ -267,11 +266,10 @@ classdef PAStatTool < handle
                 set(this.figureH,'visible','on');                
 
                 if(this.getCanPlot())
-                    switch(plotType)
-                        case 'centroids'
-                            this.switch2clustering();
-                        otherwise
-                            this.switchFromClustering();
+                    if(this.isCentroidModeSelected())
+                        this.switch2clustering();
+                    else
+                        this.switchFromClustering();
                     end
                 end     
                 didSet = true;
@@ -1389,7 +1387,9 @@ classdef PAStatTool < handle
             this.refreshPlot();
         end    
         
-
+        function resp = isCentroidModeSelected(this)
+            resp = strcmpi(this.getPlotType,'centroids');            
+        end
         
         % ======================================================================
         %> @brief Configure gui handles for centroid analysis and viewing.
@@ -1506,12 +1506,20 @@ classdef PAStatTool < handle
         % ======================================================================
         function enableCentroidRecalculation(this,varargin)
             %             bgColor = 'green';
-            bgColor = [0.2 0.8 0.1];
-            fgColor = [1 1 1];
-            set(this.handles.push_refreshCentroids,'enable','on',...
-                'backgroundcolor',bgColor,'string','Recalculate',...
-                'foregroundcolor',fgColor,...
-                'callback',@this.refreshCentroidsAndPlot);
+            
+            % Set a variable to keep track that new calculation is needed,
+            % or just check current settings versus last settings when it
+            % is time to actually calculate again...
+            if(this.isCentroidModeSelected())
+                bgColor = [0.2 0.8 0.1];
+                fgColor = [1 1 1];
+                set(this.handles.push_refreshCentroids,'enable','on',...
+                    'backgroundcolor',bgColor,'string','Recalculate',...
+                    'foregroundcolor',fgColor,...
+                    'callback',@this.refreshCentroidsAndPlot);
+            else
+                
+            end
         end
         
         function enableCentroidCancellation(this, varargin)
