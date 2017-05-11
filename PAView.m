@@ -1054,68 +1054,11 @@ classdef PAView < handle
         %> @param maxValue The maximum value to normalize the overlayVector
         %> with so that the normalized overlayVector's maximum value is 1.
         % --------------------------------------------------------------------
-        function addOverlayToSecondaryAxes(obj, overlayVector, startStopDatenum, overlayHeight, overlayOffset,maxValue)
-            obj.linehandle.overlay = obj.addOverlayToAxes(overlayVector, startStopDatenum, overlayHeight, overlayOffset,maxValue,obj.axeshandle.secondary,obj.contextmenuhandle.featureLine);
+        function [overlayLineH, overlayPatchH] = addOverlayToSecondaryAxes(obj, overlayVector, startStopDatenum, overlayHeight, overlayOffset,maxValue)
+            [overlayLineH,overlayPatchH] = obj.addOverlayToAxes(overlayVector, startStopDatenum, overlayHeight, overlayOffset,maxValue,obj.axeshandle.secondary,obj.contextmenuhandle.featureLine);
+            %             obj.linehandle.overlay = overlayLineH;
         end
 
-        
-        % --------------------------------------------------------------------
-        %> @brief Adds an overlay of the lumens signal to the secondary axes.
-        %> @param obj Instance of PAView.
-        %> @param lumenVector An Nx1 vector of lumen values to be displayed in the
-        %> secondary axes.
-        %> @param startStopDatenum An Nx2 matrix start and stop datenums which
-        %> correspond to the start and stop times of the same row in overlayVector.
-        % --------------------------------------------------------------------
-        function addLumensOverlayToSecondaryAxes(obj, lumenVector, startStopDatenum)
-            yLim = get(obj.axeshandle.secondary,'ylim');
-            yLim = yLim*1/3+2/3;
-            minColor = [.2 0.1 0];
-            
-            maxLumens = 250;
-            
-            
-            nFaces = numel(lumenVector);
-            x = nan(4,nFaces);
-            y = repmat(yLim([1 2 2 1])',1,nFaces);
-            vertexColor = nan(4,nFaces,3);
-            
-            % each column represent a face color triplet            
-            luxColorMap = (lumenVector/maxLumens)*[0.8,0.9,1]+ repmat(minColor,nFaces,1);
-       
-            % patches are drawn clock wise in matlab
-            
-            for f=1:nFaces
-                if(f==nFaces)
-                    vertexColor(:,f,:) = luxColorMap([f,f,f,f],:);
-                    
-                else
-                    vertexColor(:,f,:) = luxColorMap([f,f,f+1,f+1],:);
-                    
-                end
-                x(:,f) = startStopDatenum(f,[1 1 2 2])';
-                
-            end
-            patch(x,y,vertexColor,'parent',obj.axeshandle.secondary,'edgecolor','interp','facecolor','interp');
-            
-            
-            
-            
-%         x  = [  1,3
-%                 3,5
-%                 3,5
-%                 1,3];
-%         y  = repmat([1;1;10;10],1,size(x,2));
-%                     
-%         c = [0.5 0.5 0.5;
-%             1   0   0];
-%         c = ['rg'];   
-        
-%         If C is mxnx3, where X and Y are mxn, then each vertex
-%         (X(i,j),Y(i,j)) is colored by the RGB triplet C(i,j,:) and the
-%         face is colored using interpolation.
-        
-        end
         
         % --------------------------------------------------------------------
         %> @brief Updates the secondary axes x and y axes limits.
@@ -1231,7 +1174,11 @@ classdef PAView < handle
             
             %secondary axes
             obj.positionBarHandle = line('parent',obj.axeshandle.secondary,'visible','off');%annotation(obj.figurehandle.sev,'line',[1, 1], [pos(2) pos(2)+pos(4)],'hittest','off');
-            obj.patchhandle.positionBar =  patch('xdata',nan(1,4),'ydata',[0 1 1 0],'zdata',repmat(-1,1,4),'parent',obj.axeshandle.secondary,'hittest','off','visible','off','facecolor',[0.5 0.85 0.5],'edgecolor','none','facealpha',0.5);
+%             obj.patchhandle.positionBar =  patch('xdata',nan(1,4),'ydata',[0 1 1 0],'zdata',repmat(-1,1,4),'parent',obj.axeshandle.secondary,'hittest','off','visible','off','facecolor',[0.5 0.85 0.5],'edgecolor','none','facealpha',0.5);
+            obj.patchhandle.positionBar =  patch('xdata',nan(1,4),'ydata',[0 1 1 0],'parent',obj.axeshandle.secondary,'hittest','off','visible','off','facecolor',[0.5 0.85 0.5],'edgecolor','none','facealpha',0.5);
+            
+            uistack(obj.positionBarHandle,'top');
+            uistack(obj.patchhandle.positionBar,'top');
             obj.linehandle.feature = [];
             obj.linehandle.featureCumsum = [];
             
@@ -1532,10 +1479,10 @@ classdef PAView < handle
             yLim = get(axesH,'ylim');
             yLimPatches = (yLim+1)*overlayHeight/2+overlayOffset;
             
-            minColor = [.0 0.25 0.25];
+            %             minColor = [.0 0.25 0.25];
             minColor = [0.1 0.1 0.1];
             
-            maxValue = max(featureVector);  
+            %             maxValue = max(featureVector);
             maxValue = quantile(featureVector,0.90);
             nFaces = numel(featureVector);
             
@@ -1558,7 +1505,8 @@ classdef PAView < handle
             end            
             
             feature_patchH = patch(x,y,vertexColor,'parent',axesH,'edgecolor','interp','facecolor','interp','hittest','off');
-
+            
+                        
             % draw the lines
             
             normalizedFeatureVector = featureVector/quantile(featureVector,0.99)*(overlayHeight/2);
@@ -1660,7 +1608,7 @@ classdef PAView < handle
         %> @param contextmenuH Optional contextmenu handle.  Is assigned to the overlayLineH lines
         %> contextmenu callback when included.    
         % --------------------------------------------------------------------
-        function overlayLineH = addOverlayToAxes(overlayVector, startStopDatenum, overlayHeight, overlayOffset,maxValue,axesH,contextmenuH)
+        function [overlayLineH, overlayPatchH] = addOverlayToAxes(overlayVector, startStopDatenum, overlayHeight, overlayOffset,maxValue,axesH,contextmenuH)
             if(nargin<7)
                 contextmenuH = [];
             end
@@ -1690,7 +1638,7 @@ classdef PAView < handle
                 x(:,f) = startStopDatenum(f,[1 1 2 2])';
                 
             end
-            patch(x,y,vertexColor,'parent',axesH,'edgecolor','interp','facecolor','interp');
+            overlayPatchH = patch(x,y,vertexColor,'parent',axesH,'edgecolor','interp','facecolor','interp');
             
             normalizedOverlayVector = overlayVector/maxValue*(overlayHeight)+overlayOffset;
             overlayLineH = line('parent',axesH,'linestyle',':','xdata',linspace(startStopDatenum(1),startStopDatenum(end),numel(overlayVector)),'ydata',normalizedOverlayVector,'color',[1 1 0]);
@@ -1869,3 +1817,48 @@ classdef PAView < handle
     end
 end
 
+
+
+% Archive
+
+% This was no longer being called - so placed in archive 5/11/2017 @hyatt
+
+% --------------------------------------------------------------------
+%> @brief Adds an overlay of the lumens signal to the secondary axes.
+%> @param obj Instance of PAView.
+%> @param lumenVector An Nx1 vector of lumen values to be displayed in the
+%> secondary axes.
+%> @param startStopDatenum An Nx2 matrix start and stop datenums which
+%> correspond to the start and stop times of the same row in overlayVector.
+% --------------------------------------------------------------------
+% function addLumensOverlayToSecondaryAxes(obj, lumenVector, startStopDatenum)
+%     yLim = get(obj.axeshandle.secondary,'ylim');
+%     yLim = yLim*1/3+2/3;
+%     minColor = [.2 0.1 0];
+%
+%     maxLumens = 250;
+%
+%
+%     nFaces = numel(lumenVector);
+%     x = nan(4,nFaces);
+%     y = repmat(yLim([1 2 2 1])',1,nFaces);
+%     vertexColor = nan(4,nFaces,3);
+%
+%     % each column represent a face color triplet
+%     luxColorMap = (lumenVector/maxLumens)*[0.8,0.9,1]+ repmat(minColor,nFaces,1);
+%
+%     % patches are drawn clock wise in matlab
+%
+%     for f=1:nFaces
+%         if(f==nFaces)
+%             vertexColor(:,f,:) = luxColorMap([f,f,f,f],:);
+%
+%         else
+%             vertexColor(:,f,:) = luxColorMap([f,f,f+1,f+1],:);
+%
+%         end
+%         x(:,f) = startStopDatenum(f,[1 1 2 2])';
+%
+%     end
+%     patch(x,y,vertexColor,'parent',obj.axeshandle.secondary,'edgecolor','interp','facecolor','interp');
+% end

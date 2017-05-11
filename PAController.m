@@ -876,6 +876,9 @@ classdef PAController < handle
                     % This requires twice the height because it will have a
                     % feature line and heat map
                     [patchH, lineH, cumsumH] = obj.VIEW.addFeaturesVecAndOverlayToSecondaryAxes(featureVec,startStopDatenums,deltaHeight*2,heightOffset);
+                    
+                    uistack(patchH,'bottom');
+
                     vecHandles = [patchH, lineH, cumsumH];
                     heightOffset = heightOffset+deltaHeight*2;
                 end
@@ -2164,8 +2167,8 @@ classdef PAController < handle
                 maxLumens = 250;
 
                 [meanLumens,startStopDatenums] = obj.getMeanLumenPatches(numFrames);
-                obj.VIEW.addOverlayToSecondaryAxes(meanLumens,startStopDatenums,height,heightOffset,maxLumens);
-
+                [overlayLineH, overlayPatchH] = obj.VIEW.addOverlayToSecondaryAxes(meanLumens,startStopDatenums,height,heightOffset,maxLumens); %#ok<ASGLU>
+                uistack(overlayPatchH,'bottom');
                 %             [medianLumens,startStopDatenums] = obj.getMedianLumenPatches(1000);
                 %             obj.VIEW.addLumensOverlayToSecondaryAxes(meanLumens,startStopDatenums);
             end
@@ -2175,7 +2178,8 @@ classdef PAController < handle
             [daylight,startStopDatenums] = obj.getDaylight(numFrames);
             heightOffset = heightOffset+height;
 
-            obj.VIEW.addOverlayToSecondaryAxes(daylight,startStopDatenums,height-0.005,heightOffset,maxDaylight);
+            [overlayLineH, overlayPatchH] = obj.VIEW.addOverlayToSecondaryAxes(daylight,startStopDatenums,height-0.005,heightOffset,maxDaylight); %#ok<ASGLU>
+            uistack(overlayPatchH,'bottom');
             
             obj.initCallbacks(); %initialize callbacks now that we have some data we can interact with.
             
