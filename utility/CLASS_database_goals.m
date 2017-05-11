@@ -53,13 +53,14 @@ classdef CLASS_database_goals < CLASS_database
         end
         
         %> @brief Class constructor.
-        %> @retval obj Instance of CLASS_WSC_database.
+        %> @retval obj Instance of CLASS_database.
         function this = CLASS_database_goals()
             this.dbStruct = this.getDBStruct();
             this.tableNames.studyInfo = 'studyinfo_t';
             this.tableNames.subjectInfo = 'subjectinfo_t';
             this.tableNames.dictionary = 'dictionary_t';
             
+            this.primaryKeys.studyInfo = 'kidid';
             this.primaryKeys.subjectInfo = 'kidid';  % Note:  subjectInfo table actually has two primary keys; not a problem for now because study num is always 1.
             this.primaryKeys.dictionary = 'short_name';  % Note:  subjectInfo table actually has two primary keys; not a problem for now because study num is always 1.
         end
@@ -69,6 +70,7 @@ classdef CLASS_database_goals < CLASS_database
         %> @brief Create a mysql database and tables for the GOALS dataset.
         %> - Creates goals database and GRANTs access to goals_user
         %> and then CREATEs the following tables:
+        %> @li  dictionary_t
         %> @li  studyinfo_t
         %> @li  subjectinfo_t        
         %> @param obj Instance of CLASS_database_goals
@@ -82,6 +84,9 @@ classdef CLASS_database_goals < CLASS_database
             this.loadSubjectInfo_T();
             this.createDictionary_T();
             this.loadDictionary_T();
+            this.createStudyInfo_T();
+            this.loadStudyInfo_T();
+            
         end    
         
         % ======================================================================
@@ -143,9 +148,70 @@ classdef CLASS_database_goals < CLASS_database
             this.createTable(this.tableNames.dictionary, tableStr);
         end
         
+        % ======================================================================
+        %> @brief This creates the 'subjectinfo_t'  table for the goals database.
+        %> @param Instance of CLASS_database_goals      
+        % =================================================================
+        function createStudyInfo_T(this)                        
+            
+            tableStr = ['  kidid MEDIUMINT UNSIGNED NOT NULL'...
+                ', visitnum TINYINT UNSIGNED NOT NULL'...
+                ', filename VARCHAR(100) DEFAULT NULL'...
+                ', total_day_count TINYINT DEFAULT ''0'''...
+                ', complete_day_count TINYINT DEFAULT ''0'''...
+                ', incomplete_day_count TINYINT DEFAULT ''0'''...
+                ', x_cpm DECIMAL(8,4) DEFAULT ''0'''...
+                ', y_cpm DECIMAL(8,4) DEFAULT ''0'''...
+                ', z_cpm DECIMAL(8,4) DEFAULT ''0'''...
+                ', vecmag_cpm DECIMAL(8,4) DEFAULT ''0'''...
+                ', PRIMARY KEY (kidid,visitnum)'
+                ]; 
+
+            this.createTable(this.tableNames.studyInfo, tableStr);
+        end
+        
+        
+        
         function loadSubjectInfo_T(this,subjectinfo_csv_filename)
             this.importCSV('subjectinfo_t',subjectinfo_csv_filename,'Select GOALS subject data file');
         end
+        
+        function loadStudyInfo_T(this,csv_filename, visitNumber)
+            tableName = 'studyinfo_t';
+            if(nargin<3 || isempty(visitNumber))
+                visitNumber = 1;
+            end
+            
+            if(nargin<2 || ~exist(csv_filename,'file'))
+                promptStr = sprintf('Select .csv file to import to %s table',tableName);
+                csv_filename = uigetfullfile({'*.csv','Comma separated values (*.csv)'},...
+                    promptStr);
+                
+            end
+                        
+            if(exist(csv_filename,'file'))
+                
+                fid = fopen(csv_filename,'r');
+                [~,lineTerminator] = fgets(fid);
+                fclose(fid);
+                loadStr = sprintf([
+                    'LOAD DATA LOCAL INFILE ''%s'' INTO TABLE %s ',...
+                    ' FIELDS TERMINATED BY '','' ENCLOSED BY ''"''',...
+                    ' LINES TERMINATED BY ''%s''',...
+                    ' IGNORE 1 LINES',...
+                    '(kidid, filename, total_day_count, complete_day_count, incomplete_day_count, x_cpm, y_cpm, z_cpm, vecmag_cpm)',...
+                    ' SET visitnum = %d '],csv_filename,tableName,char(lineTerminator),visitNumber);
+                
+                this.open();                
+                mym(loadStr);
+                this.selectSome(tableName);
+                this.close();
+                %                     'set visitNum=%u'],subjectinfo_csv_filename,tableName,visitNum);
+            else
+                throw(MException('CLASS_database_goals','Invalid arguments for loadStudyInfo_T'));
+            end
+        end      
+        
         
         function loadDictionary_T(this, dictionary_csv_filename)
             this.importCSV('dictionary_t',dictionary_csv_filename,'Select GOALS dictionary mapping file');            

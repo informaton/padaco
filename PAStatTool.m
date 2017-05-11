@@ -1657,17 +1657,20 @@ classdef PAStatTool < handle
         end        
         
          
-         
-        function primaryAxesClusterSummaryContextmenuCallback(this,hObject,~)
-            wasChecked = strcmpi(get(hObject,'checked'),'on');
-            if(wasChecked)
-                set(hObject,'checked','off');
-                set(this.handles.text_resultsCentroid,'visible','off');
-            else
-                set(hObject,'checked','on');
-                set(this.handles.text_resultsCentroid,'visible','on');
-            end
-        end
+        % Turns clustering display on or off
+%         % Though I don't think this actually does anything now so have
+%         % commented it out - @hyatt 5/11/2017
+        
+        %         function primaryAxesClusterSummaryContextmenuCallback(this,hObject,~)
+        %             wasChecked = strcmpi(get(hObject,'checked'),'on');
+        %             if(wasChecked)
+        %                 set(hObject,'checked','off');
+        %                 set(this.handles.text_resultsCentroid,'visible','off');
+        %             else
+        %                 set(hObject,'checked','on');
+        %                 set(this.handles.text_resultsCentroid,'visible','on');
+        %             end
+        %         end
         
 
         
@@ -2556,18 +2559,21 @@ classdef PAStatTool < handle
             this.handles.contextmenu.nextPlot.replacechildren = uimenu(nextPlotmenu,'Label','Replace children','callback',{@this.primaryAxesNextPlotCallback,'replacechildren'});
             set(this.handles.axes_primary,'uicontextmenu',contextmenu_primaryAxes);            
             
-            this.handles.contextmenu.showMenu = uimenu(contextmenu_primaryAxes,'Label','Show'); %,'callback',@this.primaryAxesClusterSummaryContextmenuCallback);
-            
-            % Possibly use this.originalWidgetSettings.
-            if(this.originalWidgetSettings.showCentroidSummary)
-                checkedState = 'on';
-            else
-                checkedState = 'off';
-            end
-            
-            this.handles.contextmenu.show.clusterSummary = uimenu( this.handles.contextmenu.showMenu,...
-                'Label','Cluster summary','callback',@this.primaryAxesClusterSummaryContextmenuCallback,...
-                'checked',checkedState);
+            % --------
+            % I don't think this does anything anymore @hyatt 5/11/2017
+            %             this.handles.contextmenu.showMenu = uimenu(contextmenu_primaryAxes,'Label','Show'); %,'callback',@this.primaryAxesClusterSummaryContextmenuCallback);
+            %
+            %             % Possibly use this.originalWidgetSettings.
+            %             if(this.originalWidgetSettings.showCentroidSummary)
+            %                 checkedState = 'on';
+            %             else
+            %                 checkedState = 'off';
+            %             end
+            %
+            %             this.handles.contextmenu.show.clusterSummary = uimenu( this.handles.contextmenu.showMenu,...
+            %                 'Label','Cluster summary','callback',@this.primaryAxesClusterSummaryContextmenuCallback,...
+            %                 'checked',checkedState);
+            % --------
             
         end
         
