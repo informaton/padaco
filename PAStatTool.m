@@ -881,6 +881,9 @@ classdef PAStatTool < handle
         % ======================================================================
         function showBusy(this)
             set(findall(this.handles.panels_sansCentroids,'enable','on'),'enable','off');
+            % For some reason, this does not catch them all the first time
+            set(findall(this.handles.panels_sansCentroids,'enable','on'),'enable','off');
+            
             set(this.figureH,'pointer','watch');
             drawnow();
         end
@@ -908,6 +911,8 @@ classdef PAStatTool < handle
         %> @param obj Instance of PAStatTool
         % --------------------------------------------------------------------
         function showReady(this)
+            set(findall(this.handles.panels_sansCentroids,'enable','off'),'enable','on');
+            % for some reason, this does not catch them all the first time
             set(findall(this.handles.panels_sansCentroids,'enable','off'),'enable','on');
             set(this.figureH,'pointer','arrow');
             
@@ -2001,6 +2006,8 @@ classdef PAStatTool < handle
                 fname = handlesOfInterest{f};
                 this.handles.(fname) = tmpHandles.(fname);
             end
+            
+
             this.handles.panels_sansCentroids = [
                     tmpHandles.panel_plotType;
                     tmpHandles.panel_plotSignal;

@@ -131,7 +131,6 @@ classdef PABatchTool < handle
             %             set(this.handles.check_usageState,'value',this.settings.classifyUsageState);
 
             
-            
             set(this.handles.menu_frameDurationMinutes,'string',this.featureDurationStr,'userdata',this.featureDurationVal,'value',find(cellfun(@(x)(x==this.settings.frameDurationMinutes),this.featureDurationVal)));
             set(this.handles.menu_maxDaysAllowed,'string',this.maxDaysAllowedStr,'userdata',this.maxDaysVal,'value',find(cellfun(@(x)(x==this.settings.numDaysAllowed),this.maxDaysVal)));
             
@@ -158,8 +157,8 @@ classdef PABatchTool < handle
             featureFcns = fieldnames(PAData.getFeatureDescriptionStruct()); %spits field-value pairs of feature names and feature description strings
             featureDesc = PAData.getExtractorDescriptions();  %spits out the string values      
 
-            featureFcns = [featureFcns; 'all_sans_psd'; 'all']; 
-            featureLabels = [featureDesc;'All (sans PSD)'; 'All'];
+            featureFcns = [featureFcns; 'all_sans_psd';'all_sans_psd_usagestate','all']; 
+            featureLabels = [featureDesc;'All (sans PSD)';'All (sans PSD and activity categories)'; 'All'];
             
 
             featureLabel = this.settings.featureLabel;
@@ -519,11 +518,15 @@ classdef PABatchTool < handle
                 featureStructWithPSDBands= PAData.getFeatureDescriptionStructWithPSDBands();
                 outputFeatureFcns = fieldnames(featureStructWithPSDBands);
                 outputFeatureLabels = struct2cell(featureStructWithPSDBands);  % leave it here for the sake of other coders; yes, you can assign this using a second output argument from getFeatureDescriptionWithPSDBands                
-            elseif(strcmpi(featureFcn,'all_sans_psd')) % and sans usage state
+            elseif(strcmpi(featureFcn,'all_sans_psd')) 
+                outputFeatureStruct = rmfield(PAData.getFeatureDescriptionStruct(),'psd');
+                outputFeatureFcns = fieldnames(outputFeatureStruct);
+                outputFeatureLabels = struct2cell(outputFeatureStruct);
+            elseif(strcmpi(featureFcn,'all_sans_psd_usagestate')) % and sans usage state
                 outputFeatureStruct = rmfield(PAData.getFeatureDescriptionStruct(),{'psd','usagestate'});
                 outputFeatureFcns = fieldnames(outputFeatureStruct);
                 outputFeatureLabels = struct2cell(outputFeatureStruct);
-            else
+            else           
                 outputFeatureFcns = {featureFcn};
                 outputFeatureLabels = {this.settings.featureLabel};
             end
