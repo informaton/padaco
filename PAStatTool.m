@@ -1592,7 +1592,12 @@ classdef PAStatTool < handle
                %                'bmi_zscore'
                %                'bmi_zscore+'  %for logistic regression modeling
                % all
+               
                covariateStruct = this.centroidObj.getCovariateStruct();
+               % Normalize values
+               values = covariateStruct.values;
+               covariateStruct.values = diag(sum(values,2))*values;
+               
                [resultStr, resultStruct] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'});
                
                % current selection
