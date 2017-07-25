@@ -77,7 +77,6 @@ classdef PAData < handle
         %> @brief The numeric value for each date time sample provided by
         %> the file name.
         dateTimeNum;
-
         
         %> @brief Numeric values for date time sample for the start of
         %> extracted features.
@@ -172,9 +171,7 @@ classdef PAData < handle
         % Flags for determining if counts and or raw data is loaded.
         hasCounts
         hasRaw;
-               
     end
-    
     
     methods
         
@@ -2116,6 +2113,35 @@ classdef PAData < handle
         end
         
         % ======================================================================
+        %> @brief Classifies epochs into wear and non-wear state using the 
+        %> count activity values and classification method given.
+        %> @param obj Instance of PAData.
+        %> @param vector of count activity to apply classification rules
+        %> too.  If not provided, then the vector magnitude is used by
+        %> default.
+        %> @param String identifying the classification to use; can be:
+        %> - padaco [default]
+        %> - troiano 
+        %> - choi
+        %> @retval usageVec A vector of length obj.dateTimeNum whose values
+        %> represent the usage category at each sample instance specified by
+        %> @b dateTimeNum.
+        %> - c Nonwear 0
+        %> - c Wear 1        
+        %> @retval usageState A three column matrix identifying usage state
+        %> and duration.  Column 1 is the usage state, column 2 and column 3 are
+        %> the states start and stop times (datenums).
+        %> @note Usage states are categorized as follows:
+        %> - c 0 Nonwear
+        %> - c 1 Wear
+        %> @retval startStopDatenums Start and stop datenums for each usage
+        %> state row entry of usageState.
+        % ======================================================================
+        function [usageVec, usageState, startStopDateNums] = classifyWearAndNonwear(obj, countActivity, classificationMethod)
+            
+        end
+        
+        % ======================================================================
         %> @brief Categorizes the study's usage state.
         %> @param obj Instance of PAData.
         %> @param vector of count activity to apply classification rules
@@ -2131,18 +2157,15 @@ classdef PAData < handle
         %> - c usageVec(remSleepVec) = 10  REM sleep
         %> - c usageVec(nonwearVec) = 5  Non-wear
         %> - c usageVec(studyOverVec) = 0  Non-wear, study over.
-        %> @retval usageState A three column matrix identifying usage state
-        %> and duration.  Column 1 is the usage state, column 2 and column 3 are
-        %> the states start and stop times (datenums).
-        %> @note Usage states are categorized as follows:
-        %> - c -1 Nonwear
-        %> - c 0 Sleep - 0.25 rem, 0.75 nonrem
-        %> - c 1 Wake - inactive
-        %> - c 1 Wake - wake
+        %> @retval whereState Vector of wear vs non-wear state.  Each element represent the
+        %> consecutive grouping of like states found in the usage vector.
+        %> @note Wear states are categorized as follows:
+        %> - c 5 Nonwear
+        %> - c 10 Wear
         %> @retval startStopDatenums Start and stop datenums for each usage
         %> state row entry of usageState.
         % ======================================================================
-        function [usageVec, usageState, startStopDateNums] = classifyUsageState(obj, countActivity)
+        function [usageVec, wearState, startStopDateNums] = classifyUsageState(obj, countActivity)
             
             % By default activity determined from vector magnitude signal
             if(nargin<2 || isempty(countActivity))
@@ -2280,9 +2303,9 @@ classdef PAData < handle
             wearStartStopDateNums = [obj.dateTimeNum(wear(:,1)),obj.dateTimeNum(wear(:,2))];
             wearState = repmat(tagStruct.WEAR,size(wear,1),1);
             
-            usageState = [nonwearState;wearState];
+            wearState = [nonwearState;wearState];
             [startStopDateNums, sortIndex] = sortrows([nonwearStartStopDateNums;wearStartStopDateNums]);
-            usageState = usageState(sortIndex);
+            wearState = wearState(sortIndex);
             
             
             %usageVec(awakeVsAsleepVec) = 20;
