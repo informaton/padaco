@@ -2137,7 +2137,35 @@ classdef PAData < handle
         %> @retval startStopDatenums Start and stop datenums for each usage
         %> state row entry of usageState.
         % ======================================================================
-        function [usageVec, usageState, startStopDateNums] = classifyWearAndNonwear(obj, countActivity, classificationMethod)
+        function [wearVec,wearState, startStopDateNums] = classifyWearNonwear(obj, countActivity, classificationMethod)
+            
+        end
+        
+        
+        %> @brief Implementation of Troiano algorithm used with NHANES data
+        %> and later updated by Choi et al.
+        %> A non-wear period starts at a minute with the intensity count of zero. Minutes with intensity count=0 or
+        %> up to 2 consecutive minutes with intensity counts between 1 and 100 are considered to be valid non-wear 
+        %> minutes. A non-wear period is established when the specified length of consecutive non-wear minutes is  
+        %> reached. The non-wear period stops when any of the following conditions is met: 
+        %>  - one minute with intensity count >100    
+        %>  - one minute with a missing intensity count
+        %>  - 3 consecutive minutes with intensity counts between 1 and 100 
+        %>  - the last minute of the day 
+        %> @param countActivity Vector of count activity.  Default is to
+        %> use vector magnitude counts currently loaded.
+        %> @param minNonWearPeriod_minutes minimum length for the non-wear
+        %period in minutes, must be >1 minute.  Default is 90 minutes.
+        function nonWearVec = classifyTroianoWearNonwear(obj, minNonWearPeriod_minutes, countActivity,  )
+            nonWearVec = [];
+            if(nargin<3 || minNonWearPeriod_minutes<1)
+                minNonWearPeriod_minutes = 90;
+                if(nargin<2)
+                    countActivity = obj.accel.counts.vecMag;
+                end
+            end
+           
+            nonWearVec = false(size(countActivity));
             
         end
         
