@@ -1453,13 +1453,14 @@ classdef PAController < handle
             dataObj = obj.accelObj;
             varName = 'dataObject';
             makeModal = true;
+            titleStr = 'Data Export';
             try
                 assignin('base',varName,dataObj);                
-                pa_msgbox(sprintf('Data object was assigned to workspace variable %s',varName),obj.iconFilename,makeModal);
+                pa_msgbox(sprintf('Data object was assigned to workspace variable %s',varName),titleStr,obj.iconFilename,makeModal);
                 
             catch me
                 showME(me);
-                pa_msgbox('An error occurred while trying to export data object to a workspace variable.  See console for details.',obj.iconFilename,makeModal);
+                pa_msgbox('An error occurred while trying to export data object to a workspace variable.  See console for details.','Warning!',obj.iconFilename,makeModal);
             end
         end
         
@@ -1476,12 +1477,13 @@ classdef PAController < handle
             centroidObj = obj.StatTool.getCentroidObj();
             varName = 'centroidObj';
             makeModal = true;
+            titleStr = 'Data Export';
             try
                 assignin('base',varName,centroidObj);
-                pa_msgbox(sprintf('Centroid object was assigned to workspace variable %s',varName),obj.iconFilename,makeModal);                
+                pa_msgbox(sprintf('Centroid object was assigned to workspace variable %s',varName),titleStr,obj.iconFilename,makeModal);                
             catch me
                 showME(me);
-                pa_msgbox('An error occurred while trying to export the centroid object to a workspace variable.  See console for details.',obj.iconFilename,makeModal);
+                pa_msgbox('An error occurred while trying to export the centroid object to a workspace variable.  See console for details.','Warning',obj.iconFilename,makeModal);
             end
         end
         

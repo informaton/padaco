@@ -2328,13 +2328,18 @@ classdef PAData < handle
             %            wearVec = runningActivitySum>=offBodyThreshold;
             wearVec = ~nonwearVec;
             wear = obj.thresholdcrossings(wearVec,0);
-            wearStartStopDateNums = [obj.dateTimeNum(wear(:,1)),obj.dateTimeNum(wear(:,2))];
-            wearState = repmat(tagStruct.WEAR,size(wear,1),1);
-            
-            wearState = [nonwearState;wearState];
-            [startStopDateNums, sortIndex] = sortrows([nonwearStartStopDateNums;wearStartStopDateNums]);
-            wearState = wearState(sortIndex);
-            
+            if(isempty(wear))
+                % only have non wear then
+                wearState = nonwearState;
+                startStopDateNums = nonwearStartStopDateNums;
+            else
+                wearStartStopDateNums = [obj.dateTimeNum(wear(:,1)),obj.dateTimeNum(wear(:,2))];
+                wearState = repmat(tagStruct.WEAR,size(wear,1),1);
+                
+                wearState = [nonwearState;wearState];
+                [startStopDateNums, sortIndex] = sortrows([nonwearStartStopDateNums;wearStartStopDateNums]);
+                wearState = wearState(sortIndex);
+            end 
             
             %usageVec(awakeVsAsleepVec) = 20;
             %usageVec(wearVec) = 10;   %        This is covered
