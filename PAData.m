@@ -2156,7 +2156,7 @@ classdef PAData < handle
         %> use vector magnitude counts currently loaded.
         %> @param minNonWearPeriod_minutes minimum length for the non-wear
         %period in minutes, must be >1 minute.  Default is 90 minutes.
-        function nonWearVec = classifyTroianoWearNonwear(obj, minNonWearPeriod_minutes, countActivity)
+        function nonWearVec = classifyTroianoWearNonwear(obj, countActivity, minNonWearPeriod_minutes)
             nonWearVec = [];
             if(nargin<3 || minNonWearPeriod_minutes<1)
                 minNonWearPeriod_minutes = 90;
@@ -2675,7 +2675,7 @@ classdef PAData < handle
                     
                     % Testing for ver 2.5.0
                     % fullRawActivityBinFilename = '/Volumes/SeaG 1TB/sampledata_reveng/700851.activity.bin'
-                    %                sleepmoore:T1_GT3X_Files hyatt4$ head -n 15 ../../sampleData/raw/700851t00c1.raw.csv
+                    %                sleepmoore:T1_GT3X_Files $ head -n 15 ../../sampleData/raw/700851t00c1.raw.csv
                     %                 ------------ Data File Created By ActiGraph GT3X+ ActiLife v6.11.1 Firmware v2.5.0 date format M/d/yyyy at 40 Hz  Filter Normal -----------
                     %                 Serial Number: NEO1C15110103
                     %                 Start Time 00:00:00
