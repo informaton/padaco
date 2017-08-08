@@ -2156,7 +2156,7 @@ classdef PAData < handle
         %> use vector magnitude counts currently loaded.
         %> @param minNonWearPeriod_minutes minimum length for the non-wear
         %period in minutes, must be >1 minute.  Default is 90 minutes.
-        function nonWearVec = classifyTroianoWearNonwear(obj, minNonWearPeriod_minutes, countActivity,  )
+        function nonWearVec = classifyTroianoWearNonwear(obj, countActivity, minNonWearPeriod_minutes)
             nonWearVec = [];
             if(nargin<3 || minNonWearPeriod_minutes<1)
                 minNonWearPeriod_minutes = 90;
