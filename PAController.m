@@ -378,7 +378,7 @@ classdef PAController < handle
             %  open
             set(handles.menu_file_open,'callback',@obj.menuFileOpenCallback);
             set(handles.menu_file_openFitBit,'callback',@obj.menuFileOpenFitBitCallback);
-            
+            set(handles.menu_file_openVasTrac,'callback',@obj.menuFileOpenVasTracCSVCallback);
             set(handles.menu_file_open_resultspath,'callback',@obj.menuFileOpenResultsPathCallback);
             
             % screeshots
@@ -422,6 +422,7 @@ classdef PAController < handle
                 handles.menu_file_about
                 handles.menu_file_settings
                 handles.menu_file_open
+                handles.menu_file_openGenericCSV
                 handles.menu_file_quit
                 handles.menu_viewmode
                 handles.menu_help
@@ -1233,7 +1234,6 @@ classdef PAController < handle
                     %                         obj.VIEW.setViewMode('timeseries'); % bypass the this.setViewMode() for now to avoid follow-up query that a file has not been loaded yet.
                     %                     end
                     
-                    
                     obj.VIEW.showBusy('Loading','all');
                     obj.VIEW.disableWidgets();
                     [pathname,basename, baseext] = fileparts(f);
@@ -1257,8 +1257,6 @@ classdef PAController < handle
                     %                     intervalDurationHours = 24;
                     %                     signalTagLine = obj.getSignalSelection(); %'accel.count.x';
                     %                     obj.accelObj.getAlignedFeatureVecs(featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours);
-                    
-                    
                 end
             catch me
                 showME(me);
@@ -1266,7 +1264,65 @@ classdef PAController < handle
             end
         end
         
+        % --------------------------------------------------------------------
+        %> @brief Menubar callback for opening a VasTrack CSV file
+        %> @param obj Instance of PAController
+        %> @param hObject  handle to menu_file_open (see GCBO)
+        %> @param eventdata Required by MATLAB, but not used.
+        %> @note First three lines of .csv file:
+        %> - [0] Timestamp,x,y,z
+        %> - [1]
+        %> - [2] 0.0000,0.0052,-0.0378,-0.9986
+        % --------------------------------------------------------------------
+        function menuFileOpenVasTracCSV(obj, hObject, eventdata)
+            f=uigetfullfile({'*.csv','VasTrac (.csv)'},...
+                'Select a file',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
+            try
+                if(~isempty(f))
+                    obj.VIEW.showBusy('Loading','all');
+                    [pathname,basename, baseext] = fileparts(f);
+                    obj.SETTINGS.DATA.pathname = pathname;
+                    obj.SETTINGS.DATA.filename = strcat(basename,baseext);
+                    
+                    obj.accelObj = PAData([],obj.SETTINGS.DATA);
+                    fmtStruct.datetime = 1;
+                    fmtStruct.datetimeType = 'elapsed'; %datetime
+                    fmtStruct.datetimeFmtStr = '%f';
+                    fmtStruct.x = 2;
+                    fmtStruct.y = 3;
+                    fmtStruct.z = 4;
+                    fmtStruct.fieldOrder = {'datetime','x','y','z'};
+                    fmtStruct.headerLines = 2;
+                    
+                    
+                    obj.accelObj.loadCustomRawCSVFile(f,fmtStruct); % two header lines %elapsed time stamp, x, y, z 
+                    
+                    
+                    if(~strcmpi(obj.getViewMode(),'timeseries'))
+                        obj.setViewMode('timeseries');
+                    end
+                    
+                    %initialize the PAData object's visual properties
+                    obj.initAccelDataView(); %calls show obj.VIEW.showReady() Ready...
+                    
+                    % For testing/debugging
+                    %                     featureFcn = 'mean';
+                    %                     elapsedStartHour = 0;
+                    %                     intervalDurationHours = 24;
+                    %                     signalTagLine = obj.getSignalSelection(); %'accel.count.x';
+                    %                     obj.accelObj.getAlignedFeatureVecs(featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours);
+                    
+                    
+                end
+            catch me
+                showME(me);
+                obj.VIEW.showReady('all');
+            end
+            
         
+                
+        end       
+                
         % --------------------------------------------------------------------
         %> @brief Menubar callback for opening a fitbit file.
         %> @param obj Instance of PAController

@@ -199,7 +199,7 @@ classdef PAData < handle
             obj.accelType = 'none';
             obj.startDatenums = [];
             
-            obj.durationSec = 0;  %ensures we get valid, non-empty values from  getWindowCount() when we do not have any data loaded.
+            obj.durationSec = 0;  %ensures we get valid, non-empty values from getWindowCount() when we do not have any data loaded.
             % Can summarize these with defaults from below...last f(X) call.
             %            obj.aggregateDurMin = 1;
             %            obj.frameDurMin = 0;
@@ -1074,10 +1074,9 @@ classdef PAData < handle
                             if(obj.countPeriodSec~=0)
                                 obj.sampleRate = 1/obj.countPeriodSec;
                             else
-                                obj.sampeRate = obj.countPeriodSec;
+                                obj.sampleRate = obj.countPeriodSec;
                             end
                         end
-                        
                         
                         % Pull the following line from the file and convert hh:mm:ss
                         % to total seconds
@@ -1147,7 +1146,7 @@ classdef PAData < handle
         function didLoad = loadFile(obj,fullfilename)
             % Ensure that we have a negative number or some way of making sure
             % that we have sequential data (fill in all with Nan or -1 eg)
-            didLoad = false;
+            
             
             if(nargin<2 || ~exist(fullfilename,'file'))
                 fullfilename = obj.getFullFilename();
@@ -1155,6 +1154,107 @@ classdef PAData < handle
                 %msg = 'Select the .csv file';
                 %fullfilename = uigetfullfile(filtercell,pwd,msg);
             end
+            
+            didLoad = obj.loadActigraphFile(fullfilename);
+            
+        end
+        
+        % Format String
+        % %e - elapsed seconds
+        % %x - x-axis
+        % %y - y-axis
+        % %z - z-axis
+        
+        function didLoad = loadCustomRawFile(obj, fullfilename, fmtStruct)
+            try
+                if(nargin<3)
+                    fmtStruct = obj.getDefaultCustomFmtStruct();
+                end
+                
+                fid = fopen(fullfilename);
+                if(fid>1)
+                    fmtStr = '';
+                    for k=1:numel(fmtStruct.fieldOrder)
+                        fname = fmtStruct.fieldOrder{k};
+                        if(strcmpi(fname,'datetime') && strcmpi(fmtStruct.datetimeType,'datetime'))
+                            fmtStr = [fmtStr,'%{',fmtStruct.datetimeFmtStr,'}D'];
+                        else
+                            fmtStr = [fmtStr,'%f'];
+                        end
+                    end
+                    
+                    C = textscan(fid,fmtStr,'delimiter',fmtStruct.delimiter,'headerlines',fmtStruct.headerLines);
+                                        
+                    dateColumn = C{fmtStruct.datetime};
+                    if(strcmpi(fmtStruct.datetimeType,'datetime'))
+                        datenumFound = datenum(dateColumn,fmtStruct.datetimeFmtStr);                        
+                    elseif(strcmpi(fmtStruct.datetimeType,'elapsed'))
+                        datenumFound = datenum(2001,9,11,0,0,0)+dateColumn/24/3600;
+                    else
+                        % not handled
+                        throw(MException('PA:Unhandled','Unhandled date time format'));
+                    end                    
+                    
+                    datevecFound = datevec(datenumFound);
+                    startDatenum = datenumFound(1);
+                    stopDatenum = datenumFound(end);
+                    obj.sampleRate = 1/(median(diff(datenumFound))*24*3600);   % datenum has units in day.
+                    obj.startDate = datestr(startDatenum,'mm/dd/yyyy');
+                    obj.startTime = datestr(startDatenum,'HH:MM:SS.FFF');
+                    obj.stopDate = datestr(stopDatenum,'mm/dd/yyyy');
+                    obj.stopTime = datestr(stopDatenum,'HH:MM:SS.FFF');
+                    
+                    tmpDataCell = {C{fmtStruct.x},C{fmtStruct.y},C{fmtStruct.z}};
+                    samplesFound = numel(tmpDataCell{1}); %size(dateVecFound,1);
+                    
+                    %                     obj.sampleRate =
+                    %start, stop and delta date nums
+                    windowDatenumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
+                    missingValue = nan;
+                    
+                    [tmpDataCell, obj.dateTimeNum] = obj.mergedCell(startDatenum,stopDatenum,windowDatenumDelta,datevecFound,tmpDataCell,missingValue);
+
+                    obj.durSamples = numel(obj.dateTimeNum);
+                    obj.durationSec = floor(obj.getDurationSamples()/obj.sampleRate);
+
+                    numMissing = obj.getDurationSamples() - samplesFound;
+
+                    obj.setRawXYZ(tmpDataCell{1},tmpDataCell{2},tmpDataCell{3});
+                    
+                    if(obj.getDurationSamples()==samplesFound)
+                        fprintf('%d rows loaded from %s\n',samplesFound,fullCSVFilename);
+                    else
+                        if(numMissing>0)
+                            fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullCSVFilename,numMissing,num2str(missingValue));
+                        else
+                            fprintf('This case is not handled yet.\n');
+                            fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullCSVFilename,numMissing,num2str(missingValue));
+                        end
+                    end
+                    
+                    
+                    
+                    
+                    didLoad = true;
+
+                    fclose(fid);
+                else
+                    didLoad = false;
+                end
+            catch me
+                showME(me);
+                didLoad = false;
+            end
+        end
+        
+        
+        function didLoad = loadCustomRawCSVFile(obj,fullfilename, fmtStruct)
+            fmtStruct.delimiter = ',';
+            didLoad = obj.loadCustomRawFile(fullfilename, fmtStruct);
+        end
+        
+        function didLoad = loadActigraphFile(obj, fullfilename)
+            didLoad = false;
             
             % Have one file version for counts...
             if(exist(fullfilename,'file'))
@@ -1265,26 +1365,30 @@ classdef PAData < handle
                 didLoad = false;
             end
             
-            if(obj.hasRaw && obj.hasCounts)
-                obj.accelType = 'all';
-            elseif(obj.hasRaw)
-                obj.accelType = 'raw';
-                obj.setVisible('lux','off');
-                obj.setVisible('steps','off');
-                obj.setVisible('inclinometer.standing','off');
-                obj.setVisible('inclinometer.sitting','off');
-                obj.setVisible('inclinometer.lying','off');
-                obj.setVisible('inclinometer.off','off');
-            elseif(obj.hasCounts)
-                obj.accelType = 'count';
-            else
-                obj.accelType = [];
-            end
-            
-            if(obj.hasCounts || obj.hasRaw)
-                obj.classifyUsageForAllAxes();
+            if(didLoad)
+                if(obj.hasRaw && obj.hasCounts)
+                    obj.accelType = 'all';
+                elseif(obj.hasRaw)
+                    obj.accelType = 'raw';
+                    obj.setVisible('lux','off');
+                    obj.setVisible('steps','off');
+                    obj.setVisible('inclinometer.standing','off');
+                    obj.setVisible('inclinometer.sitting','off');
+                    obj.setVisible('inclinometer.lying','off');
+                    obj.setVisible('inclinometer.off','off');
+                elseif(obj.hasCounts)
+                    obj.accelType = 'count';
+                else
+                    obj.accelType = [];
+                end
+                
+                if(obj.hasCounts || obj.hasRaw)
+                    obj.classifyUsageForAllAxes();
+                end
             end
         end
+        
+        
         
         % ======================================================================
         %> @brief Loads an accelerometer "count" data file.
@@ -1455,7 +1559,7 @@ classdef PAData < handle
                             headerLines = 11; %number of lines to skip
                             %                        scanFormat = '%s %f32 %f32 %f32'; %load as a 'single' (not double) floating-point number
                             if(loadFastOption)
-                                scanFormat = '%*f/%*f/%*f %*f:%*f:%*f %f32 %f32 %f32';
+                                scanFormat = '%*f/%*f/%*f %*f:%*f:%*f %f32 %f32 %f32'; %reads the '/' character from the stream, and throws it away.
                             else
                                 scanFormat = '%f/%f/%f %f:%f:%f %f32 %f32 %f32';
                             end
@@ -1515,7 +1619,7 @@ classdef PAData < handle
                         end
                     end
                     
-                    % No longer thing resampling count data is the way to
+                    % No longer think resampling count data is the way to
                     % go here.
                     if(obj.hasCounts)
                         obj.resampleCountData();
@@ -3257,6 +3361,20 @@ classdef PAData < handle
                 'inclinometer.lying';
                 'inclinometer.off';
                 };
+        end
+        
+        function fmtStruct = getDefaultCustomFmtStruct()
+            
+             fmtStruct.datetime = 1;
+             fmtStruct.datetimeType = 'elapsed'; %datetime
+             fmtStruct.datetimeFmtStr = '%f';
+             fmtStruct.x = 2;
+             fmtStruct.y = 3;
+             fmtStruct.z = 4;
+             fmtStruct.fieldOrder = {'datetime','x','y','z'};
+             fmtStruct.headerLines = 1;
+             fmtStruct.delimiter = ',';
+             
         end
         
         % ======================================================================
