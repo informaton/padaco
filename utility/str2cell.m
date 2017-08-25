@@ -13,15 +13,15 @@ function outCell =  str2cell(instring,delim)
     outCell = outCell{1};
 end
 
-function outCell = legacy(instrsting)
-    LF = 13;
-    delim = LF;
-    s = sprintf('%s',instring);  % make sure we convert any \n to their string format
-    newLineCount = sum(s==delim);
-    numRows = newLineCount+1;
-    outCell = cell(numRows,1);
-    
-    for c=1:numRows
-        [outCell{c}, instring] = strtok(instring, delim); 
-    end
-end
+% function outCell = legacy(instrsting)
+%     LF = 13;
+%     delim = LF;
+%     s = sprintf('%s',instring);  % make sure we convert any \n to their string format
+%     newLineCount = sum(s==delim);
+%     numRows = newLineCount+1;
+%     outCell = cell(numRows,1);
+%     
+%     for c=1:numRows
+%         [outCell{c}, instring] = strtok(instring, delim); 
+%     end
+% end
