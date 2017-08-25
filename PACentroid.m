@@ -823,8 +823,8 @@ classdef PACentroid < handle
             % okay because we have converted centroid indices to centroid
             % sort order indices in the above for loop.
             colnames = regexp(sprintf('Centroid #%u\n',1:this.numCentroids),'\n','split');            
-
             colnames(end) = [];  %remove the last cell entry which will be empty.
+
             if(nargin>1 && ~isempty(optionalCOISortOder))
                 values = values(:,optionalCOISortOder);
                 colnames = colnames(optionalCOISortOder);
@@ -832,7 +832,7 @@ classdef PACentroid < handle
             covariateStruct.memberIDs = subjectIDs;
             covariateStruct.values = values;
             covariateStruct.colnames = colnames;
-            
+            covariateStruct.varnames = strrep(strrep(colnames,'#',''),' ',''); % create valid variable names for use with MATLAB table and dataset constructs.
         end
         
         %> @brief Returns Nx3 matrix useful for logisitic or linear regression modeling.

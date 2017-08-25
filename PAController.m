@@ -377,8 +377,8 @@ classdef PAController < handle
             
             %  open
             set(handles.menu_file_open,'callback',@obj.menuFileOpenCallback);
-            set(handles.menu_file_openFitBit,'callback',@obj.menuFileOpenFitBitCallback);
-            set(handles.menu_file_openVasTrac,'callback',@obj.menuFileOpenVasTracCSVCallback);
+            set(handles.menu_file_openFitBit,'callback',@obj.menuFileOpenFitBitCallback,'enable','off');
+            set(handles.menu_file_openVasTrac,'callback',@obj.menuFileOpenVasTracCSVCallback,'enable','off');                                                              
             set(handles.menu_file_open_resultspath,'callback',@obj.menuFileOpenResultsPathCallback);
             
             % screeshots
@@ -416,13 +416,12 @@ classdef PAController < handle
             %% Help
             set(handles.menu_help_faq,'callback',@obj.menuHelpFAQCallback);
             
-            % enable everything
+            % enable everything   
             set([
                 handles.menu_file
                 handles.menu_file_about
                 handles.menu_file_settings
-                handles.menu_file_open
-                handles.menu_file_openGenericCSV
+                handles.menu_file_open    
                 handles.menu_file_quit
                 handles.menu_viewmode
                 handles.menu_help
@@ -1274,7 +1273,7 @@ classdef PAController < handle
         %> - [1]
         %> - [2] 0.0000,0.0052,-0.0378,-0.9986
         % --------------------------------------------------------------------
-        function menuFileOpenVasTracCSV(obj, hObject, eventdata)
+        function menuFileOpenVasTracCSVCallback(obj, hObject, eventdata)
             f=uigetfullfile({'*.csv','VasTrac (.csv)'},...
                 'Select a file',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
             try

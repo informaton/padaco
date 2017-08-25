@@ -1598,20 +1598,35 @@ classdef PAStatTool < handle
                values = covariateStruct.values;
                covariateStruct.values = diag(sum(values,2))*values;
                
-               [resultStr, resultStruct] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'});
+
+               %                [resultStr, resultStruct] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'});
                
                % current selection
                
-               
-               covariateStruct = this.centroidObj.getCovariateStruct(this.centroidObj.getAllCOISortOrders());
-               if(size(covariateStruct.values,2)>1)
-                   covariateStruct.colnames = {cell2str(covariateStruct.colnames,' AND ')};
-                   covariateStruct.values = sum(covariateStruct.values,2); %sum each row
+               coiSortOrders = this.centroidObj.getAllCOISortOrders();
+               covariateStruct = this.centroidObj.getCovariateStruct();
+               if(numel(coiSortOrders)>1)
+                   % If we have multiple elements selected then group
+                   % together and add as an extra element to the other
+                   % group.
+                   nonCoiInd = true(size(covariateStruct.colnames));
+                   nonCoiInd(coiSortOrders) = false;
+                   coiColname = {cell2str(covariateStruct.colnames(coiSortOrders),' AND ')};
+                   coiVarname = {cell2str(covariateStruct.varnames(coiSortOrders),'_AND_')};
+                   coiValues =  sum(covariateStruct.values(:,coiSortOrders),2); %sum across each row
+                   
+                   covariateStruct.values = [covariateStruct.values(:,nonCoiInd), coiValues];
+                   covariateStruct.colnames = [covariateStruct.colnames(nonCoiInd), coiColname];
+                   covariateStruct.varnames = [covariateStruct.varnames(nonCoiInd), coiVarname];
+                   coiSortOrders = numel(covariateStruct.varnames);
+                   %                    covariateStruct = this.centroidObj.getCovariateStruct(coiSortOrders);
+                   %                    covariateStruct.colnames = {cell2str(covariateStruct.colnames,' AND ')};
+                   %                    covariateStruct.varnames = {cell2str(covariateStruct.varnames,'_AND_')};
+                   %                    covariateStruct.values = sum(covariateStruct.values,2); %sum each row
+                   
                end
                
-               
-               % current selection
-               [resultStr, resultStruct] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'});
+               [resultStr, resultStruct] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'}, coiSortOrders);
                %                [resultStr, resultStruct] = gee_model(this.centroidObj.getCovariateStruct(this.centroidObj.getCOISortOrder()),dependentVar,{'age'; '(sex=1) as male'});
                if(~isempty(resultStr))
                    if(this.hasIcon)
