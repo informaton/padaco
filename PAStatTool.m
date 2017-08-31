@@ -122,6 +122,9 @@ classdef PAStatTool < handle
         %> These are names of database fields extracted which are keyed on
         %> the subject id's that are members of the centroid of interest.
         profileFields;
+        maxNumDaysAllowed;
+        minNumDaysAllowed;
+        
     end
     
     methods        
@@ -143,12 +146,15 @@ classdef PAStatTool < handle
             % This call ensures that we have at a minimum, the default parameter field-values in widgetSettings.
             % And eliminates later calls to determine if a field exists
             % or not in the input widgetSettings parameter
-            widgetSettings = PAData.mergeStruct(PAStatTool.getDefaultParameters(),widgetSettings);
+            widgetSettings = PAData.mergeStruct(this.getDefaultParameters(),widgetSettings);
             
             if(~isfield(widgetSettings,'useDatabase'))
                 widgetSettings.useDatabase = false;
             end
-                        
+
+            this.maxNumDaysAllowed = widgetSettings.maxNumDaysAllowed;
+            this.minNumDaysAllowed = widgetSettings.minNumDaysAllowed;
+            
             this.hasIcon = false;
             this.iconData = [];
             this.iconCMap = [];
@@ -321,8 +327,11 @@ classdef PAStatTool < handle
         function paramStruct = getSaveParameters(this)
             paramStruct = this.getPlotSettings();            
             
-            % Parameters not stored in figure widgets
+            % These parameters not stored in figure widgets
             paramStruct.useDatabase = this.useDatabase;
+            paramStruct.minDaysAllowed = this.minNumDaysAllowed;
+            paramStruct.minNumDaysAllowed = this.minNumDaysAllowed;
+            paramStruct.maxNumDaysAllowed = this.maxNumDaysAllowed;
             paramStruct.databaseClass = this.originalWidgetSettings.databaseClass;
             paramStruct.useCache = this.useCache;
             paramStruct.cacheDirectory = this.cacheDirectory;            
@@ -496,6 +505,21 @@ classdef PAStatTool < handle
                     this.featureStruct = tmpFeatureStruct;                    
                 end
                 
+                maxDaysAllowed = this.maxNumDaysAllowed;
+                if(maxDaysAllowed>0)
+                    ind2keep = false(size(this.featureStruct.shapes,1),1);
+                    [c,iaFirst,ic] = unique(this.featureStruct.studyIDs,'first');
+                    [c,iaLast,ic] = unique(this.featureStruct.studyIDs,'last');
+                    dayInd = [iaFirst, min(iaLast, iaFirst+6)];
+                    for d=1:size(dayInd,1)
+                        ind2keep(dayInd(d,1):dayInd(d,2))= true;
+                    end
+                    fieldsToParse = {'studyIDs','startDatenums','startDaysOfWeek','shapes'};
+                    for f=1:numel(fieldsToParse)
+                        fname = fieldsToParse{f};
+                        this.featureStruct.(fname)(~ind2keep,:)=[];
+                    end
+                end
                 loadFeatures = this.featureStruct.shapes;
 
                 if(pSettings.centroidDurationHours~=24)
@@ -3441,6 +3465,9 @@ classdef PAStatTool < handle
             end
             
             paramStruct.preclusterReductionSelection = 1; % defaults to 'none'
+
+            paramStruct.maxNumDaysAllowed = 0; % Maximum number of days allowed per subject.  Leave 0 to include all days.
+            paramStruct.minNumDaysAllowed = 0; % Minimum number of days allowed per subject.  Leave 0 for no minimum.  Currently variable has no effect at all.
             
             paramStruct.normalizeValues = 0;            
             paramStruct.processedTypeSelection = 1;
@@ -3494,7 +3521,6 @@ classdef PAStatTool < handle
             baseSettings.preclusterReductionDescriptions = {'None','Sort (high->low)','Sum','Mean','Median','Maximum','Occurrences > 100','Occurrences > 50'};
             baseSettings.numDataSegments = [2,3,4,6,8,12,24]';
             baseSettings.numDataSegmentsDescriptions = cellstr(num2str(baseSettings.numDataSegments(:)));
-
             
             baseSettings.plotTypes = {'dailyaverage','dailytally','morningheatmap','heatmap','rolling','morningrolling','centroids'};
             baseSettings.plotTypeDescriptions = {'Average Daily Tallies','Total Daily Tallies','Heat map (early morning)','Heat map','Time series','Time series (morning)','Centroids'};
