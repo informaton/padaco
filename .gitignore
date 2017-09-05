@@ -67,3 +67,6 @@ src/rawcsv2rawbin
 *.txt
 
 cache/results.tmp
+.DS_Store
+
+.DS_Store
