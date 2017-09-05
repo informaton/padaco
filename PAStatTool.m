@@ -345,7 +345,7 @@ classdef PAStatTool < handle
             this.originalWidgetSettings = widgetSettings;
             
             % Merge the defaults with what is here otherwise.  
-            this.setUseDatabase(widgetSettings.useDatabase);
+            this.setUseDatabase(widgetSettings.useDatabase);  %sets this.useDatabase to false if it was initially true and then fails to open the database
             this.useCache = widgetSettings.useCache;
             this.cacheDirectory = widgetSettings.cacheDirectory;
             this.clusterSettings.clusterMethod = widgetSettings.clusterMethod;
@@ -849,6 +849,7 @@ classdef PAStatTool < handle
             if(nargin>1)
                 this.useDatabase = willSet && true;
                 this.useDatabase = this.initDatabaseObj();% initDatabase returns false if it fails to initialize and is supposed to.
+                didSet = true;
             else
                 didSet = false;
             end
