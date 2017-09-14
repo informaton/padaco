@@ -1453,10 +1453,9 @@ classdef PACentroid < handle
                         [idx, centroids, sumD, pointToClusterDistances] = kmeans(loadShapes,K,'Start',centroids,'EmptyAction','drop','onlinephase','off','distance',this.distanceMetric);
                     end
                     if(ishandle(performanceAxesH))
-                        this.getPerformance
+                        % getPerformance
                         if(strcmpi(this.performanceCriterion,'silhouette'))
                             performanceIndex  = mean(silhouette(loadShapes,idx));
-
                         else
                             performanceIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);                            
                         end
