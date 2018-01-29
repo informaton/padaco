@@ -2115,6 +2115,25 @@ classdef PAData < handle
             
         end
         
+        
+        function [featureVec, startDatenum] = getFeatureVecs(obj,featureFcn,signalTagLine)
+            featureStruct = obj.getStruct('all','features');
+            if(isempty(featureStruct) || ~isfield(featureStruct,featureFcn) || isempty(featureStruct.(featureFcn)))
+                obj.extractFeature(signalTagLine,featureFcn);
+                featureStruct = obj.getStruct('all','features');
+            end
+            if(isempty(featureStruct) || ~isfield(featureStruct,featureFcn) || isempty(featureStruct.(featureFcn)))
+                fprintf('There was an error.  Could not extract features!\n');
+                featureVec = [];
+                startDatenum = [];
+            else
+                
+                featureVec = featureStruct.(featureFcn);
+                % find the first Start Time
+                startDatenum = obj.startDatenums;
+                
+            end
+        end
         % --------------------------------------------------------------------
         %> @brief Calculates a desired feature for a particular acceleration object's field value.
         %> and returns it as a matrix of elapsed time aligned vectors.
