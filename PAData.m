@@ -102,7 +102,7 @@ classdef PAData < handle
         
     end
     
-    properties (Access = protected)
+    properties (SetAccess = protected)
         %> @brief Pathname of file containing accelerometer data.
         pathname;
         %> @brief Name of file containing accelerometer data that is loaded.
@@ -246,6 +246,10 @@ classdef PAData < handle
             end
             
             obj.setCurWindow(pStruct.curWindow);
+        end
+        
+        function hasIt = hasData(obj)
+            hasIt = obj.hasCounts||obj.hasRaw;
         end
         
         % ======================================================================
@@ -1443,7 +1447,14 @@ classdef PAData < handle
                         dateVecFound = double([tmpDataCell{3},tmpDataCell{1},tmpDataCell{2},tmpDataCell{4},tmpDataCell{5},tmpDataCell{6}]);
                         samplesFound = size(dateVecFound,1);
                         
-                        startDateNum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
+                        % This is a mess -
+                        %                         obj.startDate(obj.startDate==',')=[];  %sometimes we get extra commas as files are copy and pasted between other programs (e.g. Excel)
+                        %                         obj.startTime(obj.startTime==',')=[];
+                        %                         startDateNum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
+                        
+                        % Trust the timestamps per record instead; even if they may get out of order?
+                        startDateNum = datenum(dateVecFound(1,:));
+                        
                         stopDateNum = datenum(dateVecFound(end,:));
                         
                         windowDateNumDelta = datenum([0,0,0,0,0,obj.countPeriodSec]);
@@ -2098,7 +2109,7 @@ classdef PAData < handle
                     lastStartDateVec = startDateVecs(lastStartIndex,:);
                 end
                 
-                completeDayCount = datenum(lastStartDateVec) - datenum(firstStartDateVec);
+                completeDayCount = max(0,datenum(lastStartDateVec) - datenum(firstStartDateVec));
                 
             end
             
@@ -2592,14 +2603,6 @@ classdef PAData < handle
             else
                 varargout = cell(1,nargout-1);
                 [sref,varargout{:}] = builtin('subsref',obj,s);
-% 
-%                 if(~isempty(intersect(lower(s(1).subs),lower({'getFrameDuration','getAlignedFeatureVecs'}))))
-%                     [sref, varargout{1}] = builtin('subsref',obj,s);
-%                 elseif(~isempty(intersect(lower(s(1).subs),lower({'classifyUsageState'}))))
-%                     [sref, varargout{1}, varargout{2}] = builtin('subsref',obj,s);
-%                 else
-%                     sref = builtin('subsref',obj,s);
-%                 end
             end
         end
         

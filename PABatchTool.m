@@ -539,8 +539,8 @@ classdef PABatchTool < handle
                 outputFeatureFcn = outputFeatureFcns{fn};
                 features_pathname = outputFeaturePathnames{fn};
                 feature_description = outputFeatureLabels{fn};
-                if(~isdir(features_pathname))
-                    mkdir(features_pathname);
+                if(~isormkdir(features_pathname))
+                    throw(MException('PA:BatchTool:Pathname','Unable create output path for storing batch process features'));
                 end
                 
                 for s=1:numel(signalNames)
@@ -584,7 +584,10 @@ classdef PABatchTool < handle
                 try 
                     fprintf('Processing %s\n',filenames{f});
                     curData = PAData(fullFilenames{f});%,this.SETTINGS.DATA
-                    
+                    if(~curData.hasData())
+                        errMsg = sprintf('No data loaded from file (%s)',filenames{f});
+                        throw(MException('PA:BatchTool:FileLoad',errMsg));
+                    end
                     curStudyID = curData.getStudyID('numeric');
                     if(isnan(curStudyID))
                         curStudyID = f;
@@ -594,8 +597,9 @@ classdef PABatchTool < handle
                     setFrameDurMin = curData.setFrameDurationMinutes(frameDurationMinutes);
                     if(frameDurationMinutes~=setFrameDurMin)
                         fprintf('There was an error in setting the frame duration.\n');
+                        throw(MException('PA:Batchtool','error in setting the frame duration'));
                     else                        
-                        % [~,filename,~] = fileparts(curData.getFilename());
+                   
                         
                         for s=1:numel(signalNames)
                             signalName = signalNames{s};
@@ -788,7 +792,7 @@ classdef PABatchTool < handle
                         if(ishandle(h))
                             delete(h);
                         end
-                    end;
+                    end
                     
                     dlgName = 'Errors found';
                     showLogFileStr = 'Open log file';
@@ -821,7 +825,7 @@ classdef PABatchTool < handle
                 showLogFileStr = 'Open log file';
                 showSummaryFileStr = 'Open summary file';
                 returnToBatchToolStr = 'Return to batch tool';
-                cancelStr = 'Cancel';
+
                 options.Default = showResultsStr;
                 options.Interpreter = 'none';
                 buttonName = questdlg(batchResultStr,dlgName,showResultsStr,showOutputFolderStr,returnToBatchToolStr,options);
