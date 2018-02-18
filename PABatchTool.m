@@ -544,7 +544,7 @@ classdef PABatchTool < handle
                 emptyUnalignedResults = mkstruct(outputFeatureFcns);
                 unalignedOutputPathname = this.getUnalignedFeaturePathname();
                 unalignedHeaderStr = cell2str(['# datenum';signalNames],', ');
-                
+                unalignedRowStr = ['\n%s',repmat(', %f',1,numel(signalNames))];
                 for fn=1:numel(outputFeatureFcns)
                     
                     % Prep output alignment files.
@@ -592,9 +592,9 @@ classdef PABatchTool < handle
                 
                 while(f< fileCount && this.isRunning)
                     f = f+1;
-                    %                 waitbar(pctDone,waitH,filenames{f});
-                    ticStart = tic;
+                    ticStart = tic;                    
                     
+                    [~,studyName] = fileparts(fullFilenames{f});                    
                     unalignedResults = emptyUnalignedResults;
                     
                     %for each featureFcnArray item as featureFcn
@@ -695,13 +695,20 @@ classdef PABatchTool < handle
                             % Unaligned feature output
                             for fn=1:numel(outputFeatureFcns)
                                 outputFeatureFcn = outputFeatureFcns{fn};
-                                unalignedFeatureFilename = fullfile(unalignedOutputPathname,sprintf('%s.%s.csv',filenames{f},outputFeatureFcn));
+                                unalignedFeatureFilename = fullfile(unalignedOutputPathname,sprintf('%s.%s.csv',studyName,outputFeatureFcn));
                                 [fid, errMsg]  = fopen(unalignedFeatureFilename,'w+');
                                 if(fid>1)
-                                    fprintf(fid,'%s\n',unalignedHeaderStr);
-                                    fclose(fid);
+                                    fprintf(fid,'%s',unalignedHeaderStr);
                                     result = unalignedResults.(outputFeatureFcn);
-                                    save(unalignedFeatureFilename,'result','-ascii','-append');
+                                    dateStrs = datestr(result(:,1));
+                                    result = result(:,2:end);
+                                    for row=1:size(result,1)
+                                        curRow = result(row,:);
+                                        fprintf(fid,unalignedRowStr,dateStrs(row,:),curRow);
+                                    end
+                                    fclose(fid);
+                                    
+                                    %save(unalignedFeatureFilename,'result','-ascii','-append');
                                 else
                                     errMsg = sprintf('Unable to open unaligned feature output file for writing.  Error message: %s',errMsg');
                                     throw(MException('PA:Batch:File',errMsg));
@@ -903,10 +910,10 @@ classdef PABatchTool < handle
             catch me
                 if(ishandle(waitH))
                     delete(waitH);
-                    showME(me);
-                    warndlg('An enexpected error occurred');
-                    this.enable();
                 end
+                showME(me);
+                warndlg('An enexpected error occurred');
+                this.enable();
             end
             
             %             this.resultsPathname = this.getOutputPath();

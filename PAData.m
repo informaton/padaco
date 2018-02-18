@@ -103,6 +103,7 @@ classdef PAData < handle
     end
     
     properties (SetAccess = protected)
+        missingValue = nan;  % used in place of missing data (that is not found in a file)
         %> @brief Pathname of file containing accelerometer data.
         pathname;
         %> @brief Name of file containing accelerometer data that is loaded.
@@ -409,18 +410,18 @@ classdef PAData < handle
         end
         
         
-        function usageRules = getUsageClassificationRules(this)
-            usageRules = this.usageStateRules();
+        function usageRules = getUsageClassificationRules(obj)
+            usageRules = obj.usageStateRules();
         end
         
         %> @brief Updates the usage state rules with an input struct.  
         %> @param
         %> @param
-        function didSet = setUsageClassificationRules(this, ruleStruct)
+        function didSet = setUsageClassificationRules(obj, ruleStruct)
             didSet = false;
             try
                 if(isstruct(ruleStruct))
-                    this.usageStateRules = this.updateStructWithStruct(this.usageStateRules, ruleStruct);
+                    obj.usageStateRules = obj.updateStructWithStruct(obj.usageStateRules, ruleStruct);
                     didSet = true;
                 end
             catch me
@@ -757,7 +758,7 @@ classdef PAData < handle
                 offAccelType = 'count';
             elseif(strcmpi(accelTypeStr,'all'))
                 offAccelType = [];
-            elseif(strcmpi(accelTypeTypeStr,'none'))
+            elseif(strcmpi(accelTypeStr,'none'))
                 offAccelType = [];
             else
                 fprintf('Unrecognized accelTypeStr (%s)\n',accelTypeStr);
@@ -1099,10 +1100,7 @@ classdef PAData < handle
                         end
                         %  Download Date 1/23/2014
                         tline = fgetl(fid);
-                        obj.stopDate = strrep(tline,'Download Date ','');                       
-                        
-                        
-
+                        obj.stopDate = strrep(tline,'Download Date ',''); 
                     else
                         % unset - we don't know - assume 1 per second
                         obj.countPeriodSec = 1;
@@ -1214,30 +1212,17 @@ classdef PAData < handle
                     %                     obj.sampleRate =
                     %start, stop and delta date nums
                     windowDatenumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
-                    missingValue = nan;
                     
-                    [tmpDataCell, obj.dateTimeNum] = obj.mergedCell(startDatenum,stopDatenum,windowDatenumDelta,datevecFound,tmpDataCell,missingValue);
+                    
+                    [tmpDataCell, obj.dateTimeNum] = obj.mergedCell(startDatenum,stopDatenum,windowDatenumDelta,datevecFound,tmpDataCell,obj.missingValue);
 
                     obj.durSamples = numel(obj.dateTimeNum);
                     obj.durationSec = floor(obj.getDurationSamples()/obj.sampleRate);
 
-                    numMissing = obj.getDurationSamples() - samplesFound;
-
+                    
                     obj.setRawXYZ(tmpDataCell{1},tmpDataCell{2},tmpDataCell{3});
                     
-                    if(obj.getDurationSamples()==samplesFound)
-                        fprintf('%d rows loaded from %s\n',samplesFound,fullCSVFilename);
-                    else
-                        if(numMissing>0)
-                            fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullCSVFilename,numMissing,num2str(missingValue));
-                        else
-                            fprintf('This case is not handled yet.\n');
-                            fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullCSVFilename,numMissing,num2str(missingValue));
-                        end
-                    end
-                    
-                    
-                    
+                    obj.printLoadStatusMsg(samplesFound, fullfilename);
                     
                     didLoad = true;
 
@@ -1251,6 +1236,19 @@ classdef PAData < handle
             end
         end
         
+        function printLoadStatusMsg(obj, samplesFound, fullFilename)
+            if(obj.getDurationSamples()==samplesFound)
+                fprintf('%d rows loaded from %s\n',samplesFound,fullFilename);
+            else
+                numMissing = obj.getDurationSamples() - samplesFound;
+                if(numMissing>0)
+                    fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullFilename,samplesFound+numMissing,numMissing,num2str(obj.missingValue));
+                else
+                    fprintf('This case is not handled yet.\n');
+                    fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullFilename,samplesFound+numMissing,numMissing,num2str(obj.missingValue));
+                end
+            end
+        end
         
         function didLoad = loadCustomRawCSVFile(obj,fullfilename, fmtStruct)
             fmtStruct.delimiter = ',';
@@ -1327,7 +1325,7 @@ classdef PAData < handle
                                         countStartDatenum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
                                         
                                         if(binStartDatenum~=countStartDatenum)
-                                            fprintf('There is a discrepancy between the start date-time in the count file and the binary file.  I''m not sure what is going to happen because of this.\n');
+                                            fprintf('There is a discrepancy between the start date-time in the count file and the binary file.  I''m not sure what is going to happen because of obj.\n');
                                         end
                                     else
                                         
@@ -1399,12 +1397,12 @@ classdef PAData < handle
         %> @param obj Instance of PAData.
         %> @param fullCountFilename The full (i.e. with path) filename to load.
         % =================================================================
-        function didLoad = loadCountFile(obj,fullCountFilename)
-            if(exist(fullCountFilename,'file'))
-                fid = fopen(fullCountFilename,'r');
+        function didLoad = loadCountFile(obj,fullFilename)
+            if(exist(fullFilename,'file'))
+                fid = fopen(fullFilename,'r');
                 if(fid>0)
                     try
-                        obj.loadFileHeader(fullCountFilename);
+                        obj.loadFileHeader(fullFilename);
                         %                        delimiter = ',';
                         % header = 'Date	 Time	 Axis1	Axis2	Axis3	Steps	Lux	Inclinometer Off	Inclinometer Standing	Inclinometer Sitting	Inclinometer Lying	Vector Magnitude';
                         headerLines = 11; %number of lines to skip
@@ -1459,7 +1457,6 @@ classdef PAData < handle
                         
                         windowDateNumDelta = datenum([0,0,0,0,0,obj.countPeriodSec]);
                         
-                        missingValue = nan;
                         
                         % NOTE:  Chopping off the first six columns: date time values;
                         tmpDataCell(1:6) = [];
@@ -1467,7 +1464,7 @@ classdef PAData < handle
                         % The following call to mergedCell ensures the data
                         % is chronologically ordered and data is not
                         % missing.
-                        [dataCell, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,missingValue);
+                        [dataCell, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,obj.missingValue);
                        
                         tmpDataCell = []; %free up this memory;
                         
@@ -1480,18 +1477,8 @@ classdef PAData < handle
                         %                        dateTimeDelta == dateTimeDelta2  %what is going on here???
                         
                         obj.durSamples = numel(obj.dateTimeNum);
-                        numMissing = obj.getDurationSamples() - samplesFound;
-                        
-                        if(obj.getDurationSamples()==samplesFound)
-                            fprintf('%d rows loaded from %s\n',samplesFound,fullCountFilename);
-                        else
-                            if(numMissing>0)
-                                fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullCountFilename,numMissing,num2str(missingValue));
-                            else
-                                fprintf('This case is not handled yet.\n');
-                                fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullCountFilename,numMissing,num2str(missingValue));
-                            end
-                        end
+                        obj.printLoadStatusMsg(samplesFound, fullFilename);
+                    
                         
                         obj.accel.count.x = dataCell{1};
                         obj.accel.count.y = dataCell{2};
@@ -1513,7 +1500,7 @@ classdef PAData < handle
                             obj.sampleRate = 1/obj.countPeriodSec;
                             obj.durationSec = floor(obj.getDurationSamples()*obj.countPeriodSec);
                         else
-                            fprintf('There was an error when loading the window period second value (non-positive value found in %s).\n',fullCountFilename);
+                            fprintf('There was an error when loading the window period second value (non-positive value found in %s).\n',fullFilename);
                             obj.durationSec = 0;
                         end
                         fclose(fid);
@@ -1524,11 +1511,11 @@ classdef PAData < handle
                         didLoad = false;
                     end
                 else
-                    fprintf('Warning - could not open %s for reading!\n',fullCountFilename);
+                    fprintf('Warning - could not open %s for reading!\n',fullFilename);
                     didLoad = false;
                 end
             else
-                fprintf('Warning - %s does not exist!\n',fullCountFilename);
+                fprintf('Warning - %s does not exist!\n',fullFilename);
                 didLoad = false;
             end
         end
@@ -1544,16 +1531,16 @@ classdef PAData < handle
         %> @param obj Instance of PAData.
         %> @param fullRawCSVFilename The full (i.e. with path) filename for raw data to load.
         % =================================================================
-        function didLoad = loadRawCSVFile(obj,fullRawCSVFilename, loadFastOption)
+        function didLoad = loadRawCSVFile(obj,fullFilename, loadFastOption)
             if(nargin<3 || isempty(loadFastOption))
                 loadFastOption = false;
             end
-            if(exist(fullRawCSVFilename,'file'))
+            if(exist(fullFilename,'file'))
                 try
                     if(exist('loadrawcsv','file')==3) % If the mex file exists and is compiled
                     %if(exist('loadrawcsv','file')==-3) % If the mex file exists and is compiled
                         tic
-                        rawMat = loadrawcsv(fullRawCSVFilename, loadFastOption)';  %loadrawcsv loads rows as columns so we need to transpose the results.
+                        rawMat = loadrawcsv(fullFilename, loadFastOption)';  %loadrawcsv loads rows as columns so we need to transpose the results.
                         toc
                         %Date time handling
                         if(loadFastOption)
@@ -1563,7 +1550,7 @@ classdef PAData < handle
                             tmpDataCell = {rawMat(:,7),rawMat(:,8),rawMat(:,9)};
                         end
                     else
-                        fid = fopen(fullRawCSVFilename,'r');
+                        fid = fopen(fullFilename,'r');
                         if(fid>0)
                             delimiter = ',';
                             % header = 'Date	 Time	 Axis1	Axis2	Axis3
@@ -1590,7 +1577,7 @@ classdef PAData < handle
                             fclose(fid);
                        
                         else
-                            fprintf('Warning - could not open %s for reading!\n',fullRawCSVFilename);
+                            fprintf('Warning - could not open %s for reading!\n',fullFilename);
                             % didLoad = false;
                             MException('MATLAB:Padaco:FileIO','Could not open file for reading');
                         end
@@ -1601,7 +1588,6 @@ classdef PAData < handle
                     %start, stop and delta date nums
                     startDateNum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
                     windowDateNumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
-                    missingValue = nan;
                     
                     if(loadFastOption)
                         stopDateNum = datenum(strcat(obj.stopDate,{' '},obj.stopTime),'mm/dd/yyyy HH:MM:SS');
@@ -1609,26 +1595,17 @@ classdef PAData < handle
                         obj.dateTimeNum(end)=[];  %remove the very last sample, since it is not actually recorded in the dataset, but represents when the data was downloaded, which happens one sample after the device stops.
                     else
                         stopDateNum = datenum(dateVecFound(end,:));
-                        [tmpDataCell, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,missingValue);                        
+                        [tmpDataCell, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,obj.missingValue);                        
                     end
 
                     obj.durSamples = numel(obj.dateTimeNum);
                     obj.durationSec = floor(obj.getDurationSamples()/obj.sampleRate);
 
-                    numMissing = obj.getDurationSamples() - samplesFound;
-
+                    
                     obj.setRawXYZ(tmpDataCell{1},tmpDataCell{2},tmpDataCell{3});
                     
-                    if(obj.getDurationSamples()==samplesFound)
-                        fprintf('%d rows loaded from %s\n',samplesFound,fullRawCSVFilename);
-                    else
-                        if(numMissing>0)
-                            fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullRawCSVFilename,numMissing,num2str(missingValue));
-                        else
-                            fprintf('This case is not handled yet.\n');
-                            fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullRawCSVFilename,numMissing,num2str(missingValue));
-                        end
-                    end
+                    obj.printLoadStatusMsg(samplesFound, fullFilename);
+                    
                     
                     % No longer think resampling count data is the way to
                     % go here.
@@ -1644,7 +1621,7 @@ classdef PAData < handle
                     end
                 end
             else
-                fprintf('Warning - %s does not exist!\n',fullRawCSVFilename);
+                fprintf('Warning - %s does not exist!\n',fullFilename);
                 didLoad = false;
             end
         end
@@ -2786,12 +2763,12 @@ classdef PAData < handle
         %> @retval recordCount - The number of records (or samples) found
         %> and loaded in the file.
         % =================================================================
-        function recordCount = loadRawActivityBinFile(obj,fullRawActivityBinFilename,firmwareVersion)
-            if(exist(fullRawActivityBinFilename,'file'))
+        function recordCount = loadRawActivityBinFile(obj,fullFilename,firmwareVersion)
+            if(exist(fullFilename,'file'))
                 
                 recordCount = 0;
                 
-                fid = fopen(fullRawActivityBinFilename,'r','b');  %I'm going with a big endian format here.
+                fid = fopen(fullFilename,'r','b');  %I'm going with a big endian format here.
                 
                 if(fid>0)
                     
@@ -2863,7 +2840,7 @@ classdef PAData < handle
                                 % go through once to determine how many
                                 % records I have in order to preallocate memory
                                 % - should look at meta data record to see if I can
-                                % shortcut this.
+                                % shortcut obj.
                                 while(~feof(fid))
                                     
                                     packetCode = fread(fid,1,'uint16=>double');
@@ -2938,10 +2915,10 @@ classdef PAData < handle
                         fclose(fid);
                     end
                 else
-                    fprintf('Warning - could not open %s for reading!\n',fullRawActivityBinFilename);
+                    fprintf('Warning - could not open %s for reading!\n',fullFilename);
                 end
             else
-                fprintf('Warning - %s does not exist!\n',fullRawActivityBinFilename);
+                fprintf('Warning - %s does not exist!\n',fullFilename);
             end
         end
         
@@ -3630,7 +3607,6 @@ classdef PAData < handle
                 missingValue = nan;
             end
             
-            
             [synthDateNum, synthDateVec] = PAData.datespace(startDateNum, stopDateNum, dateNumDelta);
             numSamples = size(synthDateVec,1);
             
@@ -4058,11 +4034,11 @@ classdef PAData < handle
             
             
             if(isstruct(ruleStruct))
-                ruleFields = fieldnames(this.usageStateRules);
+                ruleFields = fieldnames(obj.usageStateRules);
                 for f=1:numel(ruleFields)
                     curField = ruleFields{f};
-                    if(hasfield(ruleStruct,curField) && class(ruleStruct.(curField)) == class(this.usageStateRules.(curField)))
-                        this.usageStateRules.(curField) = ruleStruct.(curField);
+                    if(hasfield(ruleStruct,curField) && class(ruleStruct.(curField)) == class(obj.usageStateRules.(curField)))
+                        obj.usageStateRules.(curField) = ruleStruct.(curField);
                     end
                 end
             end
