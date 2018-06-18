@@ -28,11 +28,14 @@ function didTranscode = transcode(fromFullFilename,toPathOrFilename)
     didTranscode = false;
     [fromPath, fromFile, fromExt]  = fileparts(fromFullFilename);
     fromFilename = [fromFile,fromExt];
+    
+    % clean up some file naming convention here
+    toFilename = strrep(fromFilename,'merge1sec_','');
 
     if(nargin<2 || isempty(toPathOrFilename))
-        toFullFilename = fullfile(fromPath, sprintf('transcoded_%s',fromFilename));
+        toFullFilename = fullfile(fromPath, sprintf('transcoded_%s',toFilename));
     elseif(isdir(toPathOrFilename))
-        toFullFilename = fullfile(toPathOrFilename,fromFilename);
+        toFullFilename = fullfile(toPathOrFilename,toFilename);
     else
         toFullFilename=toPathOrFilename;
     end

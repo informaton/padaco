@@ -134,7 +134,9 @@ classdef PABatchTool < handle
             set(this.handles.menu_frameDurationMinutes,'string',this.featureDurationStr,'userdata',this.featureDurationVal,'value',find(cellfun(@(x)(x==this.settings.frameDurationMinutes),this.featureDurationVal)));
             set(this.handles.menu_maxDaysAllowed,'string',this.maxDaysAllowedStr,'userdata',this.maxDaysVal,'value',find(cellfun(@(x)(x==this.settings.numDaysAllowed),this.maxDaysVal)));
             
-            
+            set(this.handles.check_run_aligned_feature_export,'callback',@this.checkExportFeaturesCallback,'value',1);
+            set(this.handles.check_run_unaligned_feature_export,'callback',@this.checkExportFeaturesCallback,'value',0);
+
             set(this.handles.button_go,'callback',@this.startBatchProcessCallback);
 
             % try and set the source and output paths.  In the event that
@@ -173,12 +175,33 @@ classdef PABatchTool < handle
             this.figureH = batchFig;
             set(this.figureH,'visible','on','closerequestFcn',@this.close);
         end
-            
+          
+        function checkExportFeaturesCallback(this, varargin)
+            this.refreshSettings();
+        end
+        
+        function shouldExport = shouldExportAlignedFeatures(this)
+            shouldExport = get(this.handles.check_run_aligned_feature_export,'value');            
+        end
+        function shouldExport = shouldExportUnalignedFeatures(this)
+            shouldExport = get(this.handles.check_run_unaligned_feature_export,'value');            
+        end
+        
         function refreshSettings(this)
             if(ishandle(this.figureH))
                 this.settings.featureLabel = getMenuString(this.handles.menu_featureFcn);            
                 this.settings.frameDurationMinutes = getSelectedMenuUserData(this.handles.menu_frameDurationMinutes);
                 this.settings.numDaysAllowed = getMenuUserData(this.handles.menu_maxDaysAllowed);
+                if(this.shouldExportAlignedFeatures())
+                    enableHandles(this.handles.panel_loadshape_settings);
+                else
+                    disableHandles(this.handles.panel_loadshape_settings);                    
+                end
+                if(~this.shouldExportAlignedFeatures() &&  ~this.shouldExportUnalignedFeatures())
+                    set(this.handles.button_go,'enable','off');
+                else
+                    set(this.handles.button_go,'enable','on');
+                end
             end            
         end
         
@@ -539,37 +562,43 @@ classdef PABatchTool < handle
                     outputFeatureLabels = {this.settings.featureLabel};
                 end
                 
-                alignedFeatureOutputPathnames =   strcat(this.getFeaturePathname(),filesep,outputFeatureFcns);
                 
-                emptyUnalignedResults = mkstruct(outputFeatureFcns);
-                unalignedOutputPathname = this.getUnalignedFeaturePathname();
-                unalignedHeaderStr = cell2str(['# datenum';signalNames],', ');
-                unalignedRowStr = ['\n%s',repmat(', %f',1,numel(signalNames))];
-                for fn=1:numel(outputFeatureFcns)
-                    
-                    % Prep output alignment files.
-                    outputFeatureFcn = outputFeatureFcns{fn};
-                    features_pathname = alignedFeatureOutputPathnames{fn};
-                    feature_description = outputFeatureLabels{fn};
-                    if(~isormkdir(features_pathname))
-                        throw(MException('PA:BatchTool:Pathname','Unable create output path for storing batch process features'));
-                    end
-                    
-                    for s=1:numel(signalNames)
-                        signalName = signalNames{s};
+                if(this.shouldExportUnalignedFeatures())
+                    emptyUnalignedResults = mkstruct(outputFeatureFcns);
+                    unalignedOutputPathname = this.getUnalignedFeaturePathname();
+                    unalignedHeaderStr = cell2str(['# datenum';signalNames],', ');
+                    unalignedRowStr = ['\n%s',repmat(', %f',1,numel(signalNames))];
+                end
+                
+                if(this.shouldExportAlignedFeatures())
+                    alignedFeatureOutputPathnames =   strcat(this.getFeaturePathname(),filesep,outputFeatureFcns);                    
+                    for fn=1:numel(outputFeatureFcns)
                         
-                        featureFilename = fullfile(features_pathname,strcat('features.',outputFeatureFcn,'.',signalName,'.txt'));
-                        fid = fopen(featureFilename,'w');
-                        fprintf(fid,'# Feature:\t%s\n',feature_description);
+                        % Prep output alignment files.
+                        outputFeatureFcn = outputFeatureFcns{fn};
+                        features_pathname = alignedFeatureOutputPathnames{fn};
+                        feature_description = outputFeatureLabels{fn};
                         
-                        fprintf(fid,'# Length:\t%u\n',size(timeAxisStr,1));
-                        
-                        fprintf(fid,'# Study_ID\tStart_Datenum\tStart_Day');
-                        for t=1:size(timeAxisStr,1)
-                            fprintf(fid,'\t%s',timeAxisStr(t,:));
+                        if(~isormkdir(features_pathname))
+                            throw(MException('PA:BatchTool:Pathname','Unable create output path for storing batch process features'));
                         end
-                        fprintf(fid,'\n');
-                        fclose(fid);
+                        
+                        for s=1:numel(signalNames)
+                            signalName = signalNames{s};
+                            
+                            featureFilename = fullfile(features_pathname,strcat('features.',outputFeatureFcn,'.',signalName,'.txt'));
+                            fid = fopen(featureFilename,'w');
+                            fprintf(fid,'# Feature:\t%s\n',feature_description);
+                            
+                            fprintf(fid,'# Length:\t%u\n',size(timeAxisStr,1));
+                            
+                            fprintf(fid,'# Study_ID\tStart_Datenum\tStart_Day');
+                            for t=1:size(timeAxisStr,1)
+                                fprintf(fid,'\t%s',timeAxisStr(t,:));
+                            end
+                            fprintf(fid,'\n');
+                            fclose(fid);
+                        end
                     end
                 end
                 
@@ -594,8 +623,12 @@ classdef PABatchTool < handle
                     f = f+1;
                     ticStart = tic;                    
                     
-                    [~,studyName] = fileparts(fullFilenames{f});                    
-                    unalignedResults = emptyUnalignedResults;
+                    [~,studyName] = fileparts(fullFilenames{f}); 
+                    
+                    
+                    if(this.shouldExportUnalignedFeatures())
+                        unalignedResults = emptyUnalignedResults;
+                    end
                     
                     %for each featureFcnArray item as featureFcn
                     try
@@ -626,20 +659,25 @@ classdef PABatchTool < handle
                                 
                                 for fn=1:numel(outputFeatureFcns)
                                     outputFeatureFcn = outputFeatureFcns{fn};
-                                    features_pathname = alignedFeatureOutputPathnames{fn};
                                     
-                                    featureFilename = fullfile(features_pathname,strcat('features.',outputFeatureFcn,'.',signalName,'.txt'));
-                                    [alignedVec, alignedStartDateVecs] = curData.getAlignedFeatureVecs(outputFeatureFcn,signalName,elapsedStartHour, intervalDurationHours);
-                                    
-                                    numIntervals = size(alignedVec,1);
-                                    if(numIntervals>maxNumIntervals)
-                                        alignedVec = alignedVec(1:maxNumIntervals,:);
-                                        alignedStartDateVecs = alignedStartDateVecs(1:maxNumIntervals, :);
-                                        numIntervals = maxNumIntervals;
+                                    if(this.shouldExportAlignedFeatures())
+                    
+                                        features_pathname = alignedFeatureOutputPathnames{fn};
+                                        
+                                        featureFilename = fullfile(features_pathname,strcat('features.',outputFeatureFcn,'.',signalName,'.txt'));
+                                        [alignedVec, alignedStartDateVecs] = curData.getAlignedFeatureVecs(outputFeatureFcn,signalName,elapsedStartHour, intervalDurationHours);
+                                        
+                                        numIntervals = size(alignedVec,1);
+                                        if(numIntervals>maxNumIntervals)
+                                            alignedVec = alignedVec(1:maxNumIntervals,:);
+                                            alignedStartDateVecs = alignedStartDateVecs(1:maxNumIntervals, :);
+                                            numIntervals = maxNumIntervals;
+                                        end
                                     end
                                     
-                                    
-                                    [unalignedVec, unalignedDatenums] = curData.getFeatureVecs(outputFeatureFcn,signalName);
+                                    if(this.shouldExportUnalignedFeatures())
+                                        [unalignedVec, unalignedDatenums] = curData.getFeatureVecs(outputFeatureFcn,signalName);
+                                    end
                                     
                                     
                                     % Currently, only x,y,z or vector magnitude
@@ -653,65 +691,79 @@ classdef PABatchTool < handle
                                         % signals vector followed by
                                         % empty/nan for remaining signals,
                                         % to be filled in 'else' (next)
-                                        unalignedResults.(outputFeatureFcn) = [unalignedDatenums(:),unalignedVec(:),nan(numel(unalignedVec),numel(signalNames)-1)];
-                                        
-                                        % Need to apply datenum to get back to
-                                        % proper time for datestr to work.
-                                        startDatenums = datenum(alignedStartDateVecs);
-                                        % There is a bug if you try to do this
-                                        % datestr(alignedStartDateVecs,'ddd')
-                                        % and the date vecs have a different
-                                        % number of days due to extra or less
-                                        % time in other columns (e.g. hours,
-                                        % minutes).
-                                        alignedStartDaysOfWeek = datestr(startDatenums,'ddd');
-                                        alignedStartNumericDaysOfWeek = nan(numIntervals,1);
-                                        for a=1:numIntervals
-                                            alignedStartNumericDaysOfWeek(a)=dateMap.(alignedStartDaysOfWeek(a,:));
+                                        if(this.shouldExportUnalignedFeatures())
+                                            unalignedResults.(outputFeatureFcn) = [unalignedDatenums(:),unalignedVec(:),nan(numel(unalignedVec),numel(signalNames)-1)];
                                         end
                                         
-                                        studyIDs = repmat(curStudyID,numIntervals,1);
-                                        
-                                        result = [studyIDs,startDatenums,alignedStartNumericDaysOfWeek,alignedVec];
+                                        if(this.shouldExportAlignedFeatures())
+                                            
+                                            % Need to apply datenum to get back to
+                                            % proper time for datestr to work.
+                                            startDatenums = datenum(alignedStartDateVecs);
+                                            % There is a bug if you try to do this
+                                            % datestr(alignedStartDateVecs,'ddd')
+                                            % and the date vecs have a different
+                                            % number of days due to extra or less
+                                            % time in other columns (e.g. hours,
+                                            % minutes).
+                                            alignedStartDaysOfWeek = datestr(startDatenums,'ddd');
+                                            alignedStartNumericDaysOfWeek = nan(numIntervals,1);
+                                            for a=1:numIntervals
+                                                alignedStartNumericDaysOfWeek(a)=dateMap.(alignedStartDaysOfWeek(a,:));
+                                            end
+                                            
+                                            studyIDs = repmat(curStudyID,numIntervals,1);
+                                            
+                                            result = [studyIDs,startDatenums,alignedStartNumericDaysOfWeek,alignedVec];
+                                        end
                                     else
-                                        % Just fill in the new part, which is a
-                                        % MxN array of features - taken for M
-                                        % days at N time intervals.
-                                        result =[result(:,1:3), alignedVec];
-                                        unalignedResults.(outputFeatureFcn)(:,s+1) = unalignedVec(:); %first column holds datenum
+                                        if(this.shouldExportAlignedFeatures())
+                                            
+                                            % Just fill in the new part, which is a
+                                            % MxN array of features - taken for M
+                                            % days at N time intervals.
+                                            result =[result(:,1:3), alignedVec];
+                                        end
+                                        if(this.shouldExportUnalignedFeatures())
+                                            unalignedResults.(outputFeatureFcn)(:,s+1) = unalignedVec(:); %first column holds datenum
+                                        end
                                     end
                                     
-                                    % Added this because of issues with raw
-                                    % data loaded as a single.
-                                    if(~isa(result,'double'))
-                                        result = double(result);
+                                    if(this.shouldExportAlignedFeatures())
+                                        % Added this because of issues with raw
+                                        % data loaded as a single.
+                                        if(~isa(result,'double'))
+                                            result = double(result);
+                                        end
+                                        save(featureFilename,'result','-ascii','-tabs','-append');
                                     end
-                                    save(featureFilename,'result','-ascii','-tabs','-append');
                                     
                                     
                                 end
                             end
                             
                             % Unaligned feature output
-                            for fn=1:numel(outputFeatureFcns)
-                                outputFeatureFcn = outputFeatureFcns{fn};
-                                unalignedFeatureFilename = fullfile(unalignedOutputPathname,sprintf('%s.%s.csv',studyName,outputFeatureFcn));
-                                [fid, errMsg]  = fopen(unalignedFeatureFilename,'w+');
-                                if(fid>1)
-                                    fprintf(fid,'%s',unalignedHeaderStr);
-                                    result = unalignedResults.(outputFeatureFcn);
-                                    dateStrs = datestr(result(:,1));
-                                    result = result(:,2:end);
-                                    for row=1:size(result,1)
-                                        curRow = result(row,:);
-                                        fprintf(fid,unalignedRowStr,dateStrs(row,:),curRow);
+                            if(this.shouldExportUnalignedFeatures())
+                                for fn=1:numel(outputFeatureFcns)
+                                    outputFeatureFcn = outputFeatureFcns{fn};
+                                    unalignedFeatureFilename = fullfile(unalignedOutputPathname,sprintf('%s.%s.csv',studyName,outputFeatureFcn));
+                                    [fid, errMsg]  = fopen(unalignedFeatureFilename,'w+');
+                                    if(fid>1)
+                                        fprintf(fid,'%s',unalignedHeaderStr);
+                                        result = unalignedResults.(outputFeatureFcn);
+                                        dateStrs = datestr(result(:,1));
+                                        result = result(:,2:end);
+                                        for row=1:size(result,1)
+                                            curRow = result(row,:);
+                                            fprintf(fid,unalignedRowStr,dateStrs(row,:),curRow);
+                                        end
+                                        fclose(fid);
+                                        
+                                        %save(unalignedFeatureFilename,'result','-ascii','-append');
+                                    else
+                                        errMsg = sprintf('Unable to open unaligned feature output file for writing.  Error message: %s',errMsg');
+                                        throw(MException('PA:Batch:File',errMsg));
                                     end
-                                    fclose(fid);
-                                    
-                                    %save(unalignedFeatureFilename,'result','-ascii','-append');
-                                else
-                                    errMsg = sprintf('Unable to open unaligned feature output file for writing.  Error message: %s',errMsg');
-                                    throw(MException('PA:Batch:File',errMsg));
                                 end
                             end
                             

@@ -422,6 +422,17 @@ classdef PAData < handle
             try
                 if(isstruct(ruleStruct))
                     obj.usageStateRules = obj.updateStructWithStruct(obj.usageStateRules, ruleStruct);
+                    
+                    
+                    %                     ruleFields = fieldnames(obj.usageStateRules);
+                    %                     for f=1:numel(ruleFields)
+                    %                         curField = ruleFields{f};
+                    %                         if(hasfield(ruleStruct,curField) && class(ruleStruct.(curField)) == class(obj.usageStateRules.(curField)))
+                    %                             obj.usageStateRules.(curField) = ruleStruct.(curField);
+                    %                         end
+                    %                     end
+                    %
+                    
                     didSet = true;
                 end
             catch me
@@ -4030,19 +4041,16 @@ classdef PAData < handle
                         ltStruct.(curField) = rtStruct.(curField);
                     end
                 end
-            end
+            end            
             
-            
-            if(isstruct(ruleStruct))
-                ruleFields = fieldnames(obj.usageStateRules);
-                for f=1:numel(ruleFields)
-                    curField = ruleFields{f};
-                    if(hasfield(ruleStruct,curField) && class(ruleStruct.(curField)) == class(obj.usageStateRules.(curField)))
-                        obj.usageStateRules.(curField) = ruleStruct.(curField);
-                    end
-                end
-            end
-            
+            %                     ruleFields = fieldnames(obj.usageStateRules);
+            %                     for f=1:numel(ruleFields)
+            %                         curField = ruleFields{f};
+            %                         if(hasfield(ruleStruct,curField) && class(ruleStruct.(curField)) == class(obj.usageStateRules.(curField)))
+            %                             obj.usageStateRules.(curField) = ruleStruct.(curField);
+            %                         end
+            %                     end
+            %
         end
         
         % ======================================================================
