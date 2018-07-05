@@ -5,7 +5,8 @@ function a = struct2array(s)
 %   Copyright 1988-2002 The MathWorks, Inc.
 %   $Revision: 1.3.4.1 $  $Date: 2007/12/14 15:16:24 $
 
-error(nargchk(1,1,nargin,'struct'));
+% error(nargchk(1,1,nargin,'struct'));
+narginchks(1,1);
 
 % Convert structure to cell
 c = struct2cell(s);
