@@ -9,7 +9,7 @@ function out = rcall(r_script,varargin)
         else
             r_args = '';
             if(numel(varargin)>0)
-                r_args = char(cellstr(varargin{:}));
+                r_args = strjoin(varargin);
             end
             sysCmd = sprintf('%s %s %s',RScript, r_script, r_args);
             [status, out] = system(sysCmd);
