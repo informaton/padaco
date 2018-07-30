@@ -2553,8 +2553,7 @@ classdef PAController < handle
             unhideH = uimenu(contextmenu_mainaxes_h,'Label','Unhide','tag','unhide');
             uimenu(contextmenu_mainaxes_h,'Label','Evenly distribute lines','tag','redistribute',...
                 'separator','on','callback',@obj.contextmenu_redistributeLines_callback);
-            set(contextmenu_mainaxes_h,'callback',{@obj.contextmenu_primaryAxes_callback,hideH,unhideH});
-            
+            set(contextmenu_mainaxes_h,'callback',{@obj.contextmenu_primaryAxes_callback,hideH,unhideH});      
         end
         
         % --------------------------------------------------------------------
@@ -2584,7 +2583,7 @@ classdef PAController < handle
         % =================================================================
         function singleStudy_displaySettings_callback(obj, hMenu, varargin)
             disp('Invoke the settings');
-        
+            PADataLineSettings(obj.accelObj,obj.getDisplayType(), obj.getDisplayableLineHandles());
         end
         
         % =================================================================
