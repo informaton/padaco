@@ -387,7 +387,7 @@ classdef PAController < handle
             set(handles.menu_file_screenshot_secondaryAxes,'callback',{@obj.menuFileScreenshotCallback,'secondaryAxes'});
             
             %  quit - handled in main window.
-            set(handles.menu_file_quit,'callback',{@obj.menuFileQuitCallback,guidata(figH)});
+            set(handles.menu_file_quit,'callback',{@obj.menuFileQuitCallback,guidata(figH)},'label','Close');
             set(handles.menu_file_restart,'callback',@restartDlg);
             
             % export
@@ -2547,9 +2547,12 @@ classdef PAController < handle
         function contextmenu_mainaxes_h = getPrimaryAxesContextmenuHandle(obj)
             %%% reference line contextmenu
             contextmenu_mainaxes_h = uicontextmenu('parent',obj.figureH);
-            hideH =uimenu(contextmenu_mainaxes_h,'Label','Hide','tag','hide');
+            uimenu(contextmenu_mainaxes_h,'Label','Display settings','tag','singleStudy_displaySettings','callback',...
+                @obj.singleStudy_displaySettings_callback);
+            hideH =uimenu(contextmenu_mainaxes_h,'Label','Hide','tag','hide','separator','on');
             unhideH = uimenu(contextmenu_mainaxes_h,'Label','Unhide','tag','unhide');
-            uimenu(contextmenu_mainaxes_h,'Label','Evenly distribute lines','tag','redistribute','callback',@obj.contextmenu_redistributeLines_callback);
+            uimenu(contextmenu_mainaxes_h,'Label','Evenly distribute lines','tag','redistribute',...
+                'separator','on','callback',@obj.contextmenu_redistributeLines_callback);
             set(contextmenu_mainaxes_h,'callback',{@obj.contextmenu_primaryAxes_callback,hideH,unhideH});
             
         end
@@ -2559,6 +2562,11 @@ classdef PAController < handle
             %configure sub contextmenus
             obj.configure_contextmenu_unhideSignals(unhide_uimenu_h);
             obj.configure_contextmenu_hideSignals(hide_uimenu_h);
+            if(isempty(get(hide_uimenu_h,'children')))
+                set(unhide_uimenu_h,'separator','on');
+            else
+                set(unhide_uimenu_h,'separator','off');
+            end
         end
         
         %> @brief Want to redistribute or evenly distribute the lines displayed in
@@ -2568,9 +2576,21 @@ classdef PAController < handle
         end
         
         % =================================================================
+        %> @brief Invoke dialog settings for configuring primary axis of
+        %> single study view mode.
+        %> @param obj instance of PAController.
+        %> @param hMenu instance of handle class.  The contextmenu's menu.
+        
+        % =================================================================
+        function singleStudy_displaySettings_callback(obj, hMenu, varargin)
+            disp('Invoke the settings');
+        
+        end
+        
+        % =================================================================
         %> @brief Configure contextmenu for view's secondary axes.
         %> @param obj instance of PAController.
-        %> @retval contextmenu_mainaxes_h A contextmenu handle.  This should
+        %> @retval contextmenu_secondary_h A contextmenu handle.  This should
         %> be assigned to the primary axes handle of PAView.
         % =================================================================
         function contextmenu_secondaryAxes_h = getSecondaryAxesContextmenuHandle(obj)
@@ -2589,9 +2609,6 @@ classdef PAController < handle
         %> @param eventdata Not used
         %> @param on_uimenu_h Handle to Smoothing on menu option
         %> @param off_uimenu_h Handle to smoothing off menu option
-        %> @retval contextmenu_mainaxes_h A contextmenu handle.  This should
-        %> be assigned to the primary axes handle of PAView.
-        
         % =================================================================
         % --------------------------------------------------------------------
         function configure_contextmenu_smoothing_callback(obj,hObject, eventdata, on_uimenu_h, off_uimenu_h)
