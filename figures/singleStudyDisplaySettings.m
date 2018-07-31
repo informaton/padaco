@@ -22,7 +22,7 @@ function varargout = singleStudyDisplaySettings(varargin)
 
 % Edit the above text to modify the response to help singleStudyDisplaySettings
 
-% Last Modified by GUIDE v2.5 30-Jul-2018 13:34:08
+% Last Modified by GUIDE v2.5 31-Jul-2018 09:59:31
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -113,4 +113,3 @@ function edit_offset_1_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
-
