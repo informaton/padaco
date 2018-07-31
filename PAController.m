@@ -1241,6 +1241,7 @@ classdef PAController < handle
                     
                     obj.accelObj = PAData(f,obj.SETTINGS.DATA);
                     
+                    obj.accelObj.addlistener('LinePropertyChanged',@obj.linePropertyChangeCallback);
                     
                     if(~strcmpi(obj.getViewMode(),'timeseries'))
                         obj.setViewMode('timeseries');  % Call initAccelDataView as well 
@@ -2940,7 +2941,7 @@ classdef PAController < handle
                 defaultScale = eval(strcat('pStruct.scale.',lineTag));
                 
                 obj.accelObj.setScale(lineTag,defaultScale);
-                obj.VIEW.draw();
+                %obj.VIEW.draw();
             end;
             set(gco,'selected','off');
         end
@@ -2960,12 +2961,20 @@ classdef PAController < handle
             c = uisetcolor(c,lineTag);
             if(numel(c)~=1)
                 obj.accelObj.setColor(lineTag,c);
-                tagHandles = findobj(get(gco,'parent'),'tag',lineTag);
-                set(tagHandles,'color',c);
+                %tagHandles = findobj(get(gco,'parent'),'tag',lineTag);
+                %set(tagHandles,'color',c);
             end;
             set(gco,'selected','off');
         end
         
+        function linePropertyChangeCallback(obj, accelObj, evtData)
+            tagHandles = findobj(obj.figureH,'tag',evtData.lineTag);
+            if(strcmpi(evtData.name,'scale'))
+                obj.VIEW.draw();
+            else
+                set(tagHandles,evtData.name,evtData.value);
+            end
+        end
         % =================================================================
         %> @brief Mouse wheel callback to resize the selected channel.
         %> @param obj instance of PAController.
@@ -2988,8 +2997,7 @@ classdef PAController < handle
             
             
             newScale = max(lowerbound,curScale-eventdata.VerticalScrollCount*scroll_step);
-            obj.accelObj.setScale(lineTag,newScale);
-            obj.VIEW.draw();
+            obj.accelObj.setScale(lineTag,newScale);  % setScale results in an VIEW.draw call already.  %obj.VIEW.draw();
             
             %update this text scale...
             click_str = sprintf('Scale: %0.2f',newScale);

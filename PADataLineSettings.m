@@ -32,6 +32,7 @@ classdef PADataLineSettings < handle
                 this.dataObj = dataObjIn;
                 this.buildRows(lineHandles);
             end
+            this.initWidgets();
             this.initCallbacks();
             set(this.figureH,'visible','on');
         end 
@@ -74,6 +75,11 @@ classdef PADataLineSettings < handle
         end
     end
     methods(Access=protected)
+        function initWidgets(this)
+            set(this.handles.push_cancel,'visible','off');
+            set(this.handles.push_confirm,'string','Close');
+        end
+        
         function initCallbacks(this)
             set(this.handles.push_showAll,'callback',@this.showAllCallback);
             set(this.handles.push_hideAll,'callback',@this.hideAllCallback);
@@ -102,6 +108,29 @@ classdef PADataLineSettings < handle
             set(hButton,'backgroundcolor',newColor);
             this.dataObj.setColor(lineTag,newColor);
         end
+        function setVisibilityCallback(this, metaDataHandle, evtData)
+            uiHandle = evtData.AffectedObject;
+            lineTag = get(uiHandle,'userdata');
+            if(get(uiHandle,'value'))
+                this.dataObj.setVisible(lineTag,'on');
+            else
+                this.dataObj.setVisible(lineTag,'off');
+            end
+        end
+        
+        function changeScaleCallback(this, hEdit, evtData)
+            lineTag = get(hEdit,'userdata');
+            preValue = this.dataObj.getScale(lineTag);
+            newValue = str2double(get(hEdit,'string'));
+            if(isnumeric(newValue) && newValue>0)
+                this.dataObj.setScale(lineTag,newValue);
+            else
+                warndlg('Scale value must be numeric and greater than 0');
+                set(hEdit,'string',num2str(preValue));
+            end
+            
+        end
+
     end
     
     methods(Access=private)
@@ -183,13 +212,15 @@ classdef PADataLineSettings < handle
                     curH = this.handles.(curTag);
                     switch curPrefix
                         case 'check_show'
-                            set(curH,'string',lineTag,'value',strcmpi('on',this.dataObj.getVisible(lineTag)));
+                            set(curH,'string',lineTag,'value',strcmpi('on',this.dataObj.getVisible(lineTag)),'userdata',lineTag); %...'callback',{@this.setVisibility,lineTag});
+                            curH.addlistener('Value','PostSet',@this.setVisibilityCallback);
+                           % addlistener(curH,
                         case 'push_color'
                             set(curH,'backgroundcolor',lineColor,'callback',{@this.pickColorCallback,lineTag});
                         case 'edit_scale'
-                            set(curH,'string',num2str(this.dataObj.getScale(lineTag)));
+                            set(curH,'string',num2str(this.dataObj.getScale(lineTag)),'userdata',lineTag,'callback',@this.changeScaleCallback);
                         case 'edit_offset'
-                            set(curH,'string',num2str(this.dataObj.getOffset(lineTag)));
+                            set(curH,'string',num2str(this.dataObj.getOffset(lineTag)),'enable','inactive');
                             
                     end
                 end

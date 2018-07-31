@@ -7,6 +7,10 @@
 %> obesity and improving health in children.
 % ======================================================================
 classdef PAData < handle
+    events
+        LinePropertyChanged;
+    end
+    
     properties(Constant)
         NUM_PSD_BANDS = 5;
     end
@@ -755,6 +759,9 @@ classdef PAData < handle
         %> fields of obj.(propToGet).
         %> @li The property value corresponding to obj.(propToGet).(structTypeOrTag)
         function propOut = getProperty(obj,propToGet,structTypeOrTag)
+            if(nargin<3)
+                structTypeOrTag = [];
+            end
             if(any(structTypeOrTag=='.'))
                 propOut = eval(sprintf('obj.%s.%s',propToGet,structTypeOrTag));
                 if(isstruct(propOut))
@@ -852,10 +859,14 @@ classdef PAData < handle
         %> @param newScale Scalar value to set obj.scale.(fieldName) to.
         % --------------------------------------------------------------------
         function varargout = setScale(obj,fieldName,newScale)
+            evtData = LinePropertyChanged_EventData(fieldName,'scale',newScale,obj.getScale(fieldName));
+            
             eval(['obj.scale.',fieldName,' = ',num2str(newScale),';']);
             if(nargout>0)
                 varargout = cell(1,nargout);
             end
+            obj.notify('LinePropertyChanged',evtData);
+
         end
         
         % --------------------------------------------------------------------
@@ -868,10 +879,13 @@ classdef PAData < handle
         %> @param newColor 1x3 vector to set obj.color.(fieldName) to.
         % --------------------------------------------------------------------
         function varargout = setColor(obj,fieldName,newColor)
+            evtData = LinePropertyChanged_EventData(fieldName,'color',newColor,obj.getColor(fieldName));
             eval(['obj.color.',fieldName,'.color = [',num2str(newColor),']',';']);
             if(nargout>0)
                 varargout = cell(1,nargout);
             end
+            obj.notify('LinePropertyChanged',evtData);
+            
         end
         
         % --------------------------------------------------------------------
@@ -886,7 +900,9 @@ classdef PAData < handle
         % --------------------------------------------------------------------
         function varargout = setVisible(obj,fieldName,newVisibilityStr)
             if(strcmpi(newVisibilityStr,'on')||strcmpi(newVisibilityStr,'off'))
+                evtData = LinePropertyChanged_EventData(fieldName,'visible',newVisibilityStr,obj.getVisible(fieldName));
                 eval(['obj.visible.',fieldName,'.visible = ''',newVisibilityStr,''';']);
+                obj.notify('LinePropertyChanged',evtData);
             else
                 fprintf('An invaled argument was passed for the visibility (i.e. visible) parameter.  (%s)\n',newVisibilityStr);
             end
