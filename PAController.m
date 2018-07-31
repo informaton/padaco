@@ -2957,7 +2957,7 @@ classdef PAController < handle
         function contextmenu_line_color_callback(obj, hObject, eventdata)
             lineTag = get(gco,'tag');
             c = get(gco,'color');
-            c = uisetcolor(c);
+            c = uisetcolor(c,lineTag);
             if(numel(c)~=1)
                 obj.accelObj.setColor(lineTag,c);
                 tagHandles = findobj(get(gco,'parent'),'tag',lineTag);

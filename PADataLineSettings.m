@@ -59,7 +59,16 @@ classdef PADataLineSettings < handle
         function hideAll(this)
             set(this.getCheckboxHandles(),'value',0);
         end
-        
+        function cancel(this)
+            this.close();
+        end
+        function confirm(this)
+            this.close();
+        end
+        function close(this)
+            delete(this.figureH);        
+        end
+
         function h= getCheckboxHandles(this)
             h = findobj(this.figureH,'style','checkbox');
         end
@@ -67,7 +76,7 @@ classdef PADataLineSettings < handle
     methods(Access=protected)
         function initCallbacks(this)
             set(this.handles.push_showAll,'callback',@this.showAllCallback);
-            set(this.handles.push_showAll,'callback',@this.hideAllCallback);
+            set(this.handles.push_hideAll,'callback',@this.hideAllCallback);
             set(this.handles.push_cancel,'callback',@this.cancelCallback);
             set(this.handles.push_confirm,'callback',@this.confirmCallback);
         end
@@ -85,6 +94,14 @@ classdef PADataLineSettings < handle
         function confirmCallback(this, hObject, evtData)
             this.confirm();
         end
+        
+        function pickColorCallback(this, hButton, evtData,lineTag)
+            % dlgTitle = get(hButton,'userdata');
+            curColor = get(hButton,'backgroundcolor');
+            newColor = uisetcolor(curColor,lineTag);
+            set(hButton,'backgroundcolor',newColor);
+            this.dataObj.setColor(lineTag,newColor);
+        end
     end
     
     methods(Access=private)
@@ -95,8 +112,13 @@ classdef PADataLineSettings < handle
             row_label_h = [this.handles.text_visible, this.handles.text_name, this.handles.text_color,...
                 this.handles.text_scale, this.handles.text_offset];
             
-            row_template_tags = {'check_show_%d','push_color_%d','edit_scale_%d','edit_offset_%d'};
-            row_1_tags = {'check_show_1','push_color_1','edit_scale_1','edit_offset_1'};
+            tag_prefixes = {'check_show','push_color','edit_scale','edit_offset'};
+            row_template_tags = cellfun(@(x)(sprintf('%s_%%d',x)),tag_prefixes,'uniformoutput',false);
+            row_1_tags = cellfun(@(x)(sprintf(x,1)),row_template_tags,'uniformoutput',false);
+            
+            %             row_template_tags = {'check_show_%d','push_color_%d','edit_scale_%d','edit_offset_%d'};
+            %             row_1_tags = {'check_show_1','push_color_1','edit_scale_1','edit_offset_1'};
+            %             row_1_prefixes = regexp(row_1_tags,'.+_[^\d_]+','match');
             
             row_1_h = cellfun(@(x)(this.handles.(x)),row_1_tags,'uniformoutput',false);
             
@@ -149,6 +171,28 @@ classdef PADataLineSettings < handle
                     this.handles.(curRowTag) = uicontrol(prevH); 
                     set(this.handles.(curRowTag),'position',prevH.Position);
                 end                
+            end
+            
+            for row = 1:numLines
+                lineH = lineHandles(row);
+                lineTag = get(lineH,'tag');
+                lineColor = get(lineH,'color');
+                for col=1:numel(row_template_tags)
+                    curPrefix = tag_prefixes{col};
+                    curTag = sprintf(row_template_tags{col},row);
+                    curH = this.handles.(curTag);
+                    switch curPrefix
+                        case 'check_show'
+                            set(curH,'string',lineTag,'value',strcmpi('on',this.dataObj.getVisible(lineTag)));
+                        case 'push_color'
+                            set(curH,'backgroundcolor',lineColor,'callback',{@this.pickColorCallback,lineTag});
+                        case 'edit_scale'
+                            set(curH,'string',num2str(this.dataObj.getScale(lineTag)));
+                        case 'edit_offset'
+                            set(curH,'string',num2str(this.dataObj.getOffset(lineTag)));
+                            
+                    end
+                end
             end
             
             %set(this.handles.text_visible,'position',labelPos);

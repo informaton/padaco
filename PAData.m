@@ -666,32 +666,32 @@ classdef PAData < handle
         %> @li @c bins
         %> @retval visibileStruct A struct of obj's visible field values
         % --------------------------------------------------------------------
-        function visibleStruct = getVisible(obj,structType)
-            if(nargin<2)
-                structType = [];
-            end
-            visibleStruct = obj.getPropertyStruct('visible',structType);
+        function visibleOut = getVisible(obj,varargin)
+            visibleOut = obj.getProperty('visible',varargin{:});
         end
         
         
         % --------------------------------------------------------------------
         %> @brief Returns the color instance variable
         %> @param obj Instance of PAData
-        %> @param structType String specifying the structure type of label to retrieve.
+        %> @param structTypeOrTag String specifying the structure type of
+        %> label to retrieve, or the tag of the line handle to use.
         %> Possible values include (all are included if this is not)
         %> @li @c timeSeries (default)
         %> @li @c features
         %> @li @c bins
-        %> @retval colorStruct A struct of color values correspodning to the time series
+        %> @li Stringg with tag line of line handle to obtain
+        %> color of.  Example 'timeSeries.accel.count.z'
+        %> @retval colorOut Depends on structType parameter.  
+        %> @li A struct of color values correspodning to the time series
         %> fields of obj.color.
+        %> @li 1x3 RGB color matrix.        
         % --------------------------------------------------------------------
-        function colorStruct = getColor(obj,structType)
-            if(nargin<2)
-                structType = [];
-            end
-            
-            colorStruct = obj.getPropertyStruct('color',structType);
+        function colorOut = getColor(obj,varargin)
+            colorOut = obj.getProperty('color',varargin{:});
         end
+        
+
         
         % --------------------------------------------------------------------
         %> @brief Returns the scale instance variable
@@ -704,11 +704,8 @@ classdef PAData < handle
         %> @retval scaleStruct A struct of scalar values correspodning to the time series
         %> fields of obj.scale.
         % --------------------------------------------------------------------
-        function scaleStruct = getScale(obj,structType)
-            if(nargin<2)
-                structType = [];
-            end
-            scaleStruct = obj.getPropertyStruct('scale',structType);
+        function scaleOut = getScale(obj,varargin)
+            scaleOut = obj.getProperty('scale',varargin{:});
         end
         
         % --------------------------------------------------------------------
@@ -722,11 +719,8 @@ classdef PAData < handle
         %> @retval offsetStruct A struct of scalar values correspodning to the struct type
         %> fields of obj.offset.
         % --------------------------------------------------------------------
-        function offsetStruct = getOffset(obj,structType)
-            if(nargin<2)
-                structType = [];
-            end
-            offsetStruct = obj.getPropertyStruct('offset',structType);
+        function offsetOut = getOffset(obj,varargin)
+            offsetOut = obj.getProperty('offset',varargin{:});
         end
         
         % --------------------------------------------------------------------
@@ -740,15 +734,38 @@ classdef PAData < handle
         %> @retval labelStruct A struct of string values which serve to label the correspodning to the time series
         %> fields of obj.label.
         % --------------------------------------------------------------------
-        function labelStruct = getLabel(obj,structType)
-            
-            if(nargin<2)
-                structType = [];
-            end
-            
-            labelStruct = obj.getPropertyStruct('label',structType);
+        function labelOut = getLabel(obj,varargin)
+            labelOut = obj.getProperty('label',varargin{:});
         end
+                
         
+        % --------------------------------------------------------------------
+        %> @brief Returns the property requested in the format requested.
+        %> @param obj Instance of PAData
+        %> @param structTypeOrTag String specifying the structure type of
+        %> label to retrieve, or the tag of the line handle to use.
+        %> Possible values include (all are included if this is not)
+        %> @li @c timeSeries (default)
+        %> @li @c features
+        %> @li @c bins
+        %> @li String with tag line of line handle to obtain
+        %> color of.  Example 'timeSeries.accel.count.z'
+        %> @retval propOut Depends on structType parameter.  
+        %> @li A struct of property values correspodning to the time series
+        %> fields of obj.(propToGet).
+        %> @li The property value corresponding to obj.(propToGet).(structTypeOrTag)
+        function propOut = getProperty(obj,propToGet,structTypeOrTag)
+            if(any(structTypeOrTag=='.'))
+                propOut = eval(sprintf('obj.%s.%s',propToGet,structTypeOrTag));
+                if(isstruct(propOut))
+                    propOut = propOut.(propToGet);
+                end
+
+            else
+                propOut = obj.getPropertyStruct(propToGet,structTypeOrTag);
+            end
+        end
+
         %> @brief Retuns the accelType that is not set.  This is useful in
         %> later removing unwanted accel fields.
         %> @param obj Instance of PAData.
