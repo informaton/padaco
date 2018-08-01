@@ -411,6 +411,7 @@ classdef PAController < handle
             
             %% Tools
             set(handles.menu_tools_raw2bin,'callback',@obj.menuToolsRaw2BinCallback);
+            set(handles.menu_tools_coptr2act,'callback',@obj.coptr2actigraphCallback);
             
             
             %% Help
@@ -1749,10 +1750,21 @@ classdef PAController < handle
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         % --------------------------------------------------------------------
         function menuToolsRaw2BinCallback(obj,hObject,eventdata)
-            batchTool = PABatchTool(obj.SETTINGS.BATCH);
-            batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
-            batchTool.addlistener('SwitchToResults',@obj.setResultsViewModeCallback);
+            %batchTool = PABatchTool(obj.SETTINGS.BATCH);
+            %batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
+            %batchTool.addlistener('SwitchToResults',@obj.setResultsViewModeCallback);
         end        
+        
+        % --------------------------------------------------------------------
+        %> @brief Menubar callback for starting the COPTR data to actigraph file conversion.
+        %> @param obj Instance of PAController
+        %> @param hObject    handle to the menu item (see GCBO)
+        %> @param eventdata  reserved - to be defined in a future version of MATLAB
+        % --------------------------------------------------------------------
+        function coptr2actigraphCallback(obj,hObject,eventdata)
+            coptr2actigraph();
+        end        
+        
         
         % Pass through callback for setViewModeCallback method with
         % 'results' argument.

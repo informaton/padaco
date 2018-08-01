@@ -1,6 +1,8 @@
 function coptr2actigraph(fileOrPathname)
     persistent lastDirname;
     if(nargin<1 || isempty(fileOrPathname) || ~exist(fileOrPathname,'file'))
+        promptStr = 'Enter the path containg .csv files to convert';
+        pa_msgbox(promptStr,'Generic .csv to Actigraph .csv');
         lastDirname = uigetfulldir(lastDirname,'Enter the path containg .csv files to convert');
         if(~isempty(lastDirname))
             coptr2actigraph(lastDirname);        
