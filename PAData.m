@@ -765,6 +765,13 @@ classdef PAData < handle
             if(any(structTypeOrTag=='.'))
                 propOut = eval(sprintf('obj.%s.%s',propToGet,structTypeOrTag));
                 if(isstruct(propOut))
+                    fields = fieldnames(propOut);
+                    % should only be one value
+                    if(numel(fields)==1)
+                        propToGet = fields{1};
+                    end                       
+                    % otherwise, default to the original propToGet for the
+                    % field name to retrieve.
                     propOut = propOut.(propToGet);
                 end
 
@@ -885,8 +892,24 @@ classdef PAData < handle
                 varargout = cell(1,nargout);
             end
             obj.notify('LinePropertyChanged',evtData);
-            
         end
+        
+        %> @brief
+        %> @param obj - Instance of PAData
+        %> @param fieldName - Tag (string) of line to the set the label
+        %> for.
+        %> @param newLabel - String identifying the new label to associate
+        %> and display for the given tag line
+        function varargout = setLabel(obj,fieldName,newLabel)
+            evtData = LinePropertyChanged_EventData(fieldName,'label',newLabel,obj.getLabel(fieldName));
+            
+            eval(['obj.label.',fieldName,'.string = ''',newLabel,''';']);
+            if(nargout>0)
+                varargout = cell(1,nargout);
+            end
+            obj.notify('LinePropertyChanged',evtData);
+
+        end        
         
         % --------------------------------------------------------------------
         %> @brief Sets the visible instance variable for a particular sub

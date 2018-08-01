@@ -372,8 +372,8 @@ classdef PAController < handle
             %% file
             % settings and about
             set(handles.menu_file_about,'callback',@obj.menuFileAboutCallback);
-            set(handles.menu_file_settings,'callback',@obj.menuFileSettingsCallback);
-            set(handles.menu_file_usageRules,'callback',@obj.menuFileUsageRulesCallback);
+            set(handles.menu_file_settings_application,'callback',@obj.menuFileSettingsApplicationCallback);
+            set(handles.menu_file_settings_usageRules,'callback',@obj.menuFileSettingsUsageRulesCallback);
             
             %  open
             set(handles.menu_file_open,'callback',@obj.menuFileOpenCallback);
@@ -495,7 +495,7 @@ classdef PAController < handle
         %> @param optionalSettingsName String specifying the settings to
         %> update (optional)
         % --------------------------------------------------------------------
-        function menuFileSettingsCallback(obj,hObject,eventdata,optionalSettingsName)
+        function menuFileSettingsApplicationCallback(obj,hObject,eventdata,optionalSettingsName)
             if(nargin<4)
                 optionalSettingsName = [];
             end
@@ -527,7 +527,7 @@ classdef PAController < handle
         %> @param optionalSettingsName String specifying the settings to
         %> update (optional)
         % --------------------------------------------------------------------
-        function menuFileUsageRulesCallback(obj,hObject,eventdata)
+        function menuFileSettingsUsageRulesCallback(obj,hObject,eventdata)
             
             if(~isempty(obj.accelObj))
                 usageRules= obj.accelObj.usageStateRules;
@@ -2583,7 +2583,6 @@ classdef PAController < handle
         
         % =================================================================
         function singleStudy_displaySettings_callback(obj, hMenu, varargin)
-            disp('Invoke the settings');
             PADataLineSettings(obj.accelObj,obj.getDisplayType(), obj.getDisplayableLineHandles());
         end
         
@@ -2968,10 +2967,14 @@ classdef PAController < handle
         end
         
         function linePropertyChangeCallback(obj, accelObj, evtData)
-            tagHandles = findobj(obj.figureH,'tag',evtData.lineTag);
+            
             if(strcmpi(evtData.name,'scale'))
                 obj.VIEW.draw();
+            elseif(strcmpi(evtData.name,'label'))
+                textHandle = findobj(obj.figureH,'tag',evtData.lineTag,'type','text');
+                set(textHandle,'string',evtData.value);
             else
+                tagHandles = findobj(obj.figureH,'tag',evtData.lineTag);
                 set(tagHandles,evtData.name,evtData.value);
             end
         end

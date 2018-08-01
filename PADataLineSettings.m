@@ -9,10 +9,16 @@
 classdef PADataLineSettings < handle
     properties(Constant)
         figureFcn = @singleStudyDisplaySettings;
+        
+        % These come from the .fig file and are the tag prefixes for the
+        % row of interactive widgets.
+        tag_prefixes = {'check_show','edit_label','push_color','edit_scale','edit_offset'}; 
+
     end
     properties(SetAccess=protected)
         figureH;
         viewSelection;
+        numRows = 0;
     end
     properties(Access=protected)
         dataObj;
@@ -101,13 +107,30 @@ classdef PADataLineSettings < handle
             this.confirm();
         end
         
-        function pickColorCallback(this, hButton, evtData,lineTag)
+        function pickColorCallback(this, hButton, ~, lineTag)
             % dlgTitle = get(hButton,'userdata');
             curColor = get(hButton,'backgroundcolor');
             newColor = uisetcolor(curColor,lineTag);
             set(hButton,'backgroundcolor',newColor);
             this.dataObj.setColor(lineTag,newColor);
         end
+        function editLabelCallback(this, hEdit, ~, lineTag)            
+            preValue = this.dataObj.getLabel(lineTag);
+            newValue = get(hEdit,'string');
+            try
+                if(~isempty(newValue))
+                    this.dataObj.setLabel(lineTag,newValue);
+                else
+                    warndlg('Label cannot be empty');
+                    set(hEdit,'string',preValue);
+                end
+            catch me
+                warndlg('An error occurred while trying to change the label.  I''m sorry :(');
+                set(hEdit,'string',preValue);
+                showME(me);
+            end
+        end
+        
         function setVisibilityCallback(this, metaDataHandle, evtData)
             uiHandle = evtData.AffectedObject;
             lineTag = get(uiHandle,'userdata');
@@ -141,8 +164,7 @@ classdef PADataLineSettings < handle
             row_label_h = [this.handles.text_visible, this.handles.text_name, this.handles.text_color,...
                 this.handles.text_scale, this.handles.text_offset];
             
-            tag_prefixes = {'check_show','push_color','edit_scale','edit_offset'};
-            row_template_tags = cellfun(@(x)(sprintf('%s_%%d',x)),tag_prefixes,'uniformoutput',false);
+            row_template_tags = cellfun(@(x)(sprintf('%s_%%d',x)),this.tag_prefixes,'uniformoutput',false);
             row_1_tags = cellfun(@(x)(sprintf(x,1)),row_template_tags,'uniformoutput',false);
             
             %             row_template_tags = {'check_show_%d','push_color_%d','edit_scale_%d','edit_offset_%d'};
@@ -207,7 +229,7 @@ classdef PADataLineSettings < handle
                 lineTag = get(lineH,'tag');
                 lineColor = get(lineH,'color');
                 for col=1:numel(row_template_tags)
-                    curPrefix = tag_prefixes{col};
+                    curPrefix = this.tag_prefixes{col};
                     curTag = sprintf(row_template_tags{col},row);
                     curH = this.handles.(curTag);
                     switch curPrefix
@@ -215,6 +237,8 @@ classdef PADataLineSettings < handle
                             set(curH,'string',lineTag,'value',strcmpi('on',this.dataObj.getVisible(lineTag)),'userdata',lineTag); %...'callback',{@this.setVisibility,lineTag});
                             curH.addlistener('Value','PostSet',@this.setVisibilityCallback);
                            % addlistener(curH,
+                        case 'edit_label'
+                            set(curH,'string',this.dataObj.getLabel(lineTag),'callback',{@this.editLabelCallback, lineTag});
                         case 'push_color'
                             set(curH,'backgroundcolor',lineColor,'callback',{@this.pickColorCallback,lineTag});
                         case 'edit_scale'
