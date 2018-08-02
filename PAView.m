@@ -184,7 +184,7 @@ classdef PAView < handle
             
             handles = guidata(obj.getFigHandle());
             
-            % get our panles looking nice and pretty.
+            % get our panels looking nice and pretty.
             % This is taken care of in the initializeGUI call found in
             % padaco.m now
             %             set([
@@ -193,7 +193,27 @@ classdef PAView < handle
             %                 ],'backgroundcolor',[0.75,0.75,0.75]);
             
             
+            % Figure handle - pixels
+            % Figure position -         [624, -67, 1460, 850]
+            % panel_result              [49, 19, 221, 802]
+            % panel_results_container   [11, 10, 200, 790]
+            % panel_features            [10, 10.18, 288, 388.8]
+            % panel_timeseries          [21, 418.26, 221, 401]
+            % text_status               [30, 824.25, 201, 21]
             
+            
+            % Adjustments as panel results
+            % 1460+ 221+19 (offset boarder for viewing) -> 1900
+            % panel_result(1) = 1460
+            set([obj.figurehandle
+                handles.panel_timeseries
+                handles.panel_results
+                handles.panel_resultsContainer
+                handles.panel_controlCentroid
+                handles.panel_epochControls
+                handles.panel_displayButtonGroup],'units','pixels');
+            
+            figPos = get(obj.figurehandle,'position');
             % Line our panels up to same top left position - do this here
             % so I can edit them easy in GUIDE and avoid to continually
             % updating the position property each time i need to drag the
@@ -202,13 +222,14 @@ classdef PAView < handle
             % and 'y' starting from bottom (and increasing up)
             timeSeriesPanelPos = get(handles.panel_timeseries,'position');
             resultsPanelPos = get(handles.panel_results,'position');
+            figPos(3) = resultsPanelPos(1);  % The start of the results panel (x-value) indicates the point that the figure should be clipped
+            set(obj.figurehandle,'position',figPos);
             newResultsPanelY = sum(timeSeriesPanelPos([2,4]))-resultsPanelPos(4);
             set(handles.panel_results,'position',[timeSeriesPanelPos(1),newResultsPanelY,resultsPanelPos(3:4)]);
             
-            
-            set(handles.panel_resultsContainer,'backgroundcolor',[0.9 0.9 0.9]);
-            set(handles.panel_resultsContainer,'backgroundcolor',[0.94 0.94 0.94]);
-            set(handles.panel_resultsContainer,'backgroundcolor',[1 1 1]);
+            %set(handles.panel_resultsContainer,'backgroundcolor',[0.9 0.9 0.9]);
+            %set(handles.panel_resultsContainer,'backgroundcolor',[0.94 0.94 0.94]);
+            %set(handles.panel_resultsContainer,'backgroundcolor',[1 1 1]);
 
 
             % Line up panel_controlCentroid with panel_epochControls
