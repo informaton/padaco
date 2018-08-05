@@ -377,9 +377,12 @@ classdef PAController < handle
             
             %  open
             set(handles.menu_file_open,'callback',@obj.menuFileOpenCallback);
+            set(handles.menu_file_open_resultspath,'callback',@obj.menuFileOpenResultsPathCallback);
+            
+            % import
+            set(handles.menu_file_import_csv,'callback',@obj.menuFileOpenCsvFileCallback);
             set(handles.menu_file_openFitBit,'callback',@obj.menuFileOpenFitBitCallback,'enable','off');
             set(handles.menu_file_openVasTrac,'callback',@obj.menuFileOpenVasTracCSVCallback,'enable','off');                                                              
-            set(handles.menu_file_open_resultspath,'callback',@obj.menuFileOpenResultsPathCallback);
             
             % screeshots
             set(handles.menu_file_screenshot_figure,'callback',{@obj.menuFileScreenshotCallback,'figure'});
@@ -1263,6 +1266,59 @@ classdef PAController < handle
                 showME(me);
                 obj.VIEW.showReady('all');
             end
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Menubar callback for opening a .csv file
+        %> @param obj Instance of PAController
+
+        function menuFileOpenCsvFileCallback(obj, ~, ~)
+            f=uigetfullfile({'*.csv','Comma separated values (.csv)';'*.*','All files'},...
+                'Select a file',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
+            try
+                if(~isempty(f))
+                    obj.VIEW.showBusy('Loading','all');
+                    [pathname,basename, baseext] = fileparts(f);
+                    obj.SETTINGS.DATA.pathname = pathname;
+                    obj.SETTINGS.DATA.filename = strcat(basename,baseext);
+                    
+                    obj.accelObj = PAData([],obj.SETTINGS.DATA);
+                    fmtStruct.datetime = 1;
+                    fmtStruct.datetimeType = 'elapsed'; %datetime
+                    fmtStruct.datetimeFmtStr = '%f';
+                    fmtStruct.x = 2;
+                    fmtStruct.y = 3;
+                    fmtStruct.z = 4;
+                    fmtStruct.fieldOrder = {'datetime','x','y','z'};
+                    fmtStruct.headerLines = 2;
+                    
+                    
+                    obj.accelObj.loadCustomRawCSVFile(f,fmtStruct); % two header lines %elapsed time stamp, x, y, z
+                    
+                    
+                    if(~strcmpi(obj.getViewMode(),'timeseries'))
+                        obj.setViewMode('timeseries');
+                    end
+                    
+                    %initialize the PAData object's visual properties
+                    obj.initAccelDataView(); %calls show obj.VIEW.showReady() Ready...
+                    
+                    % For testing/debugging
+                    %                     featureFcn = 'mean';
+                    %                     elapsedStartHour = 0;
+                    %                     intervalDurationHours = 24;
+                    %                     signalTagLine = obj.getSignalSelection(); %'accel.count.x';
+                    %                     obj.accelObj.getAlignedFeatureVecs(featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours);
+                    
+                    
+                end
+            catch me
+                showME(me);
+                obj.VIEW.showReady('all');
+            end
+            
+            
+            
         end
         
         % --------------------------------------------------------------------
