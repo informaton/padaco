@@ -382,8 +382,10 @@ classdef PAController < handle
             % import
             set(handles.menu_file_import_csv,'callback',@obj.menuFileOpenCsvFileCallback);
             set(handles.menu_file_openFitBit,'callback',@obj.menuFileOpenFitBitCallback,'enable','off');
-            set(handles.menu_file_openVasTrac,'callback',@obj.menuFileOpenVasTracCSVCallback,'enable','off');                                                              
-            
+            set(handles.menu_file_openVasTrac,'callback',@obj.menuFileOpenVasTracCSVCallback,'enable','off');
+            set(handles.menu_file_import_general,'label','Custom',...
+                'callback',@obj.menuFileOpenGeneralCallback,'enable','on');
+
             % screeshots
             set(handles.menu_file_screenshot_figure,'callback',{@obj.menuFileScreenshotCallback,'figure'});
             set(handles.menu_file_screenshot_primaryAxes,'callback',{@obj.menuFileScreenshotCallback,'primaryAxes'});
@@ -1269,9 +1271,15 @@ classdef PAController < handle
         end
         
         % --------------------------------------------------------------------
+        %> @brief Menubar callback for opening a text file
+        %> @param obj Instance of PAController
+        function menuFileOpenGeneralCallback(obj, ~, ~)
+            PADataImport(obj.accelObj);
+        end
+        
+        % --------------------------------------------------------------------
         %> @brief Menubar callback for opening a .csv file
         %> @param obj Instance of PAController
-
         function menuFileOpenCsvFileCallback(obj, ~, ~)
             f=uigetfullfile({'*.csv','Comma separated values (.csv)';'*.*','All files'},...
                 'Select a file',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
