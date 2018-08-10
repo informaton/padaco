@@ -349,13 +349,13 @@ classdef PAView < handle
         % returns visible linehandles in the upper axes of padaco.
         function visibleLineHandles = getVisibleLineHandles(obj)
             lineHandleStructs = obj.getLinehandle(obj.getDisplayType());
-            lineHandles = PAData.struct2vec(lineHandleStructs);
+            lineHandles = struct2vec(lineHandleStructs);
             visibleLineHandles = lineHandles(strcmpi(get(lineHandles,'visible'),'on'));
         end
         
         function hiddenLineHandles = getHiddenLineHandles(obj)
             lineHandleStructs = obj.getLinehandle(obj.getDisplayType());
-            lineHandles = PAData.struct2vec(lineHandleStructs);
+            lineHandles = struct2vec(lineHandleStructs);
             hiddenLineHandles = lineHandles(strcmpi(get(lineHandles,'visible'),'off'));
             
         end
@@ -912,7 +912,7 @@ classdef PAView < handle
                 
                 labelProps = PADataObject.getLabel(curStructType);
                 labelPosStruct = obj.getLabelhandlePosition(curStructType);                
-                labelProps = PAData.mergeStruct(labelProps,labelPosStruct);
+                labelProps = mergeStruct(labelProps,labelPosStruct);
                 
                 colorStruct = PADataObject.getColor(curStructType);
                 
@@ -920,16 +920,16 @@ classdef PAView < handle
                 
                 % Keep everything invisible at this point - so ovewrite the
                 % visibility property before we merge it together.
-                visibleStruct = PAData.structEval('overwrite',visibleStruct,visibleStruct,'off');
+                visibleStruct = structEval('overwrite',visibleStruct,visibleStruct,'off');
                 
                 
-                allStruct = PADataObject.mergeStruct(colorStruct,visibleStruct);
+                allStruct = mergeStruct(colorStruct,visibleStruct);
                 
-                labelProps = PADataObject.mergeStruct(labelProps,allStruct);
+                labelProps = mergeStruct(labelProps,allStruct);
                 
                 
                 lineProps = PADataObject.getStruct('dummydisplay',curStructType);
-                lineProps = PADataObject.mergeStruct(lineProps,allStruct);
+                lineProps = mergeStruct(lineProps,allStruct);
                 
                 obj.recurseHandleSetter(obj.linehandle.(curStructType),lineProps);
                 obj.recurseHandleSetter(obj.referencelinehandle.(curStructType),lineProps);
@@ -939,7 +939,7 @@ classdef PAView < handle
             
             obj.setFilename(obj.dataObj.getFilename());  
             
-            obj.setStudyPanelContents(PADataObject.getHeaderAsString);
+            obj.setStudyPanelContents(PADataObject.getHeaderAsString());
             
             % initialize and enable widgets (drop down menus, edit boxes, etc.)
             obj.initWidgets('timeseries');
@@ -1323,7 +1323,7 @@ classdef PAView < handle
             offsetProps = obj.dataObj.getStruct('displayoffset',structFieldName);
             offsetStyle.LineStyle = '--';
             offsetStyle.color = [0.6 0.6 0.6];
-            offsetProps = PAData.appendStruct(offsetProps,offsetStyle);
+            offsetProps = appendStruct(offsetProps,offsetStyle);
            
             obj.recurseHandleSetter(obj.referencelinehandle.(structFieldName),offsetProps);
                         
@@ -1332,7 +1332,7 @@ classdef PAView < handle
             % link the x position with the axis x-position ...
             labelProps = obj.dataObj.getLabel(structFieldName);
             labelPosStruct = obj.getLabelhandlePosition();            
-            labelProps = PAData.mergeStruct(labelProps,labelPosStruct);             
+            labelProps = mergeStruct(labelProps,labelPosStruct);             
             obj.recurseHandleSetter(obj.labelhandle.(structFieldName),labelProps);
             
         end
@@ -1368,10 +1368,10 @@ classdef PAView < handle
             yOffset = -30; %Trial and error
             dummyStruct = obj.dataObj.getStruct('dummy',displayTypeStr);
             offsetStruct = obj.dataObj.getStruct('displayoffset',displayTypeStr);
-            labelPosStruct = PAData.structEval('calculateposition',dummyStruct,offsetStruct);
+            labelPosStruct = structEval('calculateposition',dummyStruct,offsetStruct);
             xOffset = 1/250*diff(get(obj.axeshandle.primary,'xlim'));            
             offset = [xOffset, yOffset, 0];
-            labelPosStruct = PAData.structScalarEval('plus',labelPosStruct,offset);            
+            labelPosStruct = structScalarEval('plus',labelPosStruct,offset);            
         end
 
         % --------------------------------------------------------------------

@@ -22,7 +22,7 @@ function varargout = importDlg(varargin)
 
 % Edit the above text to modify the response to help importDlg
 
-% Last Modified by GUIDE v2.5 07-Aug-2018 16:03:10
+% Last Modified by GUIDE v2.5 10-Aug-2018 06:53:04
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -110,8 +110,8 @@ end
 
 
 % --- Executes during object creation, after setting all properties.
-function edit_fileContents_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to edit_fileContents (see GCBO)
+function text_fileContents_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to text_fileContents (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 

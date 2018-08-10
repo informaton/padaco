@@ -146,7 +146,7 @@ classdef PAStatTool < handle
             % This call ensures that we have at a minimum, the default parameter field-values in widgetSettings.
             % And eliminates later calls to determine if a field exists
             % or not in the input widgetSettings parameter
-            widgetSettings = PAData.mergeStruct(this.getDefaultParameters(),widgetSettings);
+            widgetSettings = mergeStruct(this.getDefaultParameters(),widgetSettings);
             
             if(~isfield(widgetSettings,'useDatabase'))
                 widgetSettings.useDatabase = false;
@@ -2538,7 +2538,7 @@ classdef PAStatTool < handle
                 
                 this.plotCentroids(pSettings); 
                 this.enableCentroidControls();
-                this.originalWidgetSettings = PAData.mergeStruct(this.originalWidgetSettings,pSettings); % keep a record of our most recent settings.
+                this.originalWidgetSettings = mergeStruct(this.originalWidgetSettings,pSettings); % keep a record of our most recent settings.
                 dissolve(resultsTextH,2.5);
                 
             else

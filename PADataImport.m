@@ -19,21 +19,23 @@ classdef PADataImport < handle
         figureH;
         handles;
         dataObj;
-        numHeaderLines = 1;
-        separator = ',';
-        filename ='';
+        settings;   % struct with fields:
+                    %   numHeaderLines = 1;
+                    %   separator = ',';
+                    %   filename ='';
     end
     methods
-        function this = PADataImport(dataObjIn)
+        function this = PADataImport(importSettings)
             this.figureH = this.figureFcn('visible','off');
-            set(this.figureH,'visible','on');
+            
             this.handles = guidata(this.figureH);
             
-            if(nargin<2 || ~isa(dataObjIn,'PAData') || ~any(strcmpi(viewSelection,fieldnames(dataObjIn.label))))
-                
-            else
-                this.dataObj = dataObjIn;
+            if(nargin<1 || ~isstruct(importSettings))
+                importSettings = [];
             end
+            
+            this.settings = mergestruct(this.getDefaultParameters(), importSettings);
+            this.dataObj = dataObjIn;
             
             this.initWidgets();
             this.initCallbacks();
@@ -145,5 +147,28 @@ classdef PADataImport < handle
     
     methods(Access=private)
 
+    end
+    
+    methods(Static)
+        % ======================================================================
+        %> @brief Gets parameters for default initialization of a
+        %> PADataImport instance.
+        %> @retval Struct of default paramters.  Fields include
+        %> - @c trimResults
+        % ======================================================================
+        function paramStruct = getDefaultParameters()
+            % Cache directory is for storing the centroid object to 
+            % so it does not have to be reloaded each time when the
+            % PAStatTool is instantiated.
+            if(~isdeployed)
+                workingPath = fileparts(mfilename('fullpath'));
+            else
+                workingPath = fileparts(mfilename('fullpath'));                
+            end
+            
+            paramStruct.numHeaderLines = 1;
+            paramStruct.separator = ',';
+            paramStruct.filename ='';
+        end         
     end
 end

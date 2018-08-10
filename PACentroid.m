@@ -201,7 +201,7 @@ classdef PACentroid < handle
                 % This call ensures that we have at a minimum, the default parameter field-values in widgetSettings.
                 % And eliminates later calls to determine if a field exists
                 % or not in the input widgetSettings parameter
-                this.settings = PAData.mergeStruct(defaultSettings,settings);
+                this.settings = mergeStruct(defaultSettings,settings);
             end
             
             if(~isempty(textHandle) && ishandle(textHandle) && strcmpi(get(textHandle,'type'),'uicontrol') && strcmpi(get(textHandle,'style'),'text'))

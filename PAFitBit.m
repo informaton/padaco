@@ -687,7 +687,7 @@ classdef PAFitBit < PAData
             %Default is everything to be visible
             timeSeriesStruct = PAFitBit.getDummyStruct('timeSeries');
             visibleProp.visible = 'on';
-            pStruct.visible.timeSeries = PAFitBit.overwriteEmptyStruct(timeSeriesStruct,visibleProp);
+            pStruct.visible.timeSeries = overwriteEmptyStruct(timeSeriesStruct,visibleProp);
             
             % yDelta = 1/20 of the vertical screen space (i.e. 20 can fit)
             pStruct.offset.timeSeries.accel.fitbit.steps = pStruct.yDelta*1;

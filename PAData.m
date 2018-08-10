@@ -425,7 +425,7 @@ classdef PAData < handle
             didSet = false;
             try
                 if(isstruct(ruleStruct))
-                    obj.usageStateRules = obj.updateStructWithStruct(obj.usageStateRules, ruleStruct);
+                    obj.usageStateRules = mergeStruct(obj.usageStateRules, ruleStruct);
                     
                     
                     %                     ruleFields = fieldnames(obj.usageStateRules);
@@ -1658,7 +1658,7 @@ classdef PAData < handle
                     
                     if(loadFastOption)
                         stopDateNum = datenum(strcat(obj.stopDate,{' '},obj.stopTime),'mm/dd/yyyy HH:MM:SS');
-                        obj.dateTimeNum = obj.datespace(startDateNum,stopDateNum,windowDateNumDelta);
+                        obj.dateTimeNum = datespace(startDateNum,stopDateNum,windowDateNumDelta);
                         obj.dateTimeNum(end)=[];  %remove the very last sample, since it is not actually recorded in the dataset, but represents when the data was downloaded, which happens one sample after the device stops.
                     else
                         stopDateNum = datenum(dateVecFound(end,:));
@@ -2806,7 +2806,7 @@ classdef PAData < handle
                     obj.stopTime = datestr(stopDatenum,'HH:MM:SS');
                     
                     datenumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
-                    obj.dateTimeNum = obj.datespace(startDatenum,stopDatenum,datenumDelta);
+                    obj.dateTimeNum = datespace(startDatenum,stopDatenum,datenumDelta);
                      
                     didLoad = true;
                 end
@@ -3094,7 +3094,7 @@ classdef PAData < handle
                 structType = 'timeSeries';
             end
             
-            dat = PAData.structEval('times',obj.getStruct('current',structType),obj.getScale(structType));
+            dat = structEval('times',obj.getStruct('current',structType),obj.getScale(structType));
             
             windowRange = obj.getCurWindowRange(structType);
             
@@ -3102,14 +3102,14 @@ classdef PAData < handle
             %we have resolution to display.
             if(diff(windowRange)==0)
                 windowRange(2)=windowRange(2)+1;
-                dat = PAData.structEval('repmat',dat,dat,size(windowRange));
+                dat = structEval('repmat',dat,dat,size(windowRange));
             end
             
             lineProp.xdata = windowRange(1):windowRange(end);
             % put the output into a 'ydata' field for graphical display
             % property of a line.
-            dat = PAData.structEval('plus',dat,obj.getOffset(structType),'ydata');
-            dat = PAData.appendStruct(dat,lineProp);
+            dat = structEval('plus',dat,obj.getOffset(structType),'ydata');
+            dat = appendStruct(dat,lineProp);
         end
         
         % ======================================================================
@@ -3143,11 +3143,11 @@ classdef PAData < handle
             lineProp.xdata = windowRange;
             % put the output into a 'position'
             
-            dat = PAData.structEval('repmat',dat,dat,size(windowRange));
+            dat = structEval('repmat',dat,dat,size(windowRange));
             
-            dat = PAData.structEval('passthrough',dat,dat,'ydata');
+            dat = structEval('passthrough',dat,dat,'ydata');
             
-            dat = PAData.appendStruct(dat,lineProp);
+            dat = appendStruct(dat,lineProp);
         end
         
     end
@@ -3536,7 +3536,7 @@ classdef PAData < handle
             %Default is everything to be visible
             timeSeriesStruct = PAData.getDummyStruct('timeSeries');
             visibleProp.visible = 'on';
-            pStruct.visible.timeSeries = PAData.overwriteEmptyStruct(timeSeriesStruct,visibleProp);
+            pStruct.visible.timeSeries = overwriteEmptyStruct(timeSeriesStruct,visibleProp);
             
             % yDelta = 1/20 of the vertical screen space (i.e. 20 can fit)
             pStruct.offset.timeSeries.accel.raw.x = pStruct.yDelta*1;
@@ -3674,7 +3674,7 @@ classdef PAData < handle
                 missingValue = nan;
             end
             
-            [synthDateNum, synthDateVec] = PAData.datespace(startDateNum, stopDateNum, dateNumDelta);
+            [synthDateNum, synthDateVec] = datespace(startDateNum, stopDateNum, dateNumDelta);
             numSamples = size(synthDateVec,1);
             
             %make a cell with the same number of column as
@@ -3697,435 +3697,6 @@ classdef PAData < handle
                 else
                     orderedDataCell{c}(IA) = tmpDataCellOrMatrix(:,c);
                 end
-            end
-        end
-        
-        
-        
-        % ======================================================================
-        %> @brief Linearly spaced dates from start to stop dates provided.
-        %> @param startDateNum The start date number that the ordered data cell should
-        %> begin at.  (should be generated using datenum())
-        %> @param stopDateNum The date number (generated using datenum()) that the ordered data cell
-        %> ends at.
-        %> @param dateNumDelta The difference between two successive date number samples.
-        %> @param sampledDateVec Vector of date number values taken between startDateNum
-        %> and stopDateNum (inclusive) and are in the order and size as the
-        %> individual cell components of tmpDataCell
-        %> @retval synthDateNum Vector of date numbers corresponding to the date vector
-        %> matrix return argument.
-        %> @retval synthDateVec Matrix of date vectors ([Y, Mon,Day, Hr, Mn, Sec]) generated by
-        %> startDateNum:dateNumDelta:stopDateNum which correponds to the
-        %> row order of orderedDataCell cell values/vectors
-        %======================================================================
-        function [synthDateNum, synthDateVec] = datespace(startDateNum, stopDateNum, dateNumDelta)            
-            synthDateVec = datevec(startDateNum:dateNumDelta:stopDateNum);
-            synthDateVec(:,6) = round(synthDateVec(:,6)*1000)/1000;
-            synthDateNum = datenum(synthDateVec);
-        end     
-        
-        % ======================================================================
-        %> @brief Evaluates the two structures, field for field, using the function name
-        %> provided.
-        %> @param operand A string name of the operation (via 'eval') to conduct at
-        %> the lowest level.  Additional operands include:
-        %> - passthrough Requires Optional field name to be set.
-        %> - calculateposition (requires rtStruct to have .xdata and .ydata
-        %> fields.
-        %> @param ltStruct A structure whose fields are either structures or vectors.
-        %> @param rtStruct A structure whose fields are either structures or vectors.
-        %> @param optionalDestField Optional field name to subset the resulting output
-        %> structure to (see last example).  This can be useful if the
-        %> output structure will be passed as input that expects a specific
-        %> sub field name for the values (e.g. line properties).  See last
-        %> example below.
-        %> @retval resultStruct A structure with same fields as ltStruct and rtStruct
-        %> whose values are the result of applying operand to corresponding
-        %> fields.
-        %> @note In the special case that operand is set to 'passthrough'
-        %> only ltStruct is used (enter ltStruct as the rtStruct value)
-        %> and the optionalDestField must be set (i.e. cannot be empty).
-        %> The purpose of the 'passthrough' operation is to insert a field named
-        %> optionalDestField between any field/non-struct value pairs.
-        %>
-        %> @note For example:
-        %> @note ltStruct =
-        %> @note         x: 2
-        %> @note     accel: [1x1 struct]
-        %> @note       [x]: 0.5000
-        %> @note       [y]: 1
-        %> @note
-        %> @note rtStruct =
-        %> @note         x: [10 10 2]
-        %> @note     accel: [1x1 struct]
-        %> @note             [x]: [10 10 2]
-        %> @note             [y]: [1 2 3]
-        %> @note
-        %> @note
-        %> @note
-        %> @note PAData.structEval('plus',rtStruct,ltStruct)
-        %> @note ans =
-        %> @note         x: [12 12 4]
-        %> @note     accel: [1x1 struct]
-        %> @note             [x]: [10.5000 10.5000 2.5000]
-        %> @note             [y]: [2 3 4]
-        %> @note
-        %> @note PAData.structEval('plus',rtStruct,ltStruct,'ydata')
-        %> @note ans =
-        %> @note         x.ydata: [12 12 4]
-        %> @note           accel: [1x1 struct]
-        %> @note                   [x].ydata: [10.5000 10.5000 2.5000]
-        %> @note                   [y].ydata: [2 3 4]
-        %> @note
-        %> @note PAData.structEval('passthrough',ltStruct,ltStruct,'string')
-        %> @note ans =
-        %> @note         x.string: 2
-        %> @note            accel: [1x1 struct]
-        %> @note                    [x].string: 0.5000
-        %> @note                    [y].string: 1
-        %> @note
-        %> @note PAData.structEval('overwrite',ltStruct,ltStruct,value)
-        %> @note ans =
-        %> @note         x: value
-        %> @note     accel: [1x1 struct]
-        %> @note              [x]: value
-        %> @note              [y]: value
-        %> @note        
-        %> @note
-        % ======================================================================
-        function resultStruct = structEval(operand,ltStruct,rtStruct,optionalDestFieldOrValue)
-            if(nargin < 4)
-                optionalDestFieldOrValue = [];
-            end
-            
-            if(isstruct(ltStruct))
-                fnames = fieldnames(ltStruct);
-                resultStruct = struct();
-                for f=1:numel(fnames)
-                    curField = fnames{f};
-                    resultStruct.(curField) = PAData.structEval(operand,ltStruct.(curField),rtStruct.(curField),optionalDestFieldOrValue);
-                end
-            else
-                if(strcmpi(operand,'calculateposition'))
-                    resultStruct.position = [rtStruct.xdata(1), rtStruct.ydata(1), 0];                    
-                else
-                    if(~isempty(optionalDestFieldOrValue))
-                        if(strcmpi(operand,'passthrough'))
-                            resultStruct.(optionalDestFieldOrValue) = ltStruct;
-                        elseif(strcmpi(operand,'overwrite'))
-                            resultStruct = optionalDestFieldOrValue;
-                        elseif(strcmpi(operand,'repmat'))
-                            resultStruct = repmat(ltStruct,optionalDestFieldOrValue);
-                        else
-                            resultStruct.(optionalDestFieldOrValue) = feval(operand,ltStruct,rtStruct);
-                        end
-                    else
-                        resultStruct = feval(operand,ltStruct,rtStruct);
-                    end
-                end
-            end
-        end
-        
-        % ======================================================================
-        %> @brief Evaluates the two structures, field for field, using the function name
-        %> provided.
-        %> @param operand A string name of the operation (via 'eval') to conduct at
-        %> the lowest level.
-        %> @param ltStruct A structure whose fields are either structures or vectors.
-        %> @param A Matrix value of the same dimension as the first structure's (ltStruct)
-        %> non-struct field values.
-        %> @param optionalDestField Optional field name to subset the resulting output
-        %> structure to (see last example).  This can be useful if the
-        %> output structure will be passed as input that expects a specific
-        %> sub field name for the values (e.g. line properties).  See last
-        %> example below.
-        %> @retval resultStruct A structure with same fields as ltStruct and optionally
-        %> the optionalDestField whose values are the result of applying operand to corresponding
-        %> fields and the input matrix.
-        %>
-        %> @note For example:
-        %> @note
-        %> @note ltStruct =
-        %> @note         x.position: [10 10 2]
-        %> @note     accel: [1x1 struct]
-        %> @note             [x.position]: [10 10 2]
-        %> @note             [y.position]: [1 2 3]
-        %> @note
-        %> @note A =
-        %> @note     [1 1 0]
-        %> @note
-        %> @note PAData.structEval('plus',ltStruct,A)
-        %> @note ans =
-        %> @note         x.position: [11 11 2]
-        %> @note     accel: [1x1 struct]
-        %> @note             [x.position]: [11 11 2]
-        %> @note             [y.position]: [2 3 3]
-        %> @note
-        % ======================================================================
-        function resultStruct = structScalarEval(operand,ltStruct,A,optionalDestField)
-            if(nargin < 4)
-                optionalDestField = [];
-            end
-            
-            if(isstruct(ltStruct))
-                fnames = fieldnames(ltStruct);
-                resultStruct = struct();
-                for f=1:numel(fnames)
-                    curField = fnames{f};
-                    resultStruct.(curField) = PAData.structScalarEval(operand,ltStruct.(curField),A,optionalDestField);
-                end
-            else
-                if(~isempty(optionalDestField))
-                    if(strcmpi(operand,'passthrough'))
-                        resultStruct.(optionalDestField) = ltStruct;
-                    else
-                        resultStruct.(optionalDestField) = feval(operand,ltStruct,A);
-                    end
-                else
-                    resultStruct = feval(operand,ltStruct,A);
-                end
-            end
-        end
-        
-        % ======================================================================
-        %> @brief Appends the fields of one to another.  Values for fields of the same name are taken from the right struct (rtStruct)
-        %> and built into the output struct.  If the left struct does not
-        %> have a matching field, then it will be created with the right
-        %> structs value.  
-        %> @param ltStruct A structure whose fields are to be appended by the other.
-        %> @param rtStruct A structure whose fields are will be appened to the other.
-        %> @retval ltStruct The resultof append rtStruct to ltStruct.
-        %> @note For example:
-        %> @note ltStruct =
-        %> @note     ydata: [1 1]
-        %> @note     accel: [1x1 struct]
-        %> @note            [x]: 0.5000
-        %> @note            [y]: 1
-        %> @note
-        %> @note rtStruct =
-        %> @note     xdata: [1 100]
-        %> @note
-        %> @note PAData.structEval(ltStruct,rtStruct)
-        %> @note ans =
-        %> @note     ydata: [1 1]
-        %> @note     xdata: [1 100]
-        %> @note     accel: [1x1 struct]
-        %> @note            [xdata]: [1 100]
-        %> @note            [x]: [10.5000 10.5000 2.5000]
-        %> @note            [y]: [2 3 4]
-        %> @note
-        % ======================================================================
-        function ltStruct = appendStruct(ltStruct,rtStruct)
-            if(isstruct(ltStruct))
-                fnames = fieldnames(ltStruct);
-                for f=1:numel(fnames)
-                    curField = fnames{f};
-                    if(isstruct(ltStruct.(curField)))
-                        ltStruct.(curField) = PAData.appendStruct(ltStruct.(curField),rtStruct);
-                    else
-                        % This is a bit of an issue ...
-                        appendNames=fieldnames(rtStruct);
-                        for a=1:numel(appendNames)
-                            ltStruct.(appendNames{a}) = rtStruct.(appendNames{a});
-                        end
-                    end
-                end
-            end
-        end
-        
-        % ======================================================================
-        %> @brief Merge the fields of one struct with another.  Copies over
-        %> matching field values.  Similar to appendStruct, but now the second argument
-        %> is itself a struct with similar organization as the first
-        %> argument.
-        %> @param ltStruct A structure whose fields are to be appended by the other.
-        %> @param rtStruct A structure whose fields are will be appened to the other.
-        %> @retval ltStruct The result of merging rtStruct with ltStruct.
-        %> @note For example:
-        %> @note ltStruct =
-        %> @note     accel: [1x1 struct]
-        %> @note            [x]: 0.5000
-        %> @note            [y]: 1
-        %> @note     lux: [1x1 struct]
-        %> @note            [z]: 0.5000
-        %> @note
-        %> @note rtStruct =
-        %> @note     accel: [1x1 struct]
-        %> @note            [x]: [1.0]
-        %> @note            [pos]: [0.5000, 1, 0]
-        %> @note
-        %> @note
-        %> @note PAData.structEval(rtStruct,ltStruct)
-        %> @note ans =
-        %> @note     accel: [1x1 struct]
-        %> @note              [x]: 1.0
-        %> @note              [y]: 1
-        %> @note            [pos]: [0.5000, 1, 0]
-        %> @note     lux: [1x1 struct]
-        %> @note            [z]: 0.5000
-        %> @note            [pos]: [0.5000, 1, 0]
-        %> @note
-        % ======================================================================
-        function ltStruct = mergeStruct(ltStruct,rtStruct)
-            
-            if(isstruct(rtStruct))
-                fnames = fieldnames(rtStruct);
-                for f=1:numel(fnames)
-                    curField = fnames{f};
-                    if(isstruct(rtStruct.(curField)))
-                        if(isfield(ltStruct,curField))
-                            ltStruct.(curField) = PAData.mergeStruct(ltStruct.(curField),rtStruct.(curField));
-                        else
-                            ltStruct.(curField) = rtStruct.(curField);
-                        end
-                    else
-                        ltStruct.(curField) = rtStruct.(curField);
-                    end
-                end
-            end
-        end
-        
-        
-        % ======================================================================
-        %> @brief Inserts the second argument into any empty fields of the first
-        %> struct argument.
-        %> @param ltStruct A structure whose empty fields will be set to the second argument.
-        %> @param rtStruct A structure
-        %> @retval ltStruct The structure that results from inserting rtStruct into ltStruct.
-        %> @note For example:
-        %> @note ltStruct =
-        %> @note     accel: [1x1 struct]
-        %> @note            [x]: []
-        %> @note            [y]: []
-        %> @note     lux: []
-        %> @note
-        %> @note rtStruct =
-        %> @note     color: 'k'
-        %> @note     data: [1x1 struct]
-        %> @note            [pos]: [0.5000, 1, 0]
-        %> @note
-        %> @note
-        %> @note PAData.structEval(rtStruct,ltStruct)
-        %> @note ans =
-        %> @note     accel: [1x1 struct]
-        %> @note              [x]: [1x1 struct]
-        %> @note                   color: 'k'
-        %> @note                   data: [1x1 struct]
-        %> @note                         [pos]: [0.5000, 1, 0]
-        %> @note              [y]: [1x1 struct]
-        %> @note                   color: 'k'
-        %> @note                   data: [1x1 struct]
-        %> @note                         [pos]: [0.5000, 1, 0]
-        %> @note     lux: [1x1 struct]
-        %> @note          color: 'k'
-        %> @note          data: [1x1 struct]
-        %> @note                [pos]: [0.5000, 1, 0]
-        %> @note
-        % ======================================================================
-        function ltStruct = overwriteEmptyStruct(ltStruct,rtStruct)
-            if(isstruct(ltStruct))
-                fnames = fieldnames(ltStruct);
-                for f=1:numel(fnames)
-                    curField = fnames{f};
-                    ltStruct.(curField) = PAData.overwriteEmptyStruct(ltStruct.(curField),rtStruct);
-                end
-            elseif(isempty(ltStruct))
-                ltStruct = rtStruct;
-            end
-        end
-        
-        %======================================================================
-        %> @brief flattens a structure to a single dimensional array (i.e. a
-        %> vector)
-        %> @param structure A struct with any number of fields.
-        %> @retval vector A vector with values that are taken from the
-        %> structure.
-        %======================================================================
-        function vector = struct2vec(structure,vector)
-            if(nargin<2)
-                vector = [];
-            end
-            if(~isstruct(structure))
-                vector = structure;
-            else
-                fnames = fieldnames(structure);
-                for f=1:numel(fnames)
-                    vector = [vector;PAData.struct2vec(structure.(fnames{f}))];
-                end
-            end
-        end
-        
-        % ======================================================================
-        %> @brief Evaluates the range (min, max) of components found in the
-        %> input struct argument and returns the range as struct values with
-        %> matching fieldnames/organization as the input struct's highest level.
-        %> @param dataStruct A structure whose fields are either structures or vectors.
-        %> @retval structMinMax a struct whose fields correspond to those of
-        %> the input struct and whose values are [min, max] vectors that
-        %> correspond to the minimum and maximum values found in the input
-        %> structure for that field.
-        %> @note Consider the example
-        %> @note dataStruct.accel.x = [-1 20 5 13];
-        %> @note dataStruct.accel.y = [1 70 9 3];
-        %> @note dataStruct.accel.z = [-10 2 5 1];
-        %> @note dataStruct.lux = [0 0 0 9];
-        %> @note structRange.accel is [-10 70]
-        %> @note structRange.lux is [0 9]
-        %======================================================================
-        function structMinmax = minmax(dataStruct)
-            fnames = fieldnames(dataStruct);
-            structMinmax = struct();
-            for f=1:numel(fnames)
-                curField = dataStruct.(fnames{f});
-                structMinmax.(fnames{f}) = minmax(PAData.getRecurseMinmax(curField));
-            end
-        end
-        
-        function structToUpdate = updateStructWithStruct(structToUpdate, structToUpdateWith)
-            
-            if(isstruct(rtStruct))
-                fnames = fieldnames(rtStruct);
-                for f=1:numel(fnames)
-                    curField = fnames{f};
-                    if(isstruct(rtStruct.(curField)))
-                        if(isfield(ltStruct,curField))
-                            ltStruct.(curField) = PAData.mergeStruct(ltStruct.(curField),rtStruct.(curField));
-                        else
-                            ltStruct.(curField) = rtStruct.(curField);
-                        end
-                    else
-                        ltStruct.(curField) = rtStruct.(curField);
-                    end
-                end
-            end            
-            
-            %                     ruleFields = fieldnames(obj.usageStateRules);
-            %                     for f=1:numel(ruleFields)
-            %                         curField = ruleFields{f};
-            %                         if(hasfield(ruleStruct,curField) && class(ruleStruct.(curField)) == class(obj.usageStateRules.(curField)))
-            %                             obj.usageStateRules.(curField) = ruleStruct.(curField);
-            %                         end
-            %                     end
-            %
-        end
-        
-        % ======================================================================
-        %> @brief Recursive helper function for minmax()
-        %> input struct argument and returns the range as struct values with
-        %> matching fieldnames/organization as the input struct's highest level.
-        %> @param dataStruct A structure whose fields are either structures or vectors.
-        %> @retval minmaxVec Nx2 vector of minmax values for the given dataStruct.
-        % ======================================================================
-        function minmaxVec = getRecurseMinmax(dataStruct)
-            if(isstruct(dataStruct))
-                minmaxVec = [];
-                fnames = fieldnames(dataStruct);
-                for f=1:numel(fnames)
-                    minmaxVec = minmax([PAData.getRecurseMinmax(dataStruct.(fnames{f})),minmaxVec]);
-                end
-            else
-                %minmax is performed on each row; just make one row
-                minmaxVec = double(minmax(dataStruct(:)'));
             end
         end
         
@@ -4222,7 +3793,7 @@ classdef PAData < handle
             end
             
             dat = PAData.getDummyStruct(structType);
-            dat = PAData.overwriteEmptyStruct(dat,lineProps);
+            dat = overwriteEmptyStruct(dat,lineProps);
             
         end
         
@@ -4305,7 +3876,7 @@ classdef PAData < handle
         function [featureStructWithPSDBands, varargout] = getFeatureDescriptionStructWithPSDBands()
             featureStruct = rmfield(PAData.getFeatureDescriptionStruct(),'psd');
             psdFeatureStruct = PAData.getPSDFeatureDescriptionStruct();
-            featureStructWithPSDBands = PAData.mergeStruct(featureStruct,psdFeatureStruct);
+            featureStructWithPSDBands = mergeStruct(featureStruct,psdFeatureStruct);
             if(nargout>1)
                 varargout{1} = struct2cell(featureStructWithPSDBands);
             end

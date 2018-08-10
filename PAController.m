@@ -380,10 +380,10 @@ classdef PAController < handle
             set(handles.menu_file_open_resultspath,'callback',@obj.menuFileOpenResultsPathCallback);
             
             % import
-            set(handles.menu_file_import_csv,'callback',@obj.menuFileOpenCsvFileCallback);
-            set(handles.menu_file_openFitBit,'callback',@obj.menuFileOpenFitBitCallback,'enable','off');
             set(handles.menu_file_openVasTrac,'callback',@obj.menuFileOpenVasTracCSVCallback,'enable','off');
-            set(handles.menu_file_import_general,'label','Custom',...
+            set(handles.menu_file_openFitBit,'callback',@obj.menuFileOpenFitBitCallback,'enable','off');
+            set(handles.menu_file_import_csv,'callback',@obj.menuFileOpenCsvFileCallback,'enable','off');
+            set(handles.menu_file_import_general,'label','Text (custom)',...
                 'callback',@obj.menuFileOpenGeneralCallback,'enable','on');
 
             % screeshots
@@ -1768,9 +1768,12 @@ classdef PAController < handle
             switch lower(viewMode)
                 case 'timeseries'
                     if(isempty(obj.accelObj))
-                        responseButton = questdlg('A time series file is not currently loaded.  Would you like to open one now?','Find a time series file to load?');
-                        if(strcmpi(responseButton,'yes'))
-                            obj.menuFileOpenCallback();
+                        checkToOpenFile = false; % can be a user setting.
+                        if(checkToOpenFile)
+                            responseButton = questdlg('A time series file is not currently loaded.  Would you like to open one now?','Find a time series file to load?');
+                            if(strcmpi(responseButton,'yes'))
+                                obj.menuFileOpenCallback();
+                            end
                         end
                     else                        
                         obj.initAccelDataView();
@@ -2181,7 +2184,7 @@ classdef PAController < handle
         %user has set the line handle's 'visible' property to 'off'
         function lineHandles = getDisplayableLineHandles(obj)
             lineHandleStruct = obj.VIEW.getLinehandle(obj.getDisplayType());
-            lineHandles = PAData.struct2vec(lineHandleStruct);
+            lineHandles = struct2vec(lineHandleStruct);
         end        
         
         
