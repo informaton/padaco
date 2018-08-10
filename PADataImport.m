@@ -10,6 +10,7 @@ classdef PADataImport < handle
     properties(Constant)
         figureFcn = @importDlg;
         SEPARATORS = {',',';',' ','\t'};
+        figureName = 'Import Accelerometer Data File';
         
         % These come from the .fig file and are the tag prefixes for the
         % row of interactive widgets.
@@ -18,12 +19,14 @@ classdef PADataImport < handle
     properties(SetAccess=protected)
         figureH;
         handles;
-        dataObj;
+        cancelled = false;  % true when cancelled
+        numLinesToScan = 15;
         settings;   % struct with fields:
                     %   numHeaderLines = 1;
                     %   separator = ',';
                     %   filename ='';
     end
+    
     methods
         function this = PADataImport(importSettings)
             this.figureH = this.figureFcn('visible','off');
@@ -34,13 +37,19 @@ classdef PADataImport < handle
                 importSettings = [];
             end
             
-            this.settings = mergestruct(this.getDefaultParameters(), importSettings);
-            this.dataObj = dataObjIn;
+            this.settings = mergeStruct(this.getDefaultParameters(), importSettings);
+
             
             this.initWidgets();
             this.initCallbacks();
+            this.setFile(this.settings.filename);
             set(this.figureH,'visible','on');
+            uiwait(this.figureH);
         end 
+        
+        function settings = getSettings(this)
+            settings = this.settings;
+        end
         function didSet = setNumHeaderLines(this, numLines)
             didSet = false;
             if(numLines>=0)
@@ -53,12 +62,18 @@ classdef PADataImport < handle
             didSet = false;
             if(exist(fullfilename,'file'))
                 try
-                    this.filename = fullfilename;
-                    fid = fopen(this.filename,'r');
-                    strings = textscan(fid,'%[^\n]',10);
+                    this.settings.filename = fullfilename;
+                    set(this.handles.text_filename,'string',fullfilename);
+                    fid = fopen(this.settings.filename,'r');
+                    strings = textscan(fid,'%[^\n]',this.numLinesToScan);
                     strings = strings{1};
-                    set(this.handles.edit_fileContents,'string',char(strings));
-                    if(this.numHeaderLines>0)
+                    
+                    numLinesScanned = numel(strings);
+                    %strcat({'Line '},num2str(transpose(1:numLinesScanned)),{': '},strings)
+                    %set(this.handles.edit_fileContents,'string',char(strings));
+                    dispStr = strcat(num2str(transpose(1:numLinesScanned)),{':    '},strings);
+                    set(this.handles.edit_fileContents,'string',dispStr);
+                    if(this.settings.numHeaderLines>0)
                         
                     end
                     fclose(fid);
@@ -72,6 +87,7 @@ classdef PADataImport < handle
         end
         
         function cancel(this)
+            this.cancelled = true;
             this.close();
         end
         function confirm(this)
@@ -84,12 +100,14 @@ classdef PADataImport < handle
     
     methods(Access=protected)
         function initWidgets(this)
-            % set(this.handles.push_cancel,'visible','off');
-            set(this.handles.push_confirm,'string','Close');
-            set(this.handles.text_filePath,'string','');
-            set(this.handles.edit_numHeaderLines,'string',num2str(this.numHeaderLines));            
+            set(this.figureH,'name',this.figureName);
+            set(this.handles.push_confirm,'string','Import');
+            set(this.handles.text_filename,'string','');
+            set(this.handles.edit_fileContents,'string','','max',2,... % make multi line
+                'fontName','Courier New','fontsize',10,'enable','inactive'); % don't allow editing.
+            set(this.handles.edit_numHeaderLines,'string',num2str(this.settings.numHeaderLines));            
             set(this.handles.push_fileSelect,'callback',@this.selectFileCallback);
-            value = find(strcmpi(this.SEPARATORS,this.separator),1);
+            value = find(strcmpi(this.SEPARATORS,this.settings.separator),1);
             if(isempty(value))
                 value = 1;
             end
@@ -99,9 +117,10 @@ classdef PADataImport < handle
         end
         
         function initCallbacks(this)
+            set(this.figureH,'CloseRequestFcn',@this.cancelCallback);
             set(this.handles.menu_fieldSeparator,'callback',@this.changeSeparatorCallback);
             set(this.handles.edit_numHeaderLines,'callback',@this.editNumHeaderLinesCallback);
-            % set(this.handles.push_cancel,'callback',@this.cancelCallback);
+            set(this.handles.push_cancel,'callback',@this.cancelCallback);
             set(this.handles.push_confirm,'callback',@this.confirmCallback);
         end
         
@@ -115,7 +134,7 @@ classdef PADataImport < handle
         end
         
         function editNumHeaderLinesCallback(this, hEdit, ~, lineTag)            
-            preValueStr = num2str(this.numHeaderLines);
+            preValueStr = num2str(this.settings.numHeaderLines);
             newValue = str2double(get(hEdit,'string'));
             try
                 if(isempty(newValue) || ~isnumeric(newValue))
@@ -138,15 +157,11 @@ classdef PADataImport < handle
         
         function selectFileCallback(this, hButton, evtData)
             f=uigetfullfile({'*.csv','Comma separated values (.csv)';'*.*','All files'},...
-                'Select a file',this.filename);
+                'Select a file',this.settings.filename);
             if(exist(f,'file'))
                 this.setFile(f);
             end
         end
-    end
-    
-    methods(Access=private)
-
     end
     
     methods(Static)
@@ -157,15 +172,6 @@ classdef PADataImport < handle
         %> - @c trimResults
         % ======================================================================
         function paramStruct = getDefaultParameters()
-            % Cache directory is for storing the centroid object to 
-            % so it does not have to be reloaded each time when the
-            % PAStatTool is instantiated.
-            if(~isdeployed)
-                workingPath = fileparts(mfilename('fullpath'));
-            else
-                workingPath = fileparts(mfilename('fullpath'));                
-            end
-            
             paramStruct.numHeaderLines = 1;
             paramStruct.separator = ',';
             paramStruct.filename ='';

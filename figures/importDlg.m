@@ -22,7 +22,7 @@ function varargout = importDlg(varargin)
 
 % Edit the above text to modify the response to help importDlg
 
-% Last Modified by GUIDE v2.5 10-Aug-2018 06:53:04
+% Last Modified by GUIDE v2.5 10-Aug-2018 08:56:29
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -73,15 +73,6 @@ function varargout = importDlg_OutputFcn(hObject, eventdata, handles)
 varargout{1} = handles.output;
 
 
-% --- Executes on selection change in menu_fieldSeparator.
-function menu_fieldSeparator_Callback(hObject, eventdata, handles)
-% hObject    handle to menu_fieldSeparator (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: contents = cellstr(get(hObject,'String')) returns menu_fieldSeparator contents as cell array
-%        contents{get(hObject,'Value')} returns selected item from menu_fieldSeparator
-
 
 % --- Executes during object creation, after setting all properties.
 function menu_fieldSeparator_CreateFcn(hObject, eventdata, handles)
@@ -122,8 +113,3 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
-% --- Executes on button press in push_fileSelect.
-function push_fileSelect_Callback(hObject, eventdata, handles)
-% hObject    handle to push_fileSelect (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)

@@ -1274,7 +1274,10 @@ classdef PAController < handle
         %> @brief Menubar callback for opening a text file
         %> @param obj Instance of PAController
         function menuFileOpenGeneralCallback(obj, ~, ~)
-            PADataImport(obj.accelObj);
+            importObj = PADataImport(obj.SETTINGS.IMPORT);
+            if(~importObj.cancelled)
+                obj.SETTINGS.IMPORT = importObj.getSettings();
+            end
         end
         
         % --------------------------------------------------------------------
