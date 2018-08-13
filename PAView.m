@@ -184,107 +184,6 @@ classdef PAView < handle
             
             handles = guidata(obj.getFigHandle());
             
-            % get our panels looking nice and pretty.
-            % This is taken care of in the initializeGUI call found in
-            % padaco.m now
-            %             set([
-            %                     handles.panel_timeseries;
-            %                     handles.panel_results
-            %                 ],'backgroundcolor',[0.75,0.75,0.75]);
-            
-            
-            % Figure handle - pixels
-            % Figure position -         [624, -67, 1460, 850]
-            % panel_result              [49, 19, 221, 802]
-            % panel_results_container   [11, 10, 200, 790]
-            % panel_features            [10, 10.18, 288, 388.8]
-            % panel_timeseries          [21, 418.26, 221, 401]
-            % text_status               [30, 824.25, 201, 21]
-            
-            
-            % Adjustments as panel results
-            % 1460+ 221+19 (offset boarder for viewing) -> 1900
-            % panel_result(1) = 1460
-            set([obj.figurehandle
-                handles.panel_timeseries
-                handles.panel_results
-                handles.panel_resultsContainer
-                handles.panel_controlCentroid
-                handles.panel_epochControls
-                handles.panel_displayButtonGroup],'units','pixels');
-            
-            figPos = get(obj.figurehandle,'position');
-            % Line our panels up to same top left position - do this here
-            % so I can edit them easy in GUIDE and avoid to continually
-            % updating the position property each time i need to drag the
-            % panel(s) around to make edits.  Position is given as
-            % 'x','y','w','h' with 'x' starting from left (and increasing right)
-            % and 'y' starting from bottom (and increasing up)
-            timeSeriesPanelPos = get(handles.panel_timeseries,'position');
-            resultsPanelPos = get(handles.panel_results,'position');
-            figPos(3) = resultsPanelPos(1);  % The start of the results panel (x-value) indicates the point that the figure should be clipped
-            set(obj.figurehandle,'position',figPos);
-            newResultsPanelY = sum(timeSeriesPanelPos([2,4]))-resultsPanelPos(4);
-            set(handles.panel_results,'position',[timeSeriesPanelPos(1),newResultsPanelY,resultsPanelPos(3:4)]);
-            
-            %set(handles.panel_resultsContainer,'backgroundcolor',[0.9 0.9 0.9]);
-            %set(handles.panel_resultsContainer,'backgroundcolor',[0.94 0.94 0.94]);
-            %set(handles.panel_resultsContainer,'backgroundcolor',[1 1 1]);
-
-
-            % Line up panel_controlCentroid with panel_epochControls
-            epochControlsPos = get(handles.panel_epochControls,'position');
-            coiControlsPos = get(handles.panel_controlCentroid,'position');
-            coiControlsPos(2) = sum(epochControlsPos([2,4]))-coiControlsPos(4);  % This is y_ = y^ + h^ - h_
-            set(handles.panel_controlCentroid,'position',coiControlsPos);
-            drawnow();            
-            
-
-            
-            metaDataHandles = [handles.panel_study;get(handles.panel_study,'children')];
-            set(metaDataHandles,'backgroundcolor',[0.94,0.94,0.94],'visible','off');
-            
-            %             whiteHandles = [handles.text_aggregate
-            %                 handles.text_frameSizeMinutes
-            %                 handles.text_frameSizeHours
-            %                 handles.text_trimPct
-            %                 handles.text_cullSuffix
-            %                 handles.edit_trimToPercent
-            %                 handles.edit_cullToValue
-            %                 handles.panel_features_prefilter
-            %                 handles.panel_features_aggregate
-            %                 handles.panel_features_frame
-            %                 handles.panel_features_signal
-            %                 handles.panel_plotType
-            %                 handles.panel_plotSignal
-            %                 handles.panel_plotData
-            %                 handles.panel_controlCentroid
-            %                 handles.panel_plotCentroid];
-            whiteHandles = [handles.panel_features_prefilter
-                handles.panel_features_aggregate
-                handles.panel_features_frame
-                handles.panel_features_signal                
-                handles.panel_plotType
-                handles.panel_plotSignal
-                handles.panel_plotData
-                handles.panel_controlCentroid
-                handles.panel_plotCentroid];
-            sethandles(whiteHandles,'backgroundcolor',[1 1 1]);
-            %set(whiteHandles,'backgroundcolor',[0.94,0.94,0.94]);
-            %            set(findobj(whiteHandles,'-property','backgroundcolor'),'backgroundcolor',[0.94 0.94 0.94]);
-            
-            %             set(findobj(whiteHandles,'-property','shadowcolor'),'shadowcolor',[0 0 0],'highlightcolor',[0 0 0]);
-            
-            innerPanelHandles = [handles.panel_centroidSettings
-                handles.panel_centroid_timeFrame];
-            sethandles(innerPanelHandles,'backgroundcolor',[0.9 0.9 0.9]);
-            
-            % Make the inner edit boxes appear white
-            set([handles.edit_centroidMinimum
-                handles.edit_centroidThreshold],'backgroundcolor',[1 1 1]);
-            
-            set(handles.text_threshold,'tooltipstring','Smaller thresholds result in more stringent conversion requirements and often produce more clusters than when using higher threshold values.');
-            
             obj.texthandle.status = handles.text_status;
             obj.texthandle.filename = handles.text_filename;
             obj.texthandle.studyinfo = handles.text_studyinfo;
@@ -322,8 +221,7 @@ classdef PAView < handle
             % create a spot for it in the struct;
             obj.patchhandle.feature = [];
             
-            % Flush our drawing queue
-            drawnow();
+
             % Clear the figure and such.  
             obj.clearAxesHandles();
             obj.clearTextHandles(); 
@@ -637,7 +535,7 @@ classdef PAView < handle
             axesProps.primary.box= 'on';
             axesProps.primary.plotboxaspectratiomode='auto';
             axesProps.primary.fontSize = 14;            
-            axesProps.primary.units = 'normalized'; %normalized allows it to resize automatically
+            % axesProps.primary.units = 'normalized'; %normalized allows it to resize automatically
             if verLessThan('matlab','7.14')
                 axesProps.primary.drawmode = 'normal'; %fast does not allow alpha blending...
             else
@@ -786,11 +684,6 @@ classdef PAView < handle
             end
             
             handles = guidata(obj.getFigHandle());
-            
-            
-%             resultPanels = [
-%                 handles.panel_results;
-%                 ];
             
             resultPanels = [
                 handles.panel_results;
