@@ -8,7 +8,12 @@ function parameter = getMenuParameter(menu_h, parameterStr)
             parameter = parameters(selectionIndex);
         else
             if(~iscell(parameters))
-                parameters = {parameters};
+                % adjust for corner cases
+                if(ischar(parameters))
+                    parameters = string(parameters);
+                else
+                    parameters = {parameters};
+                end
             end
             parameter = parameters{selectionIndex};
         end
