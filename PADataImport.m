@@ -20,6 +20,7 @@ classdef PADataImport < handle
         figureH;
         handles;
         cancelled = false;  % true when cancelled
+        confirmed = true; % true when confirmed
         numLinesToScan = 15;
         settings;   % struct with fields:
                     %   headerline = 1;
@@ -54,9 +55,26 @@ classdef PADataImport < handle
             didSet = false;
             if(lineNum>=0 && lineNum <= this.numLinesToScan)
                 this.settings.headerLineNum = lineNum;
+                this.updateFileContents();
                 didSet = true;
             end
         end
+        
+        function updateFileContents(this)
+           h = this.handles.edit_fileContents;
+           j = findjobj(h);
+           % methods(j)
+           selectionColor = java.awt.Color(0,1,0);  % =green
+           % properties(j)
+        end
+        
+        function didSet = setSeparator(this, separator)
+            didSet = false;
+            if(any(strcmpi(this.SEPARATORS,separator)))
+                this.settings.separator = separator;
+                didSet = true;
+            end
+        end        
         
         function didSet = setFile(this,fullfilename)
             didSet = false;
@@ -91,6 +109,7 @@ classdef PADataImport < handle
             this.close();
         end
         function confirm(this)
+            this.confirmed = true;
             this.close();
         end
         function close(this)
@@ -106,7 +125,7 @@ classdef PADataImport < handle
             set(this.handles.edit_fileContents,'string','','max',2,... % make multi line
                 'fontName','Courier New','fontsize',10,'enable','inactive'); % don't allow editing.
             
-            lineNums = num2str([1:this.numLinesToScan]');
+            lineNums = num2str((1:this.numLinesToScan)');
             set(this.handles.menu_headerLineNum,'string',lineNums,'value',this.settings.headerLineNum);
             
             set(this.handles.menu_fieldSeparator,'string',this.SEPARATORS);
@@ -114,20 +133,21 @@ classdef PADataImport < handle
         end
         
         function initCallbacks(this)
-            set(this.figureH,'CloseRequestFcn',@this.cancelCallback);
-            set(this.handles.menu_fieldSeparator,'callback',@this.changeSeparatorCallback);
+            set(this.figureH,'CloseRequestFcn',@this.closeCallback);
+            set(this.handles.menu_fieldSeparator,'callback',@this.menuSeparatorCallback);
             set(this.handles.menu_headerLineNum,'callback',@this.menuHeaderLineNumCallback);
             set(this.handles.push_cancel,'callback',@this.cancelCallback);
             set(this.handles.push_confirm,'callback',@this.confirmCallback);
             set(this.handles.push_fileSelect,'callback',@this.selectFileCallback);
-            
         end
         
         % GUI Callbacks
         function cancelCallback(this, hObject, evtData)
             this.cancel();
         end
-        
+        function closeCallback(this, hObject, evtData)
+            this.close();
+        end
         function confirmCallback(this, hObject, evtData)
             this.confirm();
         end
@@ -145,26 +165,19 @@ classdef PADataImport < handle
                 showME(me);
             end
         end
-        
-        %         function editHeaderLineNumCallback(this, hEdit, ~, lineTag)
-        %             preValueStr = num2str(this.settings.headerLineNum);
-        %             newValue = str2double(get(hEdit,'string'));
-        %             try
-        %                 if(isempty(newValue) || ~isnumeric(newValue))
-        %                     set(hEdit,'string',preValueStr);
-        %                 else
-        %                     if(~this.setHeaderLineNum(newValue))
-        %                         set(hEdit,'string',preValueStr);
-        %                     end
-        %                 end
-        %             catch me
-        %                 warndlg('An error occurred while trying to change the label.  I''m sorry :(');
-        %                 set(hEdit,'string',preValueStr);
-        %                 showME(me);
-        %             end
-        %         end
-        
-        function changeSeparatorCallback(this, hMenu, evtData)
+
+        function menuSeparatorCallback(this, hMenu, evtData)
+            newValue = getMenuString(hMenu);
+            preValue = this.settings.headerLineNum;
+            try
+                if(~this.setSeparator(newValue))
+                    set(hMenu,'value',preValue);
+                end
+            catch me
+                warndlg('An error occurred while trying to set the field separator.  I''m sorry :(');
+                set(hMenu,'value',preValue);
+                showME(me);
+            end
         end
         
         function selectFileCallback(this, hButton, evtData)
@@ -190,3 +203,22 @@ classdef PADataImport < handle
         end         
     end
 end
+
+
+%         function editHeaderLineNumCallback(this, hEdit, ~, lineTag)
+%             preValueStr = num2str(this.settings.headerLineNum);
+%             newValue = str2double(get(hEdit,'string'));
+%             try
+%                 if(isempty(newValue) || ~isnumeric(newValue))
+%                     set(hEdit,'string',preValueStr);
+%                 else
+%                     if(~this.setHeaderLineNum(newValue))
+%                         set(hEdit,'string',preValueStr);
+%                     end
+%                 end
+%             catch me
+%                 warndlg('An error occurred while trying to change the label.  I''m sorry :(');
+%                 set(hEdit,'string',preValueStr);
+%                 showME(me);
+%             end
+%         end
