@@ -11,7 +11,7 @@ classdef PADataImport < handle
         figureFcn = @importDlg;
         SEPARATORS = {',',';',' ','\t'};
         figureName = 'Import Accelerometer Data File';
-        
+        maxLinesToScan = 16;
         % These come from the .fig file and are the tag prefixes for the
         % row of interactive widgets.
 
@@ -21,7 +21,8 @@ classdef PADataImport < handle
         handles;
         cancelled = false;  % true when cancelled
         confirmed = true; % true when confirmed
-        numLinesToScan = 15;
+        numLinesScanned = 0;
+        lines = {};  % scanned lines
         settings;   % struct with fields:
                     %   headerline = 1;
                     %   separator = ',';
@@ -30,8 +31,7 @@ classdef PADataImport < handle
     
     methods
         function this = PADataImport(importSettings)
-            this.figureH = this.figureFcn('visible','off');
-            
+            this.figureH = this.figureFcn('visible','off');            
             this.handles = guidata(this.figureH);
             
             if(nargin<1 || ~isstruct(importSettings))
@@ -39,7 +39,6 @@ classdef PADataImport < handle
             end
             
             this.settings = mergeStruct(this.getDefaultParameters(), importSettings);
-
             
             this.initWidgets();
             this.initCallbacks();
@@ -51,27 +50,21 @@ classdef PADataImport < handle
         function settings = getSettings(this)
             settings = this.settings;
         end
+        
         function didSet = setHeaderLineNum(this, lineNum)
             didSet = false;
-            if(lineNum>=0 && lineNum <= this.numLinesToScan)
+            if(lineNum>=0 && lineNum <= this.numLinesScanned)
                 this.settings.headerLineNum = lineNum;
-                this.updateFileContents();
+                this.updateGUI();
                 didSet = true;
             end
-        end
-        
-        function updateFileContents(this)
-           h = this.handles.edit_fileContents;
-           j = findjobj(h);
-           % methods(j)
-           selectionColor = java.awt.Color(0,1,0);  % =green
-           % properties(j)
         end
         
         function didSet = setSeparator(this, separator)
             didSet = false;
             if(any(strcmpi(this.SEPARATORS,separator)))
                 this.settings.separator = separator;
+                this.updateGUI();
                 didSet = true;
             end
         end        
@@ -83,25 +76,91 @@ classdef PADataImport < handle
                     this.settings.filename = fullfilename;
                     set(this.handles.text_filename,'string',fullfilename);
                     fid = fopen(this.settings.filename,'r');
-                    strings = textscan(fid,'%[^\n]',this.numLinesToScan);
+                    strings = textscan(fid,'%[^\n]',this.maxLinesToScan);
                     strings = strings{1};
+                    this.lines = strings;
+                    this.numLinesScanned = numel(strings);
                     
-                    numLinesScanned = numel(strings);
+                    lineNums = num2str((0:this.numLinesScanned-1)');
+                    if(this.settings.headerLineNum>this.numLinesScanned)
+                        this.settings.headerLineNum = 0;
+                    end
+                    set(this.handles.menu_headerLineNum,'string',lineNums,'value',this.settings.headerLineNum+1);
+
+                    
                     %strcat({'Line '},num2str(transpose(1:numLinesScanned)),{': '},strings)
                     %set(this.handles.edit_fileContents,'string',char(strings));
-                    dispStr = strcat(num2str(transpose(1:numLinesScanned)),{':    '},strings);
+                    dispStr = strcat(num2str(transpose(1:this.numLinesScanned)),{':    '},strings);
                     set(this.handles.edit_fileContents,'string',dispStr);
+                    
                     if(this.settings.headerLineNum>0)
                         
                     end
+                    
                     fclose(fid);
                     
                     % how many lines do we have.
-                    didSet = true;
+                    didSet = true;                    
+                    this.updateGUI();
                 catch me
                     showME(me);
                 end
             end 
+        end
+        
+        % Primary method for refreshing gui
+        function updateGUI(this)
+            h = this.handles.table_headerRow;
+            values = this.getColumnValues();
+            if(this.settings.headerLineNum>0)
+                fields = this.getColumnNames();
+                if(numel(fields)~=numel(values))
+                    disp('mismatch');
+                else
+                    disp('match');
+                    set(h,'columnname',fields,'data',values);                    
+                end
+            else
+                
+            end
+            
+           %h = this.handles.edit_fileContents;
+           %j = findjobj(h);
+           % methods(j)
+           %selectionColor = java.awt.Color(0,1,0);  % =green
+           % properties(j)
+        end
+        function fields = getColumnNames(this)
+            fields = {};
+            headerLine = this.getHeaderLine();            
+            if(~isempty(headerLine))
+                fields = strtrim(strsplit(headerLine,this.settings.separator));
+            end
+        end
+        function values = getColumnValues(this)
+            values = {};
+            valueLine = this.getValueLine();
+            if(~isempty(valueLine))
+                values = strtrim(strsplit(valueLine,this.settings.separator));
+            end
+        end
+        function [fields, values] = parseHeaderLine(this)
+            fields = this.getColumnNames();
+            values = this.getColumnValues();            
+        end
+        function curLine = getHeaderLine(this)
+            curLine = [];
+            if(~isempty(this.lines) && this.settings.headerLineNum>0)                
+                curLine = this.lines{this.settings.headerLineNum};
+            end
+        end
+        function curLine = getValueLine(this)
+           curLine = [];
+           if(~isempty(this.lines) && ...
+                   this.settings.headerLineNum>0 ...
+                   && this.settings.headerLineNum>0)
+               curLine = this.lines{this.settings.headerLineNum+1};
+           end           
         end
         
         function cancel(this)
@@ -118,15 +177,16 @@ classdef PADataImport < handle
     end
     
     methods(Access=protected)
+
         function initWidgets(this)
             set(this.figureH,'name',this.figureName);
             set(this.handles.push_confirm,'string','Import');
             set(this.handles.text_filename,'string','');
             set(this.handles.edit_fileContents,'string','','max',2,... % make multi line
-                'fontName','Courier New','fontsize',10,'enable','inactive'); % don't allow editing.
+                'fontName','Courier New','fontsize',12,'enable','inactive'); % don't allow editing.
             
-            lineNums = num2str((1:this.numLinesToScan)');
-            set(this.handles.menu_headerLineNum,'string',lineNums,'value',this.settings.headerLineNum);
+            lineNums = num2str((0:this.maxLinesToScan-1)');
+            set(this.handles.menu_headerLineNum,'string',lineNums,'value',this.settings.headerLineNum+1);
             
             set(this.handles.menu_fieldSeparator,'string',this.SEPARATORS);
             setMenuSelection(this.handles.menu_fieldSeparator,this.settings.separator);

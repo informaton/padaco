@@ -109,8 +109,6 @@ function handles = initializeGUI(hFigure)
         set(handles.panel_controlCentroid,'position',coiControlsPos);
         drawnow();
         
-        
-        
         metaDataHandles = [handles.panel_study;get(handles.panel_study,'children')];
         set(metaDataHandles,'backgroundcolor',[0.94,0.94,0.94],'visible','off');
         
