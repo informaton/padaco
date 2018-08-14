@@ -64,15 +64,19 @@ convertNHANES <- function(acc, fieldname, numsec, numcol)
 ### Main program
 args = commandArgs(trailingOnly=TRUE)
 
+
 for (i in args){
     print(i)
 }
 
-directory <- '~/git/padaco/tools/r_scripts/demo'
-subid <- 'Scenario_1'
+actigraphfile = args[1];
+weartimefile = args[2];
 
-actigraphfile <- paste(directory, paste(subid, '.csv', sep=''), sep='/')
-weartimefile <- paste(directory, paste(subid, '_nhanes_weartime.csv', sep=''), sep='/')
+#directory <- '~/git/padaco/tools/r_scripts/demo'
+#subid <- 'Scenario_1'
+
+#actigraphfile <- paste(directory, paste(subid, '.csv', sep=''), sep='/')
+#weartimefile <- paste(directory, paste(subid, '_nhanes_weartime.csv', sep=''), sep='/')
 
 acc <- read.table(file = actigraphfile, sep = ",", header = T, stringsAsFactors = F, skip = 10)
 
@@ -82,5 +86,3 @@ ret_list <- weartimeNHANESperMinute(acc)
 # write tables
 write.table(ret_list$nhanes, weartimefile, sep = ',', row.names = F, col.name = T)
 print(paste("Wear time file saved to",weartimefile))
-	
-
