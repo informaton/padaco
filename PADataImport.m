@@ -74,7 +74,7 @@ classdef PADataImport < handle
             if(exist(fullfilename,'file'))
                 try
                     this.settings.filename = fullfilename;
-                    set(this.handles.text_filename,'string',fullfilename);
+                    set(this.handles.text_filename,'string',fullfilename,'enable','on');
                     fid = fopen(this.settings.filename,'r');
                     strings = textscan(fid,'%[^\n]',this.maxLinesToScan);
                     strings = strings{1};
@@ -91,8 +91,8 @@ classdef PADataImport < handle
                     %strcat({'Line '},num2str(transpose(1:numLinesScanned)),{': '},strings)
                     %set(this.handles.edit_fileContents,'string',char(strings));
                     dispStr = strcat(num2str(transpose(1:this.numLinesScanned)),{':    '},strings);
-                    set(this.handles.edit_fileContents,'string',dispStr);
-                    
+                    set(this.handles.edit_fileContents,'string',dispStr,'enable','inactive');  % make it look nicer now.
+                    set(this.handles.table_headerRow,'enable','on');
                     if(this.settings.headerLineNum>0)
                         
                     end
@@ -114,10 +114,9 @@ classdef PADataImport < handle
             values = this.getColumnValues();
             if(this.settings.headerLineNum>0)
                 fields = this.getColumnNames();
-                if(numel(fields)~=numel(values))
-                    disp('mismatch');
+                if(numel(fields)~=numel(values))                    
+                    set(h,'columnname',fields,'data',repmat({'<mismatch>'},size(fields)));
                 else
-                    disp('match');
                     set(h,'columnname',fields,'data',values);                    
                 end
             else
@@ -180,10 +179,15 @@ classdef PADataImport < handle
 
         function initWidgets(this)
             set(this.figureH,'name',this.figureName);
+            
+            set(this.handles.table_headerRow,'rearrangeablecolumns','off',...
+                'enable','off','columnname',[],'data',{});
+            
+            
             set(this.handles.push_confirm,'string','Import');
-            set(this.handles.text_filename,'string','');
+            set(this.handles.text_filename,'string','<no file selected>','enable','off');
             set(this.handles.edit_fileContents,'string','','max',2,... % make multi line
-                'fontName','Courier New','fontsize',12,'enable','inactive'); % don't allow editing.
+                'fontName','Courier New','fontsize',12,'enable','off'); % don't allow editing.
             
             lineNums = num2str((0:this.maxLinesToScan-1)');
             set(this.handles.menu_headerLineNum,'string',lineNums,'value',this.settings.headerLineNum+1);
