@@ -8,13 +8,22 @@
 % ======================================================================
 classdef PADataImport < handle
     properties(Constant)
-        figureFcn = @importDlg;
-        SEPARATORS = {',',';',' ','\t'};
-        figureName = 'Import Accelerometer Data File';
-        maxLinesToScan = 16;
-        % These come from the .fig file and are the tag prefixes for the
-        % row of interactive widgets.
+        FIG_FUNCTION = @importDlg;
+        FIG_WIDTH_PIXELS = 380;
+        FIG_WIDTH_CHARS = 106;
+        
+        FIG_HEIGHT_PIXELS = 640;
+        FIG_NAME = 'Import Accelerometer Data File';
+        
 
+        SEPARATORS = {',',';',' ','\t'};
+        MAX_LINES = 16;
+        
+        MIN_FILENAME_WIDTH_CHARS = 80;
+        MIN_TABLE_WIDTH_CHARS = 100;
+        MIN_CONTENTS_WIDTH_CHARS = 100;
+        FIG_BUFFER_CHARS = 3;
+        CONFIRM_BUTTON_BUFFER_CHARS = 20; % right edge
     end
     properties(SetAccess=protected)
         figureH;
@@ -31,7 +40,7 @@ classdef PADataImport < handle
     
     methods
         function this = PADataImport(importSettings)
-            this.figureH = this.figureFcn('visible','off');            
+            this.figureH = this.FIG_FUNCTION('visible','off');            
             this.handles = guidata(this.figureH);
             
             if(nargin<1 || ~isstruct(importSettings))
@@ -40,7 +49,7 @@ classdef PADataImport < handle
             
             this.settings = mergeStruct(this.getDefaultParameters(), importSettings);
             
-            this.initWidgets();
+            this.initWidgets();            
             this.initCallbacks();
             this.setFile(this.settings.filename);
             set(this.figureH,'visible','on');
@@ -76,7 +85,7 @@ classdef PADataImport < handle
                     this.settings.filename = fullfilename;
                     set(this.handles.text_filename,'string',fullfilename,'enable','on');
                     fid = fopen(this.settings.filename,'r');
-                    strings = textscan(fid,'%[^\n]',this.maxLinesToScan);
+                    strings = textscan(fid,'%[^\n]',this.MAX_LINES);
                     strings = strings{1};
                     this.lines = strings;
                     this.numLinesScanned = numel(strings);
@@ -96,16 +105,42 @@ classdef PADataImport < handle
                     if(this.settings.headerLineNum>0)
                         
                     end
-                    
                     fclose(fid);
-                    
                     % how many lines do we have.
-                    didSet = true;                    
+                    didSet = true;
+                    this.resizeGUI();
                     this.updateGUI();
+                    this.enableWidgets();
                 catch me
                     showME(me);
                 end
             end 
+        end
+        
+        function resizeGUI(this)
+            fileContentWidth = size(char(get(this.handles.edit_fileContents,'string')),2);
+            resizeWidth = max([numel(this.settings.filename) - this.MIN_FILENAME_WIDTH_CHARS
+                fileContentWidth - this.MIN_CONTENTS_WIDTH_CHARS]);
+            
+            if(resizeWidth>0)
+                resizeWidth = resizeWidth*0.9;
+                fig_pos= get(this.figureH,'position');
+                table_pos = get(this.handles.table_headerRow,'position');
+                text_pos = get(this.handles.text_filename,'position');
+                edit_pos = get(this.handles.edit_fileContents,'position');
+                confirm_pos = get(this.handles.push_confirm,'position');
+                fig_pos(3) = this.FIG_WIDTH_CHARS + resizeWidth;
+                table_pos(3) = this.MIN_TABLE_WIDTH_CHARS + resizeWidth;
+                text_pos(3) = this.MIN_FILENAME_WIDTH_CHARS + resizeWidth;
+                edit_pos(3) = this.MIN_CONTENTS_WIDTH_CHARS + resizeWidth;
+                confirm_pos(1) = fig_pos(3)-this.CONFIRM_BUTTON_BUFFER_CHARS;
+                
+                set(this.figureH,'position',fig_pos);
+                set(this.handles.table_headerRow,'position',table_pos);
+                set(this.handles.text_filename,'position',text_pos);
+                set(this.handles.edit_fileContents,'position',edit_pos);
+                set(this.handles.push_confirm,'position',confirm_pos);                
+            end           
         end
         
         % Primary method for refreshing gui
@@ -114,10 +149,59 @@ classdef PADataImport < handle
             values = this.getColumnValues();
             if(this.settings.headerLineNum>0)
                 fields = this.getColumnNames();
-                if(numel(fields)~=numel(values))                    
-                    set(h,'columnname',fields,'data',repmat({'<mismatch>'},size(fields)));
+                numFields = numel(fields);
+                if(numFields~=numel(values))                    
+                    set(h,'columnname',fields,'data',repmat({'<mismatch>'},size(fields)),...
+                        'rowName',{});
+                    set(this.handles.text_fieldCount,'string','');
                 else
-                    set(h,'columnname',fields,'data',values);                    
+                    fieldMsg = sprintf('Fields found: %d',numel(fields));
+                    colfmt = {};
+                    rowNames = {};
+                    makeSelections = true;
+                    if(makeSelections)
+                        %colfmt = fields;
+                        %colfmt(:) = {'logical'};
+                        value = {true};
+                        row1 = values;
+                        row2 = values;
+                        row2(:)= value;
+                        row3 = fields;
+                        
+                        % Don't try drop down menu right now
+                        row0 = values;
+                        cellOptions = {'Import','Date','Time','Date and Time','Exclude'};
+                        colfmt = values;
+                        [colfmt{:}] = deal(cellOptions);
+                        colfmt = {};
+                        % row0(:) = {'Import'};
+                        values = [row1
+                            row2
+                            row3];
+                        rowNames = {'Value';'Include';'Display name'};
+                        %[values{:}] = deal(value);
+                       
+                    end
+                    set(h,'columnname',fields,'data',values,...
+                        'columnformat',colfmt,'columneditable',true,...
+                        'rowname',rowNames);
+                    set(this.handles.text_fieldCount,'string',fieldMsg);
+                    fitTable(h);
+                    table_pos = get(h,'position');
+                    fig_pos = get(this.figureH,'position');
+                    fig_width = fig_pos(3);
+                    new_width = sum(table_pos([1,3]))+this.FIG_BUFFER_CHARS;
+                    if(new_width>fig_width)
+                        fig_pos(3) = new_width;
+                        set(this.figureH,'position',fig_pos);
+                    else
+                        contents_pos = get(this.handles.edit_fileContents,'position');
+                        cur_width = sum(contents_pos([1 3]))+this.FIG_BUFFER_CHARS;
+                        if(new_width < cur_width && cur_width< fig_width)
+                            fig_pos(3) = cur_width;
+                            set(this.figureH,'position',fig_pos);
+                        end                        
+                    end
                 end
             else
                 
@@ -176,29 +260,46 @@ classdef PADataImport < handle
     end
     
     methods(Access=protected)
-
+        function disableWidgets(this)
+           set([this.handles.label_separator
+                this.handles.label_headerLineNum
+                this.handles.menu_separator
+                this.handles.menu_headerLineNum
+                this.handles.push_confirm
+                this.handles.table_headerRow],'enable','off'); 
+        end
+        function enableWidgets(this)
+           set([this.handles.label_separator
+                this.handles.label_headerLineNum
+                this.handles.menu_separator
+                this.handles.menu_headerLineNum
+                this.handles.push_confirm
+                this.handles.table_headerRow],'enable','on');
+        end
         function initWidgets(this)
-            set(this.figureH,'name',this.figureName);
+            set(this.figureH,'name',this.FIG_NAME);
             
             set(this.handles.table_headerRow,'rearrangeablecolumns','off',...
-                'enable','off','columnname',[],'data',{});
-            
-            
+                'columnname',[],'data',{});            
+            set(this.handles.table_headerRow,'fontName','default','fontsize',12);
             set(this.handles.push_confirm,'string','Import');
             set(this.handles.text_filename,'string','<no file selected>','enable','off');
             set(this.handles.edit_fileContents,'string','','max',2,... % make multi line
-                'fontName','Courier New','fontsize',12,'enable','off'); % don't allow editing.
+                'fontName','default','fontsize',12,'enable','off'); % don't allow editing.
             
-            lineNums = num2str((0:this.maxLinesToScan-1)');
+            lineNums = num2str((0:this.MAX_LINES-1)');
             set(this.handles.menu_headerLineNum,'string',lineNums,'value',this.settings.headerLineNum+1);
             
-            set(this.handles.menu_fieldSeparator,'string',this.SEPARATORS);
-            setMenuSelection(this.handles.menu_fieldSeparator,this.settings.separator);
+            set(this.handles.menu_separator,'string',this.SEPARATORS);
+            setMenuSelection(this.handles.menu_separator,this.settings.separator);
+            
+            set(this.handles.text_fieldCount,'string','');
+            this.disableWidgets();
         end
         
         function initCallbacks(this)
             set(this.figureH,'CloseRequestFcn',@this.closeCallback);
-            set(this.handles.menu_fieldSeparator,'callback',@this.menuSeparatorCallback);
+            set(this.handles.menu_separator,'callback',@this.menuSeparatorCallback);
             set(this.handles.menu_headerLineNum,'callback',@this.menuHeaderLineNumCallback);
             set(this.handles.push_cancel,'callback',@this.cancelCallback);
             set(this.handles.push_confirm,'callback',@this.confirmCallback);
