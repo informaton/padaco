@@ -135,9 +135,16 @@ classdef PAController < handle
                 obj.VIEW.showBusy([],'all');
                 
                 %  Apply this so that later we can retrieve useSmoothing
+                %  and highlighting nonwear
                 %  from obj.VIEW when it comes time to save parameters.
                 % obj.VIEW.setUseSmoothing(obj.SETTINGS.CONTROLLER.useSmoothing);
                 obj.setSmoothingState(obj.SETTINGS.CONTROLLER.useSmoothing);
+                
+                %  Apply this so that later we can retrieve useSmoothing
+                %  from obj.VIEW when it comes time to save parameters.
+                % obj.VIEW.setUseSmoothing(obj.SETTINGS.CONTROLLER.useSmoothing);
+                obj.setNonwearHighlighting(obj.SETTINGS.CONTROLLER.highlightNonwear);
+                
                 
                 obj.initTimeSeriesWidgets();
                 
@@ -816,7 +823,6 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function heightOffset = updateSecondaryFeaturesDisplay(obj,numFeatures)
             
-            
             if(nargin<2 || isempty(numFeatures))
                 numFeatures = obj.getFrameCount();
             end
@@ -824,7 +830,6 @@ classdef PAController < handle
             featureFcnName = obj.getExtractorMethod();
             
             numViews = obj.numViewsInSecondaryDisplay; %(numel(signalTagLines)+1);
-            
             
             % update secondary axes y labels according to our feature
             % function.
@@ -835,6 +840,7 @@ classdef PAController < handle
                 signalTags = {'x','y','z','vecMag'};
                 ytickLabels = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|'};
             end
+            
             %axesHeight = 1;
             if(strcmpi(obj.getAccelType(),'raw'))
                 ytickLabels = [ytickLabels,'Activity','Daylight'];
@@ -2172,6 +2178,7 @@ classdef PAController < handle
                 pStruct.signalTagLine = obj.SETTINGS.CONTROLLER.signalTagLine;
             end
             
+            pStruct.highlightNonwear = obj.VIEW.getNonwearHighlighting();
             pStruct.useSmoothing = obj.VIEW.getUseSmoothing();
             pStruct.screenshotPathname = obj.screenshotPathname;
             pStruct.viewMode = obj.viewMode;
@@ -2292,11 +2299,15 @@ classdef PAController < handle
             height = remainingHeight/itemsToDisplay;
             if(obj.accelObj.getSampleRate()<=1)
                 [usageVec,usageState, startStopDatenums] = obj.getUsageState();
+                obj.VIEW.addWeartimeToSecondaryAxes(usageVec,obj.accelObj.dateTimeNum,height,heightOffset);
+                % Old
+                % vecHandles = obj.VIEW.addFeaturesVecToSecondaryAxes(usageVec,obj.accelObj.dateTimeNum,height,heightOffset);
                 
-                vecHandles = obj.VIEW.addFeaturesVecToSecondaryAxes(usageVec,obj.accelObj.dateTimeNum,height,heightOffset);
+                % Older
                 %obj.VIEW.addOverlayToSecondaryAxes(usageState,startStopDatenums,1/numRegions,curRegion/numRegions);
             else
-                vecHandles = [];
+                % Old
+                %                 vecHandles = [];
             end
             
             numFrames = obj.getFrameCount();
@@ -2677,11 +2688,18 @@ classdef PAController < handle
         function contextmenu_secondaryAxes_h = getSecondaryAxesContextmenuHandle(obj)
             %%% reference line contextmenu
             contextmenu_secondaryAxes_h = uicontextmenu('parent',obj.figureH);
+            
+            menu_h = uimenu(contextmenu_secondaryAxes_h,'Label','Nonwear highlighting','tag','nonwear');
+            nonwearHighlighting_on_menu_h =uimenu(menu_h,'Label','On','tag','nonwear_on','callback',{@obj.contextmenu_nonwearHighlighting_callback,true});
+            nonwearHighlighting_off_menu_h = uimenu(menu_h,'Label','Off','tag','nonwear_off','callback',{@obj.contextmenu_nonwearHighlighting_callback,false});
+            set(menu_h,'callback',{@obj.configure_contextmenu_nonwearHighlighting_callback,nonwearHighlighting_on_menu_h,nonwearHighlighting_off_menu_h});
+
             menu_h = uimenu(contextmenu_secondaryAxes_h,'Label','Line Smoothing','tag','smoothing');
             on_menu_h =uimenu(menu_h,'Label','On','tag','smoothing_on','callback',{@obj.contextmenu_featureSmoothing_callback,true});
             off_menu_h = uimenu(menu_h,'Label','Off','tag','smoothing_off','callback',{@obj.contextmenu_featureSmoothing_callback,false});
             set(menu_h,'callback',{@obj.configure_contextmenu_smoothing_callback,on_menu_h,off_menu_h});
         end
+        
         
         % =================================================================
         %> @brief Configure Line Smoothing sub contextmenus for view's secondary axes.
@@ -2733,7 +2751,50 @@ classdef PAController < handle
             end
         end
         
+        % =================================================================
+        %> @brief Configure nonwear highlighting sub contextmenus for view's secondary axes.
+        %> @param on_uimenu_h Handle to Smoothing on menu option
+        %> @param off_uimenu_h Handle to smoothing off menu option
+        % =================================================================
+        function configure_contextmenu_nonwearHighlighting_callback(obj,hObject, eventdata, on_uimenu_h, off_uimenu_h)
+            %configure sub contextmenus
+            if(obj.VIEW.getNonwearHighlighting())
+                set(on_uimenu_h,'checked','on');
+                set(off_uimenu_h,'checked','off');
+            else
+                set(on_uimenu_h,'checked','off');
+                set(off_uimenu_h,'checked','on');                
+            end 
+        end
         
+        % =================================================================
+        %> @brief Contextmenu selection callback for turning line smoothing 'on' or 'off'
+        %> in the secondary axes when looking at time series data.
+        %> @param obj instance of PAController.
+        %> @param contextmenu_h Handle of parent contextmenu to unhide
+        %> channels.
+        %> @param eventdata Unused.
+        %> @param useSmoothingState Boolean flag for smoothing state
+        %> - @c true  : Turn smoothing on (default)
+        %> - @c false : Turn smoothing off
+        % =================================================================
+        function contextmenu_nonwearHighlighting_callback(obj,contextmenu_h,eventdata,highlightNonwear)
+            if(nargin<4)
+                highlightNonwear = true;
+            end
+            obj.setNonwearHighlighting(highlightNonwear == true);
+        end
+        
+        function setNonwearHighlighting(obj,highlightNonwear)
+            if(nargin>1 && ~isempty(highlightNonwear))  
+                obj.VIEW.setNonwearHighlighting(highlightNonwear); 
+                if(obj.isViewable('timeseries'))
+                    obj.VIEW.showBusy('Highlighting nonwear','secondary');
+                    obj.VIEW.showReady('secondary');
+                end
+            end
+        end
+                
         %> @brief Check if I the viewing mode passed in is current, and if it is
         %> displayable (i.e. has an accel or stat tool object)
         %> @param obj Instance of PAController
@@ -2777,8 +2838,8 @@ classdef PAController < handle
                     set(contextmenu_h,'enable','on');
                     uimenu(contextmenu_h,'Label',tagLine,'separator','off','callback',{@obj.hideLineHandle_callback,lineH});
                     hasVisibleSignals = true;
-                end;
-            end;
+                end
+            end
             set(gco,'selected','off');
             if(~hasVisibleSignals)
                 set(contextmenu_h,'visible','off');
@@ -3199,6 +3260,7 @@ classdef PAController < handle
             pStruct.exportPathname = mPath;
             pStruct.viewMode = 'timeseries';
             pStruct.useSmoothing = true;
+            pStruct.highlightNonwear = true;
             batchSettings = PABatchTool.getDefaultParameters();
             pStruct.resultsPathname = batchSettings.outputDirectory;
             

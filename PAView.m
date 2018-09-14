@@ -18,7 +18,13 @@ classdef PAView < handle
         %> secondary axes (Default).  
         %> - @c false : Do not apply line smoothing when presenting features on the
         %> secondary axes (show them in original form).
-        useSmoothing;        
+        useSmoothing;  
+        
+        %> Boolean value: 
+        %> - @c true : Highlight nonwear in second secondary axes (Default).  
+        %> - @c false : Do not highlight nonwear on the secondary axes.
+        nonwearHighlighting;          
+        
         
     end
     
@@ -161,6 +167,7 @@ classdef PAView < handle
                 obj.contextmenuhandle.featureLine = featureLineContextmenuHandle;
                 
                 obj.useSmoothing = true;
+                obj.nonwearHighlighting = true;
                 
                 obj.createView(); 
                 obj.disableWidgets();
@@ -397,7 +404,26 @@ classdef PAView < handle
             smoothing = obj.useSmoothing;
         end
         
-           
+        % --------------------------------------------------------------------
+        %> @brief Sets nonwear highlighting flag for secondary axis
+        % display.
+        %> @param obj Instance of PAView.
+        %> @param smoothingState  Possible values include:
+        %> - @c true Nonwear highlighting is on.
+        %> - @c false Nonwear highlighting is off.
+        % --------------------------------------------------------------------
+        function setNonwearHighlighting(obj,showNonwearHighlighting)
+            if(nargin<2 || isempty(showNonwearHighlighting))
+                obj.nonwearHighlighting = true;
+            else
+                obj.nonwearHighlighting = showNonwearHighlighting==true;
+            end           
+        end
+        
+        function smoothing = getNonwearHighlighting(obj)
+            smoothing = obj.nonwearHighlighting;
+        end
+                 
 
         
         % --------------------------------------------------------------------
@@ -908,7 +934,69 @@ classdef PAView < handle
             obj.initAxesHandles(axesProps);
 %             datetick(obj.axeshandle.secondary,'x','ddd HH:MM')
         end
-
+        
+        
+        
+        
+        % --------------------------------------------------------------------
+        % Wear states
+        % Awake
+        % 35        ACTIVE
+        % 25        INACTIVE
+        % Sleep
+        % 20        NAP
+        %                    15        NREM
+        % 10        REMS
+        % Non-wear states
+        % 5        Study-not-over
+        % 0        Study-over
+        % -1         Unknown
+        % --------------------------------------------------------------------
+        function featureHandles = addWeartimeToSecondaryAxes(obj, featureVector, startStopDatenum, overlayHeightRatio, overlayOffset)
+            featureHandles = obj.addFeaturesVecToAxes(featureVector, startStopDatenum, overlayHeightRatio, overlayOffset,obj.axeshandle.secondary, obj.getUseSmoothing());
+            
+            nonwearHeightRatio = overlayHeightRatio*(7.5/(35--1));
+            wearHeightRatio = overlayHeightRatio-nonwearHeightRatio;
+            axesH = obj.axeshandle.secondary;
+            yLim = get(axesH,'ylim');
+            
+            % nonwear is lower down
+            yLimPatches = yLim*nonwearHeightRatio+overlayOffset;
+            ydata = [yLimPatches, fliplr(yLimPatches)]';
+            xStart = startStopDatenum(1);
+            xEnd = startStopDatenum(end);
+            xdata = [xStart xStart xEnd xEnd]';
+             
+            set(obj.patchhandle.nonwear,'xdata',xdata,'ydata',ydata,'visible','on');
+            
+            % place wear above it.  xData is same, but yDdata is shifted up
+            % some.
+            overlayOffset = yLimPatches(end);
+            yLimPatches = yLim*wearHeightRatio+overlayOffset;
+            ydata = [yLimPatches, fliplr(yLimPatches)]';            
+            set(obj.patchhandle.wear,'xdata',xdata,'ydata',ydata,'visible','on');
+            obj.draw();
+            
+            
+            
+            
+%             feature_patchH = patch(x,y,vertexColor,'parent',axesH,'edgecolor','interp','facecolor','interp','hittest','off');
+                        
+            
+            
+            %             if(ishandle(obj.patchhandle.feature))
+            %                 delete(obj.patchhandle.feature);
+            %             end
+            %             if(ishandle(obj.linehandle.feature))
+            %                 delete(obj.linehandle.feature);
+            %             end
+            %             if(ishandle(obj.linehandle.featureCumsum))
+            %                 delete(obj.linehandle.featureCumsum);
+            %             end
+            %             [feature_patchH, feature_lineH, feature_cumsumLineH] = obj.addFeaturesVecAndOverlayToAxes( featureVector, startStopDatenum, overlayHeight, overlayOffset, obj.axeshandle.secondary, obj.getUseSmoothing(), obj.contextmenuhandle.featureLine);
+            %             [obj.patchhandle.feature, obj.linehandle.feature, obj.linehandle.featureCumsum] = deal(feature_patchH, feature_lineH, feature_cumsumLineH);
+        end
+        
         % --------------------------------------------------------------------
         %> @brief Adds a feature vector as a heatmap and as a line plot to the secondary axes.
         %> @param obj Instance of PAView.
@@ -1075,8 +1163,6 @@ classdef PAView < handle
             
                 handleType = 'line';
                 handleProps.tag = curName;
-                
-                
 
                 obj.linehandle.(curName) = obj.recurseHandleGenerator(dataStruct,handleType,handleProps);
             
@@ -1090,6 +1176,10 @@ classdef PAView < handle
             obj.positionBarHandle = line('parent',obj.axeshandle.secondary,'visible','off');%annotation(obj.figurehandle.sev,'line',[1, 1], [pos(2) pos(2)+pos(4)],'hittest','off');
 %             obj.patchhandle.positionBar =  patch('xdata',nan(1,4),'ydata',[0 1 1 0],'zdata',repmat(-1,1,4),'parent',obj.axeshandle.secondary,'hittest','off','visible','off','facecolor',[0.5 0.85 0.5],'edgecolor','none','facealpha',0.5);
             obj.patchhandle.positionBar =  patch('xdata',nan(1,4),'ydata',[0 1 1 0],'parent',obj.axeshandle.secondary,'hittest','off','visible','off','facecolor',[0.5 0.85 0.5],'edgecolor','none','facealpha',0.5);
+            
+            obj.patchhandle.wear =  patch('xdata',nan(1,4),'ydata',[0 1 1 0],'parent',obj.axeshandle.secondary,'hittest','off','visible','off','facecolor',[0 1 1],'edgecolor','none','facealpha',0.5);
+            obj.patchhandle.nonwear =  patch('xdata',nan(1,4),'ydata',[0 1 1 0],'parent',obj.axeshandle.secondary,'hittest','off','visible','off','facecolor',[1 0.45 0],'edgecolor','none','facealpha',0.5);
+            
             
             uistack(obj.positionBarHandle,'top');
             uistack(obj.patchhandle.positionBar,'top');
@@ -1419,7 +1509,6 @@ classdef PAView < handle
             end            
             
             feature_patchH = patch(x,y,vertexColor,'parent',axesH,'edgecolor','interp','facecolor','interp','hittest','off');
-            
                         
             % draw the lines
             
