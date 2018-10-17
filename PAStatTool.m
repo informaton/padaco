@@ -467,6 +467,7 @@ classdef PAStatTool < handle
                     % Do nothing; this means, that we started at rayday and
                     % will go 24 hours
                 if(stopTimeSelection== startTimeSelection)
+
                     if(this.inClusterView())
                         % Not sure why this is happening in some cases when
                         % loading a new data file with different time
@@ -478,6 +479,7 @@ classdef PAStatTool < handle
                     %stopTimeSelection = 
                     
                 elseif(startTimeSelection < stopTimeSelection)
+                    
                     tmpFeatureStruct.startTimes = tmpFeatureStruct.startTimes(startTimeSelection:stopTimeSelection);
                     tmpFeatureStruct.shapes = tmpFeatureStruct.shapes(:,startTimeSelection:stopTimeSelection);      
                     tmpFeatureStruct.totalCount = numel(tmpFeatureStruct.startTimes);
@@ -485,7 +487,7 @@ classdef PAStatTool < handle
                     tmpUsageStateStruct.startTimes = tmpUsageStateStruct.startTimes(startTimeSelection:stopTimeSelection);
                     tmpUsageStateStruct.shapes = tmpUsageStateStruct.shapes(:,startTimeSelection:stopTimeSelection);      
                     tmpUsageStateStruct.totalCount = numel(tmpUsageStateStruct.startTimes);
-                
+                    
                 % For example:  22:00 to 04:00 is ~ stopTimeSelection = 22 and
                 % startTimeSelection = 81
                 elseif(stopTimeSelection < startTimeSelection)
@@ -523,21 +525,48 @@ classdef PAStatTool < handle
                 loadFeatures = this.featureStruct.shapes;
 
                 if(pSettings.centroidDurationHours~=24)
-
-                    hoursPerCentroid = pSettings.centroidDurationHours;
-                    repRows = featureDurationInHours/hoursPerCentroid;
                     
-                    this.featureStruct.totalCount = this.featureStruct.totalCount/repRows;
+                    % centroid duration hours will always be integer
+                    % values; whole numbers
+                    featureVecDuration_hour = this.getFeatureVecDurationInHours();
+                    featuresPerVec = this.featureStruct.totalCount;
+                    % features per hour should also, always be whole
+                    % numbers...
+                    featuresPerHour = round(featuresPerVec/featureVecDuration_hour);
+                    %featureDuration_hour = 1/featuresPerHour;
+                    
+                    hoursPerCentroid = pSettings.centroidDurationHours;
+                    featuresPerCentroid = featuresPerHour*hoursPerCentroid;
+
+                    centroidsPerVec = floor(featuresPerVec/featuresPerCentroid);
+                    
+                    excessFeatures = mod(featuresPerVec,featuresPerCentroid);
+                    if(excessFeatures>0)
+                        loadFeatures = loadFeatures(:,1:centroidsPerVec*featuresPerCentroid);
+                        this.featureStruct.totalCount = this.featureStruct.totalCount - excessFeatures;                        
+                    end
+
+                    this.featureStruct.totalCount = this.featureStruct.totalCount/centroidsPerVec;
+                    this.featureStruct.startTimes = this.featureStruct.startTimes(1:this.featureStruct.totalCount);  % use the first time series for any additional centroids created from the same feature vector reshaping.
                     
                     % This will put the start days of week in the same
                     % order as the loadFeatures after their reshaping below
                     % (which causes the interspersion).
-                    this.featureStruct.startDaysOfWeek = repmat(this.featureStruct.startDaysOfWeek,1,repRows)';
-                    this.featureStruct.startDaysOfWeek = this.featureStruct.startDaysOfWeek(:);
+                    reshapeFields = {'startDaysOfWeek','startDatenums','studyIDs'};
+                    for r= 1:numel(reshapeFields)
+                        fname = reshapeFields{r};
+                        if(isfield(this.featureStruct,fname))                            
+                            tmp = repmat(this.featureStruct.(fname),1,centroidsPerVec)';
+                            this.featureStruct.(fname) = tmp(:);
+                        end
+                    end
+                    %                     this.featureStruct.startDaysOfWeek = repmat(this.featureStruct.startDaysOfWeek,1,centroidsPerVec)';
+                    %                     this.featureStruct.startDaysOfWeek = this.featureStruct.startDaysOfWeek(:);
+                    
                     
                     [nrow,ncol] = size(loadFeatures);
-                    newRowCount = nrow*repRows;
-                    newColCount = ncol/repRows;
+                    newRowCount = nrow*centroidsPerVec;
+                    newColCount = ncol/centroidsPerVec;
                     loadFeatures = reshape(loadFeatures',newColCount,newRowCount)';
                     
                     %  durationHoursPerFeature = 24/this.featureStruct.totalCount;
@@ -1306,6 +1335,11 @@ classdef PAStatTool < handle
                         %    bgColor = [nan, nan, nan];
                         % bgColor = [0.94,0.94,0.94];
                         originalImg = imread('arrow-right_16px.png','png','backgroundcolor',bgColor);
+                        
+%                         set(this.handles.push_nextCentroid,'units','pixels');
+%                         pos = get(this.handles.push_nextCentroid,'position');
+%                         originalImg = imresize(originalImg,pos(3:4));
+                        
                         [nRows, nCols, nColors] = size(originalImg);
                         
                         transparentIndices = false(size(originalImg));  % This is for obtaining logical matrix                        
@@ -1321,8 +1355,16 @@ classdef PAStatTool < handle
                         nextImg(~transparentIndices)=originalImg(~transparentIndices)/RGB_MAX; %normalize back to between 0.0 and 1.0 or NaN
                         previousImg = fliplr(nextImg);
                         
-                        set(this.handles.push_nextCentroid,'cdata',nextImg,'string',[]);
-                        set(this.handles.push_previousCentroid,'cdata',previousImg,'string',[]);
+                        
+                        %setIcon(this.handles.push_nextCentroid,'arrow-right_16px.png',imgBgColor);
+                        fgColor = get(0,'FactoryuicontrolForegroundColor');
+                        defaultBackgroundColor = get(0,'FactoryuicontrolBackgroundColor');
+            
+                        set(this.handles.push_nextCentroid,'cdata',nextImg);
+                        set(this.handles.push_previousCentroid,'cdata',previousImg);
+                        set([this.handles.push_nextCentroid,this.handles.push_previousCentroid],...
+                            'string',[],'foregroundcolor',fgColor,...
+                            'backgroundcolor',defaultBackgroundColor);
                         
 %                         set(this.handles.push_nextCentroid,'units','normalized');
 %                         set(this.handles.push_previousCentroid,'units','normalized');
@@ -2399,6 +2441,23 @@ classdef PAStatTool < handle
 
         function featureStruct = getFeatureStruct(this)
             featureStruct = this.featureStruct;            
+        end
+        
+        function durHours=  getFeatureVecDurationInHours(this)
+            [~,startEndDatenums] = this.getStartEndTimes();
+            durHours = 24*diff(startEndDatenums);
+            if(durHours==0)
+                durHours = 24;
+            elseif(durHours<0)
+                durHours = durHours+24;
+            end
+        end
+        
+        function [startEndTimeStr, startEndDatenums] = getStartEndTimes(this)
+            startEndTimeStr = {getMenuString(this.handles.menu_centroidStartTime);
+                getMenuString(this.handles.menu_centroidStopTime)};
+            startEndDatenums = datenum(startEndTimeStr);
+            
         end
         
         function startTimes = getStartTimesCell(this)
