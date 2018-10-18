@@ -1433,10 +1433,11 @@ classdef PAStatTool < handle
             end
             fgColor = get(0,'FactoryuicontrolForegroundColor');
             defaultBackgroundColor = get(0,'FactoryuicontrolBackgroundColor');
-            set(this.handles.push_refreshCentroids,'callback',@this.refreshCentroidsAndPlot,...
+            set(this.handles.push_refreshCentroids,'callback',@this.refreshCentroidsAndPlotCb,...
                 'enable',enableState,'string','Recalculate',...
                 'backgroundcolor',defaultBackgroundColor,...
                 'foregroundcolor',fgColor,...
+                'fontweight','normal',...
                 'fontsize',12);
         end
         
@@ -1584,11 +1585,17 @@ classdef PAStatTool < handle
             % is time to actually calculate again...
             if(this.isCentroidModeSelected())
                 bgColor = [0.2 0.8 0.1];
-                fgColor = [1 1 1];
+                fgColor = [ 0 0 0];
+                
+                fgColor = get(0,'FactoryuicontrolForegroundColor');
+                bgColor = get(0,'FactoryuicontrolBackgroundColor');
+            
                 set(this.handles.push_refreshCentroids,'enable','on',...
                     'backgroundcolor',bgColor,'string','Recalculate',...
                     'foregroundcolor',fgColor,...
-                    'callback',@this.refreshCentroidsAndPlot);
+                    'fontweight','bold',...
+                    'fontsize',13,...
+                    'callback',@this.refreshCentroidsAndPlotCb);
             else
                 
             end
@@ -1596,8 +1603,13 @@ classdef PAStatTool < handle
         
         function enableCentroidCancellation(this, varargin)
             bgColor = [0.8 0.2 0.1];
-            fgColor = [0 0 0];
+            %             fgColor = get(0,'FactoryuicontrolForegroundColor');
+            %             bgColor = get(0,'FactoryuicontrolBackgroundColor');
+            %             fgColor = [0.94 0.94 0.94 ];
+            fgColor = [1 1 1];
+
             set(this.handles.push_refreshCentroids,'enable','on',...
+                'fontsize',12,'fontweight','bold',...            
                 'backgroundcolor',bgColor,'string','Cancel',...
                 'foregroundcolor',fgColor,...
                 'callback',@this.cancelCentroidsCalculationCallback);
@@ -1607,7 +1619,8 @@ classdef PAStatTool < handle
             %             bgColor = [0.6 0.4 0.3];
             bgColor = [0.6 0.1 0.1];
             set(this.handles.push_refreshCentroids,'enable','off','callback',[],...
-                'backgroundcolor',bgColor,'string','Cancelling');
+                'backgroundcolor',bgColor,'string','Cancelling',...
+                'fontsize',12,'fontweight','normal');
             this.notify('UserCancel_Event');
         end        
         
@@ -2468,11 +2481,9 @@ classdef PAStatTool < handle
             end            
         end
         
-        function bootstrap(this, numIterations)
-            if(nargin<2)
-                numIterations = 3;
-            end
-                        didCancel = false;
+        function bootstrap(this, numBootstraps)
+            % configure progress bar
+            didCancel = false;
             function cbFcn(hObject,evtData)
                 waitbar(1,h,'Cancelling ...');
                 didCancel = true;
@@ -2480,12 +2491,22 @@ classdef PAStatTool < handle
             
             h = waitbar(0,'Preparing for bootstrap','CreateCancelBtn',@cbFcn);
             try
-                for n=1:numberOfIterations
+                
+                % configure bootstrap
+                if(nargin<2)
+                    numBootstraps = 3;
+                end
+                
+                sample_size = numel(this.featureStruct.studyIDs);
+                boot_ind = randi(sample_size,[sample_size,numBootstraps]);
+                params.centroidCount = nan(1,numBootstraps);
+
+                for n=1:numBootstraps
                     
                     if(~didCancel && ishandle(h))
                         %featureStruct = this.StatTool.getFeatureStruct();
-                        waitbar(n/numberOfIterations,h,sprintf('Bootstrapping %d of %d',n,numberOfIterations));
-                        this.StatTool.refreshCentroidsAndPlot();
+                        waitbar(n/numBootstraps,h,sprintf('Bootstrapping %d of %d',n,numBootstraps));
+                        this.refreshCentroidsAndPlot();
                         % tmpCentroidObj = PACentroid(featureStruct.features,pSettings,this.handles.axes_primary,resultsTextH,this.featureStruct.studyIDs, this.featureStruct.startDaysOfWeek, delayedStart);
                         %this.addlistener('UserCancel_Event',@tmpCentroidObj.cancelCalculations);
                         %this.centroidObj = tmpCentroidObj;
@@ -2502,6 +2523,19 @@ classdef PAStatTool < handle
                         break;
                     end
                 end
+                
+                % If you stop early, we still want results, I think.
+                if(n>1)
+                     
+                    CI = 95;  %i.e. we want the 95% confidence interval
+                    CI_alpha = 100-CI;
+                    CI_range = [CI_alpha/2, 100-CI_alpha/2];  %[2.5, 97.5]
+                    params.centroidCount = params.centroidCount(1:n);
+                    message = sprintf('95%% Confidence Interval(s) using\n\tbootstrap iterations = %i\n\tsample size = %i\n',n,sample_size);
+                    numClusters_CI_percentile = prctile([numClusters_CI_percentile,[]],CI_range);
+                    
+                end
+                
             catch me
                 showME(me);
             end
@@ -2509,6 +2543,15 @@ classdef PAStatTool < handle
             %             if(ishandle(h))
             %                 waitbar(100,h,'Bootstrap complete');
             %             end
+            
+            
+            
+            
+        end
+        
+        function refreshCentroidsAndPlotCb(this, varargin)
+            enableUserCancel = true;
+           this.refreshCentroidsAndPlot(enableUserCancel); 
         end
         % ======================================================================
         %> @brief Push button callback for updating the centroids being displayed.
@@ -2519,13 +2562,17 @@ classdef PAStatTool < handle
         %> If it is empty after the function call, then the clustering
         %> failed.
         % ======================================================================
-        function refreshCentroidsAndPlot(this,varargin)
+        function refreshCentroidsAndPlot(this,enableUserCancel)
+            if(nargin<2)
+                enableUserCancel = false;
+            end
             this.clearPrimaryAxes();
             this.showBusy();
             pSettings= this.getPlotSettings();
             
             this.centroidObj = [];
-            this.disableCentroidControls();  % disable further interaction with our centroid panel
+            this.disable();
+            %this.disableCentroidControls();  % disable further interaction with our centroid panel
             
             resultsTextH = this.handles.text_resultsCentroid; % an alias
             % clear the analysis figure
@@ -2588,7 +2635,10 @@ classdef PAStatTool < handle
                 tmpCentroidObj = PACentroid(this.featureStruct.features,pSettings,this.handles.axes_primary,resultsTextH,this.featureStruct.studyIDs, this.featureStruct.startDaysOfWeek, delayedStart);
                 this.addlistener('UserCancel_Event',@tmpCentroidObj.cancelCalculations);
                 this.centroidObj = tmpCentroidObj;
-                this.enableCentroidCancellation();
+                
+                if(enableUserCancel)
+                    this.enableCentroidCancellation();
+                end
                 
                 this.centroidObj.calculateCentroids();
                 
@@ -2647,6 +2697,7 @@ classdef PAStatTool < handle
                 set(resultsTextH,'visible','off');
                 this.initRefreshCentroidButton('on');  % want to initialize the button again so they can try again perhaps.
             end
+            this.enable();
             this.showReady();
         end
         
