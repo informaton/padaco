@@ -15,43 +15,12 @@ classdef PAStatTool < handle
        COLOR_LINESELECTION = [0.8 0.1 0.1];
        COLOR_MEMBERID = [0.1 0.1 0.8];
     end
-    properties(Access=private)
-        resultsDirectory;
-        featuresDirectory;
-        cacheDirectory;
-        %> @brief Bool (true: has icon/false: does not have icon)
-        hasIcon; 
-        iconData;
-        iconCMap;
-        %> @brief Struct with key value pairs for clustering:
-        %> - @c clusterMethod Cluster method employed {'kmeans','kmedoids'}
-        %> - @c useDefaultRandomizer = widgetSettings.useDefaultRandomizer;
-        %> - @c initCentroidWithPermutation = settings.initCentroidWithPermutation;
-        %> @note Initialized in the setWidgetSettings() method
-        clusterSettings;
-        
-        %> Booleans
-        useCache;
-        useDatabase;
-        
-        databaseObj;
-        %> handle of scatter plot figure.
-        analysisFigureH;
-        
-        %> handle of the main parent figure
-        figureH;
-        featureInputFilePattern;
-        featureInputFileFieldnames;
-        %> Structure of original loaded features, that are a direct
+    properties(SetAccess=protected)
+                %> Structure of original loaded features, that are a direct
         %> replication of the data obtained from disk (i.e. without further
         %> filtering).
         originalFeatureStruct;
-        %> Structure initialized to input widget settings when passed to
-        %> the constructor (and is empty otherwise).  This is used to
-        %> 'reset' parameters and keep track of time start and stop
-        %> selection fields which are not initialized until after data has
-        %> been load (i.e. and populates the dropdown menus.
-        originalWidgetSettings;
+        
         %> structure loaded features which is as current or as in sync with the gui settings 
         %> as of the last time the 'Calculate' button was
         %> pressed/manipulated.
@@ -115,6 +84,42 @@ classdef PAStatTool < handle
         %> subjects in centroid c with values found in covariate f.
         allProfiles;
         profileTableData;
+    end
+    properties(Access=private)
+        resultsDirectory;
+        featuresDirectory;
+        cacheDirectory;
+        %> @brief Bool (true: has icon/false: does not have icon)
+        hasIcon; 
+        iconData;
+        iconCMap;
+        %> @brief Struct with key value pairs for clustering:
+        %> - @c clusterMethod Cluster method employed {'kmeans','kmedoids'}
+        %> - @c useDefaultRandomizer = widgetSettings.useDefaultRandomizer;
+        %> - @c initCentroidWithPermutation = settings.initCentroidWithPermutation;
+        %> @note Initialized in the setWidgetSettings() method
+        clusterSettings;
+        
+        %> Booleans
+        useCache;
+        useDatabase;
+        
+        databaseObj;
+        %> handle of scatter plot figure.
+        analysisFigureH;
+        
+        %> handle of the main parent figure
+        figureH;
+        featureInputFilePattern;
+        featureInputFileFieldnames;
+        %> Structure initialized to input widget settings when passed to
+        %> the constructor (and is empty otherwise).  This is used to
+        %> 'reset' parameters and keep track of time start and stop
+        %> selection fields which are not initialized until after data has
+        %> been load (i.e. and populates the dropdown menus.
+        originalWidgetSettings;
+        
+
     end
     
     properties
@@ -402,7 +407,23 @@ classdef PAStatTool < handle
         %> @param this Instance of PAStatTool
         %> @retval success Boolean: true if features are loaded from file.  False if they are not.
         % ======================================================================
-        function didCalc = calcFeatureStruct(this)
+        function didCalc = calcFeatureStruct(this, indicesToUse)
+            if(nargin<2)
+                indicesToUse = [];
+            else
+                if(ischar(indicesToUse))
+                    switch lower(indicesToUse)
+                        case 'bootstrap'
+                            
+                        otherwise
+                            fprintf(1,'Unknown indices flag for refreshCentroidsAndPlot: ''%s''\n',indicesToUse);
+                            indicesToUse = [];
+                            
+                    end
+                    
+                end
+            end
+            
             pSettings = this.getPlotSettings();
             
             countProcessType = this.base.processedTypes{1};
@@ -461,11 +482,19 @@ classdef PAStatTool < handle
                     tmpUsageStateStruct.filename = '';
                 end
                 
+                if(~isempty(indicesToUse))
+                   fieldsToParse = {'studyIDs','startDatenums','startDaysOfWeek','shapes'};
+                    for f=1:numel(fieldsToParse)
+                        fname = fieldsToParse{f};
+                        tmpUsageStateStruct.(fname) = tmpUsageStateStruct.(fname)(indicesToUse,:);
+                        tmpFeatureStruct.(fname) = tmpFeatureStruct.(fname)(indicesToUse,:);                        
+                    end
+                end
                 startTimeSelection = pSettings.startTimeSelection;
                 stopTimeSelection = pSettings.stopTimeSelection;
-%                 if(stopTimeSelection<1)
-                    % Do nothing; this means, that we started at rayday and
-                    % will go 24 hours
+                
+                % Do nothing; this means, that we started at rayday and
+                % will go 24 hours
                 if(stopTimeSelection== startTimeSelection)
 
                     if(this.inClusterView())
@@ -2556,13 +2585,15 @@ classdef PAStatTool < handle
         % ======================================================================
         %> @brief Push button callback for updating the centroids being displayed.
         %> @param this Instance of PAStatTool
-        %> @param Variable number of arguments required by MATLAB gui callbacks
-        %> varargin{1} may be used to disable the button after success.
+        %> @param enableUserCancel Boolean flag indicating whether user cancel
+        %> button is provided [false].
+        %> @param Optional Indices of study IDs and shapes to use or string
+        %> 'bootstrap' indicating a random configuration can be used.
         %> @note centroidObj is cleared at the beginning of this function.
         %> If it is empty after the function call, then the clustering
         %> failed.
         % ======================================================================
-        function refreshCentroidsAndPlot(this,enableUserCancel)
+        function refreshCentroidsAndPlot(this,enableUserCancel,varargin)
             if(nargin<2)
                 enableUserCancel = false;
             end
@@ -2577,7 +2608,7 @@ classdef PAStatTool < handle
             resultsTextH = this.handles.text_resultsCentroid; % an alias
             % clear the analysis figure
             
-            if(this.calcFeatureStruct())            
+            if(this.calcFeatureStruct(varargin{:}))            
                 % does not converge well if not normalized as we are no longer looking at the shape alone
                 
                 % @b weekdayTag String to identify how/if data should be
