@@ -27,21 +27,6 @@ classdef PACentroid < handle
     %> coiIndex2SortOrder(c), where a value of 1 is least pouplar and a
     %> value of N is most popular.
     properties(Access=private)
-        %> Struct with cluster calculation settings.  Fields include
-        %> - @c minClusters
-        %> - @c maxClusters
-        %> - @c clusterThreshold        
-        %> - @c method - {'kmeans' (Default),'kmedoids','kmedians'}
-        settings;
-        
-        %> NxM array of N profiles of length M (M is the centroid
-        %> dimensionality)
-        loadShapes;
-        
-        loadShapeIDs;  % more accurrately, the loadShapeParentID or the ID of the subject a load shape is associated with.
-        uniqueLoadShapeIDs; % unique participants or load shape generators.
-        loadShapeDayOfWeek;  %Nx1 vector with values in [0,6] representing [Sunday, Monday, Tuesday ..., Saturday]
-        daysOfInterest; % 7x1 boolean vector representing if the correspondning day of week is of interest.  [1] => Sunday, [2]=> Monday, ... , [7]=> Saturday
         
         %> Nx1 vector of centroid index for loadShape profile associated with its row.
         loadshapeIndex2centroidIndexMap;
@@ -50,16 +35,6 @@ classdef PACentroid < handle
         % silhouette(this.loadShapes, this.loadshapeIndex2centroidIndexMap,'distance','euclidean');
         
         
-        %> CxM array of C centroids of size M.  Ordered by clustering
-        %> output; the original ordering.  Not ordered from 1 to C based on popularity.  To get
-        %> popularity index from highest popularity (1) to lowest (C) use:
-        %>  coi_index = this.coiSortOrder2Index(sortOrder); 
-        %> which converts to match the index the centroid load shape corresponds to.
-        centroidShapes;
-        
-        %> Sorted distribution of centroid shapes by frequency of children load shape members.
-        %> (Cx1 vector - where is C is the number centroids)
-        histogram;
         
         %> Nx1 vector that maps the constructor's input load shapes matrix
         %> to the sorted  @c loadShapes matrix.
@@ -107,21 +82,49 @@ classdef PACentroid < handle
         %> Text handle to send status updates to via set(textHandle,'string',statusString) type calls.
         statusTextHandle;
         
-        %> Criterion for measuring cluster performance.
-        performanceCriterion;  %{'CalinskiHarabasz' , 'DaviesBouldin' , 'gap' , 'silhouette'}
 
-        %> Measure of performance.  Currently, this is the Calinski index.
-        performanceMeasure;  
 
+    end
+    
+    properties(SetAccess=protected)
+        %> Struct with cluster calculation settings.  Fields include
+        %> - @c minClusters
+        %> - @c maxClusters
+        %> - @c clusterThreshold        
+        %> - @c method - {'kmeans' (Default),'kmedoids','kmedians'}
+        settings;
+        
         
         %> struct with X, Y data, and last statusStr calculated during
         %> adaptive k means.
         performanceProgression;
         
         distanceMetric; %> For clustering.  Default is squared euclidean ('sqeuclidean');
-    end
-    
-    properties(Access=protected)
+        
+        %> NxM array of N profiles of length M (M is the centroid
+        %> dimensionality)
+        loadShapes;
+        
+        loadShapeIDs;  % more accurrately, the loadShapeParentID or the ID of the subject a load shape is associated with.
+        uniqueLoadShapeIDs; % unique participants or load shape generators.
+        loadShapeDayOfWeek;  %Nx1 vector with values in [0,6] representing [Sunday, Monday, Tuesday ..., Saturday]
+        daysOfInterest; % 7x1 boolean vector representing if the correspondning day of week is of interest.  [1] => Sunday, [2]=> Monday, ... , [7]=> Saturday
+        
+        
+        %> CxM array of C centroids of size M.  Ordered by clustering
+        %> output; the original ordering.  Not ordered from 1 to C based on popularity.  To get
+        %> popularity index from highest popularity (1) to lowest (C) use:
+        %>  coi_index = this.coiSortOrder2Index(sortOrder); 
+        %> which converts to match the index the centroid load shape corresponds to.
+        centroidShapes;
+        
+        sumD;
+        
+        %> Sorted distribution of centroid shapes by frequency of children load shape members.
+        %> (Cx1 vector - where is C is the number centroids)
+        histogram;
+        
+        
         %> @brief Numeric value indicating current state: values include
         %> - 0 Ready
         %> - -1 Failed to converge
@@ -129,9 +132,17 @@ classdef PACentroid < handle
         %> - -2 User cancelled
         %> - 2 Converged successfully
         calculationState;  
-        
+        calinskiIndex;
+        silhouetteIndex;
         performanceMetric; %> String which can be one of: {'',''}
+        
+        %> Criterion for measuring cluster performance.
+        performanceCriterion;  %{'CalinskiHarabasz' , 'DaviesBouldin' , 'gap' , 'silhouette'}
+
+        %> Measure of performance.  Currently, this is the Calinski index.
+        performanceMeasure;  
     end
+    
             
     methods        
         
@@ -314,11 +325,30 @@ classdef PACentroid < handle
             %             end
         end
         
-        function silhouetteIndex = getsilhouetteIndex(this)
-            silhouetteIndex = mean(this.getsilhouette());
+        function value = getParam(this, paramName)
+            switch(lower(paramName))
+                case 'silhouetteindex'
+                    %value = this.getSilhouetteIndex();                                        
+                    value = this.silhouetteIndex;                    
+                
+                case {'numcentroids','centroidcount'}
+                    value = this.getNumCentroids();
+                case {'numloadshapes','loadshapecount'}
+                    value = this.getNumLoadShapes();
+                case {'calinskiindex','calinski','calinskiharabasz'}
+                    value = this.calinskiIndex;
+                otherwise
+                    fprintf(1,'Unrecognized named parameter ''%s''',paramName);
+                    value = nan;
+            end
+        end
+        
+                    
+        function silhouetteIndex = getSilhouetteIndex(this)
+            silhouetteIndex = mean(this.getSilhouette());
             
         end
-        function [silh, varargout] = getsilhouette(this)
+        function [silh, varargout] = getSilhouette(this)
             if(this.numCentroids==0)
                 silh = NaN;
                 fprintf(1,'Warning no centroids exist.  Silhouette returning NaN\n');
@@ -722,22 +752,23 @@ classdef PACentroid < handle
                 if(ishandle(this.statusTextHandle))
                     set(this.statusTextHandle ,'string',{sprintf('Performing accelerated k-medians clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.clusterThreshold)});
                 end
-                [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression] = deal([],[],[],[]);
+                [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression, this.sumD] = deal([],[],[],[],[]);
                 fprintf(1,'Empty results given.  Use ''kemedoids'' instead.\n');
             elseif(strcmpi(inputSettings.clusterMethod,'kmedoids'))
                 if(ishandle(this.statusTextHandle))
                     set(this.statusTextHandle ,'string',{sprintf('Performing adaptive k-medoids clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.clusterThreshold)});
                 end
-                [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression] = this.adaptiveKmedoids(inputLoadShapes,inputSettings,this.performanceAxesHandle,this.statusTextHandle);
+                [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression, this.sumD] = this.adaptiveKmedoids(inputLoadShapes,inputSettings,this.performanceAxesHandle,this.statusTextHandle);
             elseif(strcmpi(inputSettings.clusterMethod,'kmeans'))
                 
                 if(ishandle(this.statusTextHandle))
                     set(this.statusTextHandle ,'string',{sprintf('Performing adaptive k-means clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.clusterThreshold)});
                 end
-                [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression] = this.adaptiveKmeans(inputLoadShapes,inputSettings,this.performanceAxesHandle,this.statusTextHandle);
+                [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression, this.sumD] = this.adaptiveKmeans(inputLoadShapes,inputSettings,this.performanceAxesHandle,this.statusTextHandle);
             end
             
-            if(~isempty(this.centroidShapes))
+            if(~isempty(this.centroidShapes))          
+                
                 % It is possible that we overdid it and have unassigned
                 % clusters here.  
                 uniqueIndices = unique(this.loadshapeIndex2centroidIndexMap);
@@ -788,9 +819,21 @@ classdef PACentroid < handle
                 if(~this.getUserCancelled())
                     this.calculationState = 2;  % finished calculation.  
                 end
+                
+                idx = this.loadshapeIndex2centroidIndexMap;
+                if(strcmpi(this.performanceCriterion,'silhouette'))
+                    this.calinskiIndex = PACentroid.getCalinskiHarabaszIndex(idx,this.centroidShapes,this.sumD);
+                    this.silhouetteIndex = this.performanceMeasure;                    
+                else
+                    this.calinskiIndex = this.performanceMeasure;
+                    this.silhouetteIndex = mean(silhouette(this.loadShapes,idx));                    
+                end
+                
             else
                 fprintf('Clustering failed!  No clusters found!\n');
                 this.calculationState = -1;  % Calculation failed
+                this.calinskiIndex = nan;
+                this.silhouetteIndex = nan;
                 this.init();     
             end
         end
@@ -908,12 +951,12 @@ classdef PACentroid < handle
         %> cluster sizes and corresponding Calinski indices obtained for
         %> each iteration of k means.
         % ======================================================================
-        function [idx, centroids, performanceIndex, performanceProgression] = adaptiveKmedoids(this,loadShapes,settings,performanceAxesH,textStatusH)
+        function [idx, centroids, performanceIndex, performanceProgression, sumD] = adaptiveKmedoids(this,loadShapes,settings,performanceAxesH,textStatusH)
             performanceIndex = [];
             X = [];
             Y = [];
             idx = [];
-            
+            sumD = [];
             % argument checking and validation ....
             if(nargin<5)
                 textStatusH = -1;
@@ -947,7 +990,7 @@ classdef PACentroid < handle
                 %performanceAxesH = axes('parent',calinskiFig,'box','on');
                 %calinskiLine = line('xdata',nan,'ydata',nan,'parent',performanceAxesH,'linestyle','none','marker','o');
                 xlabel(performanceAxesH,'K');
-                ylabel(performanceAxesH,'Calinski Index');
+                ylabel(performanceAxesH,sprintf('%s Index',this.performanceCriterion'));
             end
             
             K = settings.minClusters;
@@ -1006,10 +1049,10 @@ classdef PACentroid < handle
 
                     if(ishandle(performanceAxesH))
                         if(strcmpi(this.performanceCriterion,'silhouette'))
-                            performanceIndex  = mean(silhouette(loadShapes,idx));
+                            performanceIndex  = mean(silhouette(loadShapes,idx,this.distanceMetric));
 
                         else
-                            performanceIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);                            
+                            performanceIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);
                         end
                         X(end+1)= K;
                         Y(end+1)=performanceIndex;
@@ -1051,7 +1094,7 @@ classdef PACentroid < handle
                         % show these results.
                         if(ishandle(performanceAxesH))
                             if(strcmpi(this.performanceCriterion,'silhouette'))
-                                performanceIndex  = mean(silhouette(loadShapes,idx));
+                                performanceIndex  = mean(silhouette(loadShapes,idx,this.distanceMetric));
                                 
                             else
                                 performanceIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);
@@ -1060,7 +1103,7 @@ classdef PACentroid < handle
                             Y(end+1)=performanceIndex;
                             PACentroid.plot(performanceAxesH,X,Y);
                             
-                            statusStr = sprintf('Calinski index = %0.2f for K = %u clusters',performanceIndex,K);
+                            statusStr = sprintf('%s index = %0.2f for K = %u clusters',this.performanceCriterion,performanceIndex,K);
                             
                             fprintf(1,'%s\n',statusStr);
                             if(ishandle(textStatusH))
@@ -1149,7 +1192,7 @@ classdef PACentroid < handle
                         Y(end+1)=performanceIndex;
                         PACentroid.plot(performanceAxesH,X,Y);
                         
-                        statusStr = sprintf('Calinski index = %0.2f for K = %u clusters',performanceIndex,K);
+                        statusStr = sprintf('%s index = %0.2f for K = %u clusters',this.performanceCriterion,performanceIndex,K);
                         
                         fprintf(1,'%s\n',statusStr);
                         if(ishandle(textStatusH))
@@ -1164,9 +1207,9 @@ classdef PACentroid < handle
                         %max(X)]+5,[min(Y)-10,max(Y)+10]);
                     end
                     if(this.getUserCancelled())
-                        statusStr = sprintf('User cancelled with final cluster size of %u.  Calinski index = %0.2f  ',K,performanceIndex); 
+                        statusStr = sprintf('User cancelled with final cluster size of %u.  %s index = %0.2f  ',K,this.performanceCriterion,performanceIndex); 
                     else
-                        statusStr = sprintf('Converged with a cluster size of %u.  Calinski index = %0.2f  ',K,performanceIndex);
+                        statusStr = sprintf('Converged with a cluster size of %u.  %s index = %0.2f  ',K,this.performanceCriterion,performanceIndex);
                     end
                     fprintf(1,'%s\n',statusStr);
                     if(ishandle(textStatusH))
@@ -1204,12 +1247,12 @@ classdef PACentroid < handle
         %> cluster sizes and corresponding Calinski indices obtained for
         %> each iteration of k means.
         % ======================================================================
-        function [idx, centroids, performanceIndex, performanceProgression] = adaptiveKmeans(this,loadShapes,settings,performanceAxesH,textStatusH)
+        function [idx, centroids, performanceIndex, performanceProgression, sumD] = adaptiveKmeans(this,loadShapes,settings,performanceAxesH,textStatusH)
             performanceIndex = [];
             X = [];
             Y = [];
             idx = [];
-            
+            sumD = [];
             
             % argument checking and validation ....
             if(nargin<5)
@@ -1246,7 +1289,7 @@ classdef PACentroid < handle
                 %performanceAxesH = axes('parent',calinskiFig,'box','on');
                 %calinskiLine = line('xdata',nan,'ydata',nan,'parent',performanceAxesH,'linestyle','none','marker','o');
                 xlabel(performanceAxesH,'K');
-                ylabel(performanceAxesH,'Calinski Index');
+                ylabel(performanceAxesH,sprintf('%s Index',this.performanceCriterion));
             end
             
             K = settings.minClusters;
@@ -1327,7 +1370,7 @@ classdef PACentroid < handle
                         Y(end+1)=performanceIndex;
                         PACentroid.plot(performanceAxesH,X,Y);
                         
-                        statusStr = sprintf('Calinski index = %0.2f for K = %u clusters',performanceIndex,K);
+                        statusStr = sprintf('%s index = %0.2f for K = %u clusters',this.performanceCriterion,performanceIndex,K);
                         
                         fprintf(1,'%s\n',statusStr);
                         if(ishandle(textStatusH))
@@ -1369,7 +1412,7 @@ classdef PACentroid < handle
                             Y(end+1)=performanceIndex;
                             PACentroid.plot(performanceAxesH,X,Y);
                             
-                            statusStr = sprintf('Calinski index = %0.2f for K = %u clusters',performanceIndex,K);
+                            statusStr = sprintf('%s index = %0.2f for K = %u clusters',this.performanceCriterion,performanceIndex,K);
                             
                             fprintf(1,'%s\n',statusStr);
                             if(ishandle(textStatusH))
@@ -1479,9 +1522,9 @@ classdef PACentroid < handle
                         
                     end
                     if(this.getUserCancelled())
-                        statusStr = sprintf('User cancelled with final cluster size of %u.  Calinski index = %0.2f  ',K,performanceIndex);
+                        statusStr = sprintf('User cancelled with final cluster size of %u.  %s index = %0.2f  ',K,this.performanceCriterion,performanceIndex);
                     else
-                        statusStr = sprintf('Converged with a cluster size of %u.  Calinski index = %0.2f  ',K,performanceIndex);
+                        statusStr = sprintf('Converged with a cluster size of %u.  %s index = %0.2f  ',K,this.performanceCriterion,performanceIndex);
                     end
                     fprintf(1,'%s\n',statusStr);
                     if(ishandle(textStatusH))
@@ -1597,7 +1640,7 @@ classdef PACentroid < handle
             plotOptions = PACentroid.getPlotOptions();
             h=plot(performanceAxesH,X,Y,plotOptions{:});
             xlabel(performanceAxesH,'K');
-            ylabel(performanceAxesH,'Calinski Index');
+            ylabel(performanceAxesH,'Performance Index');
         end       
         
         function plotOptions = getPlotOptions()

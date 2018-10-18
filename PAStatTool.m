@@ -410,6 +410,9 @@ classdef PAStatTool < handle
         function didCalc = calcFeatureStruct(this, indicesToUse)
             if(nargin<2)
                 indicesToUse = [];
+                %                 if(~isempty(this.originalFeatureStruct))
+                %                     indicesToUse = randn(size(this.originalFeatureStruct.studyIDs))>0;
+                %                 end
             else
                 if(ischar(indicesToUse))
                     switch lower(indicesToUse)
@@ -2525,29 +2528,26 @@ classdef PAStatTool < handle
                 if(nargin<2)
                     numBootstraps = 3;
                 end
+                paramNames = {'centroidCount','silhouetteIndex','calinskiIndex'};
+                params = mkstruct(paramNames,nan(1,numBootstraps));
                 
-                sample_size = numel(this.featureStruct.studyIDs);
+                    
+                sample_size = numel(this.originalFeatureStruct.studyIDs);
                 boot_ind = randi(sample_size,[sample_size,numBootstraps]);
-                params.centroidCount = nan(1,numBootstraps);
-
+                allowUserCancel = false;
                 for n=1:numBootstraps
                     
                     if(~didCancel && ishandle(h))
                         %featureStruct = this.StatTool.getFeatureStruct();
                         waitbar(n/numBootstraps,h,sprintf('Bootstrapping %d of %d',n,numBootstraps));
-                        this.refreshCentroidsAndPlot();
-                        % tmpCentroidObj = PACentroid(featureStruct.features,pSettings,this.handles.axes_primary,resultsTextH,this.featureStruct.studyIDs, this.featureStruct.startDaysOfWeek, delayedStart);
-                        %this.addlistener('UserCancel_Event',@tmpCentroidObj.cancelCalculations);
-                        %this.centroidObj = tmpCentroidObj;
-                        %this.enableCentroidCancellation();
-                        
-                        %tmpCentroidObj.calculateCentroids();
-                        
-                        %if(tmpCentroidObj.failedToConverge())
+                        if(this.refreshCentroidsAndPlot(allowUserCancel,boot_ind(:,n)))
                             
-                        %end
+                            for f=1:numel(paramNames)
+                                pName = paramNames{f};
+                                params.(pName)(n) = this.centroidObj.getParam(pName);
+                            end
+                        end
                         drawnow();
-                        %pause(2);
                     else
                         break;
                     end
@@ -2555,20 +2555,36 @@ classdef PAStatTool < handle
                 
                 % If you stop early, we still want results, I think.
                 if(n>1)
-                     
+                    if(ishandle(h))
+                        delete(h);
+                    end
+                    
+                    
                     CI = 95;  %i.e. we want the 95% confidence interval
                     CI_alpha = 100-CI;
                     CI_range = [CI_alpha/2, 100-CI_alpha/2];  %[2.5, 97.5]
-                    params.centroidCount = params.centroidCount(1:n);
-                    message = sprintf('95%% Confidence Interval(s) using\n\tbootstrap iterations = %i\n\tsample size = %i\n',n,sample_size);
-                    numClusters_CI_percentile = prctile([numClusters_CI_percentile,[]],CI_range);
-                    
+                   
+                    message = cell(numel(paramNames)+1,1);
+                    message{1} = sprintf('95%% Confidence Interval(s) using\n\tbootstrap iterations = %i\n\tsample size = %i\n',n,sample_size);
+                    for f=1:numel(paramNames)
+                        pName = paramNames{f};
+                        values = params.(pName)(1:n);
+                        param_CI_percentile = prctile(values,CI_range);                        
+                        message{f+1} = sprintf('%s %0.4f [%0.4f, %0.4f]' ,pName,mean(values),param_CI_percentile(1),param_CI_percentile(2));
+                    end
+                    for m=1:numel(message)
+                        fprintf(1,'%s\n',message{m});
+                    end
+                    msgbox(message,'results');
+                    %message{k+1} = [paramCell(k).label,' [ ',num2str(config_CI_percentile(1,k),decimal_format),', ',num2str(config_CI_percentile(2,k),decimal_format),']'];
                 end
                 
             catch me
                 showME(me);
             end
-            delete(h);
+            if(ishandle(h))
+                delete(h);
+            end
             %             if(ishandle(h))
             %                 waitbar(100,h,'Bootstrap complete');
             %             end
@@ -2593,7 +2609,8 @@ classdef PAStatTool < handle
         %> If it is empty after the function call, then the clustering
         %> failed.
         % ======================================================================
-        function refreshCentroidsAndPlot(this,enableUserCancel,varargin)
+        function didConverge = refreshCentroidsAndPlot(this,enableUserCancel,varargin)
+            didConverge = false;
             if(nargin<2)
                 enableUserCancel = false;
             end
@@ -2709,6 +2726,7 @@ classdef PAStatTool < handle
             end
             
             if(this.hasValidCentroid()) % ~isempty(this.centroidObj))
+                didConverge = true;
                 % Prep the x-axis here since it will not change when going from one centroid to the
                 % next, but only (though not necessarily) when refreshing centroids.
                 this.drawCentroidXTicksAndLabels();
