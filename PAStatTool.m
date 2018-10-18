@@ -14,6 +14,7 @@ classdef PAStatTool < handle
        COLOR_MEMBERSHAPE = [0.85 0.85 0.85];
        COLOR_LINESELECTION = [0.8 0.1 0.1];
        COLOR_MEMBERID = [0.1 0.1 0.8];
+       MAX_DAYS_PER_STUDY = 7;
     end
     properties(SetAccess=protected)
                 %> Structure of original loaded features, that are a direct
@@ -466,7 +467,19 @@ classdef PAStatTool < handle
                 
                 loadFileRequired = isempty(this.originalFeatureStruct) || ~strcmpi(inputFilename,this.originalFeatureStruct.filename);
                 if(loadFileRequired)
-                    this.originalFeatureStruct = this.loadAlignedFeatures(inputFilename);                    
+                    this.originalFeatureStruct = this.loadAlignedFeatures(inputFilename);    
+                    if(isfield(this.originalFeatureStruct,'studyIDs'))
+                        [this.originalFeatureStruct.uniqueIDs,iaFirst] = unique(this.originalFeatureStruct.studyIDs,'first');
+                        [~,iaLast,~] = unique(this.originalFeatureStruct.studyIDs,'last');
+                        this.originalFeatureStruct.indFirstLast = [iaFirst, iaLast];
+                        this.originalFeatureStruct.indFirstLast1Week = [iaFirst, min(iaLast, iaFirst+this.MAX_DAYS_PER_STUDY-1)];
+                        ind2keep = false(size(this.originalfeatureStruct.shapes,1),1);
+                        dayInd = this.originalFeatureStruct.indFirstLast1Week;
+                        for d=1:size(dayInd,1)
+                            ind2keep(dayInd(d,1):dayInd(d,2))= true;
+                        end
+                        this.originalFeatureStruct.ind2keep1Week = ind2keep;
+                    end
                     
                     % The call to setStartTimes here is necessary to 
                     % updating the start/stop GUI times just loaded.
@@ -541,13 +554,19 @@ classdef PAStatTool < handle
                 
                 maxDaysAllowed = this.maxNumDaysAllowed;
                 if(maxDaysAllowed>0)
-                    ind2keep = false(size(this.featureStruct.shapes,1),1);
-                    [c,iaFirst,ic] = unique(this.featureStruct.studyIDs,'first');
-                    [c,iaLast,ic] = unique(this.featureStruct.studyIDs,'last');
-                    dayInd = [iaFirst, min(iaLast, iaFirst+6)];
-                    for d=1:size(dayInd,1)
-                        ind2keep(dayInd(d,1):dayInd(d,2))= true;
+                    if(isempty(indicesToUse))
+                        ind2keep = this.originalFeatureStruct.ind2keep1Week;                        
+                    else
+                        % Otherwise, go off of what was passed in.
+                        ind2keep = false(size(this.featureStruct.shapes,1),1);
+                        [c,iaFirst,ic] = unique(this.featureStruct.studyIDs,'first');
+                        [c,iaLast,ic] = unique(this.featureStruct.studyIDs,'last');
+                        dayInd = [iaFirst, min(iaLast, iaFirst+this.MAX_DAYS_PER_STUDY-1)];
+                        for d=1:size(dayInd,1)
+                            ind2keep(dayInd(d,1):dayInd(d,2))= true;
+                        end
                     end
+                    
                     fieldsToParse = {'studyIDs','startDatenums','startDaysOfWeek','shapes'};
                     for f=1:numel(fieldsToParse)
                         fname = fieldsToParse{f};
@@ -2533,7 +2552,30 @@ classdef PAStatTool < handle
                 
                     
                 sample_size = numel(this.originalFeatureStruct.studyIDs);
-                boot_ind = randi(sample_size,[sample_size,numBootstraps]);
+                
+                bootstrapUsing = 'days';  %feature vectors
+                bootstrapUsing = 'studyID';
+                
+                if(strcmpi(bootstrapUsing,'days'))                
+                    boot_ind = randi(sample_size,[sample_size,numBootstraps]);
+                else
+                    boot_ind = randi(sample_size,[sample_size,numBootstraps]);
+                    ind2keep = false(size(this.featureStruct.shapes,1),1);
+                    [c,iaFirst,ic] = unique(this.featureStruct.studyIDs,'first');
+                    [c,iaLast,ic] = unique(this.featureStruct.studyIDs,'last');
+                    dayInd = [iaFirst, min(iaLast, iaFirst+6)];
+                    for d=1:size(dayInd,1)
+                        ind2keep(dayInd(d,1):dayInd(d,2))= true;
+                    end
+                    fieldsToParse = {'studyIDs','startDatenums','startDaysOfWeek','shapes'};
+                    for f=1:numel(fieldsToParse)
+                        fname = fieldsToParse{f};
+                        this.featureStruct.(fname)(~ind2keep,:)=[];
+                    end
+                    
+                    
+                end
+                
                 allowUserCancel = false;
                 for n=1:numBootstraps
                     
