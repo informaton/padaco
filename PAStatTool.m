@@ -2467,6 +2467,49 @@ classdef PAStatTool < handle
                 startTimes = {};
             end            
         end
+        
+        function bootstrap(this, numIterations)
+            if(nargin<2)
+                numIterations = 3;
+            end
+                        didCancel = false;
+            function cbFcn(hObject,evtData)
+                waitbar(1,h,'Cancelling ...');
+                didCancel = true;
+            end
+            
+            h = waitbar(0,'Preparing for bootstrap','CreateCancelBtn',@cbFcn);
+            try
+                for n=1:numberOfIterations
+                    
+                    if(~didCancel && ishandle(h))
+                        %featureStruct = this.StatTool.getFeatureStruct();
+                        waitbar(n/numberOfIterations,h,sprintf('Bootstrapping %d of %d',n,numberOfIterations));
+                        this.StatTool.refreshCentroidsAndPlot();
+                        % tmpCentroidObj = PACentroid(featureStruct.features,pSettings,this.handles.axes_primary,resultsTextH,this.featureStruct.studyIDs, this.featureStruct.startDaysOfWeek, delayedStart);
+                        %this.addlistener('UserCancel_Event',@tmpCentroidObj.cancelCalculations);
+                        %this.centroidObj = tmpCentroidObj;
+                        %this.enableCentroidCancellation();
+                        
+                        %tmpCentroidObj.calculateCentroids();
+                        
+                        %if(tmpCentroidObj.failedToConverge())
+                            
+                        %end
+                        drawnow();
+                        %pause(2);
+                    else
+                        break;
+                    end
+                end
+            catch me
+                showME(me);
+            end
+            delete(h);
+            %             if(ishandle(h))
+            %                 waitbar(100,h,'Bootstrap complete');
+            %             end
+        end
         % ======================================================================
         %> @brief Push button callback for updating the centroids being displayed.
         %> @param this Instance of PAStatTool

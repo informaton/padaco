@@ -419,9 +419,10 @@ classdef PAController < handle
             %% View Modes
             set(handles.menu_viewmode_timeseries,'callback',{@obj.setViewModeCallback,'timeSeries'});
             set(handles.menu_viewmode_results,'callback',{@obj.setViewModeCallback,'results'});
-            set(handles.menu_viewmode_batch,'callback',@obj.menuViewmodeBatchCallback);
             
             %% Tools
+            set(handles.menu_tools_batch,'callback',@obj.menuToolsBatchCallback);
+            set(handles.menu_tools_bootstrap,'callback',@obj.menuToolsBootstrapCallback);
             set(handles.menu_tools_raw2bin,'callback',@obj.menuToolsRaw2BinCallback);
             set(handles.menu_tools_coptr2act,'callback',@obj.coptr2actigraphCallback);
             
@@ -1575,7 +1576,7 @@ classdef PAController < handle
         %> workspace.  This is useful for debugging and developing methods
         %> ad hoc.
         %> @param obj Instance of PAController
-        %> @param hObject    handle to menu_viewmode_batch (see GCBO)
+        %> @param hObject    handle to menu_tools_batch (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
@@ -1599,7 +1600,7 @@ classdef PAController < handle
         %> workspace.  This is useful for debugging and developing methods
         %> ad hoc.
         %> @param obj Instance of PAController
-        %> @param hObject    handle to menu_viewmode_batch (see GCBO)
+        %> @param hObject    handle to menu_tools_batch (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
@@ -1647,7 +1648,7 @@ classdef PAController < handle
         %> @brief Menubar callback for exporting PAController's data object
         %> to disk, in two separate .csv files.
         %> @param obj Instance of PAController
-        %> @param hObject    handle to menu_viewmode_batch (see GCBO)
+        %> @param hObject    handle to menu_tools_batch (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
@@ -1803,11 +1804,11 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         %> @brief Menubar callback for running the batch tool.
         %> @param obj Instance of PAController
-        %> @param hObject    handle to menu_viewmode_batch (see GCBO)
+        %> @param hObject    handle to menu_tools_batch (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
-        function menuViewmodeBatchCallback(obj,hObject,eventdata)
+        function menuToolsBatchCallback(obj,hObject,eventdata)
             
             batchTool = PABatchTool(obj.SETTINGS.BATCH);
             batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
@@ -1817,7 +1818,9 @@ classdef PAController < handle
             batchTool.addlistener('BatchToolClosing',@obj.updateBatchToolSettingsCallback);
             
         end
-
+        function menuToolsBootstrapCallback(this, varargin)
+            this.StatTool.bootstrap();
+        end
         % --------------------------------------------------------------------
         %> @brief Menubar callback for starting the raw .csv to .bin file
         %> converter.
