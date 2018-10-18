@@ -473,7 +473,7 @@ classdef PAStatTool < handle
                         [~,iaLast,~] = unique(this.originalFeatureStruct.studyIDs,'last');
                         this.originalFeatureStruct.indFirstLast = [iaFirst, iaLast];
                         this.originalFeatureStruct.indFirstLast1Week = [iaFirst, min(iaLast, iaFirst+this.MAX_DAYS_PER_STUDY-1)];
-                        ind2keep = false(size(this.originalfeatureStruct.shapes,1),1);
+                        ind2keep = false(size(this.originalFeatureStruct.shapes,1),1);
                         dayInd = this.originalFeatureStruct.indFirstLast1Week;
                         for d=1:size(dayInd,1)
                             ind2keep(dayInd(d,1):dayInd(d,2))= true;
@@ -2545,45 +2545,53 @@ classdef PAStatTool < handle
                 
                 % configure bootstrap
                 if(nargin<2)
-                    numBootstraps = 3;
+                    numBootstraps = 100;
                 end
                 paramNames = {'centroidCount','silhouetteIndex','calinskiIndex'};
                 params = mkstruct(paramNames,nan(1,numBootstraps));
                 
                     
-                sample_size = numel(this.originalFeatureStruct.studyIDs);
                 
                 bootstrapUsing = 'days';  %feature vectors
                 bootstrapUsing = 'studyID';
                 
                 if(strcmpi(bootstrapUsing,'days'))                
-                    boot_ind = randi(sample_size,[sample_size,numBootstraps]);
+                    sample_size = numel(this.originalFeatureStruct.studyIDs);
+                    boot_daysInd = randi(sample_size,[sample_size,numBootstraps]);
                 else
-                    boot_ind = randi(sample_size,[sample_size,numBootstraps]);
-                    ind2keep = false(size(this.featureStruct.shapes,1),1);
-                    [c,iaFirst,ic] = unique(this.featureStruct.studyIDs,'first');
-                    [c,iaLast,ic] = unique(this.featureStruct.studyIDs,'last');
-                    dayInd = [iaFirst, min(iaLast, iaFirst+6)];
-                    for d=1:size(dayInd,1)
-                        ind2keep(dayInd(d,1):dayInd(d,2))= true;
-                    end
-                    fieldsToParse = {'studyIDs','startDatenums','startDaysOfWeek','shapes'};
-                    for f=1:numel(fieldsToParse)
-                        fname = fieldsToParse{f};
-                        this.featureStruct.(fname)(~ind2keep,:)=[];
-                    end
-                    
-                    
+                    sample_size = numel(this.originalFeatureStruct.uniqueIDs);
+                    boot_studyInd = randi(sample_size,[sample_size,numBootstraps]);                    
                 end
                 
                 allowUserCancel = false;
+                startTime = now;
                 for n=1:numBootstraps
                     
                     if(~didCancel && ishandle(h))
                         %featureStruct = this.StatTool.getFeatureStruct();
-                        waitbar(n/numBootstraps,h,sprintf('Bootstrapping %d of %d',n,numBootstraps));
-                        if(this.refreshCentroidsAndPlot(allowUserCancel,boot_ind(:,n)))
+                        timeElapsedStr = getTimeElapsedStr(startTime);                        
+                        waitbar(n/numBootstraps,h,sprintf('Bootstrapping %d of %d  (%s)',n,numBootstraps,timeElapsedStr));
+                        
+                        if(strcmpi(bootstrapUsing,'days'))
+                            ind2use = boot_daysInd(:,n);
+                        else
+                            studyInd2use = boot_studyInd(:,n);  % these are indices of the study IDs to use
+                            indFirstLast = this.originalFeatureStruct.indFirstLast(studyInd2use,:);
+                            daysPerStudy = indFirstLast(:,2)-indFirstLast(:,1)+1;
                             
+                            numVectors = sum(daysPerStudy);
+                            % numVectors = sum(diff(indFirstLast'))+size(indFirstLast,1);
+                            
+                            ind2use = nan(numVectors,1);
+                            curVecInd = 1;
+                            for row=1:size(indFirstLast,1)
+                                
+                                ind2use(curVecInd:curVecInd+daysPerStudy(row)-1) = indFirstLast(row,1):indFirstLast(row,2);
+                                curVecInd = curVecInd+daysPerStudy(row);
+                            end
+                                
+                        end
+                        if(this.refreshCentroidsAndPlot(allowUserCancel,ind2use))                            
                             for f=1:numel(paramNames)
                                 pName = paramNames{f};
                                 params.(pName)(n) = this.centroidObj.getParam(pName);
@@ -2607,7 +2615,7 @@ classdef PAStatTool < handle
                     CI_range = [CI_alpha/2, 100-CI_alpha/2];  %[2.5, 97.5]
                    
                     message = cell(numel(paramNames)+1,1);
-                    message{1} = sprintf('95%% Confidence Interval(s) using\n\tbootstrap iterations = %i\n\tsample size = %i\n',n,sample_size);
+                    message{1} = sprintf('95%% Confidence Interval(s) using\n\tbootstrap iterations = %i\n\tsample size = %i\nComputation Time: %s\n',n,sample_size,getTimeElapsedStr(startTime));
                     for f=1:numel(paramNames)
                         pName = paramNames{f};
                         values = params.(pName)(1:n);
