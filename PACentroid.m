@@ -823,11 +823,14 @@ classdef PACentroid < handle
                 idx = this.loadshapeIndex2centroidIndexMap;
                 if(strcmpi(this.performanceCriterion,'silhouette'))
                     this.calinskiIndex = PACentroid.getCalinskiHarabaszIndex(idx,this.centroidShapes,this.sumD);
-                    this.silhouetteIndex = this.performanceMeasure;                    
+                    this.silhouetteIndex = this.performanceMeasure;            
+                    fprintf('Calinski Index = %0.2f\n',this.calinskiIndex);
                 else
                     this.calinskiIndex = this.performanceMeasure;
                     this.silhouetteIndex = mean(silhouette(this.loadShapes,idx));                    
+                    fprintf('Silhouette Index = %0.4f\n',this.silhouetteIndex);
                 end
+                
                 
             else
                 fprintf('Clustering failed!  No clusters found!\n');
@@ -1206,10 +1209,16 @@ classdef PACentroid < handle
                         %set(calinkiAxes,'xlim',[min(X)-5,
                         %max(X)]+5,[min(Y)-10,max(Y)+10]);
                     end
-                    if(this.getUserCancelled())
-                        statusStr = sprintf('User cancelled with final cluster size of %u.  %s index = %0.2f  ',K,this.performanceCriterion,performanceIndex); 
+                    if(strcmpi(this.performanceCriterion,'silhouette'))
+                        fmtStr = '%0.4f';
                     else
-                        statusStr = sprintf('Converged with a cluster size of %u.  %s index = %0.2f  ',K,this.performanceCriterion,performanceIndex);
+                        fmtStr = '%0.2f';
+                    end
+                        
+                    if(this.getUserCancelled())
+                        statusStr = sprintf(['User cancelled with final cluster size of %u.  %s index = ',fmtStr,'  '],K,this.performanceCriterion,performanceIndex); 
+                    else
+                        statusStr = sprintf(['Converged with a cluster size of %u.  %s index = ',fmtStr,'  '],K,this.performanceCriterion,performanceIndex);
                     end
                     fprintf(1,'%s\n',statusStr);
                     if(ishandle(textStatusH))
@@ -1521,10 +1530,16 @@ classdef PACentroid < handle
                         %max(X)]+5,[min(Y)-10,max(Y)+10]);
                         
                     end
-                    if(this.getUserCancelled())
-                        statusStr = sprintf('User cancelled with final cluster size of %u.  %s index = %0.2f  ',K,this.performanceCriterion,performanceIndex);
+                    
+                    if(strcmpi(this.performanceCriterion,'silhouette'))
+                        fmtStr = '%0.4f';
                     else
-                        statusStr = sprintf('Converged with a cluster size of %u.  %s index = %0.2f  ',K,this.performanceCriterion,performanceIndex);
+                        fmtStr = '%0.2f';
+                    end
+                    if(this.getUserCancelled())
+                        statusStr = sprintf(['User cancelled with final cluster size of %u.  %s index = ',fmtStr,'  '],K,this.performanceCriterion,performanceIndex);
+                    else
+                        statusStr = sprintf(['Converged with a cluster size of %u.  %s index = ',fmtStr,'  '],K,this.performanceCriterion,performanceIndex);
                     end
                     fprintf(1,'%s\n',statusStr);
                     if(ishandle(textStatusH))

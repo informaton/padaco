@@ -2625,7 +2625,7 @@ classdef PAStatTool < handle
                     for m=1:numel(message)
                         fprintf(1,'%s\n',message{m});
                     end
-                    msgbox(message,'results');
+                    msgbox(message,'Bootstrap results');
                     %message{k+1} = [paramCell(k).label,' [ ',num2str(config_CI_percentile(1,k),decimal_format),', ',num2str(config_CI_percentile(2,k),decimal_format),']'];
                 end
                 
@@ -2998,7 +2998,12 @@ classdef PAStatTool < handle
                         coi = cois{c};
                         if(centroidAndPlotSettings.showCentroidMembers)
                             if(numel(coi.shape)==1)
-                                markerType = 'hexagram';
+                                markerOff = true;
+                                if(markerOff)
+                                    markerType = 'none';
+                                else
+                                    markerType = 'hexagram';
+                                end
                                 midPoint = mean(get(centroidAxes,'xlim'));
                                 membersLineH = plot(centroidAxes,midPoint,coi.dayOfWeek.memberShapes,'-','linewidth',1,'color',this.COLOR_MEMBERSHAPE,'marker',markerType);
                             else
@@ -3026,13 +3031,21 @@ classdef PAStatTool < handle
                         % This changes my axes limit mode if nextplot is set to
                         % 'replace' instead of 'replacechildren'
                         colorStyleIndex = mod(c-1,maxColorStyles)+1;  %b/c MATLAB is one based, and 'mod' is not.
+                        
+                        markerOff = true;
+                        if(markerOff)
+                            markerType = 'none';
+                        else
+                            markerType = coiMarkers(colorStyleIndex);
+                        end
                         if(numel(coi.shape)==1)
                             midPoint = mean(get(centroidAxes,'xlim'));
+                            
                             centroidHandles(c) = plot(centroidAxes,midPoint,coi.shape,'linestyle','none',...
-                                'marker',coiMarkers(colorStyleIndex),'markerfacecolor','none',...
+                                'marker',markerType,'markerfacecolor','none',...
                                 'markeredgecolor',coiColors(colorStyleIndex));
                         else
-                            centroidHandles(c) = plot(centroidAxes,coi.shape,'linewidth',2,'linestyle',coiStyles(colorStyleIndex),'color',coiColors(colorStyleIndex),'marker',coiMarkers(colorStyleIndex),'markerfacecolor','none','markeredgecolor','k'); %[0 0 0]);
+                            centroidHandles(c) = plot(centroidAxes,coi.shape,'linewidth',2,'linestyle',coiStyles(colorStyleIndex),'color',coiColors(colorStyleIndex),'marker',markerType,'markerfacecolor','none','markeredgecolor','k'); %[0 0 0]);
                         end
 
                         if(coi.numMembers==1)
