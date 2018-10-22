@@ -7,6 +7,12 @@
 %> In the model, view, controller paradigm, this is the
 %> controller.
 classdef PAController < handle
+    
+    events
+       StatToolCreationSuccess;
+       StatToolCreationFailure;
+    end
+    
     properties(Constant)
         versionMatFilename = 'version.chk';
     end
@@ -91,6 +97,13 @@ classdef PAController < handle
         function obj = PAController(Padaco_fig_h,...
                 rootPathname,...
                 parameters_filename)
+            
+%             obj.addlistener('StatToolCreationSuccess',{@obj.statToolCreationCallback,true});
+%             obj.addlistener('StatToolCreationFailure',{@obj.statToolCreationCallback,false});
+
+            obj.addlistener('StatToolCreationSuccess',@obj.statToolCreationCallback);
+            obj.addlistener('StatToolCreationFailure',@obj.statToolCreationCallback);
+
             if(nargin<1)
                 Padaco_fig_h = [];
             end
@@ -103,6 +116,7 @@ classdef PAController < handle
                 parameters_filename = '_padaco.parameters.txt';
             end;
             
+         
             obj.StatTool = [];
             
             %create/intilize the settings object
@@ -161,6 +175,8 @@ classdef PAController < handle
                     showME(me);
                 end
             end
+            
+
         end
         
         %% Shutdown functions
@@ -422,7 +438,7 @@ classdef PAController < handle
             
             %% Tools
             set(handles.menu_tools_batch,'callback',@obj.menuToolsBatchCallback);
-            set(handles.menu_tools_bootstrap,'callback',@obj.menuToolsBootstrapCallback);
+            set(handles.menu_tools_bootstrap,'callback',@obj.menuToolsBootstrapCallback,'enable','off');  % enable state depends on PAStatTool construction success (see obj.events)
             set(handles.menu_tools_raw2bin,'callback',@obj.menuToolsRaw2BinCallback);
             set(handles.menu_tools_coptr2act,'callback',@obj.coptr2actigraphCallback);
             
@@ -442,6 +458,17 @@ classdef PAController < handle
                 handles.menu_help_faq
                 ],'enable','on');
         end
+        
+        % Activate the tool when it makes sense to do so.
+        function statToolCreationCallback(this,hObject,evtData)
+            
+            if(isa(this.StatTool,'PAStatTool'))
+                set(this.handles.menu_tools_bootstrap,'enable','on');
+            else
+                set(this.handles.menu_tools_bootstrap,'enable','off');
+            end
+        end
+
         
         
         % --------------------------------------------------------------------
@@ -1819,7 +1846,8 @@ classdef PAController < handle
             
         end
         function menuToolsBootstrapCallback(this, varargin)
-            this.StatTool.bootstrap();
+            
+            this.StatTool.bootstrapCallback(varargin{:});
         end
         % --------------------------------------------------------------------
         %> @brief Menubar callback for starting the raw .csv to .bin file
@@ -2396,12 +2424,14 @@ classdef PAController < handle
                 end
                 
                 this.StatTool = [];
+                this.notify('StatToolCreationFailure');
                 responseButton = questdlg('Results output pathname is either not set or was not found.  Would you like to choose one now?','Find results output path?');
                 if(strcmpi(responseButton,'yes'))
                     this.menuFileOpenResultsPathCallback();
                 end
             else
                 this.VIEW.showReady();
+                this.notify('StatToolCreationSuccess');
             end
         end
         

@@ -22,6 +22,10 @@ classdef PAStatTool < handle
         %> filtering).
         originalFeatureStruct;
         
+        bootstrapParamNames = {'bootstrapIterations','bootstrapSampleName'};
+        bootstrapIterations;
+        bootstrapSampleName;
+        
         %> structure loaded features which is as current or as in sync with the gui settings 
         %> as of the last time the 'Calculate' button was
         %> pressed/manipulated.
@@ -158,6 +162,8 @@ classdef PAStatTool < handle
                 widgetSettings.useDatabase = false;
             end
 
+            this.bootstrapIterations =  widgetSettings.bootstrapIterations;
+            this.bootstrapSampleName = widgetSettings.bootstrapSampleName;
             this.maxNumDaysAllowed = widgetSettings.maxNumDaysAllowed;
             this.minNumDaysAllowed = widgetSettings.minNumDaysAllowed;
             
@@ -341,6 +347,10 @@ classdef PAStatTool < handle
             paramStruct.databaseClass = this.originalWidgetSettings.databaseClass;
             paramStruct.useCache = this.useCache;
             paramStruct.cacheDirectory = this.cacheDirectory;            
+            
+            paramStruct.bootstrapIterations = this.bootstrapIterations;
+            paramStruct.bootstrapSampleName = this.bootstrapSampleName;
+
         end
         
         % ======================================================================
@@ -2531,8 +2541,32 @@ classdef PAStatTool < handle
                 startTimes = {};
             end            
         end
+        function bootstrapCallback(this,varargin)
+
+            bootSettings = struct();
+            defaultSettings = struct();
+            defaults  = this.getDefaulParameters();
+            for f=1:numel(this.bootstrapParamNames)
+                pName = this.bootstrapParamNames{f};
+                bootSettings.(pName) = this.(pName);
+                defaultSettings.(pName) = defaults.(pName);
+            end
+            bootSettings = PASimpleEditor(bootSettings, defaultSettings);
+            if(~isempty(bootSettings))
+                % update the parameters for next time and for use in the
+                % upcoming bootstrap call
+                for f=1:numel(this.bootstrapParamNames)
+                    pName = this.bootstrapParamNames{f};
+                    this.(pName) = bootSettings.(pName);
+                end
+                this.bootstrap();                
+            end
+        end
         
         function bootstrap(this, numBootstraps)
+            if(nargin<2)
+                numBootstraps = this.bootstrapIterations;
+            end
             % configure progress bar
             didCancel = false;
             function cbFcn(hObject,evtData)
@@ -2544,17 +2578,12 @@ classdef PAStatTool < handle
             try
                 
                 % configure bootstrap
-                if(nargin<2)
-                    numBootstraps = 100;
-                end
+
                 paramNames = {'centroidCount','silhouetteIndex','calinskiIndex'};
                 params = mkstruct(paramNames,nan(1,numBootstraps));
                 
-                    
-                
-                bootstrapUsing = 'days';  %feature vectors
-                bootstrapUsing = 'studyID';
-                
+                bootstrapUsing = this.bootstrapSampleName; % 'studyID';  % or 'days'
+        
                 if(strcmpi(bootstrapUsing,'days'))                
                     sample_size = numel(this.originalFeatureStruct.studyIDs);
                     boot_daysInd = randi(sample_size,[sample_size,numBootstraps]);
@@ -2588,8 +2617,7 @@ classdef PAStatTool < handle
                                 
                                 ind2use(curVecInd:curVecInd+daysPerStudy(row)-1) = indFirstLast(row,1):indFirstLast(row,2);
                                 curVecInd = curVecInd+daysPerStudy(row);
-                            end
-                                
+                            end                 
                         end
                         if(this.refreshCentroidsAndPlot(allowUserCancel,ind2use))                            
                             for f=1:numel(paramNames)
@@ -3756,7 +3784,10 @@ classdef PAStatTool < handle
             paramStruct.primaryAxis_nextPlot = 'replace';
             paramStruct.showAnalysisFigure = 0; % do not display the other figure at first
             paramStruct.centroidDistributionType = 'membership';  %{'performance','membership','weekday'}            
-            paramStruct.profileFieldSelection = 1;            
+            paramStruct.profileFieldSelection = 1;    
+            
+            paramStruct.bootstrapIterations =  100;
+            paramStruct.bootstrapSampleName = 'studyID';  % or 'days'
             
            
         end
