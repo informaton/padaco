@@ -294,7 +294,17 @@ classdef PAStatTool < handle
             else
                 didSet = false; 
             end    
-        end        
+        end  
+        
+        function setStatus(this,sprintMsg,varargin)
+           msg = sprintf(sprintMsg,varargin{:});
+           set(this.handles.text_status,'string',msg);
+        end
+        
+        function clearStatus(this)
+           this.setStatus('');
+        end
+        
         
         %> @brief Returns boolean indicator if results view is showing
         %> clusters (plot type 'centroids') or not.
@@ -2155,6 +2165,7 @@ classdef PAStatTool < handle
                 'push_nextCentroid'
                 'push_previousCentroid'
                 'text_resultsCentroid'
+                'text_status'
                 'check_holdPlots'
                 'check_holdYAxes'
                 'check_showAnalysisFigure'
@@ -2599,8 +2610,9 @@ classdef PAStatTool < handle
                     if(~didCancel && ishandle(h))
                         %featureStruct = this.StatTool.getFeatureStruct();
                         timeElapsedStr = getTimeElapsedStr(startTime);                        
-                        waitbar(n/numBootstraps,h,sprintf('Bootstrapping %d of %d  (%s)',n,numBootstraps,timeElapsedStr));
-                        
+                        msg = sprintf('Bootstrapping %d of %d  (%s)',n,numBootstraps,timeElapsedStr);
+                        waitbar(n/numBootstraps,h,msg);
+                        this.setStatus(msg);
                         if(strcmpi(bootstrapUsing,'days'))
                             ind2use = boot_daysInd(:,n);
                         else
@@ -2648,11 +2660,16 @@ classdef PAStatTool < handle
                         pName = paramNames{f};
                         values = params.(pName)(1:n);
                         param_CI_percentile = prctile(values,CI_range);                        
-                        message{f+1} = sprintf('%s %0.4f [%0.4f, %0.4f]' ,pName,mean(values),param_CI_percentile(1),param_CI_percentile(2));
+                        stdVal = std(values);
+                        meanVal = mean(values);
+                        stdCI = meanVal+stdVal*[-1.96, +1.96];
+                        message{f+1} = sprintf('%s mean = %0.4f\tSD = %0.4f\tMean+/-1.96*SD = [%0.4f, %0.4f]\t95%% CI = [%0.4f, %0.4f]' ,pName,meanVal,stdVal, stdCI(1), stdCI(2),param_CI_percentile(1),param_CI_percentile(2));
                     end
+                    
                     for m=1:numel(message)
                         fprintf(1,'%s\n',message{m});
                     end
+                    
                     msgbox(message,'Bootstrap results');
                     %message{k+1} = [paramCell(k).label,' [ ',num2str(config_CI_percentile(1,k),decimal_format),', ',num2str(config_CI_percentile(2,k),decimal_format),']'];
                 end
@@ -2663,6 +2680,7 @@ classdef PAStatTool < handle
             if(ishandle(h))
                 delete(h);
             end
+            this.clearStatus();
             %             if(ishandle(h))
             %                 waitbar(100,h,'Bootstrap complete');
             %             end
