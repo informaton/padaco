@@ -509,7 +509,8 @@ classdef PACentroid < handle
             sortOrder = round(sortOrder);
             if(sortOrder<=this.numCentroids() && sortOrder>0)
                 this.coiSortOrder = sortOrder;                
-                this.coiToggleOrder = false(size(sortOrder));
+                this.coiToggleOrder = false(1,this.getNumCentroids());
+                %  this.coiToggleOrder = false(size(sortOrder));
                 this.coiToggleOrder(sortOrder) = true;
                 didChange = true;
                 
@@ -533,6 +534,14 @@ classdef PACentroid < handle
                 this.coiToggleOrder(toggleSortIndex) = ~this.coiToggleOrder(toggleSortIndex);
                 if(this.coiToggleOrder(toggleSortIndex))
                     this.coiSortOrder = toggleSortIndex;
+                else
+                    this.coiSortOrder = find(this.coiToggleOrder,1);
+                    
+                    % toggle back on if there is only one..
+                    if(isempty(this.coiSortOrder))
+                        this.toggleCOISortOrder(toggleSortIndex);
+                    end
+                        
                 end
             end
         end
