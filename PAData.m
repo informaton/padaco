@@ -7,6 +7,10 @@
 %> obesity and improving health in children.
 % ======================================================================
 classdef PAData < handle
+    events
+        LinePropertyChanged;
+    end
+    
     properties(Constant)
         NUM_PSD_BANDS = 5;
     end
@@ -77,7 +81,6 @@ classdef PAData < handle
         %> @brief The numeric value for each date time sample provided by
         %> the file name.
         dateTimeNum;
-
         
         %> @brief Numeric values for date time sample for the start of
         %> extracted features.
@@ -103,7 +106,8 @@ classdef PAData < handle
         
     end
     
-    properties (Access = protected)
+    properties (SetAccess = protected)
+        missingValue = nan;  % used in place of missing data (that is not found in a file)
         %> @brief Pathname of file containing accelerometer data.
         pathname;
         %> @brief Name of file containing accelerometer data that is loaded.
@@ -172,9 +176,7 @@ classdef PAData < handle
         % Flags for determining if counts and or raw data is loaded.
         hasCounts
         hasRaw;
-               
     end
-    
     
     methods
         
@@ -202,7 +204,7 @@ classdef PAData < handle
             obj.accelType = 'none';
             obj.startDatenums = [];
             
-            obj.durationSec = 0;  %ensures we get valid, non-empty values from  getWindowCount() when we do not have any data loaded.
+            obj.durationSec = 0;  %ensures we get valid, non-empty values from getWindowCount() when we do not have any data loaded.
             % Can summarize these with defaults from below...last f(X) call.
             %            obj.aggregateDurMin = 1;
             %            obj.frameDurMin = 0;
@@ -249,6 +251,10 @@ classdef PAData < handle
             end
             
             obj.setCurWindow(pStruct.curWindow);
+        end
+        
+        function hasIt = hasData(obj)
+            hasIt = obj.hasCounts||obj.hasRaw;
         end
         
         % ======================================================================
@@ -408,18 +414,29 @@ classdef PAData < handle
         end
         
         
-        function usageRules = getUsageClassificationRules(this)
-            usageRules = this.usageStateRules();
+        function usageRules = getUsageClassificationRules(obj)
+            usageRules = obj.usageStateRules();
         end
         
         %> @brief Updates the usage state rules with an input struct.  
         %> @param
         %> @param
-        function didSet = setUsageClassificationRules(this, ruleStruct)
+        function didSet = setUsageClassificationRules(obj, ruleStruct)
             didSet = false;
             try
                 if(isstruct(ruleStruct))
-                    this.usageStateRules = this.updateStructWithStruct(this.usageStateRules, ruleStruct);
+                    obj.usageStateRules = mergeStruct(obj.usageStateRules, ruleStruct);
+                    
+                    
+                    %                     ruleFields = fieldnames(obj.usageStateRules);
+                    %                     for f=1:numel(ruleFields)
+                    %                         curField = ruleFields{f};
+                    %                         if(hasfield(ruleStruct,curField) && class(ruleStruct.(curField)) == class(obj.usageStateRules.(curField)))
+                    %                             obj.usageStateRules.(curField) = ruleStruct.(curField);
+                    %                         end
+                    %                     end
+                    %
+                    
                     didSet = true;
                 end
             catch me
@@ -653,32 +670,32 @@ classdef PAData < handle
         %> @li @c bins
         %> @retval visibileStruct A struct of obj's visible field values
         % --------------------------------------------------------------------
-        function visibleStruct = getVisible(obj,structType)
-            if(nargin<2)
-                structType = [];
-            end
-            visibleStruct = obj.getPropertyStruct('visible',structType);
+        function visibleOut = getVisible(obj,varargin)
+            visibleOut = obj.getProperty('visible',varargin{:});
         end
         
         
         % --------------------------------------------------------------------
         %> @brief Returns the color instance variable
         %> @param obj Instance of PAData
-        %> @param structType String specifying the structure type of label to retrieve.
+        %> @param structTypeOrTag String specifying the structure type of
+        %> label to retrieve, or the tag of the line handle to use.
         %> Possible values include (all are included if this is not)
         %> @li @c timeSeries (default)
         %> @li @c features
         %> @li @c bins
-        %> @retval colorStruct A struct of color values correspodning to the time series
+        %> @li Stringg with tag line of line handle to obtain
+        %> color of.  Example 'timeSeries.accel.count.z'
+        %> @retval colorOut Depends on structType parameter.  
+        %> @li A struct of color values correspodning to the time series
         %> fields of obj.color.
+        %> @li 1x3 RGB color matrix.        
         % --------------------------------------------------------------------
-        function colorStruct = getColor(obj,structType)
-            if(nargin<2)
-                structType = [];
-            end
-            
-            colorStruct = obj.getPropertyStruct('color',structType);
+        function colorOut = getColor(obj,varargin)
+            colorOut = obj.getProperty('color',varargin{:});
         end
+        
+
         
         % --------------------------------------------------------------------
         %> @brief Returns the scale instance variable
@@ -691,11 +708,8 @@ classdef PAData < handle
         %> @retval scaleStruct A struct of scalar values correspodning to the time series
         %> fields of obj.scale.
         % --------------------------------------------------------------------
-        function scaleStruct = getScale(obj,structType)
-            if(nargin<2)
-                structType = [];
-            end
-            scaleStruct = obj.getPropertyStruct('scale',structType);
+        function scaleOut = getScale(obj,varargin)
+            scaleOut = obj.getProperty('scale',varargin{:});
         end
         
         % --------------------------------------------------------------------
@@ -709,11 +723,8 @@ classdef PAData < handle
         %> @retval offsetStruct A struct of scalar values correspodning to the struct type
         %> fields of obj.offset.
         % --------------------------------------------------------------------
-        function offsetStruct = getOffset(obj,structType)
-            if(nargin<2)
-                structType = [];
-            end
-            offsetStruct = obj.getPropertyStruct('offset',structType);
+        function offsetOut = getOffset(obj,varargin)
+            offsetOut = obj.getProperty('offset',varargin{:});
         end
         
         % --------------------------------------------------------------------
@@ -727,15 +738,48 @@ classdef PAData < handle
         %> @retval labelStruct A struct of string values which serve to label the correspodning to the time series
         %> fields of obj.label.
         % --------------------------------------------------------------------
-        function labelStruct = getLabel(obj,structType)
-            
-            if(nargin<2)
-                structType = [];
-            end
-            
-            labelStruct = obj.getPropertyStruct('label',structType);
+        function labelOut = getLabel(obj,varargin)
+            labelOut = obj.getProperty('label',varargin{:});
         end
+                
         
+        % --------------------------------------------------------------------
+        %> @brief Returns the property requested in the format requested.
+        %> @param obj Instance of PAData
+        %> @param structTypeOrTag String specifying the structure type of
+        %> label to retrieve, or the tag of the line handle to use.
+        %> Possible values include (all are included if this is not)
+        %> @li @c timeSeries (default)
+        %> @li @c features
+        %> @li @c bins
+        %> @li String with tag line of line handle to obtain
+        %> color of.  Example 'timeSeries.accel.count.z'
+        %> @retval propOut Depends on structType parameter.  
+        %> @li A struct of property values correspodning to the time series
+        %> fields of obj.(propToGet).
+        %> @li The property value corresponding to obj.(propToGet).(structTypeOrTag)
+        function propOut = getProperty(obj,propToGet,structTypeOrTag)
+            if(nargin<3)
+                structTypeOrTag = [];
+            end
+            if(any(structTypeOrTag=='.'))
+                propOut = eval(sprintf('obj.%s.%s',propToGet,structTypeOrTag));
+                if(isstruct(propOut))
+                    fields = fieldnames(propOut);
+                    % should only be one value
+                    if(numel(fields)==1)
+                        propToGet = fields{1};
+                    end                       
+                    % otherwise, default to the original propToGet for the
+                    % field name to retrieve.
+                    propOut = propOut.(propToGet);
+                end
+
+            else
+                propOut = obj.getPropertyStruct(propToGet,structTypeOrTag);
+            end
+        end
+
         %> @brief Retuns the accelType that is not set.  This is useful in
         %> later removing unwanted accel fields.
         %> @param obj Instance of PAData.
@@ -756,7 +800,7 @@ classdef PAData < handle
                 offAccelType = 'count';
             elseif(strcmpi(accelTypeStr,'all'))
                 offAccelType = [];
-            elseif(strcmpi(accelTypeTypeStr,'none'))
+            elseif(strcmpi(accelTypeStr,'none'))
                 offAccelType = [];
             else
                 fprintf('Unrecognized accelTypeStr (%s)\n',accelTypeStr);
@@ -822,10 +866,14 @@ classdef PAData < handle
         %> @param newScale Scalar value to set obj.scale.(fieldName) to.
         % --------------------------------------------------------------------
         function varargout = setScale(obj,fieldName,newScale)
+            evtData = LinePropertyChanged_EventData(fieldName,'scale',newScale,obj.getScale(fieldName));
+            
             eval(['obj.scale.',fieldName,' = ',num2str(newScale),';']);
             if(nargout>0)
                 varargout = cell(1,nargout);
             end
+            obj.notify('LinePropertyChanged',evtData);
+
         end
         
         % --------------------------------------------------------------------
@@ -838,11 +886,30 @@ classdef PAData < handle
         %> @param newColor 1x3 vector to set obj.color.(fieldName) to.
         % --------------------------------------------------------------------
         function varargout = setColor(obj,fieldName,newColor)
+            evtData = LinePropertyChanged_EventData(fieldName,'color',newColor,obj.getColor(fieldName));
             eval(['obj.color.',fieldName,'.color = [',num2str(newColor),']',';']);
             if(nargout>0)
                 varargout = cell(1,nargout);
             end
+            obj.notify('LinePropertyChanged',evtData);
         end
+        
+        %> @brief
+        %> @param obj - Instance of PAData
+        %> @param fieldName - Tag (string) of line to the set the label
+        %> for.
+        %> @param newLabel - String identifying the new label to associate
+        %> and display for the given tag line
+        function varargout = setLabel(obj,fieldName,newLabel)
+            evtData = LinePropertyChanged_EventData(fieldName,'label',newLabel,obj.getLabel(fieldName));
+            
+            eval(['obj.label.',fieldName,'.string = ''',newLabel,''';']);
+            if(nargout>0)
+                varargout = cell(1,nargout);
+            end
+            obj.notify('LinePropertyChanged',evtData);
+
+        end        
         
         % --------------------------------------------------------------------
         %> @brief Sets the visible instance variable for a particular sub
@@ -856,7 +923,9 @@ classdef PAData < handle
         % --------------------------------------------------------------------
         function varargout = setVisible(obj,fieldName,newVisibilityStr)
             if(strcmpi(newVisibilityStr,'on')||strcmpi(newVisibilityStr,'off'))
+                evtData = LinePropertyChanged_EventData(fieldName,'visible',newVisibilityStr,obj.getVisible(fieldName));
                 eval(['obj.visible.',fieldName,'.visible = ''',newVisibilityStr,''';']);
+                obj.notify('LinePropertyChanged',evtData);
             else
                 fprintf('An invaled argument was passed for the visibility (i.e. visible) parameter.  (%s)\n',newVisibilityStr);
             end
@@ -1077,10 +1146,9 @@ classdef PAData < handle
                             if(obj.countPeriodSec~=0)
                                 obj.sampleRate = 1/obj.countPeriodSec;
                             else
-                                obj.sampeRate = obj.countPeriodSec;
+                                obj.sampleRate = obj.countPeriodSec;
                             end
                         end
-                        
                         
                         % Pull the following line from the file and convert hh:mm:ss
                         % to total seconds
@@ -1099,10 +1167,7 @@ classdef PAData < handle
                         end
                         %  Download Date 1/23/2014
                         tline = fgetl(fid);
-                        obj.stopDate = strrep(tline,'Download Date ','');                       
-                        
-                        
-
+                        obj.stopDate = strrep(tline,'Download Date ',''); 
                     else
                         % unset - we don't know - assume 1 per second
                         obj.countPeriodSec = 1;
@@ -1150,7 +1215,7 @@ classdef PAData < handle
         function didLoad = loadFile(obj,fullfilename)
             % Ensure that we have a negative number or some way of making sure
             % that we have sequential data (fill in all with Nan or -1 eg)
-            didLoad = false;
+            
             
             if(nargin<2 || ~exist(fullfilename,'file'))
                 fullfilename = obj.getFullFilename();
@@ -1158,6 +1223,107 @@ classdef PAData < handle
                 %msg = 'Select the .csv file';
                 %fullfilename = uigetfullfile(filtercell,pwd,msg);
             end
+            
+            didLoad = obj.loadActigraphFile(fullfilename);
+            
+        end
+        
+        % Format String
+        % %e - elapsed seconds
+        % %x - x-axis
+        % %y - y-axis
+        % %z - z-axis
+        
+        function didLoad = loadCustomRawFile(obj, fullfilename, fmtStruct)
+            try
+                if(nargin<3)
+                    fmtStruct = obj.getDefaultCustomFmtStruct();
+                end
+                
+                fid = fopen(fullfilename);
+                if(fid>1)
+                    fmtStr = '';
+                    for k=1:numel(fmtStruct.fieldOrder)
+                        fname = fmtStruct.fieldOrder{k};
+                        if(strcmpi(fname,'datetime') && strcmpi(fmtStruct.datetimeType,'datetime'))
+                            fmtStr = [fmtStr,'%{',fmtStruct.datetimeFmtStr,'}D'];
+                        else
+                            fmtStr = [fmtStr,'%f'];
+                        end
+                    end
+                    
+                    C = textscan(fid,fmtStr,'delimiter',fmtStruct.delimiter,'headerlines',fmtStruct.headerLines);
+                                        
+                    dateColumn = C{fmtStruct.datetime};
+                    if(strcmpi(fmtStruct.datetimeType,'datetime'))
+                        datenumFound = datenum(dateColumn,fmtStruct.datetimeFmtStr);                        
+                    elseif(strcmpi(fmtStruct.datetimeType,'elapsed'))
+                        datenumFound = datenum(2001,9,11,0,0,0)+dateColumn/24/3600;
+                    else
+                        % not handled
+                        throw(MException('PA:Unhandled','Unhandled date time format'));
+                    end                    
+                    
+                    datevecFound = datevec(datenumFound);
+                    startDatenum = datenumFound(1);
+                    stopDatenum = datenumFound(end);
+                    obj.sampleRate = 1/(median(diff(datenumFound))*24*3600);   % datenum has units in day.
+                    obj.startDate = datestr(startDatenum,'mm/dd/yyyy');
+                    obj.startTime = datestr(startDatenum,'HH:MM:SS.FFF');
+                    obj.stopDate = datestr(stopDatenum,'mm/dd/yyyy');
+                    obj.stopTime = datestr(stopDatenum,'HH:MM:SS.FFF');
+                    
+                    tmpDataCell = {C{fmtStruct.x},C{fmtStruct.y},C{fmtStruct.z}};
+                    samplesFound = numel(tmpDataCell{1}); %size(dateVecFound,1);
+                    
+                    %                     obj.sampleRate =
+                    %start, stop and delta date nums
+                    windowDatenumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
+                    
+                    
+                    [tmpDataCell, obj.dateTimeNum] = obj.mergedCell(startDatenum,stopDatenum,windowDatenumDelta,datevecFound,tmpDataCell,obj.missingValue);
+
+                    obj.durSamples = numel(obj.dateTimeNum);
+                    obj.durationSec = floor(obj.getDurationSamples()/obj.sampleRate);
+
+                    
+                    obj.setRawXYZ(tmpDataCell{1},tmpDataCell{2},tmpDataCell{3});
+                    
+                    obj.printLoadStatusMsg(samplesFound, fullfilename);
+                    
+                    didLoad = true;
+
+                    fclose(fid);
+                else
+                    didLoad = false;
+                end
+            catch me
+                showME(me);
+                didLoad = false;
+            end
+        end
+        
+        function printLoadStatusMsg(obj, samplesFound, fullFilename)
+            if(obj.getDurationSamples()==samplesFound)
+                fprintf('%d rows loaded from %s\n',samplesFound,fullFilename);
+            else
+                numMissing = obj.getDurationSamples() - samplesFound;
+                if(numMissing>0)
+                    fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullFilename,samplesFound+numMissing,numMissing,num2str(obj.missingValue));
+                else
+                    fprintf('This case is not handled yet.\n');
+                    fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullFilename,samplesFound+numMissing,numMissing,num2str(obj.missingValue));
+                end
+            end
+        end
+        
+        function didLoad = loadCustomRawCSVFile(obj,fullfilename, fmtStruct)
+            fmtStruct.delimiter = ',';
+            didLoad = obj.loadCustomRawFile(fullfilename, fmtStruct);
+        end
+        
+        function didLoad = loadActigraphFile(obj, fullfilename)
+            didLoad = false;
             
             % Have one file version for counts...
             if(exist(fullfilename,'file'))
@@ -1226,7 +1392,7 @@ classdef PAData < handle
                                         countStartDatenum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
                                         
                                         if(binStartDatenum~=countStartDatenum)
-                                            fprintf('There is a discrepancy between the start date-time in the count file and the binary file.  I''m not sure what is going to happen because of this.\n');
+                                            fprintf('There is a discrepancy between the start date-time in the count file and the binary file.  I''m not sure what is going to happen because of obj.\n');
                                         end
                                     else
                                         
@@ -1268,38 +1434,42 @@ classdef PAData < handle
                 didLoad = false;
             end
             
-            if(obj.hasRaw && obj.hasCounts)
-                obj.accelType = 'all';
-            elseif(obj.hasRaw)
-                obj.accelType = 'raw';
-                obj.setVisible('lux','off');
-                obj.setVisible('steps','off');
-                obj.setVisible('inclinometer.standing','off');
-                obj.setVisible('inclinometer.sitting','off');
-                obj.setVisible('inclinometer.lying','off');
-                obj.setVisible('inclinometer.off','off');
-            elseif(obj.hasCounts)
-                obj.accelType = 'count';
-            else
-                obj.accelType = [];
-            end
-            
-            if(obj.hasCounts || obj.hasRaw)
-                obj.classifyUsageForAllAxes();
+            if(didLoad)
+                if(obj.hasRaw && obj.hasCounts)
+                    obj.accelType = 'all';
+                elseif(obj.hasRaw)
+                    obj.accelType = 'raw';
+                    obj.setVisible('lux','off');
+                    obj.setVisible('steps','off');
+                    obj.setVisible('inclinometer.standing','off');
+                    obj.setVisible('inclinometer.sitting','off');
+                    obj.setVisible('inclinometer.lying','off');
+                    obj.setVisible('inclinometer.off','off');
+                elseif(obj.hasCounts)
+                    obj.accelType = 'count';
+                else
+                    obj.accelType = [];
+                end
+                
+                if(obj.hasCounts || obj.hasRaw)
+                    obj.classifyUsageForAllAxes();
+                end
             end
         end
+        
+        
         
         % ======================================================================
         %> @brief Loads an accelerometer "count" data file.
         %> @param obj Instance of PAData.
         %> @param fullCountFilename The full (i.e. with path) filename to load.
         % =================================================================
-        function didLoad = loadCountFile(obj,fullCountFilename)
-            if(exist(fullCountFilename,'file'))
-                fid = fopen(fullCountFilename,'r');
+        function didLoad = loadCountFile(obj,fullFilename)
+            if(exist(fullFilename,'file'))
+                fid = fopen(fullFilename,'r');
                 if(fid>0)
                     try
-                        obj.loadFileHeader(fullCountFilename);
+                        obj.loadFileHeader(fullFilename);
                         %                        delimiter = ',';
                         % header = 'Date	 Time	 Axis1	Axis2	Axis3	Steps	Lux	Inclinometer Off	Inclinometer Standing	Inclinometer Sitting	Inclinometer Lying	Vector Magnitude';
                         headerLines = 11; %number of lines to skip
@@ -1342,12 +1512,18 @@ classdef PAData < handle
                         dateVecFound = double([tmpDataCell{3},tmpDataCell{1},tmpDataCell{2},tmpDataCell{4},tmpDataCell{5},tmpDataCell{6}]);
                         samplesFound = size(dateVecFound,1);
                         
-                        startDateNum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
+                        % This is a mess -
+                        %                         obj.startDate(obj.startDate==',')=[];  %sometimes we get extra commas as files are copy and pasted between other programs (e.g. Excel)
+                        %                         obj.startTime(obj.startTime==',')=[];
+                        %                         startDateNum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
+                        
+                        % Trust the timestamps per record instead; even if they may get out of order?
+                        startDateNum = datenum(dateVecFound(1,:));
+                        
                         stopDateNum = datenum(dateVecFound(end,:));
                         
                         windowDateNumDelta = datenum([0,0,0,0,0,obj.countPeriodSec]);
                         
-                        missingValue = nan;
                         
                         % NOTE:  Chopping off the first six columns: date time values;
                         tmpDataCell(1:6) = [];
@@ -1355,7 +1531,7 @@ classdef PAData < handle
                         % The following call to mergedCell ensures the data
                         % is chronologically ordered and data is not
                         % missing.
-                        [dataCell, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,missingValue);
+                        [dataCell, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,obj.missingValue);
                        
                         tmpDataCell = []; %free up this memory;
                         
@@ -1368,18 +1544,8 @@ classdef PAData < handle
                         %                        dateTimeDelta == dateTimeDelta2  %what is going on here???
                         
                         obj.durSamples = numel(obj.dateTimeNum);
-                        numMissing = obj.getDurationSamples() - samplesFound;
-                        
-                        if(obj.getDurationSamples()==samplesFound)
-                            fprintf('%d rows loaded from %s\n',samplesFound,fullCountFilename);
-                        else
-                            if(numMissing>0)
-                                fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullCountFilename,numMissing,num2str(missingValue));
-                            else
-                                fprintf('This case is not handled yet.\n');
-                                fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullCountFilename,numMissing,num2str(missingValue));
-                            end
-                        end
+                        obj.printLoadStatusMsg(samplesFound, fullFilename);
+                    
                         
                         obj.accel.count.x = dataCell{1};
                         obj.accel.count.y = dataCell{2};
@@ -1401,7 +1567,7 @@ classdef PAData < handle
                             obj.sampleRate = 1/obj.countPeriodSec;
                             obj.durationSec = floor(obj.getDurationSamples()*obj.countPeriodSec);
                         else
-                            fprintf('There was an error when loading the window period second value (non-positive value found in %s).\n',fullCountFilename);
+                            fprintf('There was an error when loading the window period second value (non-positive value found in %s).\n',fullFilename);
                             obj.durationSec = 0;
                         end
                         fclose(fid);
@@ -1412,11 +1578,11 @@ classdef PAData < handle
                         didLoad = false;
                     end
                 else
-                    fprintf('Warning - could not open %s for reading!\n',fullCountFilename);
+                    fprintf('Warning - could not open %s for reading!\n',fullFilename);
                     didLoad = false;
                 end
             else
-                fprintf('Warning - %s does not exist!\n',fullCountFilename);
+                fprintf('Warning - %s does not exist!\n',fullFilename);
                 didLoad = false;
             end
         end
@@ -1432,16 +1598,16 @@ classdef PAData < handle
         %> @param obj Instance of PAData.
         %> @param fullRawCSVFilename The full (i.e. with path) filename for raw data to load.
         % =================================================================
-        function didLoad = loadRawCSVFile(obj,fullRawCSVFilename, loadFastOption)
+        function didLoad = loadRawCSVFile(obj,fullFilename, loadFastOption)
             if(nargin<3 || isempty(loadFastOption))
                 loadFastOption = false;
             end
-            if(exist(fullRawCSVFilename,'file'))
+            if(exist(fullFilename,'file'))
                 try
                     if(exist('loadrawcsv','file')==3) % If the mex file exists and is compiled
                     %if(exist('loadrawcsv','file')==-3) % If the mex file exists and is compiled
                         tic
-                        rawMat = loadrawcsv(fullRawCSVFilename, loadFastOption)';  %loadrawcsv loads rows as columns so we need to transpose the results.
+                        rawMat = loadrawcsv(fullFilename, loadFastOption)';  %loadrawcsv loads rows as columns so we need to transpose the results.
                         toc
                         %Date time handling
                         if(loadFastOption)
@@ -1451,14 +1617,14 @@ classdef PAData < handle
                             tmpDataCell = {rawMat(:,7),rawMat(:,8),rawMat(:,9)};
                         end
                     else
-                        fid = fopen(fullRawCSVFilename,'r');
+                        fid = fopen(fullFilename,'r');
                         if(fid>0)
                             delimiter = ',';
                             % header = 'Date	 Time	 Axis1	Axis2	Axis3
                             headerLines = 11; %number of lines to skip
                             %                        scanFormat = '%s %f32 %f32 %f32'; %load as a 'single' (not double) floating-point number
                             if(loadFastOption)
-                                scanFormat = '%*f/%*f/%*f %*f:%*f:%*f %f32 %f32 %f32';
+                                scanFormat = '%*f/%*f/%*f %*f:%*f:%*f %f32 %f32 %f32'; %reads the '/' character from the stream, and throws it away.
                             else
                                 scanFormat = '%f/%f/%f %f:%f:%f %f32 %f32 %f32';
                             end
@@ -1478,7 +1644,7 @@ classdef PAData < handle
                             fclose(fid);
                        
                         else
-                            fprintf('Warning - could not open %s for reading!\n',fullRawCSVFilename);
+                            fprintf('Warning - could not open %s for reading!\n',fullFilename);
                             % didLoad = false;
                             MException('MATLAB:Padaco:FileIO','Could not open file for reading');
                         end
@@ -1489,36 +1655,26 @@ classdef PAData < handle
                     %start, stop and delta date nums
                     startDateNum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
                     windowDateNumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
-                    missingValue = nan;
                     
                     if(loadFastOption)
                         stopDateNum = datenum(strcat(obj.stopDate,{' '},obj.stopTime),'mm/dd/yyyy HH:MM:SS');
-                        obj.dateTimeNum = obj.datespace(startDateNum,stopDateNum,windowDateNumDelta);
+                        obj.dateTimeNum = datespace(startDateNum,stopDateNum,windowDateNumDelta);
                         obj.dateTimeNum(end)=[];  %remove the very last sample, since it is not actually recorded in the dataset, but represents when the data was downloaded, which happens one sample after the device stops.
                     else
                         stopDateNum = datenum(dateVecFound(end,:));
-                        [tmpDataCell, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,missingValue);                        
+                        [tmpDataCell, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,obj.missingValue);                        
                     end
 
                     obj.durSamples = numel(obj.dateTimeNum);
                     obj.durationSec = floor(obj.getDurationSamples()/obj.sampleRate);
 
-                    numMissing = obj.getDurationSamples() - samplesFound;
-
+                    
                     obj.setRawXYZ(tmpDataCell{1},tmpDataCell{2},tmpDataCell{3});
                     
-                    if(obj.getDurationSamples()==samplesFound)
-                        fprintf('%d rows loaded from %s\n',samplesFound,fullRawCSVFilename);
-                    else
-                        if(numMissing>0)
-                            fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullRawCSVFilename,numMissing,num2str(missingValue));
-                        else
-                            fprintf('This case is not handled yet.\n');
-                            fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullRawCSVFilename,numMissing,num2str(missingValue));
-                        end
-                    end
+                    obj.printLoadStatusMsg(samplesFound, fullFilename);
                     
-                    % No longer thing resampling count data is the way to
+                    
+                    % No longer think resampling count data is the way to
                     % go here.
                     if(obj.hasCounts)
                         obj.resampleCountData();
@@ -1532,7 +1688,7 @@ classdef PAData < handle
                     end
                 end
             else
-                fprintf('Warning - %s does not exist!\n',fullRawCSVFilename);
+                fprintf('Warning - %s does not exist!\n',fullFilename);
                 didLoad = false;
             end
         end
@@ -1997,12 +2153,31 @@ classdef PAData < handle
                     lastStartDateVec = startDateVecs(lastStartIndex,:);
                 end
                 
-                completeDayCount = datenum(lastStartDateVec) - datenum(firstStartDateVec);
+                completeDayCount = max(0,datenum(lastStartDateVec) - datenum(firstStartDateVec));
                 
             end
             
         end
         
+        
+        function [featureVec, startDatenum] = getFeatureVecs(obj,featureFcn,signalTagLine)
+            featureStruct = obj.getStruct('all','features');
+            if(isempty(featureStruct) || ~isfield(featureStruct,featureFcn) || isempty(featureStruct.(featureFcn)))
+                obj.extractFeature(signalTagLine,featureFcn);
+                featureStruct = obj.getStruct('all','features');
+            end
+            if(isempty(featureStruct) || ~isfield(featureStruct,featureFcn) || isempty(featureStruct.(featureFcn)))
+                fprintf('There was an error.  Could not extract features!\n');
+                featureVec = [];
+                startDatenum = [];
+            else
+                
+                featureVec = featureStruct.(featureFcn);
+                % find the first Start Time
+                startDatenum = obj.startDatenums;
+                
+            end
+        end
         % --------------------------------------------------------------------
         %> @brief Calculates a desired feature for a particular acceleration object's field value.
         %> and returns it as a matrix of elapsed time aligned vectors.
@@ -2116,6 +2291,63 @@ classdef PAData < handle
         end
         
         % ======================================================================
+        %> @brief Classifies epochs into wear and non-wear state using the 
+        %> count activity values and classification method given.
+        %> @param obj Instance of PAData.
+        %> @param vector of count activity to apply classification rules
+        %> too.  If not provided, then the vector magnitude is used by
+        %> default.
+        %> @param String identifying the classification to use; can be:
+        %> - padaco [default]
+        %> - troiano 
+        %> - choi
+        %> @retval usageVec A vector of length obj.dateTimeNum whose values
+        %> represent the usage category at each sample instance specified by
+        %> @b dateTimeNum.
+        %> - c Nonwear 0
+        %> - c Wear 1        
+        %> @retval usageState A three column matrix identifying usage state
+        %> and duration.  Column 1 is the usage state, column 2 and column 3 are
+        %> the states start and stop times (datenums).
+        %> @note Usage states are categorized as follows:
+        %> - c 0 Nonwear
+        %> - c 1 Wear
+        %> @retval startStopDatenums Start and stop datenums for each usage
+        %> state row entry of usageState.
+        % ======================================================================
+        function [wearVec,wearState, startStopDateNums] = classifyWearNonwear(obj, countActivity, classificationMethod)
+            
+        end
+        
+        
+        %> @brief Implementation of Troiano algorithm used with NHANES data
+        %> and later updated by Choi et al.
+        %> A non-wear period starts at a minute with the intensity count of zero. Minutes with intensity count=0 or
+        %> up to 2 consecutive minutes with intensity counts between 1 and 100 are considered to be valid non-wear 
+        %> minutes. A non-wear period is established when the specified length of consecutive non-wear minutes is  
+        %> reached. The non-wear period stops when any of the following conditions is met: 
+        %>  - one minute with intensity count >100    
+        %>  - one minute with a missing intensity count
+        %>  - 3 consecutive minutes with intensity counts between 1 and 100 
+        %>  - the last minute of the day 
+        %> @param countActivity Vector of count activity.  Default is to
+        %> use vector magnitude counts currently loaded.
+        %> @param minNonWearPeriod_minutes minimum length for the non-wear
+        %period in minutes, must be >1 minute.  Default is 90 minutes.
+        function nonWearVec = classifyTroianoWearNonwear(obj, countActivity, minNonWearPeriod_minutes)
+            nonWearVec = [];
+            if(nargin<3 || minNonWearPeriod_minutes<1)
+                minNonWearPeriod_minutes = 90;
+                if(nargin<2)
+                    countActivity = obj.accel.counts.vecMag;
+                end
+            end
+           
+            nonWearVec = false(size(countActivity));
+            
+        end
+        
+        % ======================================================================
         %> @brief Categorizes the study's usage state.
         %> @param obj Instance of PAData.
         %> @param vector of count activity to apply classification rules
@@ -2131,18 +2363,15 @@ classdef PAData < handle
         %> - c usageVec(remSleepVec) = 10  REM sleep
         %> - c usageVec(nonwearVec) = 5  Non-wear
         %> - c usageVec(studyOverVec) = 0  Non-wear, study over.
-        %> @retval usageState A three column matrix identifying usage state
-        %> and duration.  Column 1 is the usage state, column 2 and column 3 are
-        %> the states start and stop times (datenums).
-        %> @note Usage states are categorized as follows:
-        %> - c -1 Nonwear
-        %> - c 0 Sleep - 0.25 rem, 0.75 nonrem
-        %> - c 1 Wake - inactive
-        %> - c 1 Wake - wake
+        %> @retval whereState Vector of wear vs non-wear state.  Each element represent the
+        %> consecutive grouping of like states found in the usage vector.
+        %> @note Wear states are categorized as follows:
+        %> - c 5 Nonwear
+        %> - c 10 Wear
         %> @retval startStopDatenums Start and stop datenums for each usage
         %> state row entry of usageState.
         % ======================================================================
-        function [usageVec, usageState, startStopDateNums] = classifyUsageState(obj, countActivity)
+        function [usageVec, wearState, startStopDateNums] = classifyUsageState(obj, countActivity)
             
             % By default activity determined from vector magnitude signal
             if(nargin<2 || isempty(countActivity))
@@ -2277,13 +2506,18 @@ classdef PAData < handle
             %            wearVec = runningActivitySum>=offBodyThreshold;
             wearVec = ~nonwearVec;
             wear = obj.thresholdcrossings(wearVec,0);
-            wearStartStopDateNums = [obj.dateTimeNum(wear(:,1)),obj.dateTimeNum(wear(:,2))];
-            wearState = repmat(tagStruct.WEAR,size(wear,1),1);
-            
-            usageState = [nonwearState;wearState];
-            [startStopDateNums, sortIndex] = sortrows([nonwearStartStopDateNums;wearStartStopDateNums]);
-            usageState = usageState(sortIndex);
-            
+            if(isempty(wear))
+                % only have non wear then
+                wearState = nonwearState;
+                startStopDateNums = nonwearStartStopDateNums;
+            else
+                wearStartStopDateNums = [obj.dateTimeNum(wear(:,1)),obj.dateTimeNum(wear(:,2))];
+                wearState = repmat(tagStruct.WEAR,size(wear,1),1);
+                
+                wearState = [nonwearState;wearState];
+                [startStopDateNums, sortIndex] = sortrows([nonwearStartStopDateNums;wearStartStopDateNums]);
+                wearState = wearState(sortIndex);
+            end 
             
             %usageVec(awakeVsAsleepVec) = 20;
             %usageVec(wearVec) = 10;   %        This is covered
@@ -2432,14 +2666,6 @@ classdef PAData < handle
             else
                 varargout = cell(1,nargout-1);
                 [sref,varargout{:}] = builtin('subsref',obj,s);
-% 
-%                 if(~isempty(intersect(lower(s(1).subs),lower({'getFrameDuration','getAlignedFeatureVecs'}))))
-%                     [sref, varargout{1}] = builtin('subsref',obj,s);
-%                 elseif(~isempty(intersect(lower(s(1).subs),lower({'classifyUsageState'}))))
-%                     [sref, varargout{1}, varargout{2}] = builtin('subsref',obj,s);
-%                 else
-%                     sref = builtin('subsref',obj,s);
-%                 end
             end
         end
         
@@ -2580,7 +2806,7 @@ classdef PAData < handle
                     obj.stopTime = datestr(stopDatenum,'HH:MM:SS');
                     
                     datenumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
-                    obj.dateTimeNum = obj.datespace(startDatenum,stopDatenum,datenumDelta);
+                    obj.dateTimeNum = datespace(startDatenum,stopDatenum,datenumDelta);
                      
                     didLoad = true;
                 end
@@ -2604,12 +2830,12 @@ classdef PAData < handle
         %> @retval recordCount - The number of records (or samples) found
         %> and loaded in the file.
         % =================================================================
-        function recordCount = loadRawActivityBinFile(obj,fullRawActivityBinFilename,firmwareVersion)
-            if(exist(fullRawActivityBinFilename,'file'))
+        function recordCount = loadRawActivityBinFile(obj,fullFilename,firmwareVersion)
+            if(exist(fullFilename,'file'))
                 
                 recordCount = 0;
                 
-                fid = fopen(fullRawActivityBinFilename,'r','b');  %I'm going with a big endian format here.
+                fid = fopen(fullFilename,'r','b');  %I'm going with a big endian format here.
                 
                 if(fid>0)
                     
@@ -2619,7 +2845,7 @@ classdef PAData < handle
                     
                     % Testing for ver 2.5.0
                     % fullRawActivityBinFilename = '/Volumes/SeaG 1TB/sampledata_reveng/700851.activity.bin'
-                    %                sleepmoore:T1_GT3X_Files hyatt4$ head -n 15 ../../sampleData/raw/700851t00c1.raw.csv
+                    %                sleepmoore:T1_GT3X_Files $ head -n 15 ../../sampleData/raw/700851t00c1.raw.csv
                     %                 ------------ Data File Created By ActiGraph GT3X+ ActiLife v6.11.1 Firmware v2.5.0 date format M/d/yyyy at 40 Hz  Filter Normal -----------
                     %                 Serial Number: NEO1C15110103
                     %                 Start Time 00:00:00
@@ -2681,7 +2907,7 @@ classdef PAData < handle
                                 % go through once to determine how many
                                 % records I have in order to preallocate memory
                                 % - should look at meta data record to see if I can
-                                % shortcut this.
+                                % shortcut obj.
                                 while(~feof(fid))
                                     
                                     packetCode = fread(fid,1,'uint16=>double');
@@ -2756,10 +2982,10 @@ classdef PAData < handle
                         fclose(fid);
                     end
                 else
-                    fprintf('Warning - could not open %s for reading!\n',fullRawActivityBinFilename);
+                    fprintf('Warning - could not open %s for reading!\n',fullFilename);
                 end
             else
-                fprintf('Warning - %s does not exist!\n',fullRawActivityBinFilename);
+                fprintf('Warning - %s does not exist!\n',fullFilename);
             end
         end
         
@@ -2868,7 +3094,7 @@ classdef PAData < handle
                 structType = 'timeSeries';
             end
             
-            dat = PAData.structEval('times',obj.getStruct('current',structType),obj.getScale(structType));
+            dat = structEval('times',obj.getStruct('current',structType),obj.getScale(structType));
             
             windowRange = obj.getCurWindowRange(structType);
             
@@ -2876,14 +3102,14 @@ classdef PAData < handle
             %we have resolution to display.
             if(diff(windowRange)==0)
                 windowRange(2)=windowRange(2)+1;
-                dat = PAData.structEval('repmat',dat,dat,size(windowRange));
+                dat = structEval('repmat',dat,dat,size(windowRange));
             end
             
             lineProp.xdata = windowRange(1):windowRange(end);
             % put the output into a 'ydata' field for graphical display
             % property of a line.
-            dat = PAData.structEval('plus',dat,obj.getOffset(structType),'ydata');
-            dat = PAData.appendStruct(dat,lineProp);
+            dat = structEval('plus',dat,obj.getOffset(structType),'ydata');
+            dat = appendStruct(dat,lineProp);
         end
         
         % ======================================================================
@@ -2917,11 +3143,11 @@ classdef PAData < handle
             lineProp.xdata = windowRange;
             % put the output into a 'position'
             
-            dat = PAData.structEval('repmat',dat,dat,size(windowRange));
+            dat = structEval('repmat',dat,dat,size(windowRange));
             
-            dat = PAData.structEval('passthrough',dat,dat,'ydata');
+            dat = structEval('passthrough',dat,dat,'ydata');
             
-            dat = PAData.appendStruct(dat,lineProp);
+            dat = appendStruct(dat,lineProp);
         end
         
     end
@@ -3203,6 +3429,20 @@ classdef PAData < handle
                 };
         end
         
+        function fmtStruct = getDefaultCustomFmtStruct()
+            
+             fmtStruct.datetime = 1;
+             fmtStruct.datetimeType = 'elapsed'; %datetime
+             fmtStruct.datetimeFmtStr = '%f';
+             fmtStruct.x = 2;
+             fmtStruct.y = 3;
+             fmtStruct.z = 4;
+             fmtStruct.fieldOrder = {'datetime','x','y','z'};
+             fmtStruct.headerLines = 1;
+             fmtStruct.delimiter = ',';
+             
+        end
+        
         % ======================================================================
         %> @brief Returns a structure of PAData's default parameters as a struct.
         %> @retval pStruct A structure of default parameters which include the following
@@ -3296,7 +3536,7 @@ classdef PAData < handle
             %Default is everything to be visible
             timeSeriesStruct = PAData.getDummyStruct('timeSeries');
             visibleProp.visible = 'on';
-            pStruct.visible.timeSeries = PAData.overwriteEmptyStruct(timeSeriesStruct,visibleProp);
+            pStruct.visible.timeSeries = overwriteEmptyStruct(timeSeriesStruct,visibleProp);
             
             % yDelta = 1/20 of the vertical screen space (i.e. 20 can fit)
             pStruct.offset.timeSeries.accel.raw.x = pStruct.yDelta*1;
@@ -3434,8 +3674,7 @@ classdef PAData < handle
                 missingValue = nan;
             end
             
-            
-            [synthDateNum, synthDateVec] = PAData.datespace(startDateNum, stopDateNum, dateNumDelta);
+            [synthDateNum, synthDateVec] = datespace(startDateNum, stopDateNum, dateNumDelta);
             numSamples = size(synthDateVec,1);
             
             %make a cell with the same number of column as
@@ -3458,438 +3697,6 @@ classdef PAData < handle
                 else
                     orderedDataCell{c}(IA) = tmpDataCellOrMatrix(:,c);
                 end
-            end
-        end
-        
-        
-        
-        % ======================================================================
-        %> @brief Linearly spaced dates from start to stop dates provided.
-        %> @param startDateNum The start date number that the ordered data cell should
-        %> begin at.  (should be generated using datenum())
-        %> @param stopDateNum The date number (generated using datenum()) that the ordered data cell
-        %> ends at.
-        %> @param dateNumDelta The difference between two successive date number samples.
-        %> @param sampledDateVec Vector of date number values taken between startDateNum
-        %> and stopDateNum (inclusive) and are in the order and size as the
-        %> individual cell components of tmpDataCell
-        %> @retval synthDateNum Vector of date numbers corresponding to the date vector
-        %> matrix return argument.
-        %> @retval synthDateVec Matrix of date vectors ([Y, Mon,Day, Hr, Mn, Sec]) generated by
-        %> startDateNum:dateNumDelta:stopDateNum which correponds to the
-        %> row order of orderedDataCell cell values/vectors
-        %======================================================================
-        function [synthDateNum, synthDateVec] = datespace(startDateNum, stopDateNum, dateNumDelta)            
-            synthDateVec = datevec(startDateNum:dateNumDelta:stopDateNum);
-            synthDateVec(:,6) = round(synthDateVec(:,6)*1000)/1000;
-            synthDateNum = datenum(synthDateVec);
-        end     
-        
-        % ======================================================================
-        %> @brief Evaluates the two structures, field for field, using the function name
-        %> provided.
-        %> @param operand A string name of the operation (via 'eval') to conduct at
-        %> the lowest level.  Additional operands include:
-        %> - passthrough Requires Optional field name to be set.
-        %> - calculateposition (requires rtStruct to have .xdata and .ydata
-        %> fields.
-        %> @param ltStruct A structure whose fields are either structures or vectors.
-        %> @param rtStruct A structure whose fields are either structures or vectors.
-        %> @param optionalDestField Optional field name to subset the resulting output
-        %> structure to (see last example).  This can be useful if the
-        %> output structure will be passed as input that expects a specific
-        %> sub field name for the values (e.g. line properties).  See last
-        %> example below.
-        %> @retval resultStruct A structure with same fields as ltStruct and rtStruct
-        %> whose values are the result of applying operand to corresponding
-        %> fields.
-        %> @note In the special case that operand is set to 'passthrough'
-        %> only ltStruct is used (enter ltStruct as the rtStruct value)
-        %> and the optionalDestField must be set (i.e. cannot be empty).
-        %> The purpose of the 'passthrough' operation is to insert a field named
-        %> optionalDestField between any field/non-struct value pairs.
-        %>
-        %> @note For example:
-        %> @note ltStruct =
-        %> @note         x: 2
-        %> @note     accel: [1x1 struct]
-        %> @note       [x]: 0.5000
-        %> @note       [y]: 1
-        %> @note
-        %> @note rtStruct =
-        %> @note         x: [10 10 2]
-        %> @note     accel: [1x1 struct]
-        %> @note             [x]: [10 10 2]
-        %> @note             [y]: [1 2 3]
-        %> @note
-        %> @note
-        %> @note
-        %> @note PAData.structEval('plus',rtStruct,ltStruct)
-        %> @note ans =
-        %> @note         x: [12 12 4]
-        %> @note     accel: [1x1 struct]
-        %> @note             [x]: [10.5000 10.5000 2.5000]
-        %> @note             [y]: [2 3 4]
-        %> @note
-        %> @note PAData.structEval('plus',rtStruct,ltStruct,'ydata')
-        %> @note ans =
-        %> @note         x.ydata: [12 12 4]
-        %> @note           accel: [1x1 struct]
-        %> @note                   [x].ydata: [10.5000 10.5000 2.5000]
-        %> @note                   [y].ydata: [2 3 4]
-        %> @note
-        %> @note PAData.structEval('passthrough',ltStruct,ltStruct,'string')
-        %> @note ans =
-        %> @note         x.string: 2
-        %> @note            accel: [1x1 struct]
-        %> @note                    [x].string: 0.5000
-        %> @note                    [y].string: 1
-        %> @note
-        %> @note PAData.structEval('overwrite',ltStruct,ltStruct,value)
-        %> @note ans =
-        %> @note         x: value
-        %> @note     accel: [1x1 struct]
-        %> @note              [x]: value
-        %> @note              [y]: value
-        %> @note        
-        %> @note
-        % ======================================================================
-        function resultStruct = structEval(operand,ltStruct,rtStruct,optionalDestFieldOrValue)
-            if(nargin < 4)
-                optionalDestFieldOrValue = [];
-            end
-            
-            if(isstruct(ltStruct))
-                fnames = fieldnames(ltStruct);
-                resultStruct = struct();
-                for f=1:numel(fnames)
-                    curField = fnames{f};
-                    resultStruct.(curField) = PAData.structEval(operand,ltStruct.(curField),rtStruct.(curField),optionalDestFieldOrValue);
-                end
-            else
-                if(strcmpi(operand,'calculateposition'))
-                    resultStruct.position = [rtStruct.xdata(1), rtStruct.ydata(1), 0];                    
-                else
-                    if(~isempty(optionalDestFieldOrValue))
-                        if(strcmpi(operand,'passthrough'))
-                            resultStruct.(optionalDestFieldOrValue) = ltStruct;
-                        elseif(strcmpi(operand,'overwrite'))
-                            resultStruct = optionalDestFieldOrValue;
-                        elseif(strcmpi(operand,'repmat'))
-                            resultStruct = repmat(ltStruct,optionalDestFieldOrValue);
-                        else
-                            resultStruct.(optionalDestFieldOrValue) = feval(operand,ltStruct,rtStruct);
-                        end
-                    else
-                        resultStruct = feval(operand,ltStruct,rtStruct);
-                    end
-                end
-            end
-        end
-        
-        % ======================================================================
-        %> @brief Evaluates the two structures, field for field, using the function name
-        %> provided.
-        %> @param operand A string name of the operation (via 'eval') to conduct at
-        %> the lowest level.
-        %> @param ltStruct A structure whose fields are either structures or vectors.
-        %> @param A Matrix value of the same dimension as the first structure's (ltStruct)
-        %> non-struct field values.
-        %> @param optionalDestField Optional field name to subset the resulting output
-        %> structure to (see last example).  This can be useful if the
-        %> output structure will be passed as input that expects a specific
-        %> sub field name for the values (e.g. line properties).  See last
-        %> example below.
-        %> @retval resultStruct A structure with same fields as ltStruct and optionally
-        %> the optionalDestField whose values are the result of applying operand to corresponding
-        %> fields and the input matrix.
-        %>
-        %> @note For example:
-        %> @note
-        %> @note ltStruct =
-        %> @note         x.position: [10 10 2]
-        %> @note     accel: [1x1 struct]
-        %> @note             [x.position]: [10 10 2]
-        %> @note             [y.position]: [1 2 3]
-        %> @note
-        %> @note A =
-        %> @note     [1 1 0]
-        %> @note
-        %> @note PAData.structEval('plus',ltStruct,A)
-        %> @note ans =
-        %> @note         x.position: [11 11 2]
-        %> @note     accel: [1x1 struct]
-        %> @note             [x.position]: [11 11 2]
-        %> @note             [y.position]: [2 3 3]
-        %> @note
-        % ======================================================================
-        function resultStruct = structScalarEval(operand,ltStruct,A,optionalDestField)
-            if(nargin < 4)
-                optionalDestField = [];
-            end
-            
-            if(isstruct(ltStruct))
-                fnames = fieldnames(ltStruct);
-                resultStruct = struct();
-                for f=1:numel(fnames)
-                    curField = fnames{f};
-                    resultStruct.(curField) = PAData.structScalarEval(operand,ltStruct.(curField),A,optionalDestField);
-                end
-            else
-                if(~isempty(optionalDestField))
-                    if(strcmpi(operand,'passthrough'))
-                        resultStruct.(optionalDestField) = ltStruct;
-                    else
-                        resultStruct.(optionalDestField) = feval(operand,ltStruct,A);
-                    end
-                else
-                    resultStruct = feval(operand,ltStruct,A);
-                end
-            end
-        end
-        
-        % ======================================================================
-        %> @brief Appends the fields of one to another.  Values for fields of the same name are taken from the right struct (rtStruct)
-        %> and built into the output struct.  If the left struct does not
-        %> have a matching field, then it will be created with the right
-        %> structs value.  
-        %> @param ltStruct A structure whose fields are to be appended by the other.
-        %> @param rtStruct A structure whose fields are will be appened to the other.
-        %> @retval ltStruct The resultof append rtStruct to ltStruct.
-        %> @note For example:
-        %> @note ltStruct =
-        %> @note     ydata: [1 1]
-        %> @note     accel: [1x1 struct]
-        %> @note            [x]: 0.5000
-        %> @note            [y]: 1
-        %> @note
-        %> @note rtStruct =
-        %> @note     xdata: [1 100]
-        %> @note
-        %> @note PAData.structEval(ltStruct,rtStruct)
-        %> @note ans =
-        %> @note     ydata: [1 1]
-        %> @note     xdata: [1 100]
-        %> @note     accel: [1x1 struct]
-        %> @note            [xdata]: [1 100]
-        %> @note            [x]: [10.5000 10.5000 2.5000]
-        %> @note            [y]: [2 3 4]
-        %> @note
-        % ======================================================================
-        function ltStruct = appendStruct(ltStruct,rtStruct)
-            if(isstruct(ltStruct))
-                fnames = fieldnames(ltStruct);
-                for f=1:numel(fnames)
-                    curField = fnames{f};
-                    if(isstruct(ltStruct.(curField)))
-                        ltStruct.(curField) = PAData.appendStruct(ltStruct.(curField),rtStruct);
-                    else
-                        % This is a bit of an issue ...
-                        appendNames=fieldnames(rtStruct);
-                        for a=1:numel(appendNames)
-                            ltStruct.(appendNames{a}) = rtStruct.(appendNames{a});
-                        end
-                    end
-                end
-            end
-        end
-        
-        % ======================================================================
-        %> @brief Merge the fields of one struct with another.  Copies over
-        %> matching field values.  Similar to appendStruct, but now the second argument
-        %> is itself a struct with similar organization as the first
-        %> argument.
-        %> @param ltStruct A structure whose fields are to be appended by the other.
-        %> @param rtStruct A structure whose fields are will be appened to the other.
-        %> @retval ltStruct The result of merging rtStruct with ltStruct.
-        %> @note For example:
-        %> @note ltStruct =
-        %> @note     accel: [1x1 struct]
-        %> @note            [x]: 0.5000
-        %> @note            [y]: 1
-        %> @note     lux: [1x1 struct]
-        %> @note            [z]: 0.5000
-        %> @note
-        %> @note rtStruct =
-        %> @note     accel: [1x1 struct]
-        %> @note            [x]: [1.0]
-        %> @note            [pos]: [0.5000, 1, 0]
-        %> @note
-        %> @note
-        %> @note PAData.structEval(rtStruct,ltStruct)
-        %> @note ans =
-        %> @note     accel: [1x1 struct]
-        %> @note              [x]: 1.0
-        %> @note              [y]: 1
-        %> @note            [pos]: [0.5000, 1, 0]
-        %> @note     lux: [1x1 struct]
-        %> @note            [z]: 0.5000
-        %> @note            [pos]: [0.5000, 1, 0]
-        %> @note
-        % ======================================================================
-        function ltStruct = mergeStruct(ltStruct,rtStruct)
-            
-            if(isstruct(rtStruct))
-                fnames = fieldnames(rtStruct);
-                for f=1:numel(fnames)
-                    curField = fnames{f};
-                    if(isstruct(rtStruct.(curField)))
-                        if(isfield(ltStruct,curField))
-                            ltStruct.(curField) = PAData.mergeStruct(ltStruct.(curField),rtStruct.(curField));
-                        else
-                            ltStruct.(curField) = rtStruct.(curField);
-                        end
-                    else
-                        ltStruct.(curField) = rtStruct.(curField);
-                    end
-                end
-            end
-        end
-        
-        
-        % ======================================================================
-        %> @brief Inserts the second argument into any empty fields of the first
-        %> struct argument.
-        %> @param ltStruct A structure whose empty fields will be set to the second argument.
-        %> @param rtStruct A structure
-        %> @retval ltStruct The structure that results from inserting rtStruct into ltStruct.
-        %> @note For example:
-        %> @note ltStruct =
-        %> @note     accel: [1x1 struct]
-        %> @note            [x]: []
-        %> @note            [y]: []
-        %> @note     lux: []
-        %> @note
-        %> @note rtStruct =
-        %> @note     color: 'k'
-        %> @note     data: [1x1 struct]
-        %> @note            [pos]: [0.5000, 1, 0]
-        %> @note
-        %> @note
-        %> @note PAData.structEval(rtStruct,ltStruct)
-        %> @note ans =
-        %> @note     accel: [1x1 struct]
-        %> @note              [x]: [1x1 struct]
-        %> @note                   color: 'k'
-        %> @note                   data: [1x1 struct]
-        %> @note                         [pos]: [0.5000, 1, 0]
-        %> @note              [y]: [1x1 struct]
-        %> @note                   color: 'k'
-        %> @note                   data: [1x1 struct]
-        %> @note                         [pos]: [0.5000, 1, 0]
-        %> @note     lux: [1x1 struct]
-        %> @note          color: 'k'
-        %> @note          data: [1x1 struct]
-        %> @note                [pos]: [0.5000, 1, 0]
-        %> @note
-        % ======================================================================
-        function ltStruct = overwriteEmptyStruct(ltStruct,rtStruct)
-            if(isstruct(ltStruct))
-                fnames = fieldnames(ltStruct);
-                for f=1:numel(fnames)
-                    curField = fnames{f};
-                    ltStruct.(curField) = PAData.overwriteEmptyStruct(ltStruct.(curField),rtStruct);
-                end
-            elseif(isempty(ltStruct))
-                ltStruct = rtStruct;
-            end
-        end
-        
-        %======================================================================
-        %> @brief flattens a structure to a single dimensional array (i.e. a
-        %> vector)
-        %> @param structure A struct with any number of fields.
-        %> @retval vector A vector with values that are taken from the
-        %> structure.
-        %======================================================================
-        function vector = struct2vec(structure,vector)
-            if(nargin<2)
-                vector = [];
-            end
-            if(~isstruct(structure))
-                vector = structure;
-            else
-                fnames = fieldnames(structure);
-                for f=1:numel(fnames)
-                    vector = [vector;PAData.struct2vec(structure.(fnames{f}))];
-                end
-            end
-        end
-        
-        % ======================================================================
-        %> @brief Evaluates the range (min, max) of components found in the
-        %> input struct argument and returns the range as struct values with
-        %> matching fieldnames/organization as the input struct's highest level.
-        %> @param dataStruct A structure whose fields are either structures or vectors.
-        %> @retval structMinMax a struct whose fields correspond to those of
-        %> the input struct and whose values are [min, max] vectors that
-        %> correspond to the minimum and maximum values found in the input
-        %> structure for that field.
-        %> @note Consider the example
-        %> @note dataStruct.accel.x = [-1 20 5 13];
-        %> @note dataStruct.accel.y = [1 70 9 3];
-        %> @note dataStruct.accel.z = [-10 2 5 1];
-        %> @note dataStruct.lux = [0 0 0 9];
-        %> @note structRange.accel is [-10 70]
-        %> @note structRange.lux is [0 9]
-        %======================================================================
-        function structMinmax = minmax(dataStruct)
-            fnames = fieldnames(dataStruct);
-            structMinmax = struct();
-            for f=1:numel(fnames)
-                curField = dataStruct.(fnames{f});
-                structMinmax.(fnames{f}) = minmax(PAData.getRecurseMinmax(curField));
-            end
-        end
-        
-        function structToUpdate = updateStructWithStruct(structToUpdate, structToUpdateWith)
-            
-            if(isstruct(rtStruct))
-                fnames = fieldnames(rtStruct);
-                for f=1:numel(fnames)
-                    curField = fnames{f};
-                    if(isstruct(rtStruct.(curField)))
-                        if(isfield(ltStruct,curField))
-                            ltStruct.(curField) = PAData.mergeStruct(ltStruct.(curField),rtStruct.(curField));
-                        else
-                            ltStruct.(curField) = rtStruct.(curField);
-                        end
-                    else
-                        ltStruct.(curField) = rtStruct.(curField);
-                    end
-                end
-            end
-            
-            
-            if(isstruct(ruleStruct))
-                ruleFields = fieldnames(this.usageStateRules);
-                for f=1:numel(ruleFields)
-                    curField = ruleFields{f};
-                    if(hasfield(ruleStruct,curField) && class(ruleStruct.(curField)) == class(this.usageStateRules.(curField)))
-                        this.usageStateRules.(curField) = ruleStruct.(curField);
-                    end
-                end
-            end
-            
-        end
-        
-        % ======================================================================
-        %> @brief Recursive helper function for minmax()
-        %> input struct argument and returns the range as struct values with
-        %> matching fieldnames/organization as the input struct's highest level.
-        %> @param dataStruct A structure whose fields are either structures or vectors.
-        %> @retval minmaxVec Nx2 vector of minmax values for the given dataStruct.
-        % ======================================================================
-        function minmaxVec = getRecurseMinmax(dataStruct)
-            if(isstruct(dataStruct))
-                minmaxVec = [];
-                fnames = fieldnames(dataStruct);
-                for f=1:numel(fnames)
-                    minmaxVec = minmax([PAData.getRecurseMinmax(dataStruct.(fnames{f})),minmaxVec]);
-                end
-            else
-                %minmax is performed on each row; just make one row
-                minmaxVec = double(minmax(dataStruct(:)'));
             end
         end
         
@@ -3986,7 +3793,7 @@ classdef PAData < handle
             end
             
             dat = PAData.getDummyStruct(structType);
-            dat = PAData.overwriteEmptyStruct(dat,lineProps);
+            dat = overwriteEmptyStruct(dat,lineProps);
             
         end
         
@@ -4069,7 +3876,7 @@ classdef PAData < handle
         function [featureStructWithPSDBands, varargout] = getFeatureDescriptionStructWithPSDBands()
             featureStruct = rmfield(PAData.getFeatureDescriptionStruct(),'psd');
             psdFeatureStruct = PAData.getPSDFeatureDescriptionStruct();
-            featureStructWithPSDBands = PAData.mergeStruct(featureStruct,psdFeatureStruct);
+            featureStructWithPSDBands = mergeStruct(featureStruct,psdFeatureStruct);
             if(nargout>1)
                 varargout{1} = struct2cell(featureStructWithPSDBands);
             end

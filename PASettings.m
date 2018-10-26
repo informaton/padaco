@@ -33,6 +33,9 @@ classdef  PASettings < handle
         VIEW;
         %> struct of batch processing settings.
         BATCH;
+        %> struct of settings for data import
+        IMPORT;
+        
         %> struct of StatTool plot/analysis settings.
         StatTool;
     end
@@ -345,7 +348,7 @@ classdef  PASettings < handle
         %> @param obj instance of the PASettings class.
         % =================================================================
         function initialize(obj)
-            obj.fieldNames = {'DATA','CONTROLLER','VIEW','BATCH','StatTool'};
+            obj.fieldNames = {'DATA','CONTROLLER','VIEW','BATCH','IMPORT','StatTool'};
             obj.setDefaults();
             
             full_paramsFile = fullfile(obj.rootpathname,obj.parameters_filename);
@@ -364,7 +367,7 @@ classdef  PASettings < handle
                     % exist in the left hand argument as if it were a
                     % struct.  Instead, build a tmp struct first, merge it,
                     % and then put the tmp struct back into our object.                    
-                    % obj = PAData.mergeStruct(obj,paramStruct);                  
+                    % obj = mergeStruct(obj,paramStruct);                  
                     
                    
                     fnames = fieldnames(paramStruct);
@@ -377,7 +380,7 @@ classdef  PASettings < handle
                             tmpStruct.(fnames{f}) = obj.(fnames{f});
                         end
                         
-                        tmpStruct = PAData.mergeStruct(tmpStruct,paramStruct);
+                        tmpStruct = mergeStruct(tmpStruct,paramStruct);
                         
                         % Do not bring in any new tier-1 fields that may have
                         % existed independtly in the paramStruct.
@@ -440,13 +443,14 @@ classdef  PASettings < handle
         %> - @c VIEW
         %> - @c BATCH
         %> - @c CONTROLLER
+        %> - @c IMPORT
         %> @retval wasModified a boolean value; true if any changes were
         %> made to the settings in the GUI and false otherwise.
         % =================================================================
         function wasModified = defaultsEditor(obj,optional_fieldName)
             tmp_obj = obj.copy();
             if(nargin<2 || isempty(optional_fieldName))
-                lite_fieldNames = {'StatTool','VIEW','CONTROLLER'}; %these are only one structure deep
+                lite_fieldNames = {'StatTool','VIEW','CONTROLLER','IMPORT'}; %these are only one structure deep
             else
                 lite_fieldNames = optional_fieldName;
                 if(~iscell(lite_fieldNames))
@@ -545,6 +549,8 @@ classdef  PASettings < handle
             
             for f = 1:numel(fieldNames)
                 switch fieldNames{f}
+                    case 'IMPORT'
+                        obj.IMPORT = PADataImport.getDefaultParameters();
                     case 'StatTool'
                         obj.StatTool = PAStatTool.getDefaultParameters();
                     case 'DATA'

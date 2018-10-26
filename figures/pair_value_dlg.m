@@ -1,24 +1,6 @@
 function varargout = pair_value_dlg(varargin)
     % PAIR_VALUE_DLG M-file for pair_value_dlg.fig
-    %      PAIR_VALUE_DLG, by itself, creates a new PAIR_VALUE_DLG or raises the existing
-    %      singleton*.
-    %
-    %      H = PAIR_VALUE_DLG returns the handle to a new PAIR_VALUE_DLG or the handle to
-    %      the existing singleton*.
-    %
-    %      PAIR_VALUE_DLG('CALLBACK',hObject,eventData,handles,...) calls the local
-    %      function named CALLBACK in PAIR_VALUE_DLG.M with the given input arguments.
-    %
-    %      PAIR_VALUE_DLG('Property','Value',...) creates a new PAIR_VALUE_DLG or raises the
-    %      existing singleton*.  Starting from the left, property value pairs are
-    %      applied to the GUI before pair_value_dlg_OpeningFcn gets called.  An
-    %      unrecognized property name or invalid value makes property application
-    %      stop.  All inputs are passed to pair_value_dlg_OpeningFcn via varargin.
-    %
-    %      *See GUI Options on GUIDE's Tools menu.  Choose "GUI allows only one
-    %      instance to run (singleton)".
-    %
-    % See also: GUIDE, GUIDATA, GUIHANDLES
+    % For use with PASimpleSettings and PASettings classes
     
     % Edit the above text to modify the response to help pair_value_dlg
     

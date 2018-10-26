@@ -1,5 +1,7 @@
 % Helper function to open directory on Windows and Mac operating systems.
 % Requires a valid input pathname for its argument.
+
+% @author Hyatt Moore IV
 function openDirectory(directory)
     if(isempty(directory) || ~exist(directory,'dir'))
         directory = pwd;

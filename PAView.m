@@ -18,7 +18,13 @@ classdef PAView < handle
         %> secondary axes (Default).  
         %> - @c false : Do not apply line smoothing when presenting features on the
         %> secondary axes (show them in original form).
-        useSmoothing;        
+        useSmoothing;  
+        
+        %> Boolean value: 
+        %> - @c true : Highlight nonwear in second secondary axes (Default).  
+        %> - @c false : Do not highlight nonwear on the secondary axes.
+        nonwearHighlighting;          
+        
         
     end
     
@@ -161,6 +167,7 @@ classdef PAView < handle
                 obj.contextmenuhandle.featureLine = featureLineContextmenuHandle;
                 
                 obj.useSmoothing = true;
+                obj.nonwearHighlighting = true;
                 
                 obj.createView(); 
                 obj.disableWidgets();
@@ -183,86 +190,6 @@ classdef PAView < handle
         function createView(obj)
             
             handles = guidata(obj.getFigHandle());
-            
-            % get our panles looking nice and pretty.
-            % This is taken care of in the initializeGUI call found in
-            % padaco.m now
-            %             set([
-            %                     handles.panel_timeseries;
-            %                     handles.panel_results
-            %                 ],'backgroundcolor',[0.75,0.75,0.75]);
-            
-            
-            
-            % Line our panels up to same top left position - do this here
-            % so I can edit them easy in GUIDE and avoid to continually
-            % updating the position property each time i need to drag the
-            % panel(s) around to make edits.  Position is given as
-            % 'x','y','w','h' with 'x' starting from left (and increasing right)
-            % and 'y' starting from bottom (and increasing up)
-            timeSeriesPanelPos = get(handles.panel_timeseries,'position');
-            resultsPanelPos = get(handles.panel_results,'position');
-            newResultsPanelY = sum(timeSeriesPanelPos([2,4]))-resultsPanelPos(4);
-            set(handles.panel_results,'position',[timeSeriesPanelPos(1),newResultsPanelY,resultsPanelPos(3:4)]);
-            
-            
-            set(handles.panel_resultsContainer,'backgroundcolor',[0.9 0.9 0.9]);
-            set(handles.panel_resultsContainer,'backgroundcolor',[0.94 0.94 0.94]);
-            set(handles.panel_resultsContainer,'backgroundcolor',[1 1 1]);
-
-
-            % Line up panel_controlCentroid with panel_epochControls
-            epochControlsPos = get(handles.panel_epochControls,'position');
-            coiControlsPos = get(handles.panel_controlCentroid,'position');
-            coiControlsPos(2) = sum(epochControlsPos([2,4]))-coiControlsPos(4);  % This is y_ = y^ + h^ - h_
-            set(handles.panel_controlCentroid,'position',coiControlsPos);
-            drawnow();            
-            
-
-            
-            metaDataHandles = [handles.panel_study;get(handles.panel_study,'children')];
-            set(metaDataHandles,'backgroundcolor',[0.94,0.94,0.94],'visible','off');
-            
-            %             whiteHandles = [handles.text_aggregate
-            %                 handles.text_frameSizeMinutes
-            %                 handles.text_frameSizeHours
-            %                 handles.text_trimPct
-            %                 handles.text_cullSuffix
-            %                 handles.edit_trimToPercent
-            %                 handles.edit_cullToValue
-            %                 handles.panel_features_prefilter
-            %                 handles.panel_features_aggregate
-            %                 handles.panel_features_frame
-            %                 handles.panel_features_signal
-            %                 handles.panel_plotType
-            %                 handles.panel_plotSignal
-            %                 handles.panel_plotData
-            %                 handles.panel_controlCentroid
-            %                 handles.panel_plotCentroid];
-            whiteHandles = [handles.panel_features_prefilter
-                handles.panel_features_aggregate
-                handles.panel_features_frame
-                handles.panel_features_signal                
-                handles.panel_plotType
-                handles.panel_plotSignal
-                handles.panel_plotData
-                handles.panel_controlCentroid
-                handles.panel_plotCentroid];
-            sethandles(whiteHandles,'backgroundcolor',[1 1 1]);
-            %set(whiteHandles,'backgroundcolor',[0.94,0.94,0.94]);
-            %            set(findobj(whiteHandles,'-property','backgroundcolor'),'backgroundcolor',[0.94 0.94 0.94]);
-            
-            %             set(findobj(whiteHandles,'-property','shadowcolor'),'shadowcolor',[0 0 0],'highlightcolor',[0 0 0]);
-            
-            innerPanelHandles = [handles.panel_centroidSettings
-                handles.panel_centroid_timeFrame];
-            sethandles(innerPanelHandles,'backgroundcolor',[0.9 0.9 0.9]);
-            
-            % Make the inner edit boxes appear white
-            set([handles.edit_centroidMinimum
-                handles.edit_centroidThreshold],'backgroundcolor',[1 1 1]);
-            
-            set(handles.text_threshold,'tooltipstring','Smaller thresholds result in more stringent conversion requirements and often produce more clusters than when using higher threshold values.');
             
             obj.texthandle.status = handles.text_status;
             obj.texthandle.filename = handles.text_filename;
@@ -301,8 +228,7 @@ classdef PAView < handle
             % create a spot for it in the struct;
             obj.patchhandle.feature = [];
             
-            % Flush our drawing queue
-            drawnow();
+
             % Clear the figure and such.  
             obj.clearAxesHandles();
             obj.clearTextHandles(); 
@@ -328,13 +254,13 @@ classdef PAView < handle
         % returns visible linehandles in the upper axes of padaco.
         function visibleLineHandles = getVisibleLineHandles(obj)
             lineHandleStructs = obj.getLinehandle(obj.getDisplayType());
-            lineHandles = PAData.struct2vec(lineHandleStructs);
+            lineHandles = struct2vec(lineHandleStructs);
             visibleLineHandles = lineHandles(strcmpi(get(lineHandles,'visible'),'on'));
         end
         
         function hiddenLineHandles = getHiddenLineHandles(obj)
             lineHandleStructs = obj.getLinehandle(obj.getDisplayType());
-            lineHandles = PAData.struct2vec(lineHandleStructs);
+            lineHandles = struct2vec(lineHandleStructs);
             hiddenLineHandles = lineHandles(strcmpi(get(lineHandles,'visible'),'off'));
             
         end
@@ -478,7 +404,26 @@ classdef PAView < handle
             smoothing = obj.useSmoothing;
         end
         
-           
+        % --------------------------------------------------------------------
+        %> @brief Sets nonwear highlighting flag for secondary axis
+        % display.
+        %> @param obj Instance of PAView.
+        %> @param smoothingState  Possible values include:
+        %> - @c true Nonwear highlighting is on.
+        %> - @c false Nonwear highlighting is off.
+        % --------------------------------------------------------------------
+        function setNonwearHighlighting(obj,showNonwearHighlighting)
+            if(nargin<2 || isempty(showNonwearHighlighting))
+                obj.nonwearHighlighting = true;
+            else
+                obj.nonwearHighlighting = showNonwearHighlighting==true;
+            end           
+        end
+        
+        function smoothing = getNonwearHighlighting(obj)
+            smoothing = obj.nonwearHighlighting;
+        end
+                 
 
         
         % --------------------------------------------------------------------
@@ -616,7 +561,7 @@ classdef PAView < handle
             axesProps.primary.box= 'on';
             axesProps.primary.plotboxaspectratiomode='auto';
             axesProps.primary.fontSize = 14;            
-            axesProps.primary.units = 'normalized'; %normalized allows it to resize automatically
+            % axesProps.primary.units = 'normalized'; %normalized allows it to resize automatically
             if verLessThan('matlab','7.14')
                 axesProps.primary.drawmode = 'normal'; %fast does not allow alpha blending...
             else
@@ -766,11 +711,6 @@ classdef PAView < handle
             
             handles = guidata(obj.getFigHandle());
             
-            
-%             resultPanels = [
-%                 handles.panel_results;
-%                 ];
-            
             resultPanels = [
                 handles.panel_results;
                 handles.panel_controlCentroid;
@@ -891,7 +831,7 @@ classdef PAView < handle
                 
                 labelProps = PADataObject.getLabel(curStructType);
                 labelPosStruct = obj.getLabelhandlePosition(curStructType);                
-                labelProps = PAData.mergeStruct(labelProps,labelPosStruct);
+                labelProps = mergeStruct(labelProps,labelPosStruct);
                 
                 colorStruct = PADataObject.getColor(curStructType);
                 
@@ -899,16 +839,16 @@ classdef PAView < handle
                 
                 % Keep everything invisible at this point - so ovewrite the
                 % visibility property before we merge it together.
-                visibleStruct = PAData.structEval('overwrite',visibleStruct,visibleStruct,'off');
+                visibleStruct = structEval('overwrite',visibleStruct,visibleStruct,'off');
                 
                 
-                allStruct = PADataObject.mergeStruct(colorStruct,visibleStruct);
+                allStruct = mergeStruct(colorStruct,visibleStruct);
                 
-                labelProps = PADataObject.mergeStruct(labelProps,allStruct);
+                labelProps = mergeStruct(labelProps,allStruct);
                 
                 
                 lineProps = PADataObject.getStruct('dummydisplay',curStructType);
-                lineProps = PADataObject.mergeStruct(lineProps,allStruct);
+                lineProps = mergeStruct(lineProps,allStruct);
                 
                 obj.recurseHandleSetter(obj.linehandle.(curStructType),lineProps);
                 obj.recurseHandleSetter(obj.referencelinehandle.(curStructType),lineProps);
@@ -918,7 +858,7 @@ classdef PAView < handle
             
             obj.setFilename(obj.dataObj.getFilename());  
             
-            obj.setStudyPanelContents(PADataObject.getHeaderAsString);
+            obj.setStudyPanelContents(PADataObject.getHeaderAsString());
             
             % initialize and enable widgets (drop down menus, edit boxes, etc.)
             obj.initWidgets('timeseries');
@@ -994,7 +934,69 @@ classdef PAView < handle
             obj.initAxesHandles(axesProps);
 %             datetick(obj.axeshandle.secondary,'x','ddd HH:MM')
         end
-
+        
+        
+        
+        
+        % --------------------------------------------------------------------
+        % Wear states
+        % Awake
+        % 35        ACTIVE
+        % 25        INACTIVE
+        % Sleep
+        % 20        NAP
+        %                    15        NREM
+        % 10        REMS
+        % Non-wear states
+        % 5        Study-not-over
+        % 0        Study-over
+        % -1         Unknown
+        % --------------------------------------------------------------------
+        function featureHandles = addWeartimeToSecondaryAxes(obj, featureVector, startStopDatenum, overlayHeightRatio, overlayOffset)
+            featureHandles = obj.addFeaturesVecToAxes(featureVector, startStopDatenum, overlayHeightRatio, overlayOffset,obj.axeshandle.secondary, obj.getUseSmoothing());
+            
+            nonwearHeightRatio = overlayHeightRatio*(7.5/(35--1));
+            wearHeightRatio = overlayHeightRatio-nonwearHeightRatio;
+            axesH = obj.axeshandle.secondary;
+            yLim = get(axesH,'ylim');
+            
+            % nonwear is lower down
+            yLimPatches = yLim*nonwearHeightRatio+overlayOffset;
+            ydata = [yLimPatches, fliplr(yLimPatches)]';
+            xStart = startStopDatenum(1);
+            xEnd = startStopDatenum(end);
+            xdata = [xStart xStart xEnd xEnd]';
+             
+            set(obj.patchhandle.nonwear,'xdata',xdata,'ydata',ydata,'visible','on');
+            
+            % place wear above it.  xData is same, but yDdata is shifted up
+            % some.
+            overlayOffset = yLimPatches(end);
+            yLimPatches = yLim*wearHeightRatio+overlayOffset;
+            ydata = [yLimPatches, fliplr(yLimPatches)]';            
+            set(obj.patchhandle.wear,'xdata',xdata,'ydata',ydata,'visible','on');
+            obj.draw();
+            
+            
+            
+            
+%             feature_patchH = patch(x,y,vertexColor,'parent',axesH,'edgecolor','interp','facecolor','interp','hittest','off');
+                        
+            
+            
+            %             if(ishandle(obj.patchhandle.feature))
+            %                 delete(obj.patchhandle.feature);
+            %             end
+            %             if(ishandle(obj.linehandle.feature))
+            %                 delete(obj.linehandle.feature);
+            %             end
+            %             if(ishandle(obj.linehandle.featureCumsum))
+            %                 delete(obj.linehandle.featureCumsum);
+            %             end
+            %             [feature_patchH, feature_lineH, feature_cumsumLineH] = obj.addFeaturesVecAndOverlayToAxes( featureVector, startStopDatenum, overlayHeight, overlayOffset, obj.axeshandle.secondary, obj.getUseSmoothing(), obj.contextmenuhandle.featureLine);
+            %             [obj.patchhandle.feature, obj.linehandle.feature, obj.linehandle.featureCumsum] = deal(feature_patchH, feature_lineH, feature_cumsumLineH);
+        end
+        
         % --------------------------------------------------------------------
         %> @brief Adds a feature vector as a heatmap and as a line plot to the secondary axes.
         %> @param obj Instance of PAView.
@@ -1161,8 +1163,6 @@ classdef PAView < handle
             
                 handleType = 'line';
                 handleProps.tag = curName;
-                
-                
 
                 obj.linehandle.(curName) = obj.recurseHandleGenerator(dataStruct,handleType,handleProps);
             
@@ -1176,6 +1176,10 @@ classdef PAView < handle
             obj.positionBarHandle = line('parent',obj.axeshandle.secondary,'visible','off');%annotation(obj.figurehandle.sev,'line',[1, 1], [pos(2) pos(2)+pos(4)],'hittest','off');
 %             obj.patchhandle.positionBar =  patch('xdata',nan(1,4),'ydata',[0 1 1 0],'zdata',repmat(-1,1,4),'parent',obj.axeshandle.secondary,'hittest','off','visible','off','facecolor',[0.5 0.85 0.5],'edgecolor','none','facealpha',0.5);
             obj.patchhandle.positionBar =  patch('xdata',nan(1,4),'ydata',[0 1 1 0],'parent',obj.axeshandle.secondary,'hittest','off','visible','off','facecolor',[0.5 0.85 0.5],'edgecolor','none','facealpha',0.5);
+            
+            obj.patchhandle.wear =  patch('xdata',nan(1,4),'ydata',[0 1 1 0],'parent',obj.axeshandle.secondary,'hittest','off','visible','off','facecolor',[0 1 1],'edgecolor','none','facealpha',0.5);
+            obj.patchhandle.nonwear =  patch('xdata',nan(1,4),'ydata',[0 1 1 0],'parent',obj.axeshandle.secondary,'hittest','off','visible','off','facecolor',[1 0.45 0],'edgecolor','none','facealpha',0.5);
+            
             
             uistack(obj.positionBarHandle,'top');
             uistack(obj.patchhandle.positionBar,'top');
@@ -1302,7 +1306,7 @@ classdef PAView < handle
             offsetProps = obj.dataObj.getStruct('displayoffset',structFieldName);
             offsetStyle.LineStyle = '--';
             offsetStyle.color = [0.6 0.6 0.6];
-            offsetProps = PAData.appendStruct(offsetProps,offsetStyle);
+            offsetProps = appendStruct(offsetProps,offsetStyle);
            
             obj.recurseHandleSetter(obj.referencelinehandle.(structFieldName),offsetProps);
                         
@@ -1311,7 +1315,7 @@ classdef PAView < handle
             % link the x position with the axis x-position ...
             labelProps = obj.dataObj.getLabel(structFieldName);
             labelPosStruct = obj.getLabelhandlePosition();            
-            labelProps = PAData.mergeStruct(labelProps,labelPosStruct);             
+            labelProps = mergeStruct(labelProps,labelPosStruct);             
             obj.recurseHandleSetter(obj.labelhandle.(structFieldName),labelProps);
             
         end
@@ -1347,10 +1351,10 @@ classdef PAView < handle
             yOffset = -30; %Trial and error
             dummyStruct = obj.dataObj.getStruct('dummy',displayTypeStr);
             offsetStruct = obj.dataObj.getStruct('displayoffset',displayTypeStr);
-            labelPosStruct = PAData.structEval('calculateposition',dummyStruct,offsetStruct);
+            labelPosStruct = structEval('calculateposition',dummyStruct,offsetStruct);
             xOffset = 1/250*diff(get(obj.axeshandle.primary,'xlim'));            
             offset = [xOffset, yOffset, 0];
-            labelPosStruct = PAData.structScalarEval('plus',labelPosStruct,offset);            
+            labelPosStruct = structScalarEval('plus',labelPosStruct,offset);            
         end
 
         % --------------------------------------------------------------------
@@ -1505,7 +1509,6 @@ classdef PAView < handle
             end            
             
             feature_patchH = patch(x,y,vertexColor,'parent',axesH,'edgecolor','interp','facecolor','interp','hittest','off');
-            
                         
             % draw the lines
             

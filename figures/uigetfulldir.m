@@ -2,7 +2,7 @@
 %or empty if the user cancels or it does not exist.
 %directoryname = uigetfulldir(initialDirectoryname,displayMessage)
 function directoryname = uigetfulldir(initialDirectoryname,displayMessage)
-
+    
     directoryname = uigetdir(initialDirectoryname,displayMessage);
     
     if(isnumeric(directoryname))

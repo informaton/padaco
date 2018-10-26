@@ -2,9 +2,12 @@
 %> by its extent property.
 function fitTableHeight(uitableH)
     if(nargin>0 && ishandle(uitableH) && strcmpi(get(uitableH,'type'),'uitable'))
-       pos = get(uitableH,'position');
-       ext = get(uitableH,'extent');
-       pos(4) = ext(4);
-       set(uitableH,'position',pos);
+        units0 = get(uitableH,'units');
+        set(uitableH,'units','pixels');  % I ran into some rounding/precision issues
+        pos = get(uitableH,'position');
+        ext = get(uitableH,'extent');
+        pos(4) = ext(4)+1;
+        set(uitableH,'position',pos);
+        set(uitableH,'units',units0);
     end
 end

@@ -2,6 +2,8 @@
 %> by its extent property.
 function fitTableWidth(uitableH)
     if(nargin>0 && ishandle(uitableH) && strcmpi(get(uitableH,'type'),'uitable'))
+       initUnits = get(uitableH,'units');
+       set(uitableH,'units','pixels');
        pos = get(uitableH,'position');
        ext = get(uitableH,'extent');
        pos(3) = ext(3);
@@ -14,6 +16,7 @@ function fitTableWidth(uitableH)
        end
        
        set(uitableH,'position',pos);
+       set(uitableH,'units',initUnits);
        
     end
 end

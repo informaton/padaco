@@ -14,44 +14,18 @@ classdef PAStatTool < handle
        COLOR_MEMBERSHAPE = [0.85 0.85 0.85];
        COLOR_LINESELECTION = [0.8 0.1 0.1];
        COLOR_MEMBERID = [0.1 0.1 0.8];
+       MAX_DAYS_PER_STUDY = 7;
     end
-    properties(Access=private)
-        resultsDirectory;
-        featuresDirectory;
-        cacheDirectory;
-        %> @brief Bool (true: has icon/false: does not have icon)
-        hasIcon; 
-        iconData;
-        iconCMap;
-        %> @brief Struct with key value pairs for clustering:
-        %> - @c clusterMethod Cluster method employed {'kmeans','kmedoids'}
-        %> - @c useDefaultRandomizer = widgetSettings.useDefaultRandomizer;
-        %> - @c initCentroidWithPermutation = settings.initCentroidWithPermutation;
-        %> @note Initialized in the setWidgetSettings() method
-        clusterSettings;
-        
-        %> Booleans
-        useCache;
-        useDatabase;
-        
-        databaseObj;
-        %> handle of scatter plot figure.
-        analysisFigureH;
-        
-        %> handle of the main parent figure
-        figureH;
-        featureInputFilePattern;
-        featureInputFileFieldnames;
-        %> Structure of original loaded features, that are a direct
+    properties(SetAccess=protected)
+                %> Structure of original loaded features, that are a direct
         %> replication of the data obtained from disk (i.e. without further
         %> filtering).
         originalFeatureStruct;
-        %> Structure initialized to input widget settings when passed to
-        %> the constructor (and is empty otherwise).  This is used to
-        %> 'reset' parameters and keep track of time start and stop
-        %> selection fields which are not initialized until after data has
-        %> been load (i.e. and populates the dropdown menus.
-        originalWidgetSettings;
+        
+        bootstrapParamNames = {'bootstrapIterations','bootstrapSampleName'};
+        bootstrapIterations;
+        bootstrapSampleName;
+        
         %> structure loaded features which is as current or as in sync with the gui settings 
         %> as of the last time the 'Calculate' button was
         %> pressed/manipulated.
@@ -116,12 +90,51 @@ classdef PAStatTool < handle
         allProfiles;
         profileTableData;
     end
+    properties(Access=private)
+        resultsDirectory;
+        featuresDirectory;
+        cacheDirectory;
+        %> @brief Bool (true: has icon/false: does not have icon)
+        hasIcon; 
+        iconData;
+        iconCMap;
+        %> @brief Struct with key value pairs for clustering:
+        %> - @c clusterMethod Cluster method employed {'kmeans','kmedoids'}
+        %> - @c useDefaultRandomizer = widgetSettings.useDefaultRandomizer;
+        %> - @c initCentroidWithPermutation = settings.initCentroidWithPermutation;
+        %> @note Initialized in the setWidgetSettings() method
+        clusterSettings;
+        
+        %> Booleans
+        useCache;
+        useDatabase;
+        
+        databaseObj;
+        %> handle of scatter plot figure.
+        analysisFigureH;
+        
+        %> handle of the main parent figure
+        figureH;
+        featureInputFilePattern;
+        featureInputFileFieldnames;
+        %> Structure initialized to input widget settings when passed to
+        %> the constructor (and is empty otherwise).  This is used to
+        %> 'reset' parameters and keep track of time start and stop
+        %> selection fields which are not initialized until after data has
+        %> been load (i.e. and populates the dropdown menus.
+        originalWidgetSettings;
+        
+
+    end
     
     properties
         %> struct of fields to use when profiling/describing centroids.
         %> These are names of database fields extracted which are keyed on
         %> the subject id's that are members of the centroid of interest.
         profileFields;
+        maxNumDaysAllowed;
+        minNumDaysAllowed;
+        
     end
     
     methods        
@@ -143,12 +156,17 @@ classdef PAStatTool < handle
             % This call ensures that we have at a minimum, the default parameter field-values in widgetSettings.
             % And eliminates later calls to determine if a field exists
             % or not in the input widgetSettings parameter
-            widgetSettings = PAData.mergeStruct(PAStatTool.getDefaultParameters(),widgetSettings);
+            widgetSettings = mergeStruct(this.getDefaultParameters(),widgetSettings);
             
             if(~isfield(widgetSettings,'useDatabase'))
                 widgetSettings.useDatabase = false;
             end
-                        
+
+            this.bootstrapIterations =  widgetSettings.bootstrapIterations;
+            this.bootstrapSampleName = widgetSettings.bootstrapSampleName;
+            this.maxNumDaysAllowed = widgetSettings.maxNumDaysAllowed;
+            this.minNumDaysAllowed = widgetSettings.minNumDaysAllowed;
+            
             this.hasIcon = false;
             this.iconData = [];
             this.iconCMap = [];
@@ -276,7 +294,17 @@ classdef PAStatTool < handle
             else
                 didSet = false; 
             end    
-        end        
+        end  
+        
+        function setStatus(this,sprintMsg,varargin)
+           msg = sprintf(sprintMsg,varargin{:});
+           set(this.handles.text_status,'string',msg);
+        end
+        
+        function clearStatus(this)
+           this.setStatus('');
+        end
+        
         
         %> @brief Returns boolean indicator if results view is showing
         %> clusters (plot type 'centroids') or not.
@@ -321,11 +349,18 @@ classdef PAStatTool < handle
         function paramStruct = getSaveParameters(this)
             paramStruct = this.getPlotSettings();            
             
-            % Parameters not stored in figure widgets
+            % These parameters not stored in figure widgets
             paramStruct.useDatabase = this.useDatabase;
+            paramStruct.minDaysAllowed = this.minNumDaysAllowed;
+            paramStruct.minNumDaysAllowed = this.minNumDaysAllowed;
+            paramStruct.maxNumDaysAllowed = this.maxNumDaysAllowed;
             paramStruct.databaseClass = this.originalWidgetSettings.databaseClass;
             paramStruct.useCache = this.useCache;
             paramStruct.cacheDirectory = this.cacheDirectory;            
+            
+            paramStruct.bootstrapIterations = this.bootstrapIterations;
+            paramStruct.bootstrapSampleName = this.bootstrapSampleName;
+
         end
         
         % ======================================================================
@@ -345,7 +380,7 @@ classdef PAStatTool < handle
             this.originalWidgetSettings = widgetSettings;
             
             % Merge the defaults with what is here otherwise.  
-            this.setUseDatabase(widgetSettings.useDatabase);
+            this.setUseDatabase(widgetSettings.useDatabase);  %sets this.useDatabase to false if it was initially true and then fails to open the database
             this.useCache = widgetSettings.useCache;
             this.cacheDirectory = widgetSettings.cacheDirectory;
             this.clusterSettings.clusterMethod = widgetSettings.clusterMethod;
@@ -393,7 +428,26 @@ classdef PAStatTool < handle
         %> @param this Instance of PAStatTool
         %> @retval success Boolean: true if features are loaded from file.  False if they are not.
         % ======================================================================
-        function didCalc = calcFeatureStruct(this)
+        function didCalc = calcFeatureStruct(this, indicesToUse)
+            if(nargin<2)
+                indicesToUse = [];
+                %                 if(~isempty(this.originalFeatureStruct))
+                %                     indicesToUse = randn(size(this.originalFeatureStruct.studyIDs))>0;
+                %                 end
+            else
+                if(ischar(indicesToUse))
+                    switch lower(indicesToUse)
+                        case 'bootstrap'
+                            
+                        otherwise
+                            fprintf(1,'Unknown indices flag for refreshCentroidsAndPlot: ''%s''\n',indicesToUse);
+                            indicesToUse = [];
+                            
+                    end
+                    
+                end
+            end
+            
             pSettings = this.getPlotSettings();
             
             countProcessType = this.base.processedTypes{1};
@@ -433,7 +487,19 @@ classdef PAStatTool < handle
                 
                 loadFileRequired = isempty(this.originalFeatureStruct) || ~strcmpi(inputFilename,this.originalFeatureStruct.filename);
                 if(loadFileRequired)
-                    this.originalFeatureStruct = this.loadAlignedFeatures(inputFilename);                    
+                    this.originalFeatureStruct = this.loadAlignedFeatures(inputFilename);    
+                    if(isfield(this.originalFeatureStruct,'studyIDs'))
+                        [this.originalFeatureStruct.uniqueIDs,iaFirst] = unique(this.originalFeatureStruct.studyIDs,'first');
+                        [~,iaLast,~] = unique(this.originalFeatureStruct.studyIDs,'last');
+                        this.originalFeatureStruct.indFirstLast = [iaFirst, iaLast];
+                        this.originalFeatureStruct.indFirstLast1Week = [iaFirst, min(iaLast, iaFirst+this.MAX_DAYS_PER_STUDY-1)];
+                        ind2keep = false(size(this.originalFeatureStruct.shapes,1),1);
+                        dayInd = this.originalFeatureStruct.indFirstLast1Week;
+                        for d=1:size(dayInd,1)
+                            ind2keep(dayInd(d,1):dayInd(d,2))= true;
+                        end
+                        this.originalFeatureStruct.ind2keep1Week = ind2keep;
+                    end
                     
                     % The call to setStartTimes here is necessary to 
                     % updating the start/stop GUI times just loaded.
@@ -452,12 +518,21 @@ classdef PAStatTool < handle
                     tmpUsageStateStruct.filename = '';
                 end
                 
+                if(~isempty(indicesToUse))
+                   fieldsToParse = {'studyIDs','startDatenums','startDaysOfWeek','shapes'};
+                    for f=1:numel(fieldsToParse)
+                        fname = fieldsToParse{f};
+                        tmpUsageStateStruct.(fname) = tmpUsageStateStruct.(fname)(indicesToUse,:);
+                        tmpFeatureStruct.(fname) = tmpFeatureStruct.(fname)(indicesToUse,:);                        
+                    end
+                end
                 startTimeSelection = pSettings.startTimeSelection;
                 stopTimeSelection = pSettings.stopTimeSelection;
-%                 if(stopTimeSelection<1)
-                    % Do nothing; this means, that we started at rayday and
-                    % will go 24 hours
+                
+                % Do nothing; this means, that we started at rayday and
+                % will go 24 hours
                 if(stopTimeSelection== startTimeSelection)
+
                     if(this.inClusterView())
                         % Not sure why this is happening in some cases when
                         % loading a new data file with different time
@@ -469,6 +544,7 @@ classdef PAStatTool < handle
                     %stopTimeSelection = 
                     
                 elseif(startTimeSelection < stopTimeSelection)
+                    
                     tmpFeatureStruct.startTimes = tmpFeatureStruct.startTimes(startTimeSelection:stopTimeSelection);
                     tmpFeatureStruct.shapes = tmpFeatureStruct.shapes(:,startTimeSelection:stopTimeSelection);      
                     tmpFeatureStruct.totalCount = numel(tmpFeatureStruct.startTimes);
@@ -476,7 +552,7 @@ classdef PAStatTool < handle
                     tmpUsageStateStruct.startTimes = tmpUsageStateStruct.startTimes(startTimeSelection:stopTimeSelection);
                     tmpUsageStateStruct.shapes = tmpUsageStateStruct.shapes(:,startTimeSelection:stopTimeSelection);      
                     tmpUsageStateStruct.totalCount = numel(tmpUsageStateStruct.startTimes);
-                
+                    
                 % For example:  22:00 to 04:00 is ~ stopTimeSelection = 22 and
                 % startTimeSelection = 81
                 elseif(stopTimeSelection < startTimeSelection)
@@ -496,24 +572,72 @@ classdef PAStatTool < handle
                     this.featureStruct = tmpFeatureStruct;                    
                 end
                 
+                maxDaysAllowed = this.maxNumDaysAllowed;
+                if(maxDaysAllowed>0)
+                    if(isempty(indicesToUse))
+                        ind2keep = this.originalFeatureStruct.ind2keep1Week;                        
+                    else
+                        % Otherwise, go off of what was passed in.
+                        ind2keep = false(size(this.featureStruct.shapes,1),1);
+                        [c,iaFirst,ic] = unique(this.featureStruct.studyIDs,'first');
+                        [c,iaLast,ic] = unique(this.featureStruct.studyIDs,'last');
+                        dayInd = [iaFirst, min(iaLast, iaFirst+this.MAX_DAYS_PER_STUDY-1)];
+                        for d=1:size(dayInd,1)
+                            ind2keep(dayInd(d,1):dayInd(d,2))= true;
+                        end
+                    end
+                    
+                    fieldsToParse = {'studyIDs','startDatenums','startDaysOfWeek','shapes'};
+                    for f=1:numel(fieldsToParse)
+                        fname = fieldsToParse{f};
+                        this.featureStruct.(fname)(~ind2keep,:)=[];
+                    end
+                end
                 loadFeatures = this.featureStruct.shapes;
 
                 if(pSettings.centroidDurationHours~=24)
-
-                    hoursPerCentroid = pSettings.centroidDurationHours;
-                    repRows = featureDurationInHours/hoursPerCentroid;
                     
-                    this.featureStruct.totalCount = this.featureStruct.totalCount/repRows;
+                    % centroid duration hours will always be integer
+                    % values; whole numbers
+                    featureVecDuration_hour = this.getFeatureVecDurationInHours();
+                    featuresPerVec = this.featureStruct.totalCount;
+                    % features per hour should also, always be whole
+                    % numbers...
+                    featuresPerHour = round(featuresPerVec/featureVecDuration_hour);
+                    %featureDuration_hour = 1/featuresPerHour;
+                    
+                    hoursPerCentroid = pSettings.centroidDurationHours;
+                    featuresPerCentroid = featuresPerHour*hoursPerCentroid;
+
+                    centroidsPerVec = floor(featuresPerVec/featuresPerCentroid);
+                    
+                    excessFeatures = mod(featuresPerVec,featuresPerCentroid);
+                    if(excessFeatures>0)
+                        loadFeatures = loadFeatures(:,1:centroidsPerVec*featuresPerCentroid);
+                        this.featureStruct.totalCount = this.featureStruct.totalCount - excessFeatures;                        
+                    end
+
+                    this.featureStruct.totalCount = this.featureStruct.totalCount/centroidsPerVec;
+                    this.featureStruct.startTimes = this.featureStruct.startTimes(1:this.featureStruct.totalCount);  % use the first time series for any additional centroids created from the same feature vector reshaping.
                     
                     % This will put the start days of week in the same
                     % order as the loadFeatures after their reshaping below
                     % (which causes the interspersion).
-                    this.featureStruct.startDaysOfWeek = repmat(this.featureStruct.startDaysOfWeek,1,repRows)';
-                    this.featureStruct.startDaysOfWeek = this.featureStruct.startDaysOfWeek(:);
+                    reshapeFields = {'startDaysOfWeek','startDatenums','studyIDs'};
+                    for r= 1:numel(reshapeFields)
+                        fname = reshapeFields{r};
+                        if(isfield(this.featureStruct,fname))                            
+                            tmp = repmat(this.featureStruct.(fname),1,centroidsPerVec)';
+                            this.featureStruct.(fname) = tmp(:);
+                        end
+                    end
+                    %                     this.featureStruct.startDaysOfWeek = repmat(this.featureStruct.startDaysOfWeek,1,centroidsPerVec)';
+                    %                     this.featureStruct.startDaysOfWeek = this.featureStruct.startDaysOfWeek(:);
+                    
                     
                     [nrow,ncol] = size(loadFeatures);
-                    newRowCount = nrow*repRows;
-                    newColCount = ncol/repRows;
+                    newRowCount = nrow*centroidsPerVec;
+                    newColCount = ncol/centroidsPerVec;
                     loadFeatures = reshape(loadFeatures',newColCount,newRowCount)';
                     
                     %  durationHoursPerFeature = 24/this.featureStruct.totalCount;
@@ -849,6 +973,7 @@ classdef PAStatTool < handle
             if(nargin>1)
                 this.useDatabase = willSet && true;
                 this.useDatabase = this.initDatabaseObj();% initDatabase returns false if it fails to initialize and is supposed to.
+                didSet = true;
             else
                 didSet = false;
             end
@@ -1281,6 +1406,11 @@ classdef PAStatTool < handle
                         %    bgColor = [nan, nan, nan];
                         % bgColor = [0.94,0.94,0.94];
                         originalImg = imread('arrow-right_16px.png','png','backgroundcolor',bgColor);
+                        
+%                         set(this.handles.push_nextCentroid,'units','pixels');
+%                         pos = get(this.handles.push_nextCentroid,'position');
+%                         originalImg = imresize(originalImg,pos(3:4));
+                        
                         [nRows, nCols, nColors] = size(originalImg);
                         
                         transparentIndices = false(size(originalImg));  % This is for obtaining logical matrix                        
@@ -1296,8 +1426,16 @@ classdef PAStatTool < handle
                         nextImg(~transparentIndices)=originalImg(~transparentIndices)/RGB_MAX; %normalize back to between 0.0 and 1.0 or NaN
                         previousImg = fliplr(nextImg);
                         
-                        set(this.handles.push_nextCentroid,'cdata',nextImg,'string',[]);
-                        set(this.handles.push_previousCentroid,'cdata',previousImg,'string',[]);
+                        
+                        %setIcon(this.handles.push_nextCentroid,'arrow-right_16px.png',imgBgColor);
+                        fgColor = get(0,'FactoryuicontrolForegroundColor');
+                        defaultBackgroundColor = get(0,'FactoryuicontrolBackgroundColor');
+            
+                        set(this.handles.push_nextCentroid,'cdata',nextImg);
+                        set(this.handles.push_previousCentroid,'cdata',previousImg);
+                        set([this.handles.push_nextCentroid,this.handles.push_previousCentroid],...
+                            'string',[],'foregroundcolor',fgColor,...
+                            'backgroundcolor',defaultBackgroundColor);
                         
 %                         set(this.handles.push_nextCentroid,'units','normalized');
 %                         set(this.handles.push_previousCentroid,'units','normalized');
@@ -1366,10 +1504,11 @@ classdef PAStatTool < handle
             end
             fgColor = get(0,'FactoryuicontrolForegroundColor');
             defaultBackgroundColor = get(0,'FactoryuicontrolBackgroundColor');
-            set(this.handles.push_refreshCentroids,'callback',@this.refreshCentroidsAndPlot,...
+            set(this.handles.push_refreshCentroids,'callback',@this.refreshCentroidsAndPlotCb,...
                 'enable',enableState,'string','Recalculate',...
                 'backgroundcolor',defaultBackgroundColor,...
                 'foregroundcolor',fgColor,...
+                'fontweight','normal',...
                 'fontsize',12);
         end
         
@@ -1517,11 +1656,17 @@ classdef PAStatTool < handle
             % is time to actually calculate again...
             if(this.isCentroidModeSelected())
                 bgColor = [0.2 0.8 0.1];
-                fgColor = [1 1 1];
+                fgColor = [ 0 0 0];
+                
+                fgColor = get(0,'FactoryuicontrolForegroundColor');
+                bgColor = get(0,'FactoryuicontrolBackgroundColor');
+            
                 set(this.handles.push_refreshCentroids,'enable','on',...
                     'backgroundcolor',bgColor,'string','Recalculate',...
                     'foregroundcolor',fgColor,...
-                    'callback',@this.refreshCentroidsAndPlot);
+                    'fontweight','bold',...
+                    'fontsize',13,...
+                    'callback',@this.refreshCentroidsAndPlotCb);
             else
                 
             end
@@ -1529,8 +1674,13 @@ classdef PAStatTool < handle
         
         function enableCentroidCancellation(this, varargin)
             bgColor = [0.8 0.2 0.1];
-            fgColor = [0 0 0];
+            %             fgColor = get(0,'FactoryuicontrolForegroundColor');
+            %             bgColor = get(0,'FactoryuicontrolBackgroundColor');
+            %             fgColor = [0.94 0.94 0.94 ];
+            fgColor = [1 1 1];
+
             set(this.handles.push_refreshCentroids,'enable','on',...
+                'fontsize',12,'fontweight','bold',...            
                 'backgroundcolor',bgColor,'string','Cancel',...
                 'foregroundcolor',fgColor,...
                 'callback',@this.cancelCentroidsCalculationCallback);
@@ -1540,7 +1690,8 @@ classdef PAStatTool < handle
             %             bgColor = [0.6 0.4 0.3];
             bgColor = [0.6 0.1 0.1];
             set(this.handles.push_refreshCentroids,'enable','off','callback',[],...
-                'backgroundcolor',bgColor,'string','Cancelling');
+                'backgroundcolor',bgColor,'string','Cancelling',...
+                'fontsize',12,'fontweight','normal');
             this.notify('UserCancel_Event');
         end        
         
@@ -1592,21 +1743,41 @@ classdef PAStatTool < handle
                %                'bmi_zscore'
                %                'bmi_zscore+'  %for logistic regression modeling
                % all
+               
                covariateStruct = this.centroidObj.getCovariateStruct();
-               [resultStr, resultStruct] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'});
+               % Normalize values
+               values = covariateStruct.values;
+               covariateStruct.values = diag(sum(values,2))*values;
+               
+
+               %                [resultStr, resultStruct] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'});
                
                % current selection
                
-               
-               covariateStruct = this.centroidObj.getCovariateStruct(this.centroidObj.getAllCOISortOrders());
-               if(size(covariateStruct.values,2)>1)
-                   covariateStruct.colnames = {cell2str(covariateStruct.colnames,' AND ')};
-                   covariateStruct.values = sum(covariateStruct.values,2); %sum each row
+               coiSortOrders = this.centroidObj.getAllCOISortOrders();
+               covariateStruct = this.centroidObj.getCovariateStruct();
+               if(numel(coiSortOrders)>1)
+                   % If we have multiple elements selected then group
+                   % together and add as an extra element to the other
+                   % group.
+                   nonCoiInd = true(size(covariateStruct.colnames));
+                   nonCoiInd(coiSortOrders) = false;
+                   coiColname = {cell2str(covariateStruct.colnames(coiSortOrders),' AND ')};
+                   coiVarname = {cell2str(covariateStruct.varnames(coiSortOrders),'_AND_')};
+                   coiValues =  sum(covariateStruct.values(:,coiSortOrders),2); %sum across each row
+                   
+                   covariateStruct.values = [covariateStruct.values(:,nonCoiInd), coiValues];
+                   covariateStruct.colnames = [covariateStruct.colnames(nonCoiInd), coiColname];
+                   covariateStruct.varnames = [covariateStruct.varnames(nonCoiInd), coiVarname];
+                   coiSortOrders = numel(covariateStruct.varnames);
+                   %                    covariateStruct = this.centroidObj.getCovariateStruct(coiSortOrders);
+                   %                    covariateStruct.colnames = {cell2str(covariateStruct.colnames,' AND ')};
+                   %                    covariateStruct.varnames = {cell2str(covariateStruct.varnames,'_AND_')};
+                   %                    covariateStruct.values = sum(covariateStruct.values,2); %sum each row
+                   
                end
                
-               
-               % current selection
-               [resultStr, resultStruct] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'});
+               [resultStr, resultStruct] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'}, coiSortOrders);
                %                [resultStr, resultStruct] = gee_model(this.centroidObj.getCovariateStruct(this.centroidObj.getCOISortOrder()),dependentVar,{'age'; '(sex=1) as male'});
                if(~isempty(resultStr))
                    if(this.hasIcon)
@@ -1994,6 +2165,7 @@ classdef PAStatTool < handle
                 'push_nextCentroid'
                 'push_previousCentroid'
                 'text_resultsCentroid'
+                'text_status'
                 'check_holdPlots'
                 'check_holdYAxes'
                 'check_showAnalysisFigure'
@@ -2356,6 +2528,23 @@ classdef PAStatTool < handle
             featureStruct = this.featureStruct;            
         end
         
+        function durHours=  getFeatureVecDurationInHours(this)
+            [~,startEndDatenums] = this.getStartEndTimes();
+            durHours = 24*diff(startEndDatenums);
+            if(durHours==0)
+                durHours = 24;
+            elseif(durHours<0)
+                durHours = durHours+24;
+            end
+        end
+        
+        function [startEndTimeStr, startEndDatenums] = getStartEndTimes(this)
+            startEndTimeStr = {getMenuString(this.handles.menu_centroidStartTime);
+                getMenuString(this.handles.menu_centroidStopTime)};
+            startEndDatenums = datenum(startEndTimeStr);
+            
+        end
+        
         function startTimes = getStartTimesCell(this)
             if(isfield(this.featureStruct,'startTimes'))
                 startTimes = this.featureStruct.startTimes;
@@ -2363,27 +2552,176 @@ classdef PAStatTool < handle
                 startTimes = {};
             end            
         end
+        function bootstrapCallback(this,varargin)
+
+            bootSettings = struct();
+            defaultSettings = struct();
+            defaults  = this.getDefaulParameters();
+            for f=1:numel(this.bootstrapParamNames)
+                pName = this.bootstrapParamNames{f};
+                bootSettings.(pName) = this.(pName);
+                defaultSettings.(pName) = defaults.(pName);
+            end
+            bootSettings = PASimpleEditor(bootSettings, defaultSettings);
+            if(~isempty(bootSettings))
+                % update the parameters for next time and for use in the
+                % upcoming bootstrap call
+                for f=1:numel(this.bootstrapParamNames)
+                    pName = this.bootstrapParamNames{f};
+                    this.(pName) = bootSettings.(pName);
+                end
+                this.bootstrap();                
+            end
+        end
+        
+        function bootstrap(this, numBootstraps)
+            if(nargin<2)
+                numBootstraps = this.bootstrapIterations;
+            end
+            % configure progress bar
+            didCancel = false;
+            function cbFcn(hObject,evtData)
+                waitbar(1,h,'Cancelling ...');
+                didCancel = true;
+            end
+            
+            h = waitbar(0,'Preparing for bootstrap','CreateCancelBtn',@cbFcn);
+            try
+                
+                % configure bootstrap
+
+                paramNames = {'centroidCount','silhouetteIndex','calinskiIndex'};
+                params = mkstruct(paramNames,nan(1,numBootstraps));
+                
+                bootstrapUsing = this.bootstrapSampleName; % 'studyID';  % or 'days'
+        
+                if(strcmpi(bootstrapUsing,'days'))                
+                    sample_size = numel(this.originalFeatureStruct.studyIDs);
+                    boot_daysInd = randi(sample_size,[sample_size,numBootstraps]);
+                else
+                    sample_size = numel(this.originalFeatureStruct.uniqueIDs);
+                    boot_studyInd = randi(sample_size,[sample_size,numBootstraps]);                    
+                end
+                
+                allowUserCancel = false;
+                startTime = now;
+                for n=1:numBootstraps
+                    
+                    if(~didCancel && ishandle(h))
+                        %featureStruct = this.StatTool.getFeatureStruct();
+                        timeElapsedStr = getTimeElapsedStr(startTime);                        
+                        msg = sprintf('Bootstrapping %d of %d  (%s)',n,numBootstraps,timeElapsedStr);
+                        waitbar(n/numBootstraps,h,msg);
+                        this.setStatus(msg);
+                        if(strcmpi(bootstrapUsing,'days'))
+                            ind2use = boot_daysInd(:,n);
+                        else
+                            studyInd2use = boot_studyInd(:,n);  % these are indices of the study IDs to use
+                            indFirstLast = this.originalFeatureStruct.indFirstLast(studyInd2use,:);
+                            daysPerStudy = indFirstLast(:,2)-indFirstLast(:,1)+1;
+                            
+                            numVectors = sum(daysPerStudy);
+                            % numVectors = sum(diff(indFirstLast'))+size(indFirstLast,1);
+                            
+                            ind2use = nan(numVectors,1);
+                            curVecInd = 1;
+                            for row=1:size(indFirstLast,1)
+                                
+                                ind2use(curVecInd:curVecInd+daysPerStudy(row)-1) = indFirstLast(row,1):indFirstLast(row,2);
+                                curVecInd = curVecInd+daysPerStudy(row);
+                            end                 
+                        end
+                        if(this.refreshCentroidsAndPlot(allowUserCancel,ind2use))                            
+                            for f=1:numel(paramNames)
+                                pName = paramNames{f};
+                                params.(pName)(n) = this.centroidObj.getParam(pName);
+                            end
+                        end
+                        drawnow();
+                    else
+                        break;
+                    end
+                end
+                
+                % If you stop early, we still want results, I think.
+                if(n>1)
+                    if(ishandle(h))
+                        delete(h);
+                    end
+                    
+                    
+                    CI = 95;  %i.e. we want the 95% confidence interval
+                    CI_alpha = 100-CI;
+                    CI_range = [CI_alpha/2, 100-CI_alpha/2];  %[2.5, 97.5]
+                   
+                    message = cell(numel(paramNames)+1,1);
+                    message{1} = sprintf('95%% Confidence Interval(s) using\n\tbootstrap iterations = %i\n\tsample size = %i\nComputation Time: %s\n',n,sample_size,getTimeElapsedStr(startTime));
+                    for f=1:numel(paramNames)
+                        pName = paramNames{f};
+                        values = params.(pName)(1:n);
+                        param_CI_percentile = prctile(values,CI_range);                        
+                        stdVal = std(values);
+                        meanVal = mean(values);
+                        stdCI = meanVal+stdVal*[-1.96, +1.96];
+                        message{f+1} = sprintf('%s mean = %0.4f\tSD = %0.4f\tMean+/-1.96*SD = [%0.4f, %0.4f]\t95%% CI = [%0.4f, %0.4f]' ,pName,meanVal,stdVal, stdCI(1), stdCI(2),param_CI_percentile(1),param_CI_percentile(2));
+                    end
+                    
+                    for m=1:numel(message)
+                        fprintf(1,'%s\n',message{m});
+                    end
+                    
+                    msgbox(message,'Bootstrap results');
+                    %message{k+1} = [paramCell(k).label,' [ ',num2str(config_CI_percentile(1,k),decimal_format),', ',num2str(config_CI_percentile(2,k),decimal_format),']'];
+                end
+                
+            catch me
+                showME(me);
+            end
+            if(ishandle(h))
+                delete(h);
+            end
+            this.clearStatus();
+            %             if(ishandle(h))
+            %                 waitbar(100,h,'Bootstrap complete');
+            %             end
+            
+            
+            
+            
+        end
+        
+        function refreshCentroidsAndPlotCb(this, varargin)
+            enableUserCancel = true;
+           this.refreshCentroidsAndPlot(enableUserCancel); 
+        end
         % ======================================================================
         %> @brief Push button callback for updating the centroids being displayed.
         %> @param this Instance of PAStatTool
-        %> @param Variable number of arguments required by MATLAB gui callbacks
-        %> varargin{1} may be used to disable the button after success.
+        %> @param enableUserCancel Boolean flag indicating whether user cancel
+        %> button is provided [false].
+        %> @param Optional Indices of study IDs and shapes to use or string
+        %> 'bootstrap' indicating a random configuration can be used.
         %> @note centroidObj is cleared at the beginning of this function.
         %> If it is empty after the function call, then the clustering
         %> failed.
         % ======================================================================
-        function refreshCentroidsAndPlot(this,varargin)
+        function didConverge = refreshCentroidsAndPlot(this,enableUserCancel,varargin)
+            didConverge = false;
+            if(nargin<2)
+                enableUserCancel = false;
+            end
             this.clearPrimaryAxes();
             this.showBusy();
             pSettings= this.getPlotSettings();
             
             this.centroidObj = [];
-            this.disableCentroidControls();  % disable further interaction with our centroid panel
+            this.disable();
+            %this.disableCentroidControls();  % disable further interaction with our centroid panel
             
             resultsTextH = this.handles.text_resultsCentroid; % an alias
             % clear the analysis figure
             
-            if(this.calcFeatureStruct())            
+            if(this.calcFeatureStruct(varargin{:}))            
                 % does not converge well if not normalized as we are no longer looking at the shape alone
                 
                 % @b weekdayTag String to identify how/if data should be
@@ -2441,7 +2779,10 @@ classdef PAStatTool < handle
                 tmpCentroidObj = PACentroid(this.featureStruct.features,pSettings,this.handles.axes_primary,resultsTextH,this.featureStruct.studyIDs, this.featureStruct.startDaysOfWeek, delayedStart);
                 this.addlistener('UserCancel_Event',@tmpCentroidObj.cancelCalculations);
                 this.centroidObj = tmpCentroidObj;
-                this.enableCentroidCancellation();
+                
+                if(enableUserCancel)
+                    this.enableCentroidCancellation();
+                end
                 
                 this.centroidObj.calculateCentroids();
                 
@@ -2481,6 +2822,7 @@ classdef PAStatTool < handle
             end
             
             if(this.hasValidCentroid()) % ~isempty(this.centroidObj))
+                didConverge = true;
                 % Prep the x-axis here since it will not change when going from one centroid to the
                 % next, but only (though not necessarily) when refreshing centroids.
                 this.drawCentroidXTicksAndLabels();
@@ -2493,13 +2835,14 @@ classdef PAStatTool < handle
                 
                 this.plotCentroids(pSettings); 
                 this.enableCentroidControls();
-                this.originalWidgetSettings = PAData.mergeStruct(this.originalWidgetSettings,pSettings); % keep a record of our most recent settings.
+                this.originalWidgetSettings = mergeStruct(this.originalWidgetSettings,pSettings); % keep a record of our most recent settings.
                 dissolve(resultsTextH,2.5);
                 
             else
                 set(resultsTextH,'visible','off');
                 this.initRefreshCentroidButton('on');  % want to initialize the button again so they can try again perhaps.
             end
+            this.enable();
             this.showReady();
         end
         
@@ -2701,7 +3044,12 @@ classdef PAStatTool < handle
                         coi = cois{c};
                         if(centroidAndPlotSettings.showCentroidMembers)
                             if(numel(coi.shape)==1)
-                                markerType = 'hexagram';
+                                markerOff = true;
+                                if(markerOff)
+                                    markerType = 'none';
+                                else
+                                    markerType = 'hexagram';
+                                end
                                 midPoint = mean(get(centroidAxes,'xlim'));
                                 membersLineH = plot(centroidAxes,midPoint,coi.dayOfWeek.memberShapes,'-','linewidth',1,'color',this.COLOR_MEMBERSHAPE,'marker',markerType);
                             else
@@ -2729,13 +3077,21 @@ classdef PAStatTool < handle
                         % This changes my axes limit mode if nextplot is set to
                         % 'replace' instead of 'replacechildren'
                         colorStyleIndex = mod(c-1,maxColorStyles)+1;  %b/c MATLAB is one based, and 'mod' is not.
+                        
+                        markerOff = true;
+                        if(markerOff)
+                            markerType = 'none';
+                        else
+                            markerType = coiMarkers(colorStyleIndex);
+                        end
                         if(numel(coi.shape)==1)
                             midPoint = mean(get(centroidAxes,'xlim'));
+                            
                             centroidHandles(c) = plot(centroidAxes,midPoint,coi.shape,'linestyle','none',...
-                                'marker',coiMarkers(colorStyleIndex),'markerfacecolor','none',...
+                                'marker',markerType,'markerfacecolor','none',...
                                 'markeredgecolor',coiColors(colorStyleIndex));
                         else
-                            centroidHandles(c) = plot(centroidAxes,coi.shape,'linewidth',2,'linestyle',coiStyles(colorStyleIndex),'color',coiColors(colorStyleIndex),'marker',coiMarkers(colorStyleIndex),'markerfacecolor','none','markeredgecolor','k'); %[0 0 0]);
+                            centroidHandles(c) = plot(centroidAxes,coi.shape,'linewidth',2,'linestyle',coiStyles(colorStyleIndex),'color',coiColors(colorStyleIndex),'marker',markerType,'markerfacecolor','none','markeredgecolor','k'); %[0 0 0]);
                         end
 
                         if(coi.numMembers==1)
@@ -3421,6 +3777,9 @@ classdef PAStatTool < handle
             end
             
             paramStruct.preclusterReductionSelection = 1; % defaults to 'none'
+
+            paramStruct.maxNumDaysAllowed = 0; % Maximum number of days allowed per subject.  Leave 0 to include all days.
+            paramStruct.minNumDaysAllowed = 0; % Minimum number of days allowed per subject.  Leave 0 for no minimum.  Currently variable has no effect at all.
             
             paramStruct.normalizeValues = 0;            
             paramStruct.processedTypeSelection = 1;
@@ -3443,7 +3802,10 @@ classdef PAStatTool < handle
             paramStruct.primaryAxis_nextPlot = 'replace';
             paramStruct.showAnalysisFigure = 0; % do not display the other figure at first
             paramStruct.centroidDistributionType = 'membership';  %{'performance','membership','weekday'}            
-            paramStruct.profileFieldSelection = 1;            
+            paramStruct.profileFieldSelection = 1;    
+            
+            paramStruct.bootstrapIterations =  100;
+            paramStruct.bootstrapSampleName = 'studyID';  % or 'days'
             
            
         end
@@ -3474,7 +3836,6 @@ classdef PAStatTool < handle
             baseSettings.preclusterReductionDescriptions = {'None','Sort (high->low)','Sum','Mean','Median','Maximum','Occurrences > 100','Occurrences > 50'};
             baseSettings.numDataSegments = [2,3,4,6,8,12,24]';
             baseSettings.numDataSegmentsDescriptions = cellstr(num2str(baseSettings.numDataSegments(:)));
-
             
             baseSettings.plotTypes = {'dailyaverage','dailytally','morningheatmap','heatmap','rolling','morningrolling','centroids'};
             baseSettings.plotTypeDescriptions = {'Average Daily Tallies','Total Daily Tallies','Heat map (early morning)','Heat map','Time series','Time series (morning)','Centroids'};
