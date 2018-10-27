@@ -1,4 +1,4 @@
-function mPathname = pathsetup()
+function mPathname = pathSetup()
     mPathname = fileparts(mfilename('fullpath'));
     if(~isdeployed)
         addpath(mPathname);

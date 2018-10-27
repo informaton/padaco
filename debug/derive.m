@@ -1,5 +1,5 @@
 function derive()
     addpath('..');
-    pathsetup();
+    pathSetup();
     PADeriver(); 
 end

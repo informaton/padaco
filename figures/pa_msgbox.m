@@ -15,11 +15,14 @@ function h=pa_msgbox(msgStr,titleStr,iconFilename,makeModal)
     if(nargin<2 || isempty(titleStr))
         titleStr = '';
     end
-    if(nargin<3 || ~exist(iconfFilename,'file'))
+    if(nargin<3 || ~exist(iconFilename,'file'))
         iconFilename = 'icon_64.png';
+        iconFilename = 'icon_128.png';
+        
     end
 
     
+    iconFilename = 'icon_32.png';
     if(exist(iconFilename,'file'))
         [iconData, iconCMap] = imread(iconFilename);        
     else

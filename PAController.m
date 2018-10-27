@@ -18,6 +18,8 @@ classdef PAController < handle
     end
     properties(Access=private)
         versionNum;
+        %> @brief From guidata(figureHandle)
+        handles;
         %> @brief Vector for keeping track of the feature handles that are
         %> displayed on the secondary axes field.
         featureHandles;
@@ -114,7 +116,7 @@ classdef PAController < handle
             %check to see if a settings file exists
             if(nargin<3)
                 parameters_filename = '_padaco.parameters.txt';
-            end;
+            end
             
          
             obj.StatTool = [];
@@ -125,13 +127,13 @@ classdef PAController < handle
             obj.resultsPathname = obj.SETTINGS.CONTROLLER.resultsPathname;
             obj.exportPathname = obj.SETTINGS.CONTROLLER.exportPathname;
             
-            obj.iconFilename = fullfile(rootPathname,'resources','icons','logo','icon_64.png');
+            obj.iconFilename = fullfile(rootPathname,'resources','icons','logo','icon_32.png');
             obj.setVersionNum();
             obj.accelTypeShown = [];
             obj.figureH = Padaco_fig_h;
             if(ishandle(obj.figureH))
                 obj.featureHandles = [];
-                
+                obj.handles = guidata(obj.figureH);
                 % Create a VIEW class
                 % 1. make context menu handles for the lines
                 % 2. make context menu handles for the primary axes
@@ -498,13 +500,13 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function menuFileAboutCallback(obj,hObject,eventdata)
             
-            msg = sprintf(['Padaco version %s\n',...
+            msg = sprintf(['\nPadaco version %s\n',...
                 '\nA collaborative effort between:',...
                 '\n\t1. Stanford''s Pediatric''s Solution Science Lab',...
                 '\n\t2. Stanford''s Civil Engineering''s Sustainable Energy Lab',...
                 '\n\t3. Stanford''s Quantitative Science Unit',...
-                '\n\nSoftware license: To be decided',...
-                '\nCopyright Hyatt Moore IV (2014-2016)\n'
+                '\n\nSoftware license: TBD',...
+                '\nCopyright 2014-2018\n'
                 ],obj.getVersionNum());
             h=pa_msgbox(msg,'About',obj.iconFilename);
             
