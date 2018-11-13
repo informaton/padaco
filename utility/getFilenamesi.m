@@ -18,6 +18,8 @@ function [filenames,fullfilenames, fileDatenums] = getFilenamesi(pathname,ext,so
     %> you.  Thus, the following commands are equivalent:
     %> - [filenames] = getFilenames(pwd,'m');
     %> - [filenames] = getFilenames(pwd,'.m');
+    %> - [filenames] = getFilenames(pwd,'*.m');
+    
     
     % copyright Hyatt Moore IV
     
