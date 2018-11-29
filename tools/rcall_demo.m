@@ -10,5 +10,13 @@ output = rcall(r_script_filename,accelerometer_filename,wt_output_filename);  % 
 
 % to process the output consider
 fid = fopen(wt_output_filename,'r');
-frewind(fid); a = textscan(fid,'%n %n %n %n %n %n %n %n','collectoutput',true,'headerlines',1,'delimiter',',');
+
+% "X","Y","Z","steps","weartimeX","weartimeY","weartimeZ","weartimeS"
+
+frewind(fid); 
+headerLine = fgetl(fid);
+numCols = sum(headerLine==',')+1;
+fmtStr = repmat('%n ',1,numCols);
+a = textscan(fid,fmtStr,'collectoutput',true,'headerlines',1,'delimiter',',');
+%a = textscan(fid,'%n %n %n %n %n %n %n %n','collectoutput',true,'headerlines',1,'delimiter',',');
 fclose(fid);

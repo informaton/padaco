@@ -3,4 +3,4 @@ function go2padaco()
 %make sure that the padaco path (where this file is located) is on your MATLAB path
 fmf = mfilename('fullpath');
 cd(fileparts(fmf));
-pathSetup();
+pathsetup();
