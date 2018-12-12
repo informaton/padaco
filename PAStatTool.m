@@ -3167,8 +3167,8 @@ classdef PAStatTool < handle
                         
                         pctMembership =  coi.dayOfWeek.numMembers/numLoadShapes*100;
                         
-                        legendStrings{c} = sprintf('Centroid #%u (%0.2f%%)',coi.sortOrder, pctMembership);
-                        summaryStrings{c} = sprintf('#%u (%0.2f%%) Sum=%0.2f\tMean=%0.2f',coi.sortOrder, pctMembership,sum(coi.shape),mean(coi.shape));
+                        legendStrings{c} = sprintf('Centroid #%u (Popularity: #%d, %0.2f%%)',coi.index, coi.sortOrder,pctMembership);
+                        summaryStrings{c} = sprintf('#%u (%0.2f%%) Sum=%0.2f\tMean=%0.2f',coi.index, pctMembership,sum(coi.shape),mean(coi.shape));
                         coiSortOrders(c) = coi.sortOrder;
                         coiPctMemberships(c) =  coi.dayOfWeek.numMembers/numLoadShapes*100;
                         %                     coiIndices(c) = coi.index;
@@ -3230,7 +3230,7 @@ classdef PAStatTool < handle
                     else
                         legend(centroidAxes,'off');
                         % Use when show most popular first, on left side
-                        centroidTitle = sprintf('Centroid #%u (%s). Popularity %u of %u. Loadshapes: %u of %u (%0.2f%%).  Individuals: %u of %u (%0.2f%%)',coi.sortOrder,...
+                        centroidTitle = sprintf('Centroid #%u (%s). Popularity %u of %u. Loadshapes: %u of %u (%0.2f%%).  Individuals: %u of %u (%0.2f%%)',coi.index,...
                             this.featureStruct.method, coi.sortOrder,numCentroids, coi.dayOfWeek.numMembers, numLoadShapes, pctMembership, numUniqueMemberIDs, totalMemberIDsCount, pctOfTotalMemberIDs);
                         % Use when show most popular last, (right most side)
                         % centroidTitle = sprintf('Centroid #%u (%s). Popularity %u of %u. Loadshapes: %u of %u (%0.2f%%).  Individuals: %u of %u (%0.2f%%)',coi.sortOrder,...
