@@ -284,8 +284,8 @@ classdef PACentroid < handle
             if(~isdir(exportPath))                
                 msg = sprintf('Export path does not exist.  Nothing done.\nExport path: %s',exportPath);
             else
-                [covHeader, covDataStr] = this.exportCovariates();
-                [cov2Header, cov2DataStr] = this.exportCovariates2();
+                [covHeader, covDataStr] = this.exportFrequencyCovariates();
+                [weekdayCovHeader, weekdayCovDataStr] = this.exportWeekDayCovariates();
                 
                 [shapesHeaderStr, shapesStr] = this.exportCentroidShapes();
                 timeStamp = datestr(now,'DDmmmYYYY');
@@ -312,8 +312,8 @@ classdef PACentroid < handle
                 cov2Fid = fopen(cov2Filename,'w');
                 
                 if(cov2Fid>1)
-                    fprintf(cov2Fid,'%s\n',cov2Header);
-                    fprintf(cov2Fid,cov2DataStr);
+                    fprintf(cov2Fid,'%s\n',weekdayCovHeader);
+                    fprintf(cov2Fid,weekdayCovDataStr);
                     msg = sprintf('%sCluster by weekday data saved to:\n\t%s\n',msg,cov2Filename);
                     fclose(cov2Fid);
                 else
@@ -345,17 +345,33 @@ classdef PACentroid < handle
             resultMsg = msg;
         end
         
-        function [headerStr, dataStr] = exportCovariates2(this)
+        function [headerStr, dataStr] = exportWeekDayCovariates(this)
             csMat = this.getCovariateMat();
-            headerStr = '# memberID, Day of week (Sun=0 to Sat=6), Cluster index, cluster popularity';
+            headerStr = sprintf('# memberID, Day of week (Sun=0 to Sat=6), Cluster index, cluster popularity (1=highest, %d=lowest)',max(csMat(:,end)));
             strFmt = ['%i',repmat(', %i',1,size(csMat,2)-1),'\n'];  % Make rows ('\n') of comma separated integers (', %i') 
             dataStr = sprintf(strFmt,csMat'); % Need to transpose here because arguments to sprintf are taken in column order, but I am output by row.
         end
         
-        function [headerStr, membersStr] = exportCovariates(this)
+        function [headerStr, membersStr] = exportFrequencyCovariates(this,frequencyOf)
             cs = this.getCovariateStruct();
-            headerStr = [sprintf('# Centroid frequency for members listed in first column.  Centroid ID in the next header line refer to their popularity and correspond to the first column centroid ID listed in the companion text file.  The values in these columns represent the number of times the subject ID was a member of that cluster.\n'),'# memberID',sprintf(', Centroid %i',1:numel(cs.colnames))];
-            allData = [cs.memberIDs,cs.values];
+            if(nargin<2 || isempty(frequencyOf))
+                frequencyOf = 'id';
+            end
+            if(strcmpi(frequencyOf,'id'))                
+                headerStr = sprintf('# Centroid frequency (by index) for members listed in first column.  ''Centroid #'' refers to the centroid ID listed in the companion text file.  The values in these columns represent the number of times the subject ID was a member of that cluster index.\n# memberID');       
+            else
+               headerStr = sprintf('# Centroid frequency (by popularity) for members listed in first column.  ''Popularity #'' refers to the popularity of the centroid ID listed in the companion text file.  The values in these columns represent the number of times the subject ID was a member of the cluster with that popularity.\n');
+            end
+            
+            for c=1:numel(cs.(frequencyOf).colnames)
+                colName = cs.(frequencyOf).colnames{c};
+                headerStr = sprintf('%s, %s', headerStr, colName);
+            end
+
+            
+            %id (index) or popularity;
+            allData = [cs.memberIDs,cs.(frequencyOf).values];
+            
             strFmt = ['%i',repmat(', %i',1,size(allData,2)-1),'\n'];  % Make rows ('\n') of comma separated integers (', %i') 
             membersStr = sprintf(strFmt,allData'); % Need to transpose here because arguments to sprintf are taken in column order, but I am output by row.
         end
@@ -376,29 +392,19 @@ classdef PACentroid < handle
                 centroidStr = '';
             else
                 % print header
-                headerStr = sprintf('# Centroid popularity (1 is highest), Centroid index, membership count');
+                headerStr = sprintf('# Centroid index, Popularity (1 = highest), membership count');
                 for d=1:numel(this.WEEKDAY_ORDER)
                     headerStr = sprintf('%s, %s (%d)',headerStr,this.WEEKDAY_LABELS{d},this.WEEKDAY_ORDER(d));
                 end
                 centroidStr = '';
                 for sortOrder=1:this.getNumCentroids()
                     coi = this.getCentroidOfInterest(sortOrder);
-                    coiStr = sprintf('%i,%i, %i',coi.sortOrder,coi.index,coi.numMembers);
+                    coiStr = sprintf('%i,%i, %i',coi.index,coi.sortOrder,coi.numMembers);
                     dayStr = sprintf(', %i',coi.dayOfWeek.count);
                     shapeStr = sprintf(', %f',coi.shape);
                     centroidStr = sprintf('%s%s%s%s\n',centroidStr,coiStr,dayStr,shapeStr);
                 end
             end
-            %             if(nargin<2 || isempty(filenameOut))
-            %
-            %             end
-            %
-            %             fid = fopen(filenameOut,'w');
-            %             if(fid>1)
-            %
-            %             else
-            %                 fprintf(1,'Could not open file (''%s'') for exporting centroid shapes.\n',filenameOut);
-            %             end
         end
         
         
@@ -968,15 +974,21 @@ classdef PACentroid < handle
             subjectIDs = this.getUniqueLoadShapeIDs(); %    unique(this.loadShapeIDs);
             numSubjects = numel(subjectIDs);
             
-            values = zeros(numSubjects,this.numCentroids);
+            centroidPopularityCount = zeros(numSubjects,this.numCentroids);
+            centroidIDCount = centroidPopularityCount;
             
             for row=1:numSubjects
                 try
                     curSubject = subjectIDs(row);
-                    centroidsSortOrdersForSubject = this.coiIndex2SortOrder(this.loadshapeIndex2centroidIndexMap(this.loadShapeIDs==curSubject));
-                    for c=1:numel(centroidsSortOrdersForSubject)
-                        coiSO = centroidsSortOrdersForSubject(c);
-                        values(row,coiSO) = values(row,coiSO)+1;
+                    centroidIDForSubject = this.loadshapeIndex2centroidIndexMap(this.loadShapeIDs==curSubject);
+                    centroidSortOrderForSubject = this.coiIndex2SortOrder(centroidIDForSubject);
+                    %centroidSortOrderForSubject = this.coiIndex2SortOrder(this.loadshapeIndex2centroidIndexMap(this.loadShapeIDs==curSubject));
+                    
+                    for c=1:numel(centroidSortOrderForSubject)
+                        coiSO = centroidSortOrderForSubject(c);
+                        coiID = centroidIDForSubject(c);
+                        centroidPopularityCount(row,coiSO) = centroidPopularityCount(row,coiSO)+1;
+                        centroidIDCount(row, coiID) = centroidIDCount(row,coiID)+1;
                     end
                 catch me
                     showME(me);
@@ -984,21 +996,32 @@ classdef PACentroid < handle
                 end
             end
             
-            % This states the columns should be in sorted order with #1
-            % first (on the left) and #K on the end (far right).  This is
+            % This *used* to state that the columns should be in sorted order with #1
+            % first (on the left) and #K on the end (far right).  This *was*
             % okay because we have converted centroid indices to centroid
             % sort order indices in the above for loop.
-            colnames = regexp(sprintf('Centroid #%u\n',1:this.numCentroids),'\n','split');            
-            colnames(end) = [];  %remove the last cell entry which will be empty.
+            
+            idOrder = 1:this.numCentroids;
+            sortOrder = this.coiIndex2SortOrder(idOrder);
+            idColnames = regexp(sprintf('Centroid #%u\n',idOrder),'\n','split');
+            idColnames(end) = [];  %remove the last cell entry which will be empty.
+            popularityColnames = regexp(sprintf('Popularity #%u\n',sortOrder),'\n','split');
+            popularityColnames(end) = [];  %remove the last cell entry which will be empty.
+            
 
             if(nargin>1 && ~isempty(optionalCOISortOder))
-                values = values(:,optionalCOISortOder);
+                throw(MException('PA:Centroid:Covariates','Unhandled case with optional sort order.  Needs to be updated in code base'));
+                optionalIndexOrder = this.coiSortOrder2Index(optionalCOISortOrder);
+                centroidPopularityCount = centroidPopularityCount(:,optionalCOISortOder);
                 colnames = colnames(optionalCOISortOder);
             end
             covariateStruct.memberIDs = subjectIDs;
-            covariateStruct.values = values;
-            covariateStruct.colnames = colnames;
-            covariateStruct.varnames = strrep(strrep(colnames,'#',''),' ',''); % create valid variable names for use with MATLAB table and dataset constructs.
+            covariateStruct.id.values = centroidIDCount;
+            covariateStruct.id.colnames = idColnames;
+            covariateStruct.id.varnames = strrep(strrep(covariateStruct.id.colnames,'#',''),' ',''); % create valid variable names for use with MATLAB table and dataset constructs.
+            covariateStruct.poplarity.values = centroidPopularityCount;
+            covariateStruct.popularity.colnames = popularityColnames;
+            covariateStruct.popularity.varnames = strrep(strrep(covariateStruct.popularity.colnames,'#',''),' ',''); % create valid variable names for use with MATLAB table and dataset constructs.
         end
         
         %> @brief Returns Nx3 matrix useful for logisitic or linear regression modeling.
@@ -1012,8 +1035,6 @@ classdef PACentroid < handle
             clusterIDs = this.loadshapeIndex2centroidIndexMap;
             clusterPopularity = this.coiIndex2SortOrder(clusterIDs);
             cMat = [this.loadShapeIDs, this.loadShapeDayOfWeek, clusterIDs, clusterPopularity];
-                
-            
         end        
         
     end
