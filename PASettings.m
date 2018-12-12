@@ -457,7 +457,8 @@ classdef  PASettings < handle
         function wasModified = defaultsEditor(obj,optional_fieldName)
             tmp_obj = obj.copy();
             if(nargin<2 || isempty(optional_fieldName))
-                lite_fieldNames = this.liteFieldNames;
+                                       
+                lite_fieldNames = tmp_obj.liteFieldNames;
             else
                 lite_fieldNames = optional_fieldName;
                 if(~iscell(lite_fieldNames))

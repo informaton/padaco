@@ -26,6 +26,8 @@ classdef PAStatTool < handle
         bootstrapIterations;
         bootstrapSampleName;
         
+        nonwear = struct('method','padaco','rows',[])
+        
         %> structure loaded features which is as current or as in sync with the gui settings 
         %> as of the last time the 'Calculate' button was
         %> pressed/manipulated.
@@ -393,7 +395,12 @@ classdef PAStatTool < handle
                 try 
                     lastClusterSettings = this.getStateAtTimeOfLastClustering();
                     exportPath = this.getExportPath();
-                    [didExport, msg] = curCentroid.exportToDisk(exportPath, lastClusterSettings);
+                    if(~lastClusterSettings.discardNonWearFeatures)
+                        [didExport, msg] = curCentroid.exportToDisk(exportPath, lastClusterSettings, this.nonwear);                        
+                    else
+                        [didExport, msg] = curCentroid.exportToDisk(exportPath, lastClusterSettings);
+                        
+                    end
                     
                 catch me
                     msg = 'An error occurred while trying to save the data to disk.  A thousand apologies.  I''m very sorry.';
@@ -456,6 +463,9 @@ classdef PAStatTool < handle
         function setWidgetSettings(this,widgetSettings, initializeOnSet)
             if(nargin<3 || isempty(initializeOnSet) || ~islogical(initializeOnSet))
                 initializeOnSet = true;
+            end
+            if(~isequal(this.originalWidgetSettings,widgetSettings))
+                this.centroidObj = [];
             end
             this.originalWidgetSettings = widgetSettings;
             
@@ -560,7 +570,7 @@ classdef PAStatTool < handle
                     % check usageFilename against this.usageStateStruct.filename)
                     if(isempty(this.usageStateStruct) || ~strcmpi(usageFilename,this.usageStateStruct.filename))
                         if(exist(usageFilename,'file'))
-                            this.usageStateStruct= this.loadAlignedFeatures(usageFilename);
+                            this.usageStateStruct = this.loadAlignedFeatures(usageFilename);
                         end
                     end    
                 end
@@ -646,8 +656,10 @@ classdef PAStatTool < handle
                 else
                     warndlg('Something unexpected happened');
                 end
+                
+                this.nonwear.rows = this.getNonwearRows(this.nonwear.method,tmpUsageStateStruct); 
                 if(pSettings.discardNonWearFeatures)
-                    this.featureStruct = this.discardNonWearFeatures(tmpFeatureStruct,tmpUsageStateStruct);
+                    this.featureStruct = this.discardNonWearFeatures(tmpFeatureStruct,this.nonwear.rows);
                 else
                     this.featureStruct = tmpFeatureStruct;                    
                 end
@@ -3616,8 +3628,6 @@ classdef PAStatTool < handle
             end
         end
         
-        
-        
         %> @brief Listening and checking for changes to the split checkbox.
         %> If it is enabled or disabled by a global enable or disable 'all'
         %> call, then we want to make sure that
@@ -3631,11 +3641,8 @@ classdef PAStatTool < handle
             end
             set(this.handles.menu_number_of_data_segments,'enable',enableState);
         end
-        
-       
                  
     end
-    
     
     
     methods (Static)
@@ -3668,25 +3675,34 @@ classdef PAStatTool < handle
         
         % ======================================================================
         % ======================================================================
-        function featureStruct = discardNonWearFeatures(featureStructIn,usageStateStruct)
+        function featureStruct = discardNonWearFeatures(featureStructIn,nonwearRows)
             %         function featureStruct = getValidFeatureStruct(originalFeatureStruct,usageStateStruct)
             featureStruct = featureStructIn;            
-            if(isempty(usageStateStruct) || isempty(featureStructIn))
-%                 featureStruct = originalFeatureStruct;
-            else
-               tagStruct = PAData.getActivityTags();
-               nonWearRows = any(usageStateStruct.shapes<=tagStruct.NONWEAR,2);
-               if(any(nonWearRows))
-                   featureStruct.startDatenums(nonWearRows,:)=[];
-                   featureStruct.startDaysOfWeek(nonWearRows,:)=[];
-                   featureStruct.shapes(nonWearRows,:)=[];
-                   featureStruct.studyIDs(nonWearRows)=[];                   
-               else
-%                    featureStruct = originalFeatureStruct;
-               end
+            if(~isempty(nonwearRows) && ~isempty(featureStructIn) && any(nonwearRows))
+                featureStruct.startDatenums(nonwearRows,:)=[];
+                featureStruct.startDaysOfWeek(nonwearRows,:)=[];
+                featureStruct.shapes(nonwearRows,:)=[];
+                featureStruct.studyIDs(nonwearRows)=[];
             end
         end
-                
+        
+        function nonwearRows = getNonwearRows(nonwearMethod, varargin)
+            nonwearRows = [];
+            switch(lower(nonwearMethod))
+                case 'choi'
+                case 'padaco'
+                    if(numel(varargin)>0)
+                        usageStateStruct = varargin{1};
+                    else
+                        usageStateStruct = [];
+                    end
+                    if(isstruct(usageStateStruct))
+                        tagStruct = PAData.getActivityTags();
+                        nonwearRows = any(usageStateStruct.shapes<=tagStruct.NONWEAR,2);                        
+                    end
+                otherwise
+            end
+        end
         % ======================================================================
         %> @brief Loads and aligns features from a padaco batch process
         %> results output file.

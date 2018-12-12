@@ -543,7 +543,7 @@ classdef PAController < handle
             wasModified = obj.SETTINGS.defaultsEditor(optionalSettingsName);
             if(wasModified)
                 if(isa(obj.StatTool,'PAStatTool'))
-                    initializeOnSet = false;  % setViewMode (below) will call the equivalent initialize on set as necessary.
+                    initializeOnSet = false;  % setViewMode (below) will call the equivalent initialize on set as necessary.                    
                     obj.StatTool.setWidgetSettings(obj.SETTINGS.StatTool, initializeOnSet);
                 end
                 fprintf('Settings have been updated.\n');

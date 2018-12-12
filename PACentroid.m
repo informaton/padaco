@@ -278,14 +278,19 @@ classdef PACentroid < handle
             
         end
         
-        function [didExport, resultMsg] = exportToDisk(this,exportPath, clusterSettingsStruct)
+        
+        function [didExport, resultMsg] = exportToDisk(this,exportPath, clusterSettingsStruct, nonwearStruct)
             didExport = false;
             
             if(~isdir(exportPath))                
                 msg = sprintf('Export path does not exist.  Nothing done.\nExport path: %s',exportPath);
             else
+                if(nargin<4)
+                    nonwearStruct = [];
+                end
+                
                 [covHeader, covDataStr] = this.exportFrequencyCovariates();
-                [weekdayCovHeader, weekdayCovDataStr] = this.exportWeekDayCovariates();
+                [weekdayCovHeader, weekdayCovDataStr] = this.exportWeekDayCovariates(nonwearStruct);
                 
                 [shapesHeaderStr, shapesStr] = this.exportCentroidShapes();
                 timeStamp = datestr(now,'DDmmmYYYY');
@@ -345,10 +350,16 @@ classdef PACentroid < handle
             resultMsg = msg;
         end
         
-        function [headerStr, dataStr] = exportWeekDayCovariates(this)
+        function [headerStr, dataStr] = exportWeekDayCovariates(this, nonwearStruct)
             csMat = this.getCovariateMat();
             headerStr = sprintf('# memberID, Day of week (Sun=0 to Sat=6), Cluster index, cluster popularity (1=highest, %d=lowest)',max(csMat(:,end)));
-            strFmt = ['%i',repmat(', %i',1,size(csMat,2)-1),'\n'];  % Make rows ('\n') of comma separated integers (', %i') 
+                strFmt = ['%i',repmat(', %i',1,size(csMat,2)-1),'\n'];  % Make rows ('\n') of comma separated integers (', %i') 
+            
+            if(nargin>1 && ~isempty(nonwearStruct) && isstruct(nonwearStruct))
+               headerStr = sprintf('%s, Contains nonwear (%s)',headerStr,nonwearStruct.method); 
+               strFmt = [strFmt(1:end-2),',%d\n'];
+               csMat = [csMat, nonwearStruct.rows];
+            end
             dataStr = sprintf(strFmt,csMat'); % Need to transpose here because arguments to sprintf are taken in column order, but I am output by row.
         end
         
