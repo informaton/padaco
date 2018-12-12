@@ -119,7 +119,7 @@ classdef  PASettings < handle
             
             if(nargin<2)
                 pstruct = struct;
-            end;
+            end
             
             while(file_open)
                 try
@@ -135,13 +135,13 @@ classdef  PASettings < handle
                             end
                             pstruct = PASettings.tokens2struct(pstruct,tok);
                         end
-                    end;
+                    end
                 catch me
                     showME(me);
                     fclose(fid);
                     file_open = false;
                 end
-            end;
+            end
         end
         
         % ======================================================================
@@ -163,7 +163,7 @@ classdef  PASettings < handle
                 
                 for k=1:numel(tok)-1
                     fields = [fields '.' tok{k}{:}];
-                end;
+                end
                 
                 
                 % the str2num approach fails for timeseries objects that
@@ -178,10 +178,10 @@ classdef  PASettings < handle
                     evalmsg = ['pstruct' fields '=valueStr;'];
                 else
                     evalmsg = ['pstruct' fields '=str2double(valueStr);'];
-                end;
+                end
                 
                 eval(evalmsg);
-            end;
+            end
         end
         
         % --------------------------------------------------------------------
@@ -278,11 +278,11 @@ classdef  PASettings < handle
                     for k=1:numel(fields)
                         PASettings.saveStruct(fid,root,deblank(fields{k}));
                         fprintf(fid,'\r');  %this adds extra line between root groups.
-                    end;
+                    end
                     
                 else
                     fprintf(fid,'root %s\r',num2str(root));
-                end;
+                end
                 
             else
                 field = getfield(root,varargin{:});
@@ -290,11 +290,11 @@ classdef  PASettings < handle
                     fields = fieldnames(getfield(root,varargin{:}));
                     for k=1:numel(fields)
                         PASettings.saveStruct(fid,root,varargin{:},fields{k});
-                    end;
+                    end
                 else
                     fprintf(fid,'%s\t%s\r',PASettings.strcat_with_dot(varargin{:}),num2str(field));
-                end;
-            end;
+                end
+            end
             
         end
         
@@ -305,7 +305,7 @@ classdef  PASettings < handle
                 out_str = root;
             else
                 out_str = strcat(root,'.',PASettings.strcat_with_dot(varargin{:}));
-            end;
+            end
         end
         
     end
@@ -523,7 +523,7 @@ classdef  PASettings < handle
                 %                     fnames = fieldnames(saveStruct);
                 %                     for k=1:numel(fnames)
                 %                         fprintf(fid,'%s\t%s\n',fnames{k},num2str(saveStruct.(fnames{k})));
-                %                     end;
+                %                     end
                 fclose(fid);
             end
         end
@@ -567,7 +567,7 @@ classdef  PASettings < handle
                             catch me
                                 showME(me);
                                 obj.VIEW.output_pathname = fileparts(mfilename('fullpath'));
-                            end;
+                            end
                         end
                         obj.VIEW.filter_inf_file = 'filter.inf';
                         obj.VIEW.database_inf_file = 'database.inf';

@@ -1,6 +1,6 @@
 function padaco()
     
-    mPathname = pathSetup();
+    mPathname = pathsetup();
     hObject = padacoFig('visible','off');
     handles = initializeGUI(hObject);
 

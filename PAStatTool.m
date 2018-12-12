@@ -915,7 +915,7 @@ classdef PAStatTool < handle
     methods(Access=private)
         % Methods are interfacing with membershape lines of a cluster.
         %> @brief Selected membershape's contextmenu callback for drawing
-        %> all membershapes associated with the ID.
+        %> all membershapes associated with the ID.        
         function showSelectedMemberShapesCallback(this, ~,~)
             lineH = get(this.figureH,'currentObject');
             memberID = get(lineH,'userdata');
@@ -934,6 +934,8 @@ classdef PAStatTool < handle
             end
 
             set(this.handles.axes_primary,'nextplot',nextPlot);
+            this.setStatus('%d selected',get(lineH,'userdata'));
+            
             %            msgbox(sprintf('Member ID: %u',memberID));
         end
         
@@ -947,11 +949,13 @@ classdef PAStatTool < handle
         function memberLineButtonDownCallback(this,lineH,~, memberID)
             if(strcmpi(get(lineH,'selected'),'off'))
                 set(lineH,'selected','on','color',this.COLOR_LINESELECTION);
+                this.setStatus('%d selected',get(lineH,'userdata'));
                 
 
             % Toggle off
             else
                 set(lineH,'selected','off','color',this.COLOR_MEMBERSHAPE);
+                this.clearStatus();
             end
         end
         
@@ -3098,6 +3102,8 @@ classdef PAStatTool < handle
                             set(centroidHandles(c),'uicontextmenu',this.handles.contextmenu.clusterLineMember,...
                                 'userdata',coi.memberIDs,...
                                 'buttondownfcn',{@this.memberLineButtonDownCallback,coi.memberIDs});
+                        else
+                            %set(centroidHandles(c),'visible','off');                            
                         end
                         % 'displayname',legendStrings{c};
                     end
@@ -3125,8 +3131,12 @@ classdef PAStatTool < handle
                             totalMembers, numLoadShapes, sum(coiPctMemberships), numUniqueMemberIDs,totalMemberIDsCount, pctOfTotalMemberIDs);
                     else
                         legend(centroidAxes,'off');
+                        % Use when show most popular first, on left side
                         centroidTitle = sprintf('Centroid #%u (%s). Popularity %u of %u. Loadshapes: %u of %u (%0.2f%%).  Individuals: %u of %u (%0.2f%%)',coi.sortOrder,...
-                            this.featureStruct.method, numCentroids-coi.sortOrder+1,numCentroids, coi.dayOfWeek.numMembers, numLoadShapes, pctMembership, numUniqueMemberIDs, totalMemberIDsCount, pctOfTotalMemberIDs);
+                            this.featureStruct.method, coi.sortOrder,numCentroids, coi.dayOfWeek.numMembers, numLoadShapes, pctMembership, numUniqueMemberIDs, totalMemberIDsCount, pctOfTotalMemberIDs);
+                        % Use when show most popular last, (right most side)
+                        % centroidTitle = sprintf('Centroid #%u (%s). Popularity %u of %u. Loadshapes: %u of %u (%0.2f%%).  Individuals: %u of %u (%0.2f%%)',coi.sortOrder,...
+                        %   this.featureStruct.method, numCentroids-coi.sortOrder+1,numCentroids, coi.dayOfWeek.numMembers, numLoadShapes, pctMembership, numUniqueMemberIDs, totalMemberIDsCount, pctOfTotalMemberIDs);
                     end
                     title(centroidAxes,centroidTitle,'fontsize',14,'interpreter','none');
 
