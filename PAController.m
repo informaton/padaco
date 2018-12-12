@@ -323,7 +323,7 @@ classdef PAController < handle
                         obj.screenshotPathname = screencap(obj.VIEW.axeshandle.primary,[],obj.screenshotPathname);
                     end
                 end
-            end;
+            end
         end
         
         % --------------------------------------------------------------------
@@ -332,12 +332,11 @@ classdef PAController < handle
         %> @param hObject    handle to figure (gcf), unused
         %> @param eventdata Structure of key press information.
         % --------------------------------------------------------------------
-        function keyReleaseCallback(obj,hObject, eventdata)
-            
+        function keyReleaseCallback(obj,~, eventdata)            
             key=eventdata.Key;
             if(strcmp(key,'shift'))
                 set(obj.VIEW.getFigHandle(),'pointer','arrow');
-            end;
+            end
         end
         
         % --------------------------------------------------------------------
@@ -349,7 +348,7 @@ classdef PAController < handle
         %> @param hObject    handle to figure (gcf), unused
         %> @param eventData Structure of mouse press information; unused
         % --------------------------------------------------------------------
-        function windowButtonUpCallback(obj,hObject,eventData)
+        function windowButtonUpCallback(obj,hObject,~)
             selected_obj = get(hObject,'CurrentObject');
             if(~isempty(selected_obj) && ~strcmpi(get(hObject,'SelectionType'),'alt'))   % Dont get confused with mouse button up due to contextmenu call
                 if(selected_obj==obj.VIEW.axeshandle.secondary)
@@ -357,8 +356,8 @@ classdef PAController < handle
                     clicked_datenum = pos(1);
                     cur_window = obj.accelObj.datenum2window(clicked_datenum,obj.VIEW.getDisplayType());
                     obj.setCurWindow(cur_window);
-                end;
-            end;
+                end
+            end
         end
         
         % --------------------------------------------------------------------
@@ -369,7 +368,7 @@ classdef PAController < handle
         %> @param Note - this turns off all other mouse movement and mouse
         %> wheel callback methods.
         % --------------------------------------------------------------------
-        function windowButtonDownCallback(obj,hObject,eventData)
+        function windowButtonDownCallback(obj,varargin)
             if(ishandle(obj.current_linehandle))
                 set(obj.VIEW.figurehandle,'windowbuttonmotionfcn',[]);
                 
@@ -479,7 +478,7 @@ classdef PAController < handle
         %> @param hObject
         %> @param eventdata
         % --------------------------------------------------------------------
-        function menuHelpFAQCallback(this,hObject,eventdata)
+        function menuHelpFAQCallback(this,varargin)
             %msg = sprintf('Help FAQ');
             this.VIEW.showBusy('Initializing help');
             filename = fullfile(this.SETTINGS.rootpathname,'resources/html','PadacoFAQ.html');
@@ -498,7 +497,7 @@ classdef PAController < handle
         %> @param hObject
         %> @param eventdata
         % --------------------------------------------------------------------
-        function menuFileAboutCallback(obj,hObject,eventdata)
+        function menuFileAboutCallback(obj,varargin)
             
             msg = sprintf(['\nPadaco version %s\n',...
                 '\nA collaborative effort between:',...
@@ -570,7 +569,7 @@ classdef PAController < handle
         %> @param optionalSettingsName String specifying the settings to
         %> update (optional)
         % --------------------------------------------------------------------
-        function menuFileSettingsUsageRulesCallback(obj,hObject,eventdata)
+        function menuFileSettingsUsageRulesCallback(obj,varargin)
             
             if(~isempty(obj.accelObj))
                 usageRules= obj.accelObj.usageStateRules;
@@ -711,7 +710,7 @@ classdef PAController < handle
         %> @li @c OldValue Handle to the previous callback
         %> @li @c NewValue Handle to the current callback
         % --------------------------------------------------------------------
-        function displayChangeCallback(obj,hObject,eventData)
+        function displayChangeCallback(obj,~,eventData)
             displayType = get(eventData.NewValue,'string');
             obj.setDisplayType(PAData.getStructNameFromDescription(displayType));
             obj.VIEW.draw();
@@ -768,7 +767,7 @@ classdef PAController < handle
         %> @param hObject Handle to the edit text widget
         %> @param eventdata Required by MATLAB, but not used
         % --------------------------------------------------------------------
-        function button_goCallback(obj,hObject,eventdata)
+        function button_goCallback(obj,hObject,~)
             try
                 %obtain the prefilter and feature extraction methods
                 prefilterMethod = obj.getPrefilterMethod();
@@ -936,7 +935,7 @@ classdef PAController < handle
         %> @param hObject handle to the callback object.
         %> @param eventdata Not used.  Required by MATLAB.
         % --------------------------------------------------------------------
-        function updateSecondaryFeaturesDisplayCallback(obj,hObject,eventdata)
+        function updateSecondaryFeaturesDisplayCallback(obj,hObject,~)
             set(hObject,'enable','off');
             handles = guidata(hObject);
             initColor = get(handles.axes_secondary,'color');
@@ -1096,7 +1095,7 @@ classdef PAController < handle
         %> @param hObject Handle to the edit text widget
         %> @param eventdata Required by MATLAB, but not used
         % --------------------------------------------------------------------
-        function menu_windowDurSecCallback(obj,hObject,eventdata)
+        function menu_windowDurSecCallback(obj,hObject,~)
             %get the array of window sizes in seconds
             windowDurSec = get(hObject,'userdata');
             % grab the currently selected window size (in seconds)
@@ -1113,7 +1112,7 @@ classdef PAController < handle
         %> @param hObject Handle to the edit text widget
         %> @param eventdata Required by MATLAB, but not used
         % --------------------------------------------------------------------
-        function edit_curWindowCallback(obj,hObject,eventdata)
+        function edit_curWindowCallback(obj,hObject,~)
             window = str2double(get(hObject,'string'));
             obj.setCurWindow(window);
         end
@@ -1125,7 +1124,7 @@ classdef PAController < handle
         %> @param eventdata Required by MATLAB, but not used
         %> @note Entered values are interepreted as minutes.
         % --------------------------------------------------------------------
-        function edit_aggregateCallback(obj,hObject,eventdata)
+        function edit_aggregateCallback(obj,hObject,~)
             aggregateDuration = str2double(get(hObject,'string'));
             obj.setAggregateDurationMinutes(aggregateDuration);
         end
@@ -1137,7 +1136,7 @@ classdef PAController < handle
         %> @param eventdata Required by MATLAB, but not used
         %> @note Entered values are interepreted as minutes.
         % --------------------------------------------------------------------
-        function edit_frameSizeMinutesCallback(obj,hObject,eventdata)
+        function edit_frameSizeMinutesCallback(obj,hObject,~)
             frameDurationMinutes = str2double(get(hObject,'string'));
             obj.setFrameDurationMinutes(frameDurationMinutes);
         end
@@ -1149,7 +1148,7 @@ classdef PAController < handle
         %> @param eventdata Required by MATLAB, but not used
         %> @note Entered values are interepreted as hours.
         % --------------------------------------------------------------------
-        function edit_frameSizeHoursCallback(obj,hObject,eventdata)
+        function edit_frameSizeHoursCallback(obj,hObject,~)
             frameDurationHours = str2double(get(hObject,'string'));
             obj.setFrameDurationHours(frameDurationHours);
         end
@@ -1260,7 +1259,7 @@ classdef PAController < handle
         %> @param hObject  handle to menu_file_open (see GCBO)
         %> @param eventdata Required by MATLAB, but not used.
         % --------------------------------------------------------------------
-        function menuFileOpenCallback(obj,hObject,eventdata)
+        function menuFileOpenCallback(obj,varargin)
             %DATA.pathname	/Volumes/SeaG 1TB/sampleData/csv
             %DATA.filename	700023t00c1.csv.csv
             f=uigetfullfile({'*.csv;*.raw;*.bin','All (counts, raw accelerations)';
@@ -1378,7 +1377,7 @@ classdef PAController < handle
         %> - [1]
         %> - [2] 0.0000,0.0052,-0.0378,-0.9986
         % --------------------------------------------------------------------
-        function menuFileOpenVasTracCSVCallback(obj, hObject, eventdata)
+        function menuFileOpenVasTracCSVCallback(obj, varargin)
             f=uigetfullfile({'*.csv','VasTrac (.csv)'},...
                 'Select a file',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
             try
@@ -1433,7 +1432,7 @@ classdef PAController < handle
         %> @param hObject  handle to menu_file_open (see GCBO)
         %> @param eventdata Required by MATLAB, but not used.
         % --------------------------------------------------------------------
-        function menuFileOpenFitBitCallback(obj,hObject,eventdata)
+        function menuFileOpenFitBitCallback(obj,varargin)
             
             f=uigetfullfile({'*.txt;*.fbit','Fitbit';
                 '*.csv','Comma Separated Values'},...
@@ -1481,7 +1480,7 @@ classdef PAController < handle
         %> @param hObject  handle to menu_file_open (see GCBO)
         %> @param eventdata Required by MATLAB, but not used.
         % --------------------------------------------------------------------
-        function menuFileOpenResultsPathCallback(obj,hObject,eventdata)
+        function menuFileOpenResultsPathCallback(obj,varargin)
             initialPath = obj.resultsPathname;
             resultsPath = uigetfulldir(initialPath, 'Select path containing PADACO''s features directory');
             try
@@ -1577,26 +1576,26 @@ classdef PAController < handle
         %         %> @note See startBatchProcessCallback for actual batch processing
         %         %> steps.
         %         % --------------------------------------------------------------------
-        %         function menuFileRestartCallback(obj,hObject,eventdata)
+        %         function menuFileRestartCallback(obj,hObject,~)
         %             restartDlg();  % or just go straight to a restart() call
         %         end
         
         
         %> @brief Call back for export menu option under menubar 'file'
         %> option.
-        function menu_file_exportMenu_callback(this,hObject, eventdata)
-            handles = guidata(hObject); %this.VIEW.getFigHandle());
+        function menu_file_exportMenu_callback(this,hObject, ~)
+            theseHandles = guidata(hObject); %this.VIEW.getFigHandle());
             if(isempty(this.accelObj))
-                set(handles.menu_file_export_dataObj,'enable','off');
+                set(theseHandles.menu_file_export_dataObj,'enable','off');
             else
-                set(handles.menu_file_export_dataObj,'enable','on');
+                set(theseHandles.menu_file_export_dataObj,'enable','on');
             end
             if(isempty(this.StatTool) || ~this.StatTool.hasCentroid())
-                set([handles.menu_file_export_centroidObj;
-                    handles.menu_file_export_centroids_to_disk],'enable','off');
+                set([theseHandles.menu_file_export_centroidObj;
+                    theseHandles.menu_file_export_centroids_to_disk],'enable','off');
             else
-                set([handles.menu_file_export_centroidObj;
-                    handles.menu_file_export_centroids_to_disk],'enable','on');
+                set([theseHandles.menu_file_export_centroidObj;
+                    theseHandles.menu_file_export_centroids_to_disk],'enable','on');
             end
         end
         
@@ -1609,7 +1608,7 @@ classdef PAController < handle
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
-        function menu_file_export_dataObj_callback(obj,hObject,~)
+        function menu_file_export_dataObj_callback(obj,varargin)
             dataObj = obj.accelObj;
             varName = 'dataObject';
             makeModal = true;
@@ -1681,7 +1680,7 @@ classdef PAController < handle
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
-        function menu_file_export_centroids_to_disk_callback(obj,hObject,~)
+        function menu_file_export_centroids_to_disk_callback(obj,varargin)
             didSave = false;
             centroidObj = obj.StatTool.getCentroidObj();
             if(isempty(centroidObj) || ~isa(centroidObj,'PACentroid'))
@@ -1778,7 +1777,7 @@ classdef PAController < handle
             viewMode = obj.viewMode;
         end
         
-        function setViewModeCallback(obj, hObject, eventData, viewMode)
+        function setViewModeCallback(obj, ~, ~, viewMode)
             obj.setViewMode(viewMode);
         end
         
@@ -1837,7 +1836,7 @@ classdef PAController < handle
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
-        function menuToolsBatchCallback(obj,hObject,eventdata)
+        function menuToolsBatchCallback(obj,varargin)
             
             batchTool = PABatchTool(obj.SETTINGS.BATCH);
             batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
@@ -1858,7 +1857,7 @@ classdef PAController < handle
         %> @param hObject    handle to the menu item (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         % --------------------------------------------------------------------
-        function menuToolsRaw2BinCallback(obj,hObject,eventdata)
+        function menuToolsRaw2BinCallback(obj,varargin)
             %batchTool = PABatchTool(obj.SETTINGS.BATCH);
             %batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
             %batchTool.addlistener('SwitchToResults',@obj.setResultsViewModeCallback);
@@ -1870,7 +1869,7 @@ classdef PAController < handle
         %> @param hObject    handle to the menu item (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         % --------------------------------------------------------------------
-        function coptr2actigraphCallback(obj,hObject,eventdata)
+        function coptr2actigraphCallback(obj,varargin)
             coptr2actigraph();
         end        
         
@@ -2653,7 +2652,7 @@ classdef PAController < handle
         %> @param hObject Handle of callback object (unused).
         %> @param eventdata Unused.
         % =================================================================
-        function contextmenu_line_hide_callback(obj,hObject,eventdata)
+        function contextmenu_line_hide_callback(obj,varargin)
             tagLine = get(gco,'tag');
             parentH = get(gco,'parent');
             obj.accelObj.setVisible(tagLine,'off');
@@ -2699,7 +2698,7 @@ classdef PAController < handle
         
         %> @brief Want to redistribute or evenly distribute the lines displayed in
         %> this axis.
-        function contextmenu_redistributeLines_callback(obj, hObject, eventdata)
+        function contextmenu_redistributeLines_callback(obj, varargin)
             obj.VIEW.redistributePrimaryAxesLineHandles();
         end
         
@@ -2907,8 +2906,8 @@ classdef PAController < handle
                     set(contextmenu_h,'enable','on');
                     uimenu(contextmenu_h,'Label',tagLine,'separator','off','callback',{@obj.showLineHandle_callback,lineH});
                     hasHiddenSignals = true;
-                end;
-            end;
+                end
+            end
             set(gco,'selected','off');
             if(~hasHiddenSignals)
                 set(contextmenu_h,'visible','off');
@@ -2991,7 +2990,7 @@ classdef PAController < handle
         %> @param hObject Handle of callback object (unused).
         %> @param eventdata Unused.
         % =================================================================
-        function contextmenu_line_callback(obj,hObject,eventdata)
+        function contextmenu_line_callback(obj,hObject,~)
             %parent context menu that pops up before any of the children contexts are
             %drawn...
             %             handles = guidata(hObject);
@@ -3019,7 +3018,7 @@ classdef PAController < handle
             else
                 set(default_scale_handle,'Label',sprintf('Use Default Scale (%0.2f)',defaultScale))
                 set(default_scale_handle,'checked','off');
-            end;
+            end
             
             
             %
@@ -3045,7 +3044,7 @@ classdef PAController < handle
         %> @param hObject gui handle object
         %> @param eventdata unused
         % =================================================================
-        function contextmenu_line_move_callback(obj,hObject,eventdata)
+        function contextmenu_line_move_callback(obj,varargin)
             y_lim = get(obj.VIEW.axeshandle.primary,'ylim');
             
             tagLine = get(gco,'tag');
@@ -3053,7 +3052,7 @@ classdef PAController < handle
                 'windowbuttonmotionfcn',...
                 {@obj.move_line_mouseFcnCallback,tagLine,y_lim}...
                 );
-        end;
+        end
         
         % =================================================================
         %> @brief Channel contextmenu callback to move the selected
@@ -3084,7 +3083,7 @@ classdef PAController < handle
         %> @param eventdata Unused.
         %> @retval obj instance of CLASS_channels_container.
         % =================================================================
-        function contextmenu_line_resize_callback(obj,hObject,eventdata)
+        function contextmenu_line_resize_callback(obj,varargin)
             
             lineTag = get(gco,'tag');
             set(obj.VIEW.figurehandle,'pointer','crosshair','WindowScrollWheelFcn',...
@@ -3100,7 +3099,7 @@ classdef PAController < handle
             
             %flush the draw queue
             drawnow();
-        end;
+        end
         
         % =================================================================
         %> @brief Contextmenu callback to set a line's default scale.
@@ -3108,7 +3107,7 @@ classdef PAController < handle
         %> @param hObject gui handle object
         %> @param eventdata unused
         % =================================================================
-        function contextmenu_line_defaultScale_callback(obj,hObject,eventdata)
+        function contextmenu_line_defaultScale_callback(obj,hObject,~)
             
             if(strcmp(get(hObject,'checked'),'off'))
                 set(hObject,'checked','on');
@@ -3119,7 +3118,7 @@ classdef PAController < handle
                 
                 obj.accelObj.setScale(lineTag,defaultScale);
                 %obj.VIEW.draw();
-            end;
+            end
             set(gco,'selected','off');
         end
         
@@ -3132,7 +3131,7 @@ classdef PAController < handle
         %> @param hObject gui handle object
         %> @param eventdata unused
         % =================================================================
-        function contextmenu_line_color_callback(obj, hObject, eventdata)
+        function contextmenu_line_color_callback(obj, varargin)
             lineTag = get(gco,'tag');
             c = get(gco,'color');
             c = uisetcolor(c,lineTag);
@@ -3140,7 +3139,7 @@ classdef PAController < handle
                 obj.accelObj.setColor(lineTag,c);
                 %tagHandles = findobj(get(gco,'parent'),'tag',lineTag);
                 %set(tagHandles,'color',c);
-            end;
+            end
             set(gco,'selected','off');
         end
         
@@ -3193,7 +3192,7 @@ classdef PAController < handle
         %> @param hObject Handle of callback object (unused).
         %> @param eventdata Unused.
         % =================================================================
-        function contextmenu_window2clipboard_callback(obj,hObject,eventdata)
+        function contextmenu_window2clipboard_callback(obj,varargin)
             data =get(obj.current_linehandle,'ydata');
             clipboard('copy',data);
             disp([num2str(numel(data)),' items copied to the clipboard.  Press Control-V to access data items, or type "str=clipboard(''paste'')"']);
@@ -3240,7 +3239,7 @@ classdef PAController < handle
         %> @param hObject Handle of callback object (unused).
         %> @param eventdata Unused.
         % =================================================================
-        function contextmenu_line2clipboard_callback(hObject,eventdata)
+        function contextmenu_line2clipboard_callback(hObject,~)
             data = get(get(hObject,'parent'),'userdata');
             clipboard('copy',data);
             disp([num2str(numel(data)),' items copied to the clipboard.  Press Control-V to access data items, or type "str=clipboard(''paste'')"']);

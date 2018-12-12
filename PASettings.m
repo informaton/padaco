@@ -23,8 +23,12 @@ classdef  PASettings < handle
         %> @brief name of text file that stores the toolkit's settings
         parameters_filename;
         %> @brief cell of string names corresponding to the struct properties that
-        %> contain settings  <b><i> {'DATA','VIEW', 'CONTROLLER','BATCH'}</i></b>
-        fieldNames;
+        %> contain settings  <b><i> {'DATA','VIEW', 'CONTROLLER','BATCH','StatTool','IMPORT','EXPORT'}</i></b>
+        fieldNames = {'DATA','CONTROLLER','VIEW','BATCH','StatTool','IMPORT','EXPORT'};  
+        
+        %> @brief Fieldnmaes whose structures are only one level deep.
+        liteFieldNames={'StatTool','VIEW','CONTROLLER','IMPORT','EXPORT'};
+        
         %> struct of PAController preferences.
         CONTROLLER;
         %> struct of PAData preferences.
@@ -35,6 +39,9 @@ classdef  PASettings < handle
         BATCH;
         %> struct of settings for data import
         IMPORT;
+        
+        %> struct of settings for data/cluster export
+        EXPORT;
         
         %> struct of StatTool plot/analysis settings.
         StatTool;
@@ -347,8 +354,7 @@ classdef  PASettings < handle
         %> hardcoded default values (i.e. setDefaults).
         %> @param obj instance of the PASettings class.
         % =================================================================
-        function initialize(obj)
-            obj.fieldNames = {'DATA','CONTROLLER','VIEW','BATCH','IMPORT','StatTool'};
+        function initialize(obj)            
             obj.setDefaults();
             
             full_paramsFile = fullfile(obj.rootpathname,obj.parameters_filename);
@@ -444,13 +450,14 @@ classdef  PASettings < handle
         %> - @c BATCH
         %> - @c CONTROLLER
         %> - @c IMPORT
+        %> - @c EXPORT
         %> @retval wasModified a boolean value; true if any changes were
         %> made to the settings in the GUI and false otherwise.
         % =================================================================
         function wasModified = defaultsEditor(obj,optional_fieldName)
             tmp_obj = obj.copy();
             if(nargin<2 || isempty(optional_fieldName))
-                lite_fieldNames = {'StatTool','VIEW','CONTROLLER','IMPORT'}; %these are only one structure deep
+                lite_fieldNames = this.liteFieldNames;
             else
                 lite_fieldNames = optional_fieldName;
                 if(~iscell(lite_fieldNames))
@@ -470,7 +477,7 @@ classdef  PASettings < handle
                     obj.(fname) = tmp_obj.(fname);
                 end
                 wasModified = true;
-                tmp_obj = []; %clear it out.
+                clear('tmp_obj');%     tmp_obj = []; %clear it out.
                 
             else
                 wasModified = false;
@@ -510,7 +517,7 @@ classdef  PASettings < handle
             
             fid = fopen(filename,'w');
             if(fid<0)
-                [path, fname, ext]  = fileparts(filename);
+                [~, fname, ext]  = fileparts(filename);
                 fid = fopen(fullfile(pwd,[fname,ext]));
             end
             if(fid>0)
@@ -549,6 +556,9 @@ classdef  PASettings < handle
             
             for f = 1:numel(fieldNames)
                 switch fieldNames{f}
+                    case 'EXPORT'
+                        obj.IMPORT = PADataImport.getDefaultParameters();
+                    
                     case 'IMPORT'
                         obj.IMPORT = PADataImport.getDefaultParameters();
                     case 'StatTool'
