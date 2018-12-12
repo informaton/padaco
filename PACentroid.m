@@ -81,8 +81,7 @@ classdef PACentroid < handle
         
         %> Text handle to send status updates to via set(textHandle,'string',statusString) type calls.
         statusTextHandle;
-        
-
+ 
 
     end
     
@@ -141,11 +140,23 @@ classdef PACentroid < handle
 
         %> Measure of performance.  Currently, this is the Calinski index.
         performanceMeasure;  
+        
+        % 1xM cell.  Values indicate the 24 hour clock time of each
+        % dimension (e.g.     '00:00'    '04:40'    '09:30'    '14:10'
+        % '19:00'    '23:50')
+        loadShapeTimes;
     end
     
             
     methods        
-        
+        function didSet =  setShapeTimes(this, cellOfTimes)
+            didSet = false;
+            if(iscell(cellOfTimes) && size(cellOfTimes,2)==size(this.loadShapes,2))
+                this.loadShapeTimes = cellOfTimes;
+                didSet = true;                
+            end
+        end
+            
         
         % ======================================================================
         %> @param loadShapes NxM matrix to  be clustered (Each row represents an M dimensional value).
@@ -267,13 +278,78 @@ classdef PACentroid < handle
             
         end
         
+        function [didExport, resultMsg] = exportToDisk(this,exportPath, clusterSettingsStruct)
+            didExport = false;
+            
+            if(~isdir(exportPath))                
+                msg = sprintf('Export path does not exist.  Nothing done.\nExport path: %s',exportPath);
+            else
+                [covHeader, covDataStr] = this.exportCovariates();
+                [cov2Header, cov2DataStr] = this.exportCovariates2();
+                
+                [shapesHeaderStr, shapesStr] = this.exportCentroidShapes();
+                timeStamp = datestr(now,'DDmmmYYYY');
+                shapeTimesInCSV = cell2str(this.loadShapeTimes,',');
+                
+                shapesHeaderStr = [shapesHeaderStr ',' shapeTimesInCSV];
+                
+                cov2Filename = fullfile(exportPath,sprintf('cluster_by_weekday_%s.csv',timeStamp));
+                covFilename = fullfile(exportPath,sprintf('cluster_frequency_%s.csv',timeStamp));
+                shapesFilename = fullfile(exportPath,sprintf('cluster_shapes_%s.csv',timeStamp));
+                settingsFilename = fullfile(exportPath,sprintf('padaco_config_%s.txt',timeStamp));
+                
+                covFid = fopen(covFilename,'w');
+                
+                if(covFid>1)
+                    fprintf(covFid,'%s\n',covHeader);
+                    fprintf(covFid,covDataStr);
+                    msg = sprintf('Cluster frequency data saved to:\n\t%s\n',covFilename);
+                    fclose(covFid);
+                else
+                    msg = sprintf('Cluster frequency data NOT saved.  Could not open file (%s) for writing!\n ',covFilename);
+                end
+                
+                cov2Fid = fopen(cov2Filename,'w');
+                
+                if(cov2Fid>1)
+                    fprintf(cov2Fid,'%s\n',cov2Header);
+                    fprintf(cov2Fid,cov2DataStr);
+                    msg = sprintf('%sCluster by weekday data saved to:\n\t%s\n',msg,cov2Filename);
+                    fclose(cov2Fid);
+                else
+                    msg = sprintf('%sCluster by weekday data NOT saved.  Could not open file (%s) for writing!\n ',msg,cov2Filename);
+                end
+                
+                
+                shapesFid = fopen(shapesFilename,'w');
+                if(shapesFid>1)
+                    fprintf(shapesFid,'%s\n%s',shapesHeaderStr,shapesStr);
+                    msg = sprintf('%sCluster shapes saved to:\n\t%s\n',msg,shapesFilename);
+                    fclose(shapesFid);
+                else
+                    msg = sprintf('%sCluster shapes NOT saved.  Could not open file (%s) for writing!\n ',msg,shapesFilename);
+                end
+                
+                settingsFid = fopen(settingsFilename,'w');
+                clusterSettings = clusterSettingsStruct;
+                
+                if(settingsFid>1)
+                    PASettings.saveStruct(settingsFid,clusterSettings);
+                    msg = sprintf('%sPadaco cluster settings saved to:\n\t%s\n',msg,settingsFilename);
+                    fclose(settingsFid);
+                    didExport = true;
+                else
+                    msg = sprintf('%sPadaco cluster settings NOT saved.  Could not open file (%s) for writing!\n ',msg,settingsFilename);
+                end
+            end
+            resultMsg = msg;
+        end
+        
         function [headerStr, dataStr] = exportCovariates2(this)
             csMat = this.getCovariateMat();
             headerStr = '# memberID, Day of week (Sun=0 to Sat=6), Cluster index, cluster popularity';
             strFmt = ['%i',repmat(', %i',1,size(csMat,2)-1),'\n'];  % Make rows ('\n') of comma separated integers (', %i') 
             dataStr = sprintf(strFmt,csMat'); % Need to transpose here because arguments to sprintf are taken in column order, but I am output by row.
-            
-            
         end
         
         function [headerStr, membersStr] = exportCovariates(this)
@@ -324,6 +400,8 @@ classdef PACentroid < handle
             %                 fprintf(1,'Could not open file (''%s'') for exporting centroid shapes.\n',filenameOut);
             %             end
         end
+        
+        
         
         function value = getParam(this, paramName)
             switch(lower(paramName))
@@ -1565,6 +1643,8 @@ classdef PACentroid < handle
                 
             end
         end
+        
+   
     end
     
     methods(Static, Access=private)
@@ -1635,8 +1715,10 @@ classdef PACentroid < handle
             settings.useDefaultRandomizer = false;
             settings.initCentroidWithPermutation = false;            
         end
-
         
+        function pStruct = getExportDefaultParameters()
+            pStruct.exportPath = '.';
+        end        
                 
         %> @brief Validation metric for cluster separation.   Useful in determining if clusters are well separated.  
         %> If clusters are not well separated, then the Adaptive K-means threshold should be adjusted according to the segmentation resolution desired.

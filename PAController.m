@@ -32,8 +32,6 @@ classdef PAController < handle
         %> updateSecondaryFeaturesDisplayCallback
         accelTypeShown;
         
-        %> @brief Folder where exported files are saved to .
-        exportPathname;
         
         %> String identifying Padaco's current view mode.  Values include
         %> - @c timeseries
@@ -125,7 +123,6 @@ classdef PAController < handle
             obj.SETTINGS = PASettings(rootPathname,parameters_filename);
             obj.screenshotPathname = obj.SETTINGS.CONTROLLER.screenshotPathname;
             obj.resultsPathname = obj.SETTINGS.CONTROLLER.resultsPathname;
-            obj.exportPathname = obj.SETTINGS.CONTROLLER.exportPathname;
             
             obj.iconFilename = fullfile(rootPathname,'resources','icons','logo','icon_32.png');
             obj.setVersionNum();
@@ -391,78 +388,77 @@ classdef PAController < handle
         % --------------------------------------------------------------------
         function initMenubarCallbacks(obj)
             figH = obj.VIEW.getFigHandle();
-            handles = guidata(figH);
+            viewHandles = guidata(figH);
             
             %% file
             % settings and about
-            set(handles.menu_file_about,'callback',@obj.menuFileAboutCallback);
-            set(handles.menu_file_settings_application,'callback',@obj.menuFileSettingsApplicationCallback);
-            set(handles.menu_file_settings_usageRules,'callback',@obj.menuFileSettingsUsageRulesCallback);
+            set(viewHandles.menu_file_about,'callback',@obj.menuFileAboutCallback);
+            set(viewHandles.menu_file_settings_application,'callback',@obj.menuFileSettingsApplicationCallback);
+            set(viewHandles.menu_file_settings_usageRules,'callback',@obj.menuFileSettingsUsageRulesCallback);
             
             %  open
-            set(handles.menu_file_open,'callback',@obj.menuFileOpenCallback);
-            set(handles.menu_file_open_resultspath,'callback',@obj.menuFileOpenResultsPathCallback);
+            set(viewHandles.menu_file_open,'callback',@obj.menuFileOpenCallback);
+            set(viewHandles.menu_file_open_resultspath,'callback',@obj.menuFileOpenResultsPathCallback);
             
             % import
-            set(handles.menu_file_openVasTrac,'callback',@obj.menuFileOpenVasTracCSVCallback,'enable','off');
-            set(handles.menu_file_openFitBit,'callback',@obj.menuFileOpenFitBitCallback,'enable','off');
-            set(handles.menu_file_import_csv,'callback',@obj.menuFileOpenCsvFileCallback,'enable','off');
-            set(handles.menu_file_import_general,'label','Text (custom)',...
+            set(viewHandles.menu_file_openVasTrac,'callback',@obj.menuFileOpenVasTracCSVCallback,'enable','off');
+            set(viewHandles.menu_file_openFitBit,'callback',@obj.menuFileOpenFitBitCallback,'enable','off');
+            set(viewHandles.menu_file_import_csv,'callback',@obj.menuFileOpenCsvFileCallback,'enable','off');
+            set(viewHandles.menu_file_import_general,'label','Text (custom)',...
                 'callback',@obj.menuFileOpenGeneralCallback,'enable','on');
 
             % screeshots
-            set(handles.menu_file_screenshot_figure,'callback',{@obj.menuFileScreenshotCallback,'figure'});
-            set(handles.menu_file_screenshot_primaryAxes,'callback',{@obj.menuFileScreenshotCallback,'primaryAxes'});
-            set(handles.menu_file_screenshot_secondaryAxes,'callback',{@obj.menuFileScreenshotCallback,'secondaryAxes'});
+            set(viewHandles.menu_file_screenshot_figure,'callback',{@obj.menuFileScreenshotCallback,'figure'});
+            set(viewHandles.menu_file_screenshot_primaryAxes,'callback',{@obj.menuFileScreenshotCallback,'primaryAxes'});
+            set(viewHandles.menu_file_screenshot_secondaryAxes,'callback',{@obj.menuFileScreenshotCallback,'secondaryAxes'});
             
             %  quit - handled in main window.
-            set(handles.menu_file_quit,'callback',{@obj.menuFileQuitCallback,guidata(figH)},'label','Close');
-            set(handles.menu_file_restart,'callback',@restartDlg);
+            set(viewHandles.menu_file_quit,'callback',{@obj.menuFileQuitCallback,guidata(figH)},'label','Close');
+            set(viewHandles.menu_file_restart,'callback',@restartDlg);
             
             % export
-            set(handles.menu_file_export,'callback',@obj.menu_file_exportMenu_callback);
+            set(viewHandles.menu_file_export,'callback',@obj.menu_file_exportMenu_callback);
             if(~isdeployed)
-                set(handles.menu_file_export_dataObj,'callback',@obj.menu_file_export_dataObj_callback);
-                set(handles.menu_file_export_centroidObj,'callback',@obj.menu_file_export_centroidObj_callback);
+                set(viewHandles.menu_file_export_dataObj,'callback',@obj.menu_file_export_dataObj_callback);
+                set(viewHandles.menu_file_export_centroidObj,'callback',@obj.menu_file_export_centroidObj_callback);
             % No point in sending data to the workspace on deployed
             % version.  There is no 'workspace'.
             else
-                set(handles.menu_file_export_dataObj,'visible','off');
-                set(handles.menu_file_export_centroidObj,'visible','off')
+                set(viewHandles.menu_file_export_dataObj,'visible','off');
+                set(viewHandles.menu_file_export_centroidObj,'visible','off')
             end
-            set(handles.menu_file_export_centroids_to_disk,'callback',@obj.menu_file_export_centroids_to_disk_callback);
+            set(viewHandles.menu_file_export_centroids_to_disk,'callback',@obj.menu_file_export_centroids_to_disk_callback);
             
             
             %% View Modes
-            set(handles.menu_viewmode_timeseries,'callback',{@obj.setViewModeCallback,'timeSeries'});
-            set(handles.menu_viewmode_results,'callback',{@obj.setViewModeCallback,'results'});
+            set(viewHandles.menu_viewmode_timeseries,'callback',{@obj.setViewModeCallback,'timeSeries'});
+            set(viewHandles.menu_viewmode_results,'callback',{@obj.setViewModeCallback,'results'});
             
             %% Tools
-            set(handles.menu_tools_batch,'callback',@obj.menuToolsBatchCallback);
-            set(handles.menu_tools_bootstrap,'callback',@obj.menuToolsBootstrapCallback,'enable','off');  % enable state depends on PAStatTool construction success (see obj.events)
-            set(handles.menu_tools_raw2bin,'callback',@obj.menuToolsRaw2BinCallback);
-            set(handles.menu_tools_coptr2act,'callback',@obj.coptr2actigraphCallback);
+            set(viewHandles.menu_tools_batch,'callback',@obj.menuToolsBatchCallback);
+            set(viewHandles.menu_tools_bootstrap,'callback',@obj.menuToolsBootstrapCallback,'enable','off');  % enable state depends on PAStatTool construction success (see obj.events)
+            set(viewHandles.menu_tools_raw2bin,'callback',@obj.menuToolsRaw2BinCallback);
+            set(viewHandles.menu_tools_coptr2act,'callback',@obj.coptr2actigraphCallback);
             
             
             %% Help
-            set(handles.menu_help_faq,'callback',@obj.menuHelpFAQCallback);
+            set(viewHandles.menu_help_faq,'callback',@obj.menuHelpFAQCallback);
             
             % enable everything   
             set([
-                handles.menu_file
-                handles.menu_file_about
-                handles.menu_file_settings
-                handles.menu_file_open    
-                handles.menu_file_quit
-                handles.menu_viewmode
-                handles.menu_help
-                handles.menu_help_faq
+                viewHandles.menu_file
+                viewHandles.menu_file_about
+                viewHandles.menu_file_settings
+                viewHandles.menu_file_open    
+                viewHandles.menu_file_quit
+                viewHandles.menu_viewmode
+                viewHandles.menu_help
+                viewHandles.menu_help_faq
                 ],'enable','on');
         end
         
         % Activate the tool when it makes sense to do so.
-        function statToolCreationCallback(this,hObject,evtData)
-            
+        function statToolCreationCallback(this,varargin)            
             if(isa(this.StatTool,'PAStatTool'))
                 set(this.handles.menu_tools_bootstrap,'enable','on');
             else
@@ -1581,21 +1577,23 @@ classdef PAController < handle
         %         end
         
         
+        % --------------------------------------------------------------------
         %> @brief Call back for export menu option under menubar 'file'
         %> option.
+        % --------------------------------------------------------------------
         function menu_file_exportMenu_callback(this,hObject, ~)
-            theseHandles = guidata(hObject); %this.VIEW.getFigHandle());
+            curHandles = guidata(hObject); %this.VIEW.getFigHandle());
             if(isempty(this.accelObj))
-                set(theseHandles.menu_file_export_dataObj,'enable','off');
+                set(curHandles.menu_file_export_dataObj,'enable','off');
             else
-                set(theseHandles.menu_file_export_dataObj,'enable','on');
+                set(curHandles.menu_file_export_dataObj,'enable','on');
             end
             if(isempty(this.StatTool) || ~this.StatTool.hasCentroid())
-                set([theseHandles.menu_file_export_centroidObj;
-                    theseHandles.menu_file_export_centroids_to_disk],'enable','off');
+                set([curHandles.menu_file_export_centroidObj;
+                     curHandles.menu_file_export_centroids_to_disk],'enable','off');
             else
-                set([theseHandles.menu_file_export_centroidObj;
-                    theseHandles.menu_file_export_centroids_to_disk],'enable','on');
+                set([curHandles.menu_file_export_centroidObj;
+                     curHandles.menu_file_export_centroids_to_disk],'enable','on');
             end
         end
         
@@ -1632,7 +1630,7 @@ classdef PAController < handle
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
-        function menu_file_export_centroidObj_callback(obj,hObject,~)
+        function menu_file_export_centroidObj_callback(obj,varargin)
             centroidObj = obj.StatTool.getCentroidObj();
             varName = 'centroidObj';
             makeModal = true;
@@ -1645,34 +1643,9 @@ classdef PAController < handle
                 pa_msgbox('An error occurred while trying to export the centroid object to a workspace variable.  See console for details.','Warning',obj.iconFilename,makeModal);
             end
         end
+
         
-        % Helper functions for setting the export paths to be used when
-        % saving data about centroids and covariates to disk.
-        function didUpdate = updateExportPath(this)
-            displayMessage = 'Select a directory to place the exported files.';
-            initPath = this.getExportPath();
-            tmpOutputDirectory = uigetfulldir(initPath,displayMessage);
-            if(isempty(tmpOutputDirectory))
-                didUpdate = false;
-            else
-                didUpdate = this.setExportPath(tmpOutputDirectory);
-            end
-        end
-        
-        function exportPath = getExportPath(this)
-            exportPath = this.exportPathname;
-        end
-        function didSet = setExportPath(this, newPath)
-            try
-                this.exportPathname = newPath;
-                didSet = true;
-            catch me
-                showME(me);
-                didSet = false;
-            end
-        end
-        
-         % --------------------------------------------------------------------
+        % --------------------------------------------------------------------
         %> @brief Menubar callback for exporting PAController's data object
         %> to disk, in two separate .csv files.
         %> @param obj Instance of PAController
@@ -1681,96 +1654,7 @@ classdef PAController < handle
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
         function menu_file_export_centroids_to_disk_callback(obj,varargin)
-            didSave = false;
-            centroidObj = obj.StatTool.getCentroidObj();
-            if(isempty(centroidObj) || ~isa(centroidObj,'PACentroid'))
-                msg = 'No centroid object exists.  Nothing to save.';
-                pa_msgbox(msg,'Warning',obj.iconFilename);
-                
-           % If this is not true, then we can just leave this
-           % function since the user would have cancelled.
-                
-            elseif(obj.updateExportPath())                   
-                try
-                    [covHeader, covDataStr] = centroidObj.exportCovariates();
-                    [cov2Header, cov2DataStr] = centroidObj.exportCovariates2();
-                    
-                    [shapesHeaderStr, shapesStr] = centroidObj.exportCentroidShapes();
-                    timeStamp = datestr(now,'DDmmmYYYY');
-                    shapeTimesInCSV = cell2str(obj.StatTool.getStartTimesCell(),',');
-                    
-                    shapesHeaderStr = [shapesHeaderStr ',' shapeTimesInCSV];
-                    exportPath = obj.getExportPath();
-                    cov2Filename = fullfile(exportPath,sprintf('cluster_by_weekday_%s.csv',timeStamp));
-                    covFilename = fullfile(exportPath,sprintf('cluster_frequency_%s.csv',timeStamp));
-                    shapesFilename = fullfile(exportPath,sprintf('cluster_shapes_%s.csv',timeStamp));
-                    settingsFilename = fullfile(exportPath,sprintf('padaco_config_%s.txt',timeStamp));
-                    
-                    covFid = fopen(covFilename,'w');
-                    
-                    if(covFid>1)
-                        fprintf(covFid,'%s\n',covHeader);
-                        fprintf(covFid,covDataStr);
-                        msg = sprintf('Cluster frequency data saved to:\n\t%s\n',covFilename);
-                        fclose(covFid);
-                    else
-                        msg = sprintf('Cluster frequency data NOT saved.  Could not open file (%s) for writing!\n ',covFilename);
-                    end
-                    
-                    cov2Fid = fopen(cov2Filename,'w');
-                    
-                    if(cov2Fid>1)
-                        fprintf(cov2Fid,'%s\n',cov2Header);
-                        fprintf(cov2Fid,cov2DataStr);
-                        msg = sprintf('%sCluster by weekday data saved to:\n\t%s\n',msg,cov2Filename);
-                        fclose(cov2Fid);
-                    else
-                        msg = sprintf('%sCluster by weekday data NOT saved.  Could not open file (%s) for writing!\n ',msg,cov2Filename);
-                    end
-                    
-                    
-                    shapesFid = fopen(shapesFilename,'w');
-                    if(shapesFid>1)
-                        fprintf(shapesFid,'%s\n%s',shapesHeaderStr,shapesStr);
-                        msg = sprintf('%sCluster shapes saved to:\n\t%s\n',msg,shapesFilename);
-                        fclose(shapesFid);
-                    else
-                        msg = sprintf('%sCluster shapes NOT saved.  Could not open file (%s) for writing!\n ',msg,shapesFilename);
-                    end
-                    
-                    settingsFid = fopen(settingsFilename,'w');
-                    clusterSettings = obj.StatTool.getStateAtTimeOfLastClustering();
-                    
-                    if(settingsFid>1)
-                        PASettings.saveStruct(settingsFid,clusterSettings);
-                        msg = sprintf('%sPadaco cluster settings saved to:\n\t%s\n',msg,settingsFilename);
-                        fclose(settingsFid);
-                        didSave = true;
-                    else
-                        msg = sprintf('%sPadaco cluster settings NOT saved.  Could not open file (%s) for writing!\n ',msg,settingsFilename);
-                    end
-                    
-                catch me
-                    msg = 'An error occurred while trying to save the data to disk.  A thousand apologies.  I''m very sorry.';
-                    showME(me);
-                end
-                
-                % Give the option to look at the files in their saved folder.
-                if(didSave)
-                    dlgName = 'Export complete';
-                    closeStr = 'Close';
-                    showOutputFolderStr = 'Open output folder';
-                    options.Default = closeStr;
-                    options.Interpreter = 'none';
-                    buttonName = questdlg(msg,dlgName,closeStr,showOutputFolderStr,options);
-                    if(strcmpi(buttonName,showOutputFolderStr))
-                        openDirectory(obj.getExportPath())
-                    end                    
-                else
-                    makeModal = true;
-                    pa_msgbox(msg,'Export',obj.iconFilename,makeModal);
-                end
-            end
+            obj.StatTool.exportCentroidToDisk();
         end
         
         function viewMode = getViewMode(obj)
@@ -2199,6 +2083,7 @@ classdef PAController < handle
         %> fields
         %> - @c featureFcn
         %> - @c signalTagLine
+        %> - @
         function pStruct = getSaveParameters(obj)
             pStruct.featureFcnName = obj.getExtractorMethod();
             pStruct.signalTagLine = obj.getSignalSelection();
@@ -2214,8 +2099,7 @@ classdef PAController < handle
             pStruct.useSmoothing = obj.VIEW.getUseSmoothing();
             pStruct.screenshotPathname = obj.screenshotPathname;
             pStruct.viewMode = obj.viewMode;
-            pStruct.resultsPathname = obj.resultsPathname;
-            pStruct.exportPathname = obj.getExportPath();
+            pStruct.resultsPathname = obj.resultsPathname;            
         end
         
         % ======================================================================
@@ -3003,13 +2887,16 @@ classdef PAController < handle
             set(obj.VIEW.texthandle.status,'string',lineTag);
             
             child_menu_handles = get(hObject,'children');  %this is all of the handles of the children menu options
-            default_scale_handle = child_menu_handles(find(~cellfun('isempty',strfind(get(child_menu_handles,'tag'),'defaultScale')),1));
+            
+            % default_scale_handle = child_menu_handles(find(~cellfun('isempty',strfind(get(child_menu_handles,'tag'),'defaultScale')),1));
+            default_scale_handle = child_menu_handles(find(cointains(get(child_menu_handles,'tag'),'defaultScale'),1));
             
             allScale = obj.accelObj.getScale();
-            curScale = eval(['allScale.',lineTag]);
             
-            pStruct = PAData.getDefaultParameters;
-            defaultScale = eval(strcat('pStruct.scale.',lineTag));
+            
+            curScale = allScale.(lineTag);%curScale = eval(['allScale.',lineTag]);
+            pStruct = PAData.getDefaultParameters();
+            defaultScale = pStruct.scale.(lineTag);  %eval(strcat('pStruct.scale.',lineTag));
             
             
             if(curScale==defaultScale)
@@ -3114,7 +3001,7 @@ classdef PAController < handle
                 lineTag = get(gco,'tag');
                 
                 pStruct = PAData.getDefaultParameters;
-                defaultScale = eval(strcat('pStruct.scale.',lineTag));
+                defaultScale = pStruct.scale.(lineTag); % eval(strcat('pStruct.scale.',lineTag));
                 
                 obj.accelObj.setScale(lineTag,defaultScale);
                 %obj.VIEW.draw();
@@ -3291,14 +3178,14 @@ classdef PAController < handle
             
             mPath = fileparts(mfilename('fullpath'));
             pStruct.screenshotPathname = mPath;
-            pStruct.exportPathname = mPath;
+            
             pStruct.viewMode = 'timeseries';
             pStruct.useSmoothing = true;
             pStruct.highlightNonwear = true;
             batchSettings = PABatchTool.getDefaultParameters();
-            pStruct.resultsPathname = batchSettings.outputDirectory;
-            
+            pStruct.resultsPathname = batchSettings.outputDirectory;            
         end
+
     end
     
     

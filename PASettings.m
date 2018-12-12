@@ -557,8 +557,7 @@ classdef  PASettings < handle
             for f = 1:numel(fieldNames)
                 switch fieldNames{f}
                     case 'EXPORT'
-                        obj.IMPORT = PADataImport.getDefaultParameters();
-                    
+                        obj.EXPORT = PACentroid.getExportDefaultParameters();                    
                     case 'IMPORT'
                         obj.IMPORT = PADataImport.getDefaultParameters();
                     case 'StatTool'
@@ -583,6 +582,9 @@ classdef  PASettings < handle
                         obj.VIEW.database_inf_file = 'database.inf';
                     case 'BATCH'
                         obj.BATCH = PABatchTool.getDefaultParameters();
+                    otherwise
+                        fprintf(1,'Unsupported fieldname: %s\n',fieldNames{f});
+                
                         
                 end
             end

@@ -89,15 +89,21 @@ classdef PAStatTool < handle
         %> subjects in centroid c with values found in covariate f.
         allProfiles;
         profileTableData;
+        
+        %> @brief Folder where exported files are saved to .
+        exportPathname;
+        
     end
     properties(Access=private)
         resultsDirectory;
         featuresDirectory;
         cacheDirectory;
-        %> @brief Bool (true: has icon/false: does not have icon)
+        %> @brief Bool (true: has icon/false: does not have icon)        
         hasIcon; 
         iconData;
         iconCMap;
+        iconFilename;
+        
         %> @brief Struct with key value pairs for clustering:
         %> - @c clusterMethod Cluster method employed {'kmeans','kmedoids'}
         %> - @c useDefaultRandomizer = widgetSettings.useDefaultRandomizer;
@@ -148,28 +154,30 @@ classdef PAStatTool < handle
         %> user settings.  See getSaveParameters
         %> @retval this Instance of PAStatTool
         % ======================================================================
-        function this = PAStatTool(padaco_fig_h, resultsPathname, widgetSettings)
-            if(nargin<3 || isempty(widgetSettings))
-                widgetSettings = PAStatTool.getDefaultParameters();
+        function this = PAStatTool(padaco_fig_h, resultsPathname, initSettings)
+            if(nargin<3 || isempty(initSettings))
+                initSettings = PAStatTool.getDefaultParameters();
             end
                 
             % This call ensures that we have at a minimum, the default parameter field-values in widgetSettings.
             % And eliminates later calls to determine if a field exists
             % or not in the input widgetSettings parameter
-            widgetSettings = mergeStruct(this.getDefaultParameters(),widgetSettings);
+            initSettings = mergeStruct(this.getDefaultParameters(),initSettings);
             
-            if(~isfield(widgetSettings,'useDatabase'))
-                widgetSettings.useDatabase = false;
+            if(~isfield(initSettings,'useDatabase'))
+                initSettings.useDatabase = false;
             end
 
-            this.bootstrapIterations =  widgetSettings.bootstrapIterations;
-            this.bootstrapSampleName = widgetSettings.bootstrapSampleName;
-            this.maxNumDaysAllowed = widgetSettings.maxNumDaysAllowed;
-            this.minNumDaysAllowed = widgetSettings.minNumDaysAllowed;
+            this.exportPathname = initSettings.exportPathname;
+            this.bootstrapIterations =  initSettings.bootstrapIterations;
+            this.bootstrapSampleName = initSettings.bootstrapSampleName;
+            this.maxNumDaysAllowed = initSettings.maxNumDaysAllowed;
+            this.minNumDaysAllowed = initSettings.minNumDaysAllowed;
             
             this.hasIcon = false;
             this.iconData = [];
             this.iconCMap = [];
+            this.iconFilename = '';
             this.globalProfile  = [];
             this.coiProfile = [];
             this.allProfiles = [];
@@ -178,7 +186,7 @@ classdef PAStatTool < handle
             %             this.profileMetrics = {''};
 
             initializeOnSet = false;
-            this.setWidgetSettings(widgetSettings, initializeOnSet);
+            this.setWidgetSettings(initSettings, initializeOnSet);
             
             this.originalFeatureStruct = [];
             this.canPlot = false;
@@ -191,7 +199,7 @@ classdef PAStatTool < handle
             
             this.initHandles();            
             this.initBase();
-            this.centroidDistributionType = widgetSettings.centroidDistributionType;  % {'performance','membership','weekday'}
+            this.centroidDistributionType = initSettings.centroidDistributionType;  % {'performance','membership','weekday'}
             
             this.featureInputFilePattern = ['%s',filesep,'%s',filesep,'features.%s.accel.%s.%s.txt'];
             this.featureInputFileFieldnames = {'inputPathname','displaySeletion','processType','curSignal'};       
@@ -340,6 +348,76 @@ classdef PAStatTool < handle
             canPlotValue = this.canPlot;
         end
         
+                % --------------------------------------------------------------------
+        % Helper functions for setting the export paths to be used when
+        % saving data about centroids and covariates to disk.
+        % --------------------------------------------------------------------
+        function didUpdate = updateExportPath(this)
+            displayMessage = 'Select a directory to place the exported files.';
+            initPath = this.getExportPath();
+            tmpOutputDirectory = uigetfulldir(initPath,displayMessage);
+            if(isempty(tmpOutputDirectory))
+                didUpdate = false;
+            else
+                didUpdate = this.setExportPath(tmpOutputDirectory);
+            end
+        end
+        
+        % --------------------------------------------------------------------
+        function exportPath = getExportPath(this)
+            exportPath = this.exportPathname;
+        end
+        
+        % --------------------------------------------------------------------
+        function didSet = setExportPath(this, newPath)
+            try
+                this.exportPathname = newPath;
+                didSet = true;
+            catch me
+                showME(me);
+                didSet = false;
+            end
+        end
+        
+        function didExport = exportCentroidToDisk(this)
+            
+            didExport = false;
+            curCentroid = this.getCentroidObj();
+            if(isempty(curCentroid) || ~isa(curCentroid,'PACentroid'))
+                msg = 'No centroid object exists.  Nothing to save.';
+                pa_msgbox(msg,'Warning');
+                
+                % If this is not true, then we can just leave this
+                % function since the user would have cancelled.
+            elseif(this.updateExportPath())
+                try 
+                    lastClusterSettings = this.getStateAtTimeOfLastClustering();
+                    exportPath = this.getExportPath();
+                    [didExport, msg] = curCentroid.exportToDisk(exportPath, lastClusterSettings);
+                    
+                catch me
+                    msg = 'An error occurred while trying to save the data to disk.  A thousand apologies.  I''m very sorry.';
+                    showME(me);
+                end
+                
+                % Give the option to look at the files in their saved folder.
+                if(didExport)
+                    dlgName = 'Export complete';
+                    closeStr = 'Close';
+                    showOutputFolderStr = 'Open output folder';
+                    options.Default = closeStr;
+                    options.Interpreter = 'none';
+                    buttonName = questdlg(msg,dlgName,closeStr,showOutputFolderStr,options);
+                    if(strcmpi(buttonName,showOutputFolderStr))
+                        openDirectory(obj.getExportPath())
+                    end
+                else
+                    makeModal = true;
+                    pa_msgbox(msg,'Export',[],makeModal);
+                end
+            end
+        end
+        
         % ======================================================================
         %> @brief Returns plot settings that can be used to initialize a
         %> a PAStatTool with the same settings.
@@ -348,6 +426,8 @@ classdef PAStatTool < handle
         % ======================================================================
         function paramStruct = getSaveParameters(this)
             paramStruct = this.getPlotSettings();            
+            
+            paramStruct.exportPathname = this.exportPathname;
             
             % These parameters not stored in figure widgets
             paramStruct.useDatabase = this.useDatabase;
@@ -900,6 +980,7 @@ classdef PAStatTool < handle
         
         function didSet = setIcon(this, iconFilename)
             if(nargin>1 && exist(iconFilename,'file'))
+                this.iconFilename = iconFilename;
                 [icoData, icoMap] = imread(iconFilename);
                 didSet = this.setIconData(icoData,icoMap);
             else
@@ -2782,6 +2863,11 @@ classdef PAStatTool < handle
                 delayedStart = true;
                 tmpCentroidObj = PACentroid(this.featureStruct.features,pSettings,this.handles.axes_primary,resultsTextH,this.featureStruct.studyIDs, this.featureStruct.startDaysOfWeek, delayedStart);
                 this.addlistener('UserCancel_Event',@tmpCentroidObj.cancelCalculations);
+                if(~tmpCentroidObj.setShapeTimes(this.featureStruct.startTimes))
+                    this.setStatus('Shape times not set!');
+                else
+                    this.setStatus('');
+                end
                 this.centroidObj = tmpCentroidObj;
                 
                 if(enableUserCancel)
@@ -3762,10 +3848,12 @@ classdef PAStatTool < handle
                 workingPath = fileparts(mfilename('fullpath'));                
             end
             
+            
             baseSettings = PAStatTool.getBaseSettings();  
             % Prime with cluster parameters.
             paramStruct = PACentroid.getDefaultParameters();
             
+            paramStruct.exportPathname = workingPath;
             paramStruct.cacheDirectory = fullfile(workingPath,'cache');
             paramStruct.useCache = 1;
             
