@@ -409,7 +409,7 @@ classdef PAStatTool < handle
                     options.Interpreter = 'none';
                     buttonName = questdlg(msg,dlgName,closeStr,showOutputFolderStr,options);
                     if(strcmpi(buttonName,showOutputFolderStr))
-                        openDirectory(obj.getExportPath())
+                        openDirectory(this.getExportPath())
                     end
                 else
                     makeModal = true;
