@@ -176,7 +176,14 @@ function tabgroup_callback(hObject,eventdata)
         for f = 1:numel(fnames)
             text_tag = sprintf('%s%u',handles.user.static_prefix,f);
             value_tag = sprintf('%s%u',handles.user.edit_prefix,f);
-            set(handles.(text_tag),'string',fnames{f});
+            
+            label = handles.user.settings_obj.getDefinition(fnames{f});
+            newlineCount = sum(label==newline)+1;
+            pos = get(handles.(text_tag),'position');
+            pos(4) = pos(4)*newlineCount; 
+            pos(2) = pos(2)-pos(4)/4;
+            set(handles.(text_tag),'string',label,'position',pos);
+            
             curValue = handles.user.settings_obj.(tabName).(fnames{f});
             
             if(~isstruct(curValue))

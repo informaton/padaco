@@ -664,23 +664,23 @@ classdef PAController < handle
         %> @param obj Instance of PAController
         % --------------------------------------------------------------------
         function initWidgetCallbacks(obj)
-            handles = guidata(obj.VIEW.getFigHandle());
-            set(handles.edit_curWindow,'callback',@obj.edit_curWindowCallback);
-            set(handles.edit_aggregate,'callback',@obj.edit_aggregateCallback);
-            set(handles.edit_frameSizeMinutes,'callback',@obj.edit_frameSizeMinutesCallback);
-            set(handles.edit_frameSizeHours,'callback',@obj.edit_frameSizeHoursCallback);
+            viewHandles = guidata(obj.VIEW.getFigHandle());
+            set(viewHandles.edit_curWindow,'callback',@obj.edit_curWindowCallback);
+            set(viewHandles.edit_aggregate,'callback',@obj.edit_aggregateCallback);
+            set(viewHandles.edit_frameSizeMinutes,'callback',@obj.edit_frameSizeMinutesCallback);
+            set(viewHandles.edit_frameSizeHours,'callback',@obj.edit_frameSizeHoursCallback);
             
             %initialize dropdown menu callbacks
             set(obj.VIEW.menuhandle.displayFeature,'callback',@obj.updateSecondaryFeaturesDisplayCallback);
-            set(handles.menu_windowDurSec,'callback',@obj.menu_windowDurSecCallback);
+            set(viewHandles.menu_windowDurSec,'callback',@obj.menu_windowDurSecCallback);
             
             %             set(obj.VIEW.menuhandle.prefilterMethod,'callback',[]);
             %             set(obj.VIEW.menuhandle.signalSelection,'callback',[]);
             %             set(obj.VIEW.menuhandle.signalSelection,'callback',@obj.updateSecondaryFeaturesDisplayCallback);
             
-            set(handles.panel_displayButtonGroup,'selectionChangeFcn',@obj.displayChangeCallback);
+            set(viewHandles.panel_displayButtonGroup,'selectionChangeFcn',@obj.displayChangeCallback);
             
-            set(handles.button_go,'callback',@obj.button_goCallback);
+            set(viewHandles.button_go,'callback',@obj.button_goCallback);
             
             % Configure stats panel callbacks ...
             % - this is now handed in the PAStatTool.m class

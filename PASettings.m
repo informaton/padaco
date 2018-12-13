@@ -13,7 +13,7 @@ classdef  PASettings < handle
     %  - b.  Save settings - X
     %  - c.  Interface for editing the settings
     
-    properties
+    properties(SetAccess=protected)
         %> pathname of Padaco working directory - determined at run time.
         %> @brief Keeps track of the folder that padaco is run from.  This
         %> is useful when saving the setting's file to make sure it is
@@ -27,7 +27,11 @@ classdef  PASettings < handle
         fieldNames = {'DATA','CONTROLLER','VIEW','BATCH','StatTool','IMPORT','EXPORT'};  
         
         %> @brief Fieldnmaes whose structures are only one level deep.
-        liteFieldNames={'StatTool','VIEW','CONTROLLER','IMPORT','EXPORT'};
+        liteFieldNames={'StatTool','VIEW','CONTROLLER','IMPORT','EXPORT'};                
+        dictionary;
+    end
+    properties
+
         
         %> struct of PAController preferences.
         CONTROLLER;
@@ -45,6 +49,7 @@ classdef  PASettings < handle
         
         %> struct of StatTool plot/analysis settings.
         StatTool;
+
     end
     
     methods(Static)
@@ -356,7 +361,7 @@ classdef  PASettings < handle
         % =================================================================
         function initialize(obj)            
             obj.setDefaults();
-            
+            obj.loadDictionary();
             full_paramsFile = fullfile(obj.rootpathname,obj.parameters_filename);
             
             if(exist(full_paramsFile,'file'))
@@ -436,6 +441,95 @@ classdef  PASettings < handle
                 end
             end
         end
+        function loadDictionary(obj)
+            x.clusterMethod = 'Clustering Method';
+            x.minClusters = 'Minimum number of clusters';
+            x.clusterThreshold = 'Cluster threshold';
+            x.clusterMethod = 'kmeans';
+            x.useDefaultRandomizer = 'Use randomizer by default';
+            x.initCentroidWithPermutation = 'Initialize centroids with permutation';           
+            
+            x.featureFcnName = 'Feature function';
+            x.signalTagLine = 'Signal label';
+            
+           
+            x.screenshotPathname = 'Screenshot save path';
+            
+            x.viewMode = 'View mode';
+            x.useSmoothing = 'Use smoothing (0/1)';
+            x.highlightNonwear = 'Highlight nonwear (0/1)';            
+            x.resultsPathname = 'Results save path';              
+            
+            x.sourceDirectory = 'Source directory';
+            x.outputDirectory = 'Output directory'; 
+            x.alignment.elapsedStartHours = 'When to start the first measurement';
+            x.alignment.intervalLengthHours = 'Duration of each interval (in hours) once started';
+            x.frameDurationMinutes = 'Frame duration (minutes)';
+            x.numDaysAllowed = 'Number of days allowed (7)';
+            x.featureLabel = 'Feature label (''All'')';
+            x.logFilename = 'Batch log filename';
+            x.summaryFilename = 'Summary output filename';
+            x.isOutputPathLinked = 'Link output and input pathnames (0/1)';
+            
+            x.exportPathname = 'Export save directory';
+            x.cacheDirectory = 'Caching directory';
+            x.useCache = 'Use caching (0/1)';
+            
+            x.useDatabase = 'Use database (0/1)';
+            x.databaseClass = 'Database classname to use';
+            x.discardNonWearFeatures = 'Discard nonwear features (0/1)';
+            x.trimResults = 'Trim result';
+            x.cullResults = 'Cull result';
+            x.sortValues = 'Sort values';
+            x.segmentSortValues = 'Sort segmented valued (0/1)';
+            
+            
+            
+            x.numDataSegmentsSelection = 'Number of data segments selection';
+            x.numSortedSegments='Number of sorted segements';
+            
+            x.preclusterReductionSelection = 'Precluster reduction selection (1 = ''none'')';
+
+            x.maxNumDaysAllowed = 'Maximum number of days allowed per subject.  Leave 0 to include all days.';
+            x.minNumDaysAllowed = 'Minimum number of days allowed per subject.  Leave 0 for no minimum.  Currently variable has no effect at all.';
+            
+            x.normalizeValues = 'Normalize values (0)';            
+            x.processedTypeSelection = 'Processed type selection (1)';
+            x.baseFeatureSelection = 'Base feature selection (1)';
+            x.signalSelection = 'Signal selection (1)';
+            x.plotTypeSelection = 'Plot type selection (1)';
+            x.trimToPercent = 'Trim to (100%)';
+            x.cullToValue = 'Cull to (0)';
+            x.showCentroidMembers = 'Show centroid members (0)';
+            x.showCentroidSummary = 'Show centroid summary (0)';
+            
+            x.weekdaySelection = 'Weekday selection (1)';
+            x.startTimeSelection = 'Start time selection (1)';
+            x.stopTimeSelection = 'Stop time selection (-1)';
+            x.customDaysOfWeek = 'Custom days of week selection (0 for sunday)';
+            
+            x.centroidDurationSelection = 'Centroid duration selection';                        
+            x.primaryAxis_yLimMode = 'Top axis: y limit mode (auto, manual)';
+            x.primaryAxis_nextPlot = 'Top axis: next plot (replace, hold)';
+            x.showAnalysisFigure = 0; % do not display the other figure at first
+            x.centroidDistributionType = 'Centroid distribution type ({''performance'',''membership'',''weekday''})';            
+            x.profileFieldSelection = 'Profile field selection (numeric)';
+            
+            x.bootstrapIterations =  'Bootstrap iterations';
+            x.bootstrapSampleName = sprintf('Bootstrap sample name\n (''studyID'' or ''days'')');  % or 'days'
+            
+            obj.dictionary = x;
+            
+        end
+        function def = getDefinition(obj, word)
+            if(isfield(obj.dictionary,word))
+                def = obj.dictionary.(word);
+            else
+                def = strrep(word,'_',' ');
+                def(1) = upper(def(1)); % make an attempt at sentence casing.
+            end
+        end
+
         
         
         % -----------------------------------------------------------------
