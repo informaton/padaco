@@ -1155,10 +1155,9 @@ classdef PACentroid < handle
                     tic
                                
                     if(firstLoop)
+                        % prime the kmedoids algorithms starting centroids
+                        % - Turn this off for reproducibility
                         if(settings.initCentroidWithPermutation)
-                            % prime the kmedoids algorithms starting centroids
-                            % Can be a problem when we are going to start with repeat
-                            % clusters.
                             centroids = loadShapes(pa_randperm(N,K),:);
                             [idx, centroids, sumD, pointToClusterDistances] = kmedoids(loadShapes,K,'Start',centroids,'distance',this.distanceMetric);
                         else

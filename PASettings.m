@@ -442,16 +442,24 @@ classdef  PASettings < handle
             end
         end
         function loadDictionary(obj)
-            x.clusterMethod = 'Clustering Method';
+            x.curSignal = 'Signal of interest';
+            x.plotType = 'Plot type';
+            x.numShades = 'Number of shades for heatmap';
+            x.baseFeature = 'Feature function';
+            x.centroidDurationHours = 'Centroid length (hours)';
+            
+            x.minDaysAllowed= 'Minimum number of days required';
+            
+            x.clusterMethod = {'Clustering Method','(''kmeans'',''kmedoids'')'};
             x.minClusters = 'Minimum number of clusters';
             x.clusterThreshold = 'Cluster threshold';
-            x.clusterMethod = 'kmeans';
-            x.useDefaultRandomizer = 'Use randomizer by default';
+            x.clusterMethod = 'Clustering method';
+            x.useDefaultRandomizer = {'Turn off randomizer','(1 for reproducibility)'};
             x.initCentroidWithPermutation = 'Initialize centroids with permutation';           
             
             x.featureFcnName = 'Feature function';
             x.signalTagLine = 'Signal label';
-            
+            x.weekdayTag = 'Day of the week inclusion';
            
             x.screenshotPathname = 'Screenshot save path';
             
@@ -475,6 +483,7 @@ classdef  PASettings < handle
             x.cacheDirectory = 'Caching directory';
             x.useCache = 'Use caching (0/1)';
             
+            x.processType = {'Processing type','{''count'',''raw''}'};
             x.useDatabase = 'Use database (0/1)';
             x.databaseClass = 'Database classname to use';
             x.discardNonWearFeatures = 'Discard nonwear features (0/1)';
@@ -486,10 +495,12 @@ classdef  PASettings < handle
             x.numDataSegmentsSelection = 'Number of data segments selection';
             x.numSortedSegments='Number of sorted segements';
             
-            x.preclusterReductionSelection = {'Precluster reduction selection','(1 = ''none'')'};
-            x.reductionTransformationFcn = 'Precluster reduction method';
-            x.maxNumDaysAllowed = {'Maximum number of days allowed per subject.','Leave 0 to include all days.'};
-            x.minNumDaysAllowed = {'Minimum number of days allowed per subject.','Leave 0 for no minimum.  Currently variable has no effect at all.'};
+            x.preclusterReductionSelection = {'Precluster reduction selection','(1 = ''none'')'};            
+            x.preclusterReduction = 'Preclustering reduction method';
+            % x.reductionTransformationFcn = 'Precluster reduction method';
+            
+            x.maxNumDaysAllowed = {'Max days per subject.','Leave 0 to include all days.'};
+            x.minNumDaysAllowed = {'Min days per subject.','Leave 0 for no minimum.  Currently variable has no effect at all.'};
             
             x.normalizeValues = {'Normalize values','(0/1)'};            
             x.processedTypeSelection = {'Processed type selection','[1]'};

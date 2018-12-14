@@ -3412,7 +3412,6 @@ classdef PAStatTool < handle
             
             userSettings.numSortedSegments = getMenuUserData(this.handles.menu_number_of_data_segments);   % 6;
             userSettings.numDataSegmentsSelection = get(this.handles.menu_number_of_data_segments,'value');
-            userSettings.reductionTransformationFcn = getMenuUserData(this.handles.menu_precluster_reduction);
             
             userSettings.normalizeValues = get(this.handles.check_normalizevalues,'value');  %return 0 for unchecked, 1 for checked
             
@@ -3460,6 +3459,8 @@ classdef PAStatTool < handle
             % Cluster reduction settings
             userSettings.preclusterReductionSelection = get(this.handles.menu_precluster_reduction,'value');
             userSettings.preclusterReduction = this.base.preclusterReductions{userSettings.preclusterReductionSelection};  %singular entry now.    %  = getuserdata(this.handles.menu_precluster_reduction);
+            % userSettings.reductionTransformationFcn = getMenuUserData(this.handles.menu_precluster_reduction);
+            
             
         end
         
