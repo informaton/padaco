@@ -483,40 +483,38 @@ classdef  PASettings < handle
             x.sortValues = 'Sort values';
             x.segmentSortValues = 'Sort segmented valued (0/1)';
             
-            
-            
             x.numDataSegmentsSelection = 'Number of data segments selection';
             x.numSortedSegments='Number of sorted segements';
             
-            x.preclusterReductionSelection = 'Precluster reduction selection (1 = ''none'')';
-
-            x.maxNumDaysAllowed = 'Maximum number of days allowed per subject.  Leave 0 to include all days.';
-            x.minNumDaysAllowed = 'Minimum number of days allowed per subject.  Leave 0 for no minimum.  Currently variable has no effect at all.';
+            x.preclusterReductionSelection = {'Precluster reduction selection','(1 = ''none'')'};
+            x.reductionTransformationFcn = 'Precluster reduction method';
+            x.maxNumDaysAllowed = {'Maximum number of days allowed per subject.','Leave 0 to include all days.'};
+            x.minNumDaysAllowed = {'Minimum number of days allowed per subject.','Leave 0 for no minimum.  Currently variable has no effect at all.'};
             
-            x.normalizeValues = 'Normalize values (0)';            
-            x.processedTypeSelection = 'Processed type selection (1)';
-            x.baseFeatureSelection = 'Base feature selection (1)';
-            x.signalSelection = 'Signal selection (1)';
-            x.plotTypeSelection = 'Plot type selection (1)';
-            x.trimToPercent = 'Trim to (100%)';
-            x.cullToValue = 'Cull to (0)';
-            x.showCentroidMembers = 'Show centroid members (0)';
-            x.showCentroidSummary = 'Show centroid summary (0)';
+            x.normalizeValues = {'Normalize values','(0/1)'};            
+            x.processedTypeSelection = {'Processed type selection','[1]'};
+            x.baseFeatureSelection = {'Base feature selection','[1]'};
+            x.signalSelection = {'Signal selection','[1]'};
+            x.plotTypeSelection = {'Plot type selection','[1]'};
+            x.trimToPercent = {'Trim to (%)','[100]'};
+            x.cullToValue = {'Cull to','[0]'};
+            x.showCentroidMembers = 'Show centroid members (0/1)';
+            x.showCentroidSummary = 'Show centroid summary (0/1)';
             
             x.weekdaySelection = 'Weekday selection (1)';
             x.startTimeSelection = 'Start time selection (1)';
             x.stopTimeSelection = 'Stop time selection (-1)';
-            x.customDaysOfWeek = 'Custom days of week selection (0 for sunday)';
+            x.customDaysOfWeek = {'Custom days of week selection','(0 for sunday)'};
             
             x.centroidDurationSelection = 'Centroid duration selection';                        
-            x.primaryAxis_yLimMode = 'Top axis: y limit mode (auto, manual)';
-            x.primaryAxis_nextPlot = 'Top axis: next plot (replace, hold)';
-            x.showAnalysisFigure = 0; % do not display the other figure at first
-            x.centroidDistributionType = 'Centroid distribution type ({''performance'',''membership'',''weekday''})';            
+            x.primaryAxis_yLimMode = {'y Limit','(auto, manual)'};
+            x.primaryAxis_nextPlot = {'Next plot','(replace, hold)'};
+            x.showAnalysisFigure = 'Show analysis figure (0/1)'; % do not display the other figure at first
+            x.centroidDistributionType = sprintf('Centroid distribution type\n{''performance'',''membership'',''weekday''}'); 
             x.profileFieldSelection = 'Profile field selection (numeric)';
             
             x.bootstrapIterations =  'Bootstrap iterations';
-            x.bootstrapSampleName = sprintf('Bootstrap sample name\n (''studyID'' or ''days'')');  % or 'days'
+            x.bootstrapSampleName = {'Bootstrap sampling ID','{''studyID'',''days''}'};  
             
             obj.dictionary = x;
             

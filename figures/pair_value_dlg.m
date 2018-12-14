@@ -178,7 +178,11 @@ function tabgroup_callback(hObject,eventdata)
             value_tag = sprintf('%s%u',handles.user.edit_prefix,f);
             
             label = handles.user.settings_obj.getDefinition(fnames{f});
-            newlineCount = sum(label==newline)+1;
+            if(iscell(label))
+                newlineCount = numel(label);
+            else
+                newlineCount = sum(label==newline)+1;
+            end
             pos = get(handles.(text_tag),'position');
             pos(4) = pos(4)*newlineCount; 
             pos(2) = pos(2)-pos(4)/4;
