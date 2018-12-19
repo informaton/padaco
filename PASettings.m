@@ -480,6 +480,8 @@ classdef  PASettings < handle
             x.isOutputPathLinked = 'Link output and input pathnames (0/1)';
             
             x.exportPathname = 'Export save directory';
+            x.exportShowNonwear = 'Include nonwear flags with centroid export?';
+            
             x.cacheDirectory = 'Caching directory';
             x.useCache = 'Use caching (0/1)';
             

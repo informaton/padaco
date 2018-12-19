@@ -443,6 +443,7 @@ classdef PAStatTool < handle
             paramStruct = this.getPlotSettings();            
             
             paramStruct.exportPathname = this.exportPathname;
+            paramStruct.exportShowNonwear = this.originalWidgetSettings.exportShowNonwear;
             
             % These parameters not stored in figure widgets
             paramStruct.useDatabase = this.useDatabase;
@@ -450,6 +451,7 @@ classdef PAStatTool < handle
             paramStruct.minNumDaysAllowed = this.minNumDaysAllowed;
             paramStruct.maxNumDaysAllowed = this.maxNumDaysAllowed;
             paramStruct.databaseClass = this.originalWidgetSettings.databaseClass;
+            
             paramStruct.useCache = this.useCache;
             paramStruct.cacheDirectory = this.cacheDirectory;            
             
@@ -765,7 +767,7 @@ classdef PAStatTool < handle
                     % featuresPerCentroid = hoursPerCentroid*featuresPerHour;
                 end
                 
-                if(~strcmpi(pSettings.preclusterReduction,'none')) % || pSettings.sortValues)
+                if(~strcmpi(pSettings.preclusterReduction,'none')) 
                     
                     if(pSettings.segmentSortValues && pSettings.numSortedSegments>1)
                         % The other transformation will reduce the number
@@ -1425,7 +1427,6 @@ classdef PAStatTool < handle
                         set(this.handles.check_cull,'min',0,'max',1,'value',widgetSettings.cullResults);
                         set(this.handles.check_showCentroidMembers,'min',0,'max',1,'value',widgetSettings.showCentroidMembers);                                                
                         
-                        set(this.handles.check_sortvalues,'min',0,'max',1,'value',widgetSettings.sortValues);                        
                         set(this.handles.check_normalizevalues,'min',0,'max',1,'value',widgetSettings.normalizeValues);
                         
                         % This should be updated to parse the actual output feature
@@ -1593,8 +1594,7 @@ classdef PAStatTool < handle
             % These are required by follow-on calls, regardless if the gui
             % can be shown or not.  
             
-            % Previous state initialization - set to current state.
-            this.previousState.sortValues = widgetSettings.sortValues;
+            % Previous state initialization - set to current state.            
             this.previousState.normalizeValues = widgetSettings.normalizeValues;
             this.previousState.plotType = this.base.plotTypes{widgetSettings.plotTypeSelection};
             this.previousState.weekdaySelection = widgetSettings.weekdaySelection;
@@ -1643,8 +1643,6 @@ classdef PAStatTool < handle
         %> @param this Instance of PAStatTool
         % ======================================================================
         function switchFromClustering(this)
-            this.previousState.sortValues = get(this.handles.check_sortvalues,'value');            
-            set(this.handles.check_sortvalues,'value',0,'enable','off');            
             set(this.handles.check_normalizevalues,'value',this.previousState.normalizeValues,'enable','on');
             this.hideCentroidControls();
             
@@ -1665,7 +1663,7 @@ classdef PAStatTool < handle
         %> @param this Instance of PAStatTool
         % ======================================================================
         function switch2clustering(this)
-            set(this.handles.check_sortvalues,'value',this.previousState.sortValues,'enable','on');            
+            
             this.previousState.normalizeValues = get(this.handles.check_normalizevalues,'value');           
             set(this.handles.check_normalizevalues,'value',1,'enable','off');
             set(this.handles.axes_primary,'ydir','normal');  %sometimes this gets changed by the heatmap displays which have the time shown in reverse on the y-axis
@@ -3434,7 +3432,6 @@ classdef PAStatTool < handle
             userSettings.signalSelection = get(this.handles.menu_signalsource,'value');
             userSettings.plotTypeSelection = get(this.handles.menu_plottype,'value');
             
-            userSettings.sortValues = get(this.handles.check_sortvalues,'value');  %return 0 for unchecked, 1 for checked
             userSettings.segmentSortValues = get(this.handles.check_segment,'value'); % returns 0 for unchecked, 1 for checked
             
             
@@ -3909,8 +3906,7 @@ classdef PAStatTool < handle
             paramStruct.databaseClass = 'CLASS_database_goals';
             paramStruct.discardNonWearFeatures = 1;
             paramStruct.trimResults = 0;
-            paramStruct.cullResults = 0;
-            paramStruct.sortValues = 0;
+            paramStruct.cullResults = 0;            
             paramStruct.segmentSortValues = 0;
             paramStruct.numSortedSegments = 6;
             paramStruct.numDataSegmentsSelection = find(baseSettings.numDataSegments==paramStruct.numSortedSegments,1); %results in number six
