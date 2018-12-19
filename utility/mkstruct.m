@@ -11,7 +11,7 @@ else
     
     fields = fields(:);
 
-    if(nargin<2)
+    if(nargin<2 || isempty(values))
         values = cell(size(fields)); % make it empty
     end
     if(~iscell(values))

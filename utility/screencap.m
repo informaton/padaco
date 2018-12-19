@@ -34,7 +34,7 @@ if(ishandle(graphic_h))
     %of any leading periods
     img_fmt = strcat('-d',strrep(strrep(img_fmt,'.',''),'-d',''));
 
-    if(isempty(img_filename)|| ~exist(img_pathname,'dir'))
+    if(isempty(img_filename)|| ~isdir(img_pathname))
         
         filterspec = {'jpeg','JPEG image (*.jpeg)';'png','Portable Network Graphics file (*.png)';'pdf','Portable Document Format (*.pdf)'};
 %         save_format = {'-dpng','-djpeg'};
@@ -127,7 +127,7 @@ if(ishandle(graphic_h))
             %         hgexport(f,fullfile(img_pathname,img_filename),style,'Format',filterspec{filterindex,1});
             %disp(img_fmt);
             full_img_filename = fullfile(img_pathname,img_filename);
-            fprintf(1,'Saving %s\n',full_img_filename);
+            fprintf(1,'Saving %s.%s\n',full_img_filename,img_fmt(3:end));
             print(f,img_fmt,'-r300',full_img_filename,'-opengl');
             
             %save the screenshot

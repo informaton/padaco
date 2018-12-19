@@ -395,12 +395,21 @@ classdef PAStatTool < handle
                 try 
                     lastClusterSettings = this.getStateAtTimeOfLastClustering();
                     exportPath = this.getExportPath();
-                    if(~lastClusterSettings.discardNonWearFeatures)
-                        [didExport, msg] = curCentroid.exportToDisk(exportPath, lastClusterSettings, this.nonwear);                        
+                    % original widget settings are kept track of using a
+                    % separate gui                    
+                    exportNonwearFeatures = this.originalWidgetSettings.exportShowNonwear;
+                    if(exportNonwearFeatures)
+                        nonwearFeatures = {this.nonwear};                        
                     else
-                        [didExport, msg] = curCentroid.exportToDisk(exportPath, lastClusterSettings);
-                        
+                        nonwearFeatures = {};
                     end
+                    [didExport, msg] = curCentroid.exportToDisk(exportPath, lastClusterSettings, nonwearFeatures{:});
+
+                    %                     if(~lastClusterSettings.discardNonWearFeatures)
+                    %                         [didExport, msg] = curCentroid.exportToDisk(exportPath, lastClusterSettings, nonwearFeatures{:});
+                    %                     else
+                    %                         [didExport, msg] = curCentroid.exportToDisk(exportPath, lastClusterSettings, nonwearFeatures{:});
+                    %                     end
                     
                 catch me
                     msg = 'An error occurred while trying to save the data to disk.  A thousand apologies.  I''m very sorry.';
@@ -658,10 +667,12 @@ classdef PAStatTool < handle
                 end
                 
                 this.nonwear.rows = this.getNonwearRows(this.nonwear.method,tmpUsageStateStruct); 
+                
                 if(pSettings.discardNonWearFeatures)
-                    this.featureStruct = this.discardNonWearFeatures(tmpFeatureStruct,this.nonwear.rows);
+                    [this.featureStruct, this.nonwear.featureStruct] = this.discardNonWearFeatures(tmpFeatureStruct,this.nonwear.rows);
                 else
-                    this.featureStruct = tmpFeatureStruct;                    
+                    this.featureStruct = tmpFeatureStruct;   
+                    this.nonwear.featureStruct = [];
                 end
                 
                 maxDaysAllowed = this.maxNumDaysAllowed;
@@ -3676,14 +3687,17 @@ classdef PAStatTool < handle
         
         % ======================================================================
         % ======================================================================
-        function featureStruct = discardNonWearFeatures(featureStructIn,nonwearRows)
+        function [featureStruct, discardedFeatureStruct] = discardNonWearFeatures(featureStructIn,nonwearRows)
             %         function featureStruct = getValidFeatureStruct(originalFeatureStruct,usageStateStruct)
-            featureStruct = featureStructIn;            
+            featureStruct = featureStructIn;           
+            foi = {'startDatenums','startDaysOfWeek','shapes','studyIDs'};
+            discardedFeatureStruct = mkstruct(foi);
             if(~isempty(nonwearRows) && ~isempty(featureStructIn) && any(nonwearRows))
-                featureStruct.startDatenums(nonwearRows,:)=[];
-                featureStruct.startDaysOfWeek(nonwearRows,:)=[];
-                featureStruct.shapes(nonwearRows,:)=[];
-                featureStruct.studyIDs(nonwearRows)=[];
+                for f=1:numel(foi)
+                    fname = foi{f};
+                    discardedFeatureStruct.(fname) = featureStruct.(fname)(nonwearRows,:);
+                    featureStruct.(fname)(nonwearRows,:) = [];
+                end
             end
         end
         
@@ -3865,12 +3879,12 @@ classdef PAStatTool < handle
                 workingPath = fileparts(mfilename('fullpath'));                
             end
             
-            
             baseSettings = PAStatTool.getBaseSettings();  
             % Prime with cluster parameters.
             paramStruct = PACentroid.getDefaultParameters();
             
             paramStruct.exportPathname = workingPath;
+            paramStruct.exportShowNonwear = true;
             paramStruct.cacheDirectory = fullfile(workingPath,'cache');
             paramStruct.useCache = 1;
             
@@ -3921,7 +3935,6 @@ classdef PAStatTool < handle
             
             paramStruct.bootstrapIterations =  100;
             paramStruct.bootstrapSampleName = 'studyID';  % or 'days'
-            
            
         end
         

@@ -350,15 +350,27 @@ classdef PACentroid < handle
             resultMsg = msg;
         end
         
-        function [headerStr, dataStr] = exportWeekDayCovariates(this, nonwearStruct)
+        function [headerStr, dataStr] = exportWeekDayCovariates(this, nwStruct)
             csMat = this.getCovariateMat();
             headerStr = sprintf('# memberID, Day of week (Sun=0 to Sat=6), Cluster index, cluster popularity (1=highest, %d=lowest)',max(csMat(:,end)));
                 strFmt = ['%i',repmat(', %i',1,size(csMat,2)-1),'\n'];  % Make rows ('\n') of comma separated integers (', %i') 
             
-            if(nargin>1 && ~isempty(nonwearStruct) && isstruct(nonwearStruct))
-               headerStr = sprintf('%s, Contains nonwear (%s)',headerStr,nonwearStruct.method); 
-               strFmt = [strFmt(1:end-2),',%d\n'];
-               csMat = [csMat, nonwearStruct.rows];
+            if(nargin>1 && ~isempty(nwStruct) && isstruct(nwStruct))
+               headerStr = sprintf('%s, Contains nonwear (%s)',headerStr,nwStruct.method); 
+               strFmt = [strFmt(1:end-2),',%d\n'];               
+               if(isfield(nwStruct,'featureStruct') && ~isempty(nwStruct.featureStruct))
+                   nwFeatureStruct = nwStruct.featureStruct;
+                   missingValues = zeros(size(nwFeatureStruct.studyIDs,1),2);
+                   nwMat = [nwFeatureStruct.studyIDs(:),nwFeatureStruct.startDaysOfWeek(:),missingValues];
+
+                   nonwearFlags = [ zeros(size(csMat,1),1)
+                       ones(size(nwMat,1),1)     ];                   
+                   csMat = [csMat
+                            nwMat];
+               else
+                   nonwearFlags = nwStruct.rows;
+               end
+               csMat = [csMat, nonwearFlags];
             end
             dataStr = sprintf(strFmt,csMat'); % Need to transpose here because arguments to sprintf are taken in column order, but I am output by row.
         end
