@@ -325,7 +325,6 @@ classdef PACentroid < handle
                     msg = sprintf('%sCluster by weekday data NOT saved.  Could not open file (%s) for writing!\n ',msg,cov2Filename);
                 end
                 
-                
                 shapesFid = fopen(shapesFilename,'w');
                 if(shapesFid>1)
                     fprintf(shapesFid,'%s\n%s',shapesHeaderStr,shapesStr);
@@ -339,6 +338,8 @@ classdef PACentroid < handle
                 clusterSettings = clusterSettingsStruct;
                 
                 if(settingsFid>1)
+                    fprintf(settingsFid,['-Last saved: %s',newline,newline],datestr(now)); %want to include the '-' sign to prevent this line from getting loaded in the loadFromFile function (i.e. it breaks the regular expression pattern that is used to load everything else).
+                
                     PASettings.saveStruct(settingsFid,clusterSettings);
                     msg = sprintf('%sPadaco cluster settings saved to:\n\t%s\n',msg,settingsFilename);
                     fclose(settingsFid);

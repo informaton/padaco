@@ -395,6 +395,7 @@ classdef PAController < handle
             set(viewHandles.menu_file_about,'callback',@obj.menuFileAboutCallback);
             set(viewHandles.menu_file_settings_application,'callback',@obj.menuFileSettingsApplicationCallback);
             set(viewHandles.menu_file_settings_usageRules,'callback',@obj.menuFileSettingsUsageRulesCallback);
+            set(viewHandles.menu_load_settings,'callback',@obj.loadSettingsCb);
             
             %  open
             set(viewHandles.menu_file_open,'callback',@obj.menuFileOpenCallback);
@@ -596,6 +597,10 @@ classdef PAController < handle
                 
             end
         end 
+        
+        function loadSettingsCb(obj, varargin)
+            obj.StatTool.loadSettings();
+        end
         
         function initTimeSeriesWidgets(obj)
             

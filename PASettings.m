@@ -289,11 +289,11 @@ classdef  PASettings < handle
                     fields = fieldnames(root);
                     for k=1:numel(fields)
                         PASettings.saveStruct(fid,root,deblank(fields{k}));
-                        fprintf(fid,'\r');  %this adds extra line between root groups.
+                        fprintf(fid,newline);  %this adds extra line between root groups.
                     end
                     
                 else
-                    fprintf(fid,'root %s\r',num2str(root));
+                    fprintf(fid,['root %s',newline],num2str(root));
                 end
                 
             else
@@ -304,7 +304,7 @@ classdef  PASettings < handle
                         PASettings.saveStruct(fid,root,varargin{:},fields{k});
                     end
                 else
-                    fprintf(fid,'%s\t%s\r',PASettings.strcat_with_dot(varargin{:}),num2str(field));
+                    fprintf(fid,['%s\t%s',newline],PASettings.strcat_with_dot(varargin{:}),num2str(field));
                 end
             end
             

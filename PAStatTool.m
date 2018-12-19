@@ -16,6 +16,7 @@ classdef PAStatTool < handle
        COLOR_MEMBERID = [0.1 0.1 0.8];
        MAX_DAYS_PER_STUDY = 7;
     end
+    
     properties(SetAccess=protected)
                 %> Structure of original loaded features, that are a direct
         %> replication of the data obtained from disk (i.e. without further
@@ -131,7 +132,6 @@ classdef PAStatTool < handle
         %> selection fields which are not initialized until after data has
         %> been load (i.e. and populates the dropdown menus.
         originalWidgetSettings;
-        
 
     end
     
@@ -145,8 +145,7 @@ classdef PAStatTool < handle
         
     end
     
-    methods        
-
+    methods
         
         % ======================================================================
         %> @brief Constructor for PAStatTool
@@ -393,7 +392,7 @@ classdef PAStatTool < handle
                 % function since the user would have cancelled.
             elseif(this.updateExportPath())
                 try 
-                    lastClusterSettings = this.getStateAtTimeOfLastClustering();
+                    lastClusterSettings.StatTool = this.getStateAtTimeOfLastClustering();
                     exportPath = this.getExportPath();
                     % original widget settings are kept track of using a
                     % separate gui                    
@@ -457,6 +456,24 @@ classdef PAStatTool < handle
             paramStruct.bootstrapIterations = this.bootstrapIterations;
             paramStruct.bootstrapSampleName = this.bootstrapSampleName;
 
+        end
+        
+        function loadSettings(obj, settingsFilename)
+            if(nargin<2 || ~exist(settingsFilename,'file'))
+                path2check = obj.getExportPath();
+                filename=uigetfullfile({'*.txt;*.exp','All Settings Files';
+                    '*.exp','Export Settings'},...
+                    'Select a settings file',path2check);
+                try
+                    if(~isempty(filename))
+                        initSettings = PASettings.loadParametersFromFile(filename);
+                        initSettings = mergeStruct(obj.getDefaultParameters(),initSettings);
+                        obj.setWidgetSettings(initSettings);
+                    end
+                catch me
+                    showME(me);
+                end
+            end
         end
         
         % ======================================================================
