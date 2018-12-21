@@ -5,9 +5,15 @@
 % [fullpathnames Cell of srcPathname's children directories with
 % srcPathname included.
 %
-% Written by Hyatt Moore, IV (< June, 2013)
+% [pathnames, fullpathnames]  = getPathnames(srcPathname, ext)
+% Returns subpaths of srcPathname which have one or more files with the
+% extension ext.  
 %
-function [pathnames, fullpathnames] = getPathnames(srcPathname)
+% See also getFilenamesi
+% 
+% Written by Hyatt Moore, IV (< June, 2013)
+% @modified 12/14/2018 @hyatt Added extension check
+function [pathnames, fullpathnames] = getPathnames(srcPathname, ext)
 
     dirPull = dir(fullfile(srcPathname));
     directory_flag = cells2mat(dirPull.isdir);
@@ -17,11 +23,18 @@ function [pathnames, fullpathnames] = getPathnames(srcPathname)
     if(~isempty(unused_dir))
         pathnames(unused_dir) = [];
     end
-    if(nargout>1)
-        fullpathnames = cell(size(pathnames));
-        for f=1:numel(fullpathnames)
-            fullpathnames{f} = fullfile(srcPathname, pathnames{f});
-        end
+    
+
+    fullpathnames = cell(size(pathnames));
+    for f=1:numel(fullpathnames)
+        fullpathnames{f} = fullfile(srcPathname, pathnames{f});
+    end
+
+    
+    if(nargin>1 && ~isempty(ext))
+        pathHasExt = cellfun(@(x)~isempty(getFilenamesi(x,ext)),fullpathnames);
+        fullpathnames = fullpathnames(pathHasExt);
+        pathnames = pathnames(pathHasExt);        
     end
 end 
 
