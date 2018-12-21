@@ -488,7 +488,7 @@ classdef  PASettings < handle
             x.processType = {'Processing type','{''count'',''raw''}'};
             x.useDatabase = 'Use database (0/1)';
             x.databaseClass = 'Database classname to use';
-            x.discardNonWearFeatures = 'Discard nonwear features (0/1)';
+            x.discardNonwearFeatures = 'Discard nonwear features (0/1)';
             x.trimResults = 'Trim result';
             x.cullResults = 'Cull result';
             

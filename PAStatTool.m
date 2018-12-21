@@ -3,7 +3,7 @@
 %> @brief PAStatTool serves as Padaco's controller for visualization and
 %> analysis of batch results.
 % ======================================================================
-classdef PAStatTool < handle
+classdef PAStatTool < PABase
     events
        UserCancel_Event;
        ProfileFieldSelectionChange_Event;
@@ -39,10 +39,10 @@ classdef PAStatTool < handle
         %> non-wear/study over state)
         usageStateStruct;
         
-        %> struct of handles that PAStatTool interacts with.  See
-        %> initHandles()
+        %> struct of handles that PAStatTool interacts with.  Inherited from PABase
+        %>  See initHandles()
         %> Includes contextmenu
-        handles; 
+        % handles; 
         
         %> Struct of java component peers to some graphic handles listed
         %> under @c handles.  Currently only table_profileFields (under the
@@ -304,10 +304,7 @@ classdef PAStatTool < handle
             end    
         end  
         
-        function setStatus(this,sprintMsg,varargin)
-           msg = sprintf(sprintMsg,varargin{:});
-           set(this.handles.text_status,'string',msg);
-        end
+
         
         function clearStatus(this)
            this.setStatus('');
@@ -2322,6 +2319,7 @@ classdef PAStatTool < handle
             this.handles.contextmenu.clusterLineMember = uicontextmenu('parent',this.figureH);
             uimenu(this.handles.contextmenu.clusterLineMember,'Label','Show all from this subject','callback',@this.showSelectedMemberShapesCallback);
             
+            this.setStatusHandle(this.handles.text_status);
 
         end
         

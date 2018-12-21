@@ -130,6 +130,7 @@ classdef PAController < PABase
             if(ishandle(obj.figureH))
                 obj.featureHandles = [];
                 obj.handles = guidata(obj.figureH);
+                obj.setStatusHandle(obj.handles.text_status);
                 % Create a VIEW class
                 % 1. make context menu handles for the lines
                 % 2. make context menu handles for the primary axes
@@ -1685,9 +1686,14 @@ classdef PAController < PABase
                 viewMode = 'timeseries';
             end
             
-            obj.viewMode = viewMode;
-            obj.VIEW.showBusy(['Switching to ',viewMode,' view'],'all');
-            obj.VIEW.setViewMode(viewMode);
+            if(strcmpi(obj.viewMode,viewMode))
+                obj.setStatus('Refreshing %s view',viewMode);
+            else
+                obj.VIEW.showBusy(['Switching to ',viewMode,' view'],'all');        
+                obj.viewMode = viewMode;
+                obj.VIEW.setViewMode(viewMode);
+
+            end
             figure(obj.figureH);  %redraw and place it on top
             refresh(obj.figureH); % redraw it
             %             shg();  %make sure it is on top.
