@@ -4,7 +4,7 @@
 %> @brief PAView serves as Padaco's time series view controller.
 classdef PAView < handle
     
-    properties (Access = private)
+    properties (SetAccess = protected)
         
         %> @brief String representing the current type of display being used.
         %> Can be
@@ -26,9 +26,7 @@ classdef PAView < handle
         nonwearHighlighting;          
         
         
-    end
-    
-    properties
+
         %> for the patch handles when editing and dragging
         hg_group;   %may be unused?
         

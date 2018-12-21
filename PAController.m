@@ -6,7 +6,7 @@
 %
 %> In the model, view, controller paradigm, this is the
 %> controller.
-classdef PAController < handle
+classdef PAController < PABase
     
     events
        StatToolCreationSuccess;
@@ -18,8 +18,7 @@ classdef PAController < handle
     end
     properties(Access=private)
         versionNum;
-        %> @brief From guidata(figureHandle)
-        handles;
+        
         %> @brief Vector for keeping track of the feature handles that are
         %> displayed on the secondary axes field.
         featureHandles;
@@ -544,12 +543,13 @@ classdef PAController < handle
             wasModified = obj.SETTINGS.defaultsEditor(optionalSettingsName);
             if(wasModified)
                 if(isa(obj.StatTool,'PAStatTool'))
-                    initializeOnSet = false;  % setViewMode (below) will call the equivalent initialize on set as necessary.                    
+                    initializeOnSet = true;  % This is necessary to update widgets, which are used in follow on call to saveParameters
                     obj.StatTool.setWidgetSettings(obj.SETTINGS.StatTool, initializeOnSet);
                 end
-                fprintf('Settings have been updated.\n');
+                obj.setStatus('Settings have been updated.');
                 
-                % save parameters to disk
+                % save parameters to disk - this saves many parameters
+                % based on gui selection though ...
                 obj.saveParameters();
                 
                 % Activate a refresh()

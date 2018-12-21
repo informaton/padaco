@@ -494,10 +494,8 @@ classdef  PASettings < handle
             
             x.chunkShapes = 'Segment shapes (0/1)';
             % x.sortValues = 'Sort values';
-            x.numChunks='Number of segements';
+            x.numChunks='Number of segments';
             x.numDataSegmentsSelection = 'Number of segments selection (index)';
-            
-            
             
             x.preclusterReductionSelection = {'Precluster reduction selection','(1 = ''none'')'};            
             x.preclusterReduction = 'Preclustering reduction method';

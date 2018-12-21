@@ -2839,7 +2839,7 @@ classdef PAStatTool < handle
         function didConverge = refreshCentroidsAndPlot(this,enableUserCancel,varargin)
             didConverge = false;
             if(nargin<2)
-                enableUserCancel = false;
+                enableUserCancel = true;
             end
             this.clearPrimaryAxes();
             this.showBusy();
@@ -3022,10 +3022,10 @@ classdef PAStatTool < handle
             set(this.handles.panel_controlCentroid,'visible','on');
         end
         
-        %> @brief Does not change panel_plotCentroid controls.
+        %> @brief Enables panel_plotCentroid controls.
         function enableCentroidControls(this)
             enableHandles(this.handles.panel_controlCentroid);  
-            %             set(findall(this.handles.panel_plotCentroid,'enable','off'),'enable','on');
+           
             
             % add a context menu now to primary axes            
             contextmenu_primaryAxes = uicontextmenu('parent',this.figureH);
@@ -3423,7 +3423,7 @@ classdef PAStatTool < handle
         %> @retval userSettings Struct of GUI parameter value pairs
         % ======================================================================
         function userSettings = getPlotSettings(this)
-            userSettings.discardNonwearFeatures = this.originalWidgetSettings.discardNonwearFeatures;
+            userSettings.discardNonwearFeatures = get(this.handles.check_discardNonwear,'value'); %this.originalWidgetSettings.discardNonwearFeatures;
             
             userSettings.showCentroidMembers = get(this.handles.check_showCentroidMembers,'value');
             
@@ -3485,7 +3485,7 @@ classdef PAStatTool < handle
             % Cluster settings
             userSettings.minClusters = str2double(get(this.handles.edit_centroidMinimum,'string'));
             userSettings.clusterThreshold = str2double(get(this.handles.edit_centroidThreshold,'string'));
-            userSettings.clusterMethod = this.clusterSettings.clusterMethod;
+            userSettings.clusterMethod = getSelectedMenuString(this.handles.menu_clusterMethod);%this.clusterSettings.clusterMethod;
             userSettings.initCentroidWithPermutation = this.clusterSettings.initCentroidWithPermutation;
             userSettings.useDefaultRandomizer = this.clusterSettings.useDefaultRandomizer;
             
