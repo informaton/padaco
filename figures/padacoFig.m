@@ -26,7 +26,7 @@ function varargout = padacoFig(varargin)
 
 % Edit the above text to modify the response to help padacoFig
 
-% Last Modified by GUIDE v2.5 07-Feb-2017 12:04:11
+% Last Modified by GUIDE v2.5 21-Dec-2018 10:58:04
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -187,6 +187,20 @@ function menu_precluster_reduction_Callback(hObject, eventdata, handles)
 % --- Executes during object creation, after setting all properties.
 function menu_precluster_reduction_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to menu_precluster_reduction (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+% --- Executes during object creation, after setting all properties.
+function menu_clusterMethod_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to menu_clusterMethod (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 

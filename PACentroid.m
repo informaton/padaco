@@ -1760,6 +1760,10 @@ classdef PACentroid < handle
             settings.initCentroidWithPermutation = false;            
         end
         
+        function methods = getClusterMethods()
+            methods = {'kmeans','kmedoids'};
+        end
+        
         function pStruct = getExportDefaultParameters()
             pStruct.exportPath = '.';
         end        

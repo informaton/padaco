@@ -491,11 +491,13 @@ classdef  PASettings < handle
             x.discardNonWearFeatures = 'Discard nonwear features (0/1)';
             x.trimResults = 'Trim result';
             x.cullResults = 'Cull result';
-            x.sortValues = 'Sort values';
-            x.segmentSortValues = 'Sort segmented valued (0/1)';
             
-            x.numDataSegmentsSelection = 'Number of data segments selection';
-            x.numSortedSegments='Number of sorted segements';
+            x.chunkShapes = 'Segment shapes (0/1)';
+            % x.sortValues = 'Sort values';
+            x.numChunks='Number of segements';
+            x.numDataSegmentsSelection = 'Number of segments selection (index)';
+            
+            
             
             x.preclusterReductionSelection = {'Precluster reduction selection','(1 = ''none'')'};            
             x.preclusterReduction = 'Preclustering reduction method';

@@ -57,8 +57,7 @@ classdef PAStatTool < handle
         canPlot;
         %> @brief Struct to keep track of settings from previous plot type
         %> selections to make transitioning back and forth between cluster
-        %> plotting and others easier to stomach.  Fields include:
-        %> - @c sortValues The value of the check_sortvalues widget
+        %> plotting and others easier to stomach.  Fields include:        
         %> - @c normalizeValues The value of the check_normalizevalues widget
         %> - @c plotType The tag of the current plot type 
         %> - @c colorMap - colormap of figure;
@@ -404,7 +403,7 @@ classdef PAStatTool < handle
                     end
                     [didExport, msg] = curCentroid.exportToDisk(exportPath, lastClusterSettings, nonwearFeatures{:});
 
-                    %                     if(~lastClusterSettings.discardNonWearFeatures)
+                    %                     if(~lastClusterSettings.discardNonwearFeatures)
                     %                         [didExport, msg] = curCentroid.exportToDisk(exportPath, lastClusterSettings, nonwearFeatures{:});
                     %                     else
                     %                         [didExport, msg] = curCentroid.exportToDisk(exportPath, lastClusterSettings, nonwearFeatures{:});
@@ -687,8 +686,8 @@ classdef PAStatTool < handle
                 
                 this.nonwear.rows = this.getNonwearRows(this.nonwear.method,tmpUsageStateStruct); 
                 
-                if(pSettings.discardNonWearFeatures)
-                    [this.featureStruct, this.nonwear.featureStruct] = this.discardNonWearFeatures(tmpFeatureStruct,this.nonwear.rows);
+                if(pSettings.discardNonwearFeatures)
+                    [this.featureStruct, this.nonwear.featureStruct] = this.discardNonwearFeatures(tmpFeatureStruct,this.nonwear.rows);
                 else
                     this.featureStruct = tmpFeatureStruct;   
                     this.nonwear.featureStruct = [];
@@ -769,12 +768,12 @@ classdef PAStatTool < handle
                 
                 if(~strcmpi(pSettings.preclusterReduction,'none')) 
                     
-                    if(pSettings.segmentSortValues && pSettings.numSortedSegments>1)
+                    if(pSettings.chunkShapes && pSettings.numChunks>1)
                         % The other transformation will reduce the number
                         % of columns, so we need to account for that here.
                         [numRows, numCols] = size(loadFeatures);
                         if(~strcmpi(pSettings.preclusterReduction,'sort'))
-                            numCols = pSettings.numSortedSegments;
+                            numCols = pSettings.numChunks;
                         end
                         splitLoadFeatures = nan(numRows,numCols);
 
@@ -784,10 +783,10 @@ classdef PAStatTool < handle
                         % way
                         
                         % Or make a for loop and sort along the way ...
-                        sections = round(linspace(0,size(loadFeatures,2),pSettings.numSortedSegments+1));  %Round to give integer indices
+                        sections = round(linspace(0,size(loadFeatures,2),pSettings.numChunks+1));  %Round to give integer indices
                         for s=1:numel(sections)-1
                             sectionInd = sections(s)+1:sections(s+1); % Create consecutive, non-overlapping sections of column indices.
-                            if(numCols == pSettings.numSortedSegments) 
+                            if(numCols == pSettings.numChunks) 
                                 % Case 1: we are we reducing the output, so
                                 % only 1 column per s
                                 splitLoadFeatures(:,s) = PAStatTool.featureSetAdjustment(loadFeatures(:,sectionInd),pSettings.preclusterReduction);
@@ -807,10 +806,10 @@ classdef PAStatTool < handle
                     % if we had a precluster feature set reduction
                     if(~strcmpi(pSettings.preclusterReduction,'sort'))
                         initialCount = this.featureStruct.totalCount;
-                        this.featureStruct.totalCount = pSettings.numSortedSegments;
+                        this.featureStruct.totalCount = pSettings.numChunks;
                         indicesToUse = floor(linspace(1,initialCount,this.featureStruct.totalCount));
-                        % intervalToUse = floor(initialCount/(pSettings.numSortedSegments+1));
-                        % indicesToUse = linspace(intervalToUse,intervalToUse*pSettings.numSortedSegments,pSettings.numSortedSegments);
+                        % intervalToUse = floor(initialCount/(pSettings.numChunks+1));
+                        % indicesToUse = linspace(intervalToUse,intervalToUse*pSettings.numChunks,pSettings.numChunks);
                         this.featureStruct.startTimes = this.featureStruct.startTimes(indicesToUse);
                     end
                     
@@ -1376,12 +1375,13 @@ classdef PAStatTool < handle
             this.hideCentroidControls();
 
             this.canPlot = false;    %changes to true if we find data that can be processed in featuresPathname
-            set([this.handles.check_sortvalues                
+            set([
                 this.handles.check_normalizevalues
                 this.handles.menu_feature
                 this.handles.menu_signalsource
                 this.handles.menu_plottype
                 this.handles.menu_weekdays
+                this.handles.menu_clusterMethod
                 this.handles.menu_centroidStartTime
                 this.handles.menu_centroidStopTime                
                 this.handles.menu_duration
@@ -1392,13 +1392,20 @@ classdef PAStatTool < handle
                 this.handles.check_trim
                 this.handles.edit_trimToPercent
                 this.handles.check_cull
+                this.handles.check_discardNonwear
                 this.handles.edit_cullToValue
                 this.handles.check_segment
                 this.handles.menu_precluster_reduction
                 this.handles.menu_number_of_data_segments],'units','normalized',...% had been : 'points',...
                 'callback',[],...
                 'enable','off');
-
+            
+            clusterMethods = PACentroid.getClusterMethods();
+            cmIndex = find(strcmpi(clusterMethods,widgetSettings.clusterMethod),1);
+            if(isempty(cmIndex))
+                cmIndex = 1;
+            end
+            set(this.handles.menu_clusterMethod,'string',clusterMethods,'value',cmIndex);
             if(isdir(featuresPathname))
                 % find allowed features which are in our base parameter and
                 % also get their description.
@@ -1421,8 +1428,8 @@ classdef PAStatTool < handle
                         % This is good for a true false checkbox value
                         % Checked state has a value of 1
                         % Unchecked state has a value of 0
-                        
-                        set(this.handles.check_segment,'min',0,'max',1,'value',widgetSettings.segmentSortValues);
+                        set(this.handles.check_discardNonwear,'min',0,'max',1,'value',widgetSettings.discardNonwearFeatures);
+                        set(this.handles.check_segment,'min',0,'max',1,'value',widgetSettings.chunkShapes);
                         set(this.handles.check_trim,'min',0,'max',1,'value',widgetSettings.trimResults);
                         set(this.handles.check_cull,'min',0,'max',1,'value',widgetSettings.cullResults);
                         set(this.handles.check_showCentroidMembers,'min',0,'max',1,'value',widgetSettings.showCentroidMembers);                                                
@@ -1467,11 +1474,11 @@ classdef PAStatTool < handle
                             this.handles.menu_feature;                            
                             this.handles.menu_signalsource;
                             ],'callback',@this.refreshPlot);
-                        set([
-                            this.handles.check_sortvalues;
+                        set([                            
                             this.handles.check_normalizevalues;                            
                             this.handles.menu_precluster_reduction;
                             this.handles.menu_number_of_data_segments;
+                            this.handles.menu_clusterMethod;
                             this.handles.check_segment],'callback',@this.enableCentroidRecalculation);
                         
                         set(this.handles.menu_plottype,'callback',@this.plotSelectionChange);
@@ -1497,7 +1504,7 @@ classdef PAStatTool < handle
                         set(this.handles.edit_cullToValue,'string',num2str(widgetSettings.cullToValue),'callback',@this.editCullToValueChange,'enable',enableState);
                         
                         % Check results
-                        if(widgetSettings.segmentSortValues)
+                        if(widgetSettings.chunkShapes)
                             enableState = 'on';
                         else
                             enableState = 'off';
@@ -1643,7 +1650,7 @@ classdef PAStatTool < handle
         %> @param this Instance of PAStatTool
         % ======================================================================
         function switchFromClustering(this)
-            set(this.handles.check_normalizevalues,'value',this.previousState.normalizeValues,'enable','on');
+            % set(this.handles.check_normalizevalues,'value',this.previousState.normalizeValues,'enable','on');
             this.hideCentroidControls();
             
             disableHandles(this.handles.panel_plotCentroid);
@@ -1665,7 +1672,7 @@ classdef PAStatTool < handle
         function switch2clustering(this)
             
             this.previousState.normalizeValues = get(this.handles.check_normalizevalues,'value');           
-            set(this.handles.check_normalizevalues,'value',1,'enable','off');
+            % set(this.handles.check_normalizevalues,'value',1,'enable','off');
             set(this.handles.axes_primary,'ydir','normal');  %sometimes this gets changed by the heatmap displays which have the time shown in reverse on the y-axis
             
             set(this.handles.panel_controlCentroid,'visible','on');
@@ -2259,13 +2266,13 @@ classdef PAStatTool < handle
             
             % get handles of interest from the main/primary figure.
             tmpHandles = guidata(this.figureH);
-            handlesOfInterest = {
-                'check_sortvalues'    
+            handlesOfInterest = {   
                 'check_normalizevalues'
                 'menu_feature'
                 'menu_signalsource'
                 'menu_plottype'
                 'menu_weekdays'
+                'menu_clusterMethod'
                 'menu_centroidStartTime'
                 'menu_centroidStopTime'
                 'menu_duration'
@@ -2275,6 +2282,7 @@ classdef PAStatTool < handle
                 'edit_trimToPercent'
                 'check_cull'
                 'edit_cullToValue'
+                'check_discardNonwear'
                 'check_segment'
                 'menu_precluster_reduction'
                 'menu_number_of_data_segments'
@@ -3415,7 +3423,7 @@ classdef PAStatTool < handle
         %> @retval userSettings Struct of GUI parameter value pairs
         % ======================================================================
         function userSettings = getPlotSettings(this)
-            userSettings.discardNonWearFeatures = this.originalWidgetSettings.discardNonWearFeatures;
+            userSettings.discardNonwearFeatures = this.originalWidgetSettings.discardNonwearFeatures;
             
             userSettings.showCentroidMembers = get(this.handles.check_showCentroidMembers,'value');
             
@@ -3432,14 +3440,14 @@ classdef PAStatTool < handle
             userSettings.signalSelection = get(this.handles.menu_signalsource,'value');
             userSettings.plotTypeSelection = get(this.handles.menu_plottype,'value');
             
-            userSettings.segmentSortValues = get(this.handles.check_segment,'value'); % returns 0 for unchecked, 1 for checked
+            userSettings.chunkShapes = get(this.handles.check_segment,'value'); % returns 0 for unchecked, 1 for checked
             
             
-            userSettings.numSortedSegments = getMenuUserData(this.handles.menu_number_of_data_segments);   % 6;
+            userSettings.numChunks = getMenuUserData(this.handles.menu_number_of_data_segments);   % 6;
             userSettings.numDataSegmentsSelection = get(this.handles.menu_number_of_data_segments,'value');
             
             userSettings.normalizeValues = get(this.handles.check_normalizevalues,'value');  %return 0 for unchecked, 1 for checked
-            
+            userSettings.discardNonwearFeatures = get(this.handles.check_discardNonwear,'value');
             userSettings.processType = this.base.processedTypes{userSettings.processedTypeSelection};
             userSettings.baseFeature = this.featureTypes{userSettings.baseFeatureSelection};
             userSettings.curSignal = this.base.signalTypes{userSettings.signalSelection};            
@@ -3701,7 +3709,7 @@ classdef PAStatTool < handle
         
         % ======================================================================
         % ======================================================================
-        function [featureStruct, discardedFeatureStruct] = discardNonWearFeatures(featureStructIn,nonwearRows)
+        function [featureStruct, discardedFeatureStruct] = discardNonwearFeatures(featureStructIn,nonwearRows)
             %         function featureStruct = getValidFeatureStruct(originalFeatureStruct,usageStateStruct)
             featureStruct = featureStructIn;           
             foi = {'startDatenums','startDaysOfWeek','shapes','studyIDs'};
@@ -3904,18 +3912,18 @@ classdef PAStatTool < handle
             
             paramStruct.useDatabase = 0;
             paramStruct.databaseClass = 'CLASS_database_goals';
-            paramStruct.discardNonWearFeatures = 1;
+            paramStruct.discardNonwearFeatures = 1;
             paramStruct.trimResults = 0;
             paramStruct.cullResults = 0;            
-            paramStruct.segmentSortValues = 0;
-            paramStruct.numSortedSegments = 6;
-            paramStruct.numDataSegmentsSelection = find(baseSettings.numDataSegments==paramStruct.numSortedSegments,1); %results in number six
+            paramStruct.chunkShapes = 0;
+            paramStruct.numChunks = 6;
+            paramStruct.numDataSegmentsSelection = find(baseSettings.numDataSegments==paramStruct.numChunks,1); %results in number six
             
             % If we no longer have 6 as a choice, then just take the first
             % choice that is available 
             if(isempty(paramStruct.numDataSegmentsSelection))
                 paramStruct.numDataSegmentsSelection = 1;
-                paramStruct.numSortedSegments=baseSettings.numDataSegments(paramStruct.numDataSegmentsSelection);
+                paramStruct.numChunks=baseSettings.numDataSegments(paramStruct.numDataSegmentsSelection);
             end
             
             paramStruct.preclusterReductionSelection = 1; % defaults to 'none'
