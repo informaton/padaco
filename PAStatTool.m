@@ -292,7 +292,7 @@ classdef PAStatTool < PABase
                 set(this.figureH,'visible','on');                
 
                 if(this.getCanPlot())
-                    if(this.isCentroidModeSelected())
+                    if(this.isClusterMode())
                         this.switch2clustering();
                     else
                         this.switchFromClustering();
@@ -311,11 +311,17 @@ classdef PAStatTool < PABase
         end
         
         
-        %> @brief Returns boolean indicator if results view is showing
-        %> clusters (plot type 'centroids') or not.
-        function clusterView = inClusterView(this)
-            clusterView = strcmpi(this.getPlotType(),'centroids');
+        %> @brief Returns boolean indicator if the current plot type is 
+        %> is showing clusters or not.        
+        %> @brief or if the passed plotType matches the clustering mode
+        %> label.
+        function isMode = isClusterMode(this, plotType)
+            if(nargin<2 || isempty(plotType))
+                plotType = this.getPlotType();
+            end
+            isMode = strcmpi(plotType,'clustering');
         end
+            
         
         function plotType = getPlotType(this)
             plotType = getMenuUserData(this.handles.menu_plottype);
@@ -647,7 +653,7 @@ classdef PAStatTool < PABase
                 % will go 24 hours
                 if(stopTimeSelection== startTimeSelection)
 
-                    if(this.inClusterView())
+                    if(this.isClusterMode())
                         % Not sure why this is happening in some cases when
                         % loading a new data file with different time
                         % interval.
@@ -945,7 +951,7 @@ classdef PAStatTool < PABase
                 pSettings = this.getPlotSettings();
               
                 switch(pSettings.plotType)
-                    case 'centroids'
+                    case 'clustering'
                         this.plotCentroids(pSettings);
                         this.enableCentroidRecalculation();
                     otherwise
@@ -991,7 +997,7 @@ classdef PAStatTool < PABase
                     set(findall(resultPanels,'enable','off'),'enable','on');
             end
             
-            if(obj.inClusterView())
+            if(obj.isClusterMode())
                 set(resultPanels,'visible','on');
             else
                 set(resultPanels(1),'visible','on');
@@ -1178,6 +1184,7 @@ classdef PAStatTool < PABase
             this.clearPlots();
             plotType = this.getPlotType();  %this.base.plotTypes{get(menuHandle,'value')};
             set(menuHandle,'tooltipstring',this.base.tooltipstring.(plotType));
+            
             switch(plotType)
                 case 'centroids'
                     this.switch2clustering();
@@ -1658,9 +1665,6 @@ classdef PAStatTool < PABase
             this.refreshPlot();
         end    
         
-        function resp = isCentroidModeSelected(this)
-            resp = strcmpi(this.getPlotType,'centroids');            
-        end
         
         % ======================================================================
         %> @brief Configure gui handles for centroid analysis and viewing.
@@ -1781,7 +1785,7 @@ classdef PAStatTool < PABase
             % Set a variable to keep track that new calculation is needed,
             % or just check current settings versus last settings when it
             % is time to actually calculate again...
-            if(this.isCentroidModeSelected())
+            if(this.isClusterMode())
                 bgColor = [0.2 0.8 0.1];
                 fgColor = [ 0 0 0];
                 
@@ -2361,7 +2365,7 @@ classdef PAStatTool < PABase
             end
             
             switch(plotOptions.plotType)
-                
+                case {'clustering','quantile'}  % passthrough
                 case 'dailyaverage'
                     imageMap = nan(7,1);
                     for dayofweek=0:6
@@ -2449,10 +2453,7 @@ classdef PAStatTool < PABase
                     weekdayticks = linspace(0,24*6,7);
                     set(axesHandle,'ygrid','on');
                     
-                case 'centroids'
-                    
-                    
-                case 'quantile'
+                
                     
                 otherwise
                     disp Oops!;
