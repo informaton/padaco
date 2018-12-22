@@ -2309,10 +2309,13 @@ classdef PAStatTool < PABase
             
 
             this.handles.panels_sansCentroids = [
-                    tmpHandles.panel_plotType;
-                    tmpHandles.panel_plotSignal;
-                    tmpHandles.panel_plotData
+                    tmpHandles.panel_plotType;                                     
+                    tmpHandles.panel_timeFrame;                    
                 ];
+            
+            % tmpHandles.panel_chunking;
+            %                     tmpHandles.panel_timeFrame
+            %                     tmpHandles.check_showCentroidMembers
             
             % add a context menu now to figureH in order to use with centroid load
             % shape line handles.
@@ -2344,7 +2347,7 @@ classdef PAStatTool < PABase
                         
             daysofweekStr = this.base.daysOfWeekShortDescriptions; %{'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
             daysofweekOrder = this.base.daysOfWeekOrder; %1:7;
-            features = this.featureStruct.features;
+            features = this.featureStruct.shapes;  % this.featureStruct.features;
             divisionsPerDay = size(features,2);
             
             % Set this here to auto perchance it is not with our centroid
@@ -2373,7 +2376,6 @@ classdef PAStatTool < PABase
                     end
                     
                     bar(axesHandle,imageMap);
-                    titleStr = 'Average Daily Tallies (total daily tally divided by number of subjects that day)';
                     weekdayticks = linspace(1,7,7);
                     
                 case 'dailytally'
@@ -2386,8 +2388,7 @@ classdef PAStatTool < PABase
                         daysofweekStr{dayofweekIndex} = sprintf('%s (n=%u)',daysofweekStr{dayofweekIndex},numSubjects);
                     end
                     
-                    bar(axesHandle,imageMap);
-                    titleStr ='Total Daily Tallies';
+                    bar(axesHandle,imageMap);                    
                     weekdayticks = linspace(1,7,7);
                     
                 case 'morningheatmap'  %note: I use 24 to represent the first 6 hours of the morning (24 x 15 minute blocks = 6 hours)
@@ -2406,10 +2407,10 @@ classdef PAStatTool < PABase
                     weekdayticks = 1:1:7; %linspace(0,6,7);
                     dailyDivisionTicks = 1:2:24;
                     set(axesHandle,'ytick',dailyDivisionTicks,'yticklabel',this.featureStruct.startTimes(1:2:24));
-                    titleStr = 'Heat map (early morning)';
+                    
                     
                 case 'heatmap'
-                    imageMap = nan(7,size(features,2));
+                    imageMap = nan(7,divisionsPerDay);
                     for dayofweek=0:6
                         imageMap(dayofweek+1,:) = sum(features(dayofweek==daysofweek,:),1);
                         numSubjects = sum(dayofweek==daysofweek);
@@ -2424,17 +2425,16 @@ classdef PAStatTool < PABase
                     weekdayticks = 1:1:7; %linspace(0,6,7);
                     dailyDivisionTicks = 1:8:this.featureStruct.totalCount;
                     set(axesHandle,'ytick',dailyDivisionTicks,'yticklabel',this.featureStruct.startTimes(1:8:end));
-                    titleStr = 'Heat map';
+                    
                     
                 case 'rolling'
-                    imageMap = nan(7,size(features,2));
+                    imageMap = nan(7,divisionsPerDay);
                     for dayofweek=0:6
                         imageMap(dayofweek+1,:) = sum(features(dayofweek==daysofweek,:),1);
                     end
                     %            imageMap=imageMap/max(imageMap(:));
                     rollingMap = imageMap';
-                    plot(axesHandle,rollingMap(:));
-                    titleStr = 'Rolling Map';
+                    plot(axesHandle,rollingMap(:));                    
                     weekdayticks = linspace(0,divisionsPerDay*6,7);
                     set(axesHandle,'ygrid','on');
                     
@@ -2445,8 +2445,7 @@ classdef PAStatTool < PABase
                     end
                     %            imageMap=imageMap/max(imageMap(:));
                     rollingMap = imageMap';
-                    plot(axesHandle,rollingMap(:));
-                    titleStr = 'Morning Rolling Map (00:00-06:00AM daily)';
+                    plot(axesHandle,rollingMap(:));                    
                     weekdayticks = linspace(0,24*6,7);
                     set(axesHandle,'ygrid','on');
                     
@@ -2458,7 +2457,7 @@ classdef PAStatTool < PABase
                 otherwise
                     disp Oops!;
             end
-            title(axesHandle,titleStr,'fontsize',14);
+            title(axesHandle,plotOptions.titleStr,'fontsize',14);
 
             xlimits = minmax(weekdayticks);
 
@@ -3449,7 +3448,8 @@ classdef PAStatTool < PABase
             userSettings.processType = this.base.processedTypes{userSettings.processedTypeSelection};
             userSettings.baseFeature = this.featureTypes{userSettings.baseFeatureSelection};
             userSettings.curSignal = this.base.signalTypes{userSettings.signalSelection};            
-            userSettings.plotType = this.base.plotTypes{userSettings.plotTypeSelection};            
+            userSettings.plotType = this.base.plotTypes{userSettings.plotTypeSelection}; 
+            userSettings.titleStr = this.base.plotTypeTitles{userSettings.plotTypeSelection};
             userSettings.numShades = this.base.numShades;
             
             userSettings.trimResults = get(this.handles.check_trim,'value'); % returns 0 for unchecked, 1 for checked            
@@ -3984,16 +3984,25 @@ classdef PAStatTool < PABase
             baseSettings.numDataSegments = [2,3,4,6,8,12,24]';
             baseSettings.numDataSegmentsDescriptions = cellstr(num2str(baseSettings.numDataSegments(:)));
             
-            baseSettings.plotTypes = {'dailyaverage','dailytally','morningheatmap','heatmap','rolling','morningrolling','centroids'};
-            baseSettings.plotTypeDescriptions = {'Average Daily Tallies','Total Daily Tallies','Heat map (early morning)','Heat map','Time series','Time series (morning)','Centroids'};
+            baseSettings.plotTypes = {'clustering','dailyaverage','dailytally','morningheatmap','heatmap','rolling','morningrolling'};
+            baseSettings.plotTypeTitles = {'';
+                'Average Daily Tallies (total daily tally divided by number of subjects that day)';
+                'Total Daily Tallies';
+                'Heat map (early morning)';
+                'Heat map';
+                'Rolling Map';
+                'Morning Rolling Map (00:00-06:00AM daily)';
+                };
+                
+            baseSettings.plotTypeDescriptions = {'Clusters','Average Daily Tallies','Total Daily Tallies','Heat map (early morning)','Heat map','Time series','Time series (morning)'};
             baseSettings.plotTypeToolTipStrings = {
+                sprintf('Clustering view present the adaptive clustering results (centroids or medoids) for the selected\n features and clustering parameters given in the controls below.');
                 sprintf('The daily average is calculated by taking the average feature sum per subject taken by day of the week.\n  The results should not be as biased by the number of subjects participating in any particular day.');
                 sprintf('The daily tally is calculated by summing together the feature sums of each subject taken by day of the week.\n  Days with more subjects have a much greater chance of having higher sums.');
                 sprintf('The morning heat map presents the average sum of early morning activity as color intensity instead of height on the y-axis.\n  It focuses on the early part of each day.');
                 sprintf('The heat map presents the average sum of daily activity\n as color intensity instead of height on the y-axis.');
                 sprintf('The rolling map shows the linear progression of the\n sum of subject activity by day of the week.');
-                sprintf('The early morning rolling map shows the linear progression\n of the sum of subject activity for the early part of each day of the week.');
-                sprintf('Centroids present the adaptive k-means centroids for the selected\n features and clustering parameters given in the controls below.');
+                sprintf('The early morning rolling map shows the linear progression\n of the sum of subject activity for the early part of each day of the week.');                
                 };
 
             for b=1:numel(baseSettings.plotTypes)

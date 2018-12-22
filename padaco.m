@@ -144,7 +144,7 @@ function handles = initializeGUI(hFigure)
         %             set(findobj(whiteHandles,'-property','shadowcolor'),'shadowcolor',[0 0 0],'highlightcolor',[0 0 0]);
         
         innerPanelHandles = [handles.panel_centroidSettings
-            handles.panel_centroid_timeFrame];
+            handles.panel_timeFrame];
         sethandles(innerPanelHandles,'backgroundcolor',[0.9 0.9 0.9]);
         
         % Make the inner edit boxes appear white
