@@ -42,21 +42,9 @@ function handles = initializeGUI(hFigure)
         handles.panel_timeseries],'backgroundcolor',figColor,'units',defaultUnits);
     
     set([handles.panel_results;
-         handles.panel_timeseries],'backgroundcolor',figColor...
-                                   ,'units',defaultUnits...
-                                   ,'bordertype','none');
+         handles.panel_timeseries],'bordertype','none');
     
-    % ch = findall(hObject,'type','uipanel');
-    % set(ch,'units','normalized');
-    % set(ch,'backgroundcolor',figColor);
-    %
-    % ch = findobj(hObject,'-regexp','tag','text.*');
-    %
-    % ch(strcmp(get(ch,'type'),'uimenu'))=[];
-    % set(ch,'backgroundcolor',figColor);
-    
-    % ch = findobj(hObject,'-regexp','tag','axes.*');
-    % set(ch,'units','normalized');
+
     
     set(hFigure,'closeRequestFcn','delete(gcbo)');
     
@@ -77,7 +65,7 @@ function handles = initializeGUI(hFigure)
         handles.panel_timeseries
         handles.panel_results
         handles.panel_resultsContainer
-        handles.panel_controlCentroid
+        handles.panel_clusterPlotControls
         handles.panel_epochControls
         handles.panel_displayButtonGroup],'units','pixels');
     
@@ -102,54 +90,41 @@ function handles = initializeGUI(hFigure)
         %set(handles.panel_resultsContainer,'backgroundcolor',[1 1 1]);
         
         
-        % Line up panel_controlCentroid with panel_epochControls
+        % Line up panel_clusterPlotControls with panel_epochControls
         epochControlsPos = get(handles.panel_epochControls,'position');
-        coiControlsPos = get(handles.panel_controlCentroid,'position');
+        coiControlsPos = get(handles.panel_clusterPlotControls,'position');
         coiControlsPos(2) = sum(epochControlsPos([2,4]))-coiControlsPos(4);  % This is y_ = y^ + h^ - h_
-        set(handles.panel_controlCentroid,'position',coiControlsPos);
+        set(handles.panel_clusterPlotControls,'position',coiControlsPos);
         drawnow();
         
         metaDataHandles = [handles.panel_study;get(handles.panel_study,'children')];
         set(metaDataHandles,'backgroundcolor',[0.94,0.94,0.94],'visible','off');
         
-        %             whiteHandles = [handles.text_aggregate
-        %                 handles.text_frameSizeMinutes
-        %                 handles.text_frameSizeHours
-        %                 handles.text_trimPct
-        %                 handles.text_cullSuffix
-        %                 handles.edit_trimToPercent
-        %                 handles.edit_cullToValue
-        %                 handles.panel_features_prefilter
-        %                 handles.panel_features_aggregate
-        %                 handles.panel_features_frame
-        %                 handles.panel_features_signal
-        %                 handles.panel_plotType
-        %                 handles.panel_plotSignal
-        %                 handles.panel_plotData
-        %                 handles.panel_controlCentroid
-        %                 handles.panel_plotCentroid];
+       
         whiteHandles = [handles.panel_features_prefilter
             handles.panel_features_aggregate
             handles.panel_features_frame
             handles.panel_features_signal
             handles.panel_plotType
-            handles.panel_plotSignal
-            handles.panel_plotData
-            handles.panel_controlCentroid
-            handles.panel_plotCentroid];
+            handles.panel_clusterPlotControls
+            handles.panel_clusterSettings
+            handles.edit_minClusters
+            handles.edit_clusterConvergenceThreshold];
         sethandles(whiteHandles,'backgroundcolor',[1 1 1]);
         %set(whiteHandles,'backgroundcolor',[0.94,0.94,0.94]);
         %            set(findobj(whiteHandles,'-property','backgroundcolor'),'backgroundcolor',[0.94 0.94 0.94]);
         
         %             set(findobj(whiteHandles,'-property','shadowcolor'),'shadowcolor',[0 0 0],'highlightcolor',[0 0 0]);
         
-        innerPanelHandles = [handles.panel_centroidSettings
-            handles.panel_timeFrame];
+        innerPanelHandles = [handles.panel_clusteringSettings
+            handles.panel_timeFrame
+            handles.panel_shapeAdjustments
+            handles.panel_chunking];
         sethandles(innerPanelHandles,'backgroundcolor',[0.9 0.9 0.9]);
         
         % Make the inner edit boxes appear white
-        set([handles.edit_centroidMinimum
-            handles.edit_centroidThreshold],'backgroundcolor',[1 1 1]);
+        set([handles.edit_minClusters
+            handles.edit_clusterConvergenceThreshold],'backgroundcolor',[1 1 1]);
         
         set(handles.text_threshold,'tooltipstring','Smaller thresholds result in more stringent conversion requirements and often produce more clusters than when using higher threshold values.');
         % Flush our drawing queue

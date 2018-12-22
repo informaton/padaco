@@ -647,7 +647,7 @@ classdef PAView < handle
 
             resultPanels = [
                             handles.panel_results;
-                            handles.panel_controlCentroid;
+                            handles.panel_clusterPlotControls;
                             handles.panel_epochControls;
                            ];
 
@@ -709,7 +709,7 @@ classdef PAView < handle
             
             resultPanels = [
                 handles.panel_results;
-                handles.panel_controlCentroid;
+                handles.panel_clusterPlotControls;
                 ];
             
                        

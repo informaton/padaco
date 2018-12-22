@@ -26,7 +26,7 @@ function varargout = padacoFig(varargin)
 
 % Edit the above text to modify the response to help padacoFig
 
-% Last Modified by GUIDE v2.5 21-Dec-2018 10:58:04
+% Last Modified by GUIDE v2.5 22-Dec-2018 13:55:57
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -97,7 +97,7 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
 end
 
 
-function edit_centroidMinimum_CreateFcn(hObject, eventdata, handles)
+function edit_minClusters_CreateFcn(hObject, eventdata, handles)
 
 % Hint: edit controls usually have a white background on Windows.
 %       See ISPC and COMPUTER.
@@ -107,7 +107,7 @@ end
 
 
 
-function edit_centroidThreshold_CreateFcn(hObject, eventdata, handles)
+function edit_clusterConvergenceThreshold_CreateFcn(hObject, eventdata, handles)
 
 % Hint: edit controls usually have a white background on Windows.
 %       See ISPC and COMPUTER.

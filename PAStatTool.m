@@ -560,7 +560,7 @@ classdef PAStatTool < PABase
                         case 'bootstrap'
                             
                         otherwise
-                            fprintf(1,'Unknown indices flag for refreshCentroidsAndPlot: ''%s''\n',indicesToUse);
+                            fprintf(1,'Unknown indices flag for refreshClustersAndPlot: ''%s''\n',indicesToUse);
                             indicesToUse = [];
                             
                     end
@@ -987,7 +987,7 @@ classdef PAStatTool < PABase
             
             resultPanels = [
                 obj.handles.panel_results;
-                obj.handles.panel_controlCentroid;
+                obj.handles.panel_clusterPlotControls;
                 ];
             
             switch( enableState )
@@ -1216,26 +1216,26 @@ classdef PAStatTool < PABase
 
             switch(key)
                 case 'rightarrow'
-                    set(this.handles.push_nextCentroid,'enable','off');
-                    this.showNextCentroid(toggleOn);
-                    set(this.handles.push_nextCentroid,'enable','on');
+                    set(this.handles.push_nextCluster,'enable','off');
+                    this.showNextCluster(toggleOn);
+                    set(this.handles.push_nextCluster,'enable','on');
                     drawnow();
                 case 'leftarrow'
-                    set(this.handles.push_previousCentroid,'enable','off');                    
-                    this.showPreviousCentroid(toggleOn);               
-                    set(this.handles.push_previousCentroid,'enable','on'); 
+                    set(this.handles.push_previousCluster,'enable','off');                    
+                    this.showPreviousCluster(toggleOn);               
+                    set(this.handles.push_previousCluster,'enable','on'); 
                     drawnow();
                 case 'uparrow'
                     if(figH == this.analysisFigureH)
                         this.decreaseProfileFieldSelection();
                     elseif(figH == this.figureH)
-                        this.showNextCentroid(toggleOn);
+                        this.showNextCluster(toggleOn);
                     end
                 case 'downarrow'
                     if(figH == this.analysisFigureH)
                         this.increaseProfileFieldSelection();
                     elseif(figH == this.figureH)
-                        this.showPreviousCentroid(toggleOn);
+                        this.showPreviousCluster(toggleOn);
                     end
                 otherwise                
             end
@@ -1389,10 +1389,10 @@ classdef PAStatTool < PABase
                 this.handles.menu_centroidStartTime
                 this.handles.menu_centroidStopTime                
                 this.handles.menu_duration
-                this.handles.check_showCentroidMembers
-                this.handles.push_refreshCentroids
-                this.handles.push_nextCentroid
-                this.handles.push_previousCentroid
+                this.handles.check_showClusterMembership
+                this.handles.push_refreshClusters
+                this.handles.push_nextCluster
+                this.handles.push_previousCluster
                 this.handles.check_trim
                 this.handles.edit_trimToPercent
                 this.handles.check_cull
@@ -1436,7 +1436,7 @@ classdef PAStatTool < PABase
                         set(this.handles.check_segment,'min',0,'max',1,'value',widgetSettings.chunkShapes);
                         set(this.handles.check_trim,'min',0,'max',1,'value',widgetSettings.trimResults);
                         set(this.handles.check_cull,'min',0,'max',1,'value',widgetSettings.cullResults);
-                        set(this.handles.check_showCentroidMembers,'min',0,'max',1,'value',widgetSettings.showCentroidMembers);                                                
+                        set(this.handles.check_showClusterMembership,'min',0,'max',1,'value',widgetSettings.showCentroidMembers);                                                
                         
                         set(this.handles.check_normalizevalues,'min',0,'max',1,'value',widgetSettings.normalizeValues);
                         
@@ -1469,8 +1469,8 @@ classdef PAStatTool < PABase
                         %                         set(this.handles.menu_centroidStopTime,'userdata',startStopTimesInDay(2:end),'string',hoursInDayStr(2:end,:),'value',widgetSettings.stopTimeSelection);
                         
                         set(this.handles.menu_duration,'string',this.base.centroidDurationDescriptions,'value',widgetSettings.centroidDurationSelection);
-                        set(this.handles.edit_centroidMinimum,'string',num2str(widgetSettings.minClusters));
-                        set(this.handles.edit_centroidThreshold,'string',num2str(widgetSettings.clusterThreshold)); 
+                        set(this.handles.edit_minClusters,'string',num2str(widgetSettings.minClusters));
+                        set(this.handles.edit_clusterConvergenceThreshold,'string',num2str(widgetSettings.clusterThreshold)); 
                         
                         %% set callbacks
                         
@@ -1487,7 +1487,7 @@ classdef PAStatTool < PABase
                         
                         set(this.handles.menu_plottype,'callback',@this.plotSelectionChange);
                        
-                        set(this.handles.check_showCentroidMembers,'callback',@this.checkShowCentroidMembershipCallback);
+                        set(this.handles.check_showClusterMembership,'callback',@this.checkShowCentroidMembershipCallback);
                         
                         % Trim results
                         if(widgetSettings.trimResults)
@@ -1523,29 +1523,29 @@ classdef PAStatTool < PABase
                         % change callback which is called after initWidgets
                         % in the constructor.
                         this.initRefreshCentroidButton('off');
-                        set(this.handles.push_previousCentroid,'callback',@this.showPreviousCentroidCallback);
-                        set(this.handles.push_nextCentroid,'callback',@this.showNextCentroidCallback);
+                        set(this.handles.push_previousCluster,'callback',@this.showPreviousClusterCallback);
+                        set(this.handles.push_nextCluster,'callback',@this.showNextClusterCallback);
                         
-%                         set(this.handles.push_nextCentroid,'units','pixels');
-%                         set(this.handles.push_previousCentroid,'units','pixels');
+%                         set(this.handles.push_nextCluster,'units','pixels');
+%                         set(this.handles.push_previousCluster,'units','pixels');
 
-%                         set(this.handles.push_nextCentroid,'units','normalized');
-%                         set(this.handles.push_previousCentroid,'units','normalized');
+%                         set(this.handles.push_nextCluster,'units','normalized');
+%                         set(this.handles.push_previousCluster,'units','normalized');
                         
 
                         drawnow();
                         %
-                        % bgColor = get(this.handles.panel_controlCentroid,'Backgroundcolor');
+                        % bgColor = get(this.handles.panel_clusterPlotControls,'Backgroundcolor');
                         RGB_MAX = 255;
-                        bgColor = get(this.handles.push_nextCentroid,'backgroundcolor');
+                        bgColor = get(this.handles.push_nextCluster,'backgroundcolor');
                         imgBgColor = bgColor*RGB_MAX;
                         
                         %    bgColor = [nan, nan, nan];
                         % bgColor = [0.94,0.94,0.94];
                         originalImg = imread('arrow-right_16px.png','png','backgroundcolor',bgColor);
                         
-%                         set(this.handles.push_nextCentroid,'units','pixels');
-%                         pos = get(this.handles.push_nextCentroid,'position');
+%                         set(this.handles.push_nextCluster,'units','pixels');
+%                         pos = get(this.handles.push_nextCluster,'position');
 %                         originalImg = imresize(originalImg,pos(3:4));
                         
                         [nRows, nCols, nColors] = size(originalImg);
@@ -1564,18 +1564,18 @@ classdef PAStatTool < PABase
                         previousImg = fliplr(nextImg);
                         
                         
-                        %setIcon(this.handles.push_nextCentroid,'arrow-right_16px.png',imgBgColor);
+                        %setIcon(this.handles.push_nextCluster,'arrow-right_16px.png',imgBgColor);
                         fgColor = get(0,'FactoryuicontrolForegroundColor');
                         defaultBackgroundColor = get(0,'FactoryuicontrolBackgroundColor');
             
-                        set(this.handles.push_nextCentroid,'cdata',nextImg);
-                        set(this.handles.push_previousCentroid,'cdata',previousImg);
-                        set([this.handles.push_nextCentroid,this.handles.push_previousCentroid],...
+                        set(this.handles.push_nextCluster,'cdata',nextImg);
+                        set(this.handles.push_previousCluster,'cdata',previousImg);
+                        set([this.handles.push_nextCluster,this.handles.push_previousCluster],...
                             'string',[],'foregroundcolor',fgColor,...
                             'backgroundcolor',defaultBackgroundColor);
                         
-%                         set(this.handles.push_nextCentroid,'units','normalized');
-%                         set(this.handles.push_previousCentroid,'units','normalized');
+%                         set(this.handles.push_nextCluster,'units','normalized');
+%                         set(this.handles.push_previousCluster,'units','normalized');
 
                         set(this.handles.check_holdYAxes,'value',strcmpi(widgetSettings.primaryAxis_yLimMode,'manual'),'callback',@this.checkHoldYAxesCallback);
                         set(this.handles.check_holdPlots,'value',strcmpi(widgetSettings.primaryAxis_nextPlot,'add'),'callback',@this.checkHoldPlotsCallback);
@@ -1584,12 +1584,12 @@ classdef PAStatTool < PABase
                         set([
                             this.handles.menu_centroidStartTime
                             this.handles.menu_centroidStopTime
-                            this.handles.edit_centroidMinimum
-                            this.handles.edit_centroidThreshold
+                            this.handles.edit_minClusters
+                            this.handles.edit_clusterConvergenceThreshold
                             this.handles.menu_duration
                             ],'callback',@this.enableCentroidRecalculation);
                         
-                        set(this.handles.edit_centroidThreshold,'tooltipstring','Hint: Enter ''inf'' to fix the number of clusters to the min value');
+                        set(this.handles.edit_clusterConvergenceThreshold,'tooltipstring','Hint: Enter ''inf'' to fix the number of clusters to the min value');
             
                         
                         % add a context menu now to secondary axes
@@ -1640,7 +1640,7 @@ classdef PAStatTool < PABase
             end
             fgColor = get(0,'FactoryuicontrolForegroundColor');
             defaultBackgroundColor = get(0,'FactoryuicontrolBackgroundColor');
-            set(this.handles.push_refreshCentroids,'callback',@this.refreshCentroidsAndPlotCb,...
+            set(this.handles.push_refreshClusters,'callback',@this.refreshClustersAndPlotCb,...
                 'enable',enableState,'string','Recalculate',...
                 'backgroundcolor',defaultBackgroundColor,...
                 'foregroundcolor',fgColor,...
@@ -1657,7 +1657,7 @@ classdef PAStatTool < PABase
             % set(this.handles.check_normalizevalues,'value',this.previousState.normalizeValues,'enable','on');
             this.hideCentroidControls();
             
-            disableHandles(this.handles.panel_plotCentroid);
+            disableHandles(this.handles.panel_clusterSettings);
             set(this.handles.axes_secondary,'visible','off');
             set(this.figureH,'WindowKeyPressFcn',[]);
             set(this.analysisFigureH,'visible','off');
@@ -1676,11 +1676,11 @@ classdef PAStatTool < PABase
             % set(this.handles.check_normalizevalues,'value',1,'enable','off');
             set(this.handles.axes_primary,'ydir','normal');  %sometimes this gets changed by the heatmap displays which have the time shown in reverse on the y-axis
             
-            set(this.handles.panel_controlCentroid,'visible','on');
+            set(this.handles.panel_clusterPlotControls,'visible','on');
             
             if(this.getCanPlot())
                 if(this.hasValidCentroid())                    
-                    % lite version of refreshCentroidsAndPlot()
+                    % lite version of refreshClustersAndPlot()
                     this.showCentroidControls();
                     
                     % Need this because we will skip our x tick and
@@ -1692,10 +1692,10 @@ classdef PAStatTool < PABase
                     this.plotCentroids();                     
                 else
                     this.disableCentroidControls();
-                    this.refreshCentroidsAndPlot();
+                    this.refreshClustersAndPlot();
                 end
                 
-                set(findall(this.handles.panel_plotCentroid,'-property','enable'),'enable','on');
+                set(findall(this.handles.panel_clusterSettings,'-property','enable'),'enable','on');
                 
                 if(this.hasValidCentroid())
                     validColor = [1 1 1];
@@ -1773,7 +1773,7 @@ classdef PAStatTool < PABase
         
         
         % ======================================================================
-        %> @brief Callback to enable the push_refreshCentroids button.  The button's 
+        %> @brief Callback to enable the push_refreshClusters button.  The button's 
         %> background color is switched to green to highlight the change and need
         %> for recalculation.
         %> @param this Instance of PAStatTool
@@ -1792,12 +1792,12 @@ classdef PAStatTool < PABase
                 fgColor = get(0,'FactoryuicontrolForegroundColor');
                 bgColor = get(0,'FactoryuicontrolBackgroundColor');
             
-                set(this.handles.push_refreshCentroids,'enable','on',...
+                set(this.handles.push_refreshClusters,'enable','on',...
                     'backgroundcolor',bgColor,'string','Recalculate',...
                     'foregroundcolor',fgColor,...
                     'fontweight','bold',...
                     'fontsize',13,...
-                    'callback',@this.refreshCentroidsAndPlotCb);
+                    'callback',@this.refreshClustersAndPlotCb);
             else
                 
             end
@@ -1810,7 +1810,7 @@ classdef PAStatTool < PABase
             %             fgColor = [0.94 0.94 0.94 ];
             fgColor = [1 1 1];
 
-            set(this.handles.push_refreshCentroids,'enable','on',...
+            set(this.handles.push_refreshClusters,'enable','on',...
                 'fontsize',12,'fontweight','bold',...            
                 'backgroundcolor',bgColor,'string','Cancel',...
                 'foregroundcolor',fgColor,...
@@ -1820,7 +1820,7 @@ classdef PAStatTool < PABase
         function cancelCentroidsCalculationCallback(this,hObject,eventdata)
             %             bgColor = [0.6 0.4 0.3];
             bgColor = [0.6 0.1 0.1];
-            set(this.handles.push_refreshCentroids,'enable','off','callback',[],...
+            set(this.handles.push_refreshClusters,'enable','off','callback',[],...
                 'backgroundcolor',bgColor,'string','Cancelling',...
                 'fontsize',12,'fontweight','normal');
             this.notify('UserCancel_Event');
@@ -2287,15 +2287,15 @@ classdef PAStatTool < PABase
                 'check_segment'
                 'menu_precluster_reduction'
                 'menu_number_of_data_segments'
-                'check_showCentroidMembers'
-                'edit_centroidThreshold'
-                'edit_centroidMinimum'
-                'push_refreshCentroids'
-                'panel_plotCentroid'
+                'check_showClusterMembership'
+                'edit_clusterConvergenceThreshold'
+                'edit_minClusters'
+                'push_refreshClusters'
+                'panel_clusterSettings'
                 'panel_results'
-                'panel_controlCentroid'
-                'push_nextCentroid'
-                'push_previousCentroid'
+                'panel_clusterPlotControls'
+                'push_nextCluster'
+                'push_previousCluster'
                 'text_resultsCentroid'
                 'text_status'
                 'check_holdPlots'
@@ -2319,7 +2319,7 @@ classdef PAStatTool < PABase
             
             % tmpHandles.panel_chunking;
             %                     tmpHandles.panel_timeFrame
-            %                     tmpHandles.check_showCentroidMembers
+            %                     tmpHandles.check_showClusterMembership
             
             % add a context menu now to figureH in order to use with centroid load
             % shape line handles.
@@ -2537,9 +2537,9 @@ classdef PAStatTool < PABase
         %> @param this Instance of PAStatTool
         %> @param Variable number of arguments required by MATLAB gui callbacks
         % ======================================================================
-        function showNextCentroidCallback(this, varargin)
+        function showNextClusterCallback(this, varargin)
             holdOn = get(this.handles.check_holdPlots,'value');
-            this.showNextCentroid(holdOn);
+            this.showNextCluster(holdOn);
         end
                 
         % ======================================================================
@@ -2551,7 +2551,7 @@ classdef PAStatTool < PABase
         %> - @c false Results in increaseing the COI sort order, and all
         %> other toggle sort indices are left as is.
         % ======================================================================
-        function showNextCentroid(this,toggleOn)
+        function showNextCluster(this,toggleOn)
             if(nargin<2 || ~islogical(toggleOn))
                 toggleOn = false;
             end
@@ -2573,9 +2573,9 @@ classdef PAStatTool < PABase
         %> @param this Instance of PAStatTool
         %> @param Variable number of arguments required by MATLAB gui callbacks
         % ======================================================================
-        function showPreviousCentroidCallback(this,varargin)
+        function showPreviousClusterCallback(this,varargin)
             holdOn = get(this.handles.check_holdPlots,'value');
-            this.showPreviousCentroid(holdOn);
+            this.showPreviousCluster(holdOn);
         end
         
         % ======================================================================
@@ -2587,7 +2587,7 @@ classdef PAStatTool < PABase
         %> - @c false Results in increaseing the COI sort order, and all
         %> other toggle sort indices are left as is.
         % ======================================================================
-        function showPreviousCentroid(this,toggleOn)
+        function showPreviousCluster(this,toggleOn)
             if(nargin<2 || ~islogical(toggleOn))
                 toggleOn = false;
             end
@@ -2760,7 +2760,7 @@ classdef PAStatTool < PABase
                                 curVecInd = curVecInd+daysPerStudy(row);
                             end                 
                         end
-                        if(this.refreshCentroidsAndPlot(allowUserCancel,ind2use))                            
+                        if(this.refreshClustersAndPlot(allowUserCancel,ind2use))                            
                             for f=1:numel(paramNames)
                                 pName = paramNames{f};
                                 params.(pName)(n) = this.centroidObj.getParam(pName);
@@ -2819,9 +2819,9 @@ classdef PAStatTool < PABase
             
         end
         
-        function refreshCentroidsAndPlotCb(this, varargin)
+        function refreshClustersAndPlotCb(this, varargin)
             enableUserCancel = true;
-           this.refreshCentroidsAndPlot(enableUserCancel); 
+           this.refreshClustersAndPlot(enableUserCancel); 
         end
         % ======================================================================
         %> @brief Push button callback for updating the centroids being displayed.
@@ -2834,7 +2834,7 @@ classdef PAStatTool < PABase
         %> If it is empty after the function call, then the clustering
         %> failed.
         % ======================================================================
-        function didConverge = refreshCentroidsAndPlot(this,enableUserCancel,varargin)
+        function didConverge = refreshClustersAndPlot(this,enableUserCancel,varargin)
             didConverge = false;
             if(nargin<2)
                 enableUserCancel = true;
@@ -3006,7 +3006,7 @@ classdef PAStatTool < PABase
         %> two axes.
         %> @param Instance of PAStatTool
         function hideCentroidControls(this)
-            set(this.handles.panel_controlCentroid,'visible','off'); 
+            set(this.handles.panel_clusterPlotControls,'visible','off'); 
             
             % remove anycontext menu on the primary axes
             set(this.handles.axes_primary,'uicontextmenu',[]);
@@ -3017,12 +3017,12 @@ classdef PAStatTool < PABase
         end
         
         function showCentroidControls(this)
-            set(this.handles.panel_controlCentroid,'visible','on');
+            set(this.handles.panel_clusterPlotControls,'visible','on');
         end
         
-        %> @brief Enables panel_plotCentroid controls.
+        %> @brief Enables panel_clusterSettings controls.
         function enableCentroidControls(this)
-            enableHandles(this.handles.panel_controlCentroid);  
+            enableHandles(this.handles.panel_clusterPlotControls);  
            
             
             % add a context menu now to primary axes            
@@ -3061,12 +3061,12 @@ classdef PAStatTool < PABase
             
         end
         
-        %> @brief Does not alter panel_plotCentroid controls, which we want to
+        %> @brief Does not alter panel_clusterSettings controls, which we want to
         %> leave avaialbe to the user to manipulate settings in the event
         %> that they have excluded loadshapes and need to alter the settings
         %> to included them in a follow-on calculation.
         function disableCentroidControls(this)
-            sethandles(this.handles.panel_controlCentroid,'enable','inactive');
+            sethandles(this.handles.panel_clusterPlotControls,'enable','inactive');
             
             set(this.handles.text_resultsCentroid,'enable','on');
             % add a context menu now to primary axes           
@@ -3110,11 +3110,11 @@ classdef PAStatTool < PABase
                     
                     % draw the x-ticks and labels - Commented out on
                     % 10/14/2016 because this appears to be called in
-                    % refreshCentroidsAndPlot(), with the assumption it is
+                    % refreshClustersAndPlot(), with the assumption it is
                     % no longer needed.  Is this not true?
                     % @No, this is still needed if we are using a cached
                     % load.  Add drawCentroidXTicksAndLabels() to the lite
-                    % method for refreshCentroidsAndPlot when
+                    % method for refreshClustersAndPlot when
                     % switching2centroids is invoked.
                     % this.drawCentroidXTicksAndLabels();
                     
@@ -3423,7 +3423,7 @@ classdef PAStatTool < PABase
         function userSettings = getPlotSettings(this)
             userSettings.discardNonwearFeatures = get(this.handles.check_discardNonwear,'value'); %this.originalWidgetSettings.discardNonwearFeatures;
             
-            userSettings.showCentroidMembers = get(this.handles.check_showCentroidMembers,'value');
+            userSettings.showCentroidMembers = get(this.handles.check_showClusterMembership,'value');
             
             if(isfield(this.handles.contextmenu,'show'))
                 userSettings.showCentroidSummary = strcmpi(get(this.handles.contextmenu.show.clusterSummary,'checked'),'on');
@@ -3482,8 +3482,8 @@ classdef PAStatTool < PABase
             userSettings.centroidDistributionType = this.centroidDistributionType;
             
             % Cluster settings
-            userSettings.minClusters = str2double(get(this.handles.edit_centroidMinimum,'string'));
-            userSettings.clusterThreshold = str2double(get(this.handles.edit_centroidThreshold,'string'));
+            userSettings.minClusters = str2double(get(this.handles.edit_minClusters,'string'));
+            userSettings.clusterThreshold = str2double(get(this.handles.edit_clusterConvergenceThreshold,'string'));
             userSettings.clusterMethod = getSelectedMenuString(this.handles.menu_clusterMethod);%this.clusterSettings.clusterMethod;
             userSettings.initCentroidWithPermutation = this.clusterSettings.initCentroidWithPermutation;
             userSettings.useDefaultRandomizer = this.clusterSettings.useDefaultRandomizer;
