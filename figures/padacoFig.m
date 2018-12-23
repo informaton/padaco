@@ -26,7 +26,7 @@ function varargout = padacoFig(varargin)
 
 % Edit the above text to modify the response to help padacoFig
 
-% Last Modified by GUIDE v2.5 22-Dec-2018 13:55:57
+% Last Modified by GUIDE v2.5 23-Dec-2018 11:28:56
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -142,7 +142,7 @@ end
 
 
 
-function menu_centroidStartTime_CreateFcn(hObject, eventdata, handles)
+function menu_clusterStartTime_CreateFcn(hObject, eventdata, handles)
 
 % Hint: popupmenu controls usually have a white background on Windows.
 %       See ISPC and COMPUTER.
@@ -152,7 +152,7 @@ end
 
 
 
-function menu_centroidStopTime_CreateFcn(hObject, eventdata, handles)
+function menu_clusterStopTime_CreateFcn(hObject, eventdata, handles)
 
 % Hint: popupmenu controls usually have a white background on Windows.
 %       See ISPC and COMPUTER.
