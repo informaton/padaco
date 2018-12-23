@@ -663,7 +663,7 @@ classdef  PASettings < handle
             for f = 1:numel(fieldNames)
                 switch fieldNames{f}
                     case 'EXPORT'
-                        obj.EXPORT = PACentroid.getExportDefaultParameters();                    
+                        obj.EXPORT = PACluster.getExportDefaultParameters();                    
                     case 'IMPORT'
                         obj.IMPORT = PADataImport.getDefaultParameters();
                     case 'StatTool'

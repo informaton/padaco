@@ -104,10 +104,8 @@ function handles = initializeGUI(hFigure)
         whiteHandles = [handles.panel_features_prefilter
             handles.panel_features_aggregate
             handles.panel_features_frame
-            handles.panel_features_signal
-            handles.panel_plotType
-            handles.panel_clusterPlotControls
-            handles.panel_clusterSettings
+            handles.panel_features_signal   
+            handles.panel_clusterPlotControls            
             handles.edit_minClusters
             handles.edit_clusterConvergenceThreshold];
         sethandles(whiteHandles,'backgroundcolor',[1 1 1]);
@@ -118,7 +116,10 @@ function handles = initializeGUI(hFigure)
         
         innerPanelHandles = [handles.panel_clusteringSettings
             handles.panel_timeFrame
+            handles.panel_source
             handles.panel_shapeAdjustments
+            handles.panel_clusterSettings
+            handles.panel_shapeSettings
             handles.panel_chunking];
         sethandles(innerPanelHandles,'backgroundcolor',[0.9 0.9 0.9]);
         

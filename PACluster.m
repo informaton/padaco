@@ -1,9 +1,9 @@
 % ======================================================================
-%> @file PACentroid.cpp
+%> @file PACluster.cpp
 %> @brief Class for clustering results data produced via padaco's batch
 %> processing.
 % ======================================================================
-classdef PACentroid < handle
+classdef PACluster < handle
     properties(Constant)
         WEEKDAY_ORDER = 0:6;  % for Sunday through Saturday
         WEEKDAY_LABELS = {'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'};            
@@ -14,7 +14,7 @@ classdef PACentroid < handle
     %> centroids are labeled arbitrarily according to the index or position
     %> in which they are discovered.  There 'popularity' is determined by the
     %> number of member shapes a centroid has compared to other centroids.  
-    %> Centroids are ordered according to popularity from least to greatest
+    %> Clusters are ordered according to popularity from least to greatest
     %> number of member shapes (most popular).  This is the sort order,
     %> where 1 is the least popular and N (for N centroids found) is the
     %> most popular.  A centroid of index or COI is any centroid that is of
@@ -60,7 +60,7 @@ classdef PACentroid < handle
         %> identified for analysis.  It is 
         %> initialized to the most frequent centroid upon successful
         %> class construction or subsequent, successful call of
-        %> calculateCentroids.  (i.e. A value of 1 refers to the centroid with fewest members,
+        %> calculateClusters.  (i.e. A value of 1 refers to the centroid with fewest members,
         %> while a value of C refers to the centroid with the most members (as seen in histogram)
         coiSortOrder;  
         
@@ -186,15 +186,15 @@ classdef PACentroid < handle
         %> corresponding to the load shape entry found at the same row index
         %> in the loadShapes matrix.  
         %> @param delayedStart Boolean.  If true, the centroids are not
-        %> automatically calculated, instead 'calculateCentroids()' needs to
+        %> automatically calculated, instead 'calculateClusters()' needs to
         %> be  called directly from the instantiated class.  The default is
         %> 'false': centroids are calculated in the constructor.
-        %> @retval Instance of PACentroid on success.  Empty matrix on
+        %> @retval Instance of PACluster on success.  Empty matrix on
         %> failure.
-        %> @note PACentroid can be used apart from Padaco.  For example
-        %> obj = PACentroid(loadShapes,settings,[],[],loadShapeIDs,loadShapeDayOfWeek)
+        %> @note PACluster can be used apart from Padaco.  For example
+        %> obj = PACluster(loadShapes,settings,[],[],loadShapeIDs,loadShapeDayOfWeek)
         % ======================================================================        
-        function this = PACentroid(loadShapes,settings,axesOrLineH,textHandle,loadShapeIDs,loadShapeDayOfWeek, delayedStart)    
+        function this = PACluster(loadShapes,settings,axesOrLineH,textHandle,loadShapeIDs,loadShapeDayOfWeek, delayedStart)    
             
             this.init();
             if(nargin<7)
@@ -268,7 +268,7 @@ classdef PACentroid < handle
             
             this.calculationState = 0; % we are ready.
             if(~delayedStart)
-                this.calculateCentroids();
+                this.calculateClusters();
             end
         end
         
@@ -292,7 +292,7 @@ classdef PACentroid < handle
                 [covHeader, covDataStr] = this.exportFrequencyCovariates();
                 [weekdayCovHeader, weekdayCovDataStr] = this.exportWeekDayCovariates(nonwearStruct);
                 
-                [shapesHeaderStr, shapesStr] = this.exportCentroidShapes();
+                [shapesHeaderStr, shapesStr] = this.exportClusterShapes();
                 timeStamp = datestr(now,'DDmmmYYYY');
                 shapeTimesInCSV = cell2str(this.loadShapeTimes,',');
                 
@@ -382,9 +382,9 @@ classdef PACentroid < handle
                 frequencyOf = 'id';
             end
             if(strcmpi(frequencyOf,'id'))                
-                headerStr = sprintf('# Centroid frequency (by index) for members listed in first column.  ''Centroid #'' refers to the centroid ID listed in the companion text file.  The values in these columns represent the number of times the subject ID was a member of that cluster index.\n# memberID');       
+                headerStr = sprintf('# Cluster frequency (by index) for members listed in first column.  ''Cluster #'' refers to the centroid ID listed in the companion text file.  The values in these columns represent the number of times the subject ID was a member of that cluster index.\n# memberID');       
             else
-               headerStr = sprintf('# Centroid frequency (by popularity) for members listed in first column.  ''Popularity #'' refers to the popularity of the centroid ID listed in the companion text file.  The values in these columns represent the number of times the subject ID was a member of the cluster with that popularity.\n');
+               headerStr = sprintf('# Cluster frequency (by popularity) for members listed in first column.  ''Popularity #'' refers to the popularity of the centroid ID listed in the companion text file.  The values in these columns represent the number of times the subject ID was a member of the cluster with that popularity.\n');
             end
             
             for c=1:numel(cs.(frequencyOf).colnames)
@@ -402,27 +402,27 @@ classdef PACentroid < handle
         
         %> @brief Returns text describing the centroids in a comma separated
         %> value (csv) format.
-        %> @param this Instance of PACentroid
+        %> @param this Instance of PACluster
         %> @retval headerStr Header line; helpful to place at the top of a
         %> file.  It does not contain description of time based values of
         %> the shape indices.  These can be added elsewhere.
         %> @retval centroidStr String containg N lines for N centroids.
         %> The nth line describes the nth centroid according to the descriptions given
         %> by the header string.
-        function [headerStr, centroidStr] = exportCentroidShapes(this)
+        function [headerStr, centroidStr] = exportClusterShapes(this)
             
-            if(this.getNumCentroids<=0)
+            if(this.getNumClusters<=0)
                 headerStr = '# No centroids found!';
                 centroidStr = '';
             else
                 % print header
-                headerStr = sprintf('# Centroid index, Popularity (1 = highest), membership count');
+                headerStr = sprintf('# Cluster index, Popularity (1 = highest), membership count');
                 for d=1:numel(this.WEEKDAY_ORDER)
                     headerStr = sprintf('%s, %s (%d)',headerStr,this.WEEKDAY_LABELS{d},this.WEEKDAY_ORDER(d));
                 end
                 centroidStr = '';
-                for sortOrder=1:this.getNumCentroids()
-                    coi = this.getCentroidOfInterest(sortOrder);
+                for sortOrder=1:this.getNumClusters()
+                    coi = this.getClusterOfInterest(sortOrder);
                     coiStr = sprintf('%i,%i, %i',coi.index,coi.sortOrder,coi.numMembers);
                     dayStr = sprintf(', %i',coi.dayOfWeek.count);
                     shapeStr = sprintf(', %f',coi.shape);
@@ -439,8 +439,8 @@ classdef PACentroid < handle
                     %value = this.getSilhouetteIndex();                                        
                     value = this.silhouetteIndex;                    
                 
-                case {'numcentroids','centroidcount'}
-                    value = this.getNumCentroids();
+                case {'numclusters','clustercount'}
+                    value = this.getNumClusters();
                 case {'numloadshapes','loadshapecount'}
                     value = this.getNumLoadShapes();
                 case {'calinskiindex','calinski','calinskiharabasz'}
@@ -457,7 +457,7 @@ classdef PACentroid < handle
             
         end
         function [silh, varargout] = getSilhouette(this)
-            if(this.numCentroids==0)
+            if(this.numClusters==0)
                 silh = NaN;
                 fprintf(1,'Warning no centroids exist.  Silhouette returning NaN\n');
             else                         
@@ -484,7 +484,7 @@ classdef PACentroid < handle
         
         % ======================================================================
         %> @brief Sets the calculationState property to the cancel state value (-2).
-        %> @param this Instance of PACentroid.
+        %> @param this Instance of PACluster.
         % ======================================================================
         function cancelCalculations(this, varargin)
             this.calculationState = -2;  %User cancelled
@@ -492,7 +492,7 @@ classdef PACentroid < handle
         
         % ======================================================================
         %> @brief Checks if we have a user cancel state
-        %> @param this Instance of PACentroid.
+        %> @param this Instance of PACluster.
         %> @retval userCancel Boolean: true if calculationState is equal to
         %> user cancel value (-2)
         % ======================================================================
@@ -503,7 +503,7 @@ classdef PACentroid < handle
         % ======================================================================
         %> @brief Determines if clustering failed or succeeded (i.e. do centroidShapes
         %> exist)
-        %> @param Instance of PACentroid        
+        %> @param Instance of PACluster        
         %> @retval failedState - boolean
         %> - @c true - The clustering failed
         %> - @c false - The clustering succeeded.
@@ -518,25 +518,25 @@ classdef PACentroid < handle
         
         % ======================================================================
         %> @brief Returns the number of centroids/clusters obtained.
-        %> @param Instance of PACentroid        
+        %> @param Instance of PACluster        
         %> @retval Number of centroids/clusters found.
         % ======================================================================
-        function n = numCentroids(this)
+        function n = numClusters(this)
             n = size(this.centroidShapes,1);
         end
         
         % ======================================================================
-        %> @brief Alias for numCentroids.
-        %> @param Instance of PACentroid        
+        %> @brief Alias for numClusters.
+        %> @param Instance of PACluster        
         %> @retval Number of centroids/clusters found.
         % ======================================================================
-        function n = getNumCentroids(this)
-            n = this.numCentroids();
+        function n = getNumClusters(this)
+            n = this.numClusters();
         end
         
         % ======================================================================
         %> @brief Returns the number of load shapes clustered.
-        %> @param Instance of PACentroid        
+        %> @param Instance of PACluster        
         %> @retval Number of load shapes clustered.
         % ======================================================================
         function n = numLoadShapes(this)
@@ -545,7 +545,7 @@ classdef PACentroid < handle
         
         % ======================================================================
         %> @brief Alias for numLoadShapes.
-        %> @param Instance of PACentroid        
+        %> @param Instance of PACluster        
         %> @retval Number of load shapes clustered.
         % ======================================================================
         function n = getNumLoadShapes(this)
@@ -554,9 +554,9 @@ classdef PACentroid < handle
         
         % ======================================================================
         %> @brief Initializes (sets to empty) member variables.  
-        %> @param Instance of PACentroid        
+        %> @param Instance of PACluster        
         %> @note Initialzed member variables include
-        %> - loadShape2CentroidShapeMap
+        %> - loadShape2ClusterShapeMap
         %> - centroidShapes
         %> - histogram
         %> - loadShapes
@@ -588,7 +588,7 @@ classdef PACentroid < handle
         %> and also sets the coiSortOrder value to the given index.  This
         %> performs similarly to setCOISortOrder, but here the
         %> coiToggleOrder is not reset (i.e. all toggles turned off).
-        %> @param this Instance of PACentroid
+        %> @param this Instance of PACluster
         %> @param sortOrder
         %> @retval didChange A boolean response
         %> - @b True if the coiToggleOrder(sortOrder) was set to true
@@ -596,7 +596,7 @@ classdef PACentroid < handle
         %> - @b False otherwise
         function didChange = toggleOnCOISortOrder(this, sortOrder)
             sortOrder = round(sortOrder);
-            if(sortOrder<=this.numCentroids() && sortOrder>0)
+            if(sortOrder<=this.numClusters() && sortOrder>0)
                 this.coiSortOrder = sortOrder;
                 this.coiToggleOrder(sortOrder) = true;
                 didChange = true;
@@ -615,9 +615,9 @@ classdef PACentroid < handle
         
         function didChange = setCOISortOrder(this, sortOrder)
             sortOrder = round(sortOrder);
-            if(sortOrder<=this.numCentroids() && sortOrder>0)
+            if(sortOrder<=this.numClusters() && sortOrder>0)
                 this.coiSortOrder = sortOrder;                
-                this.coiToggleOrder = false(1,this.getNumCentroids());
+                this.coiToggleOrder = false(1,this.getNumClusters());
                 %  this.coiToggleOrder = false(size(sortOrder));
                 this.coiToggleOrder(sortOrder) = true;
                 didChange = true;
@@ -638,7 +638,7 @@ classdef PACentroid < handle
         end  
         
         function toggleCOISortOrder(this, toggleSortIndex)
-            if(toggleSortIndex>0 && toggleSortIndex<=this.numCentroids())
+            if(toggleSortIndex>0 && toggleSortIndex<=this.numClusters())
                 this.coiToggleOrder(toggleSortIndex) = ~this.coiToggleOrder(toggleSortIndex);
                 if(this.coiToggleOrder(toggleSortIndex))
                     this.coiSortOrder = toggleSortIndex;
@@ -675,28 +675,28 @@ classdef PACentroid < handle
         %==================================================================
         %> @brief Returns all member shapes and associated day of week
         %> for the corresponding memberID
-        %> @param this Instance of PACentroid.
+        %> @param this Instance of PACluster.
         %> @param memberID The ID of the member shapes to retrieve.
         %> @retval NxM matrix of N member shapes of length M attributed to memberID
         %> @retval Nx1 vector containing day of week that the nth load shape occurred on.  
         %> @retval Nx1 vector containing centroid index corresponding to the nth loadshape.
         %> @retval NxM matrix of N centroids associated with the N member shapes attributed to memberID        
-        function [memberLoadShapes, memberLoadShapeDayOfWeek, memberCentroidInd, memberCentroidShapes] = getMemberShapesForID(this, memberID)
+        function [memberLoadShapes, memberLoadShapeDayOfWeek, memberClusterInd, memberClusterShapes] = getMemberShapesForID(this, memberID)
             matchInd = memberID==this.loadShapeIDs;
             memberLoadShapes = this.loadShapes(matchInd,:);
             memberLoadShapeDayOfWeek = this.loadShapeDayOfWeek(matchInd);
             
-            memberCentroidInd = this.loadshapeIndex2centroidIndexMap(matchInd);
+            memberClusterInd = this.loadshapeIndex2centroidIndexMap(matchInd);
             
             %> CxM array of C centroids of size M.
-            memberCentroidShapes = this.centroidShapes(memberCentroidInd,:);
+            memberClusterShapes = this.centroidShapes(memberClusterInd,:);
         end
         
         %==================================================================
         %> @brief Returns the index of centroid matching the current sort
         %> order value (i.e. of member variable @c coiSortOrder) or of the
         %> input sortOrder provided.
-        %> @param this Instance of PACentroid.
+        %> @param this Instance of PACluster.
         %> @param sortOrder (Optional) sort order for the centroid of interest to
         %> retrive the index of.  If not provided, the value of member variable @c coiSortOrder is used.
         %> @retval coiIndex The centroid index or tag. 
@@ -706,7 +706,7 @@ classdef PACentroid < handle
         %> and N (the number of centroids found) being the most popular.
         %==================================================================
         function coiIndex = getCOIIndex(this,sortOrder)
-            if(nargin<2 || isempty(sortOrder) || sortOrder<0 || sortOrder>this.numCentroids())
+            if(nargin<2 || isempty(sortOrder) || sortOrder<0 || sortOrder>this.numClusters())
                 sortOrder = this.coiSortOrder;
             end
             % convert to match the index the centroid load shape corresponds to.
@@ -715,7 +715,7 @@ classdef PACentroid < handle
         end
         
         function sortOrder = getCOISortOrder(this,coiIndex)
-            if(nargin<2 || isempty(coiIndex) || coiIndex<0 || coiIndex>this.numCentroids())
+            if(nargin<2 || isempty(coiIndex) || coiIndex<0 || coiIndex>this.numClusters())
                 sortOrder = this.coiSortOrder;
             else
                 sortOrder = this.coiIndex2SortOrder(coiIndex);
@@ -735,7 +735,7 @@ classdef PACentroid < handle
         % ======================================================================
         %> @brief Returns a descriptive struct for the centroid of interest (coi) 
         %> which is determined by the member variable coiSortOrder.
-        %> @param Instance of PACentroid
+        %> @param Instance of PACluster
         %> @param sortOrder Optional index to use to obtain a centroid of
         %> interest according to the given sort order ; default is to use the
         %> value of this.coiSortOrder.
@@ -757,12 +757,12 @@ classdef PACentroid < handle
         %> - @c memberShapes - NxM array of load shapes clustered to the coi.
         %> - @c numMembers - N, the number of load shapes clustered to the coi.
         % ======================================================================        
-        function coi = getCentroidOfInterest(this, sortOrder)
-            if(nargin<2 || isempty(sortOrder) || sortOrder<0 || sortOrder>this.numCentroids())
+        function coi = getClusterOfInterest(this, sortOrder)
+            if(nargin<2 || isempty(sortOrder) || sortOrder<0 || sortOrder>this.numClusters())
                 sortOrder = this.coiSortOrder;
             end
             
-            % order is sorted from 1: most popular to numCentroids: least popular
+            % order is sorted from 1: most popular to numClusters: least popular
             coi.sortOrder = sortOrder;
             
             % convert to match the index the centroid load shape corresponds to.
@@ -796,7 +796,7 @@ classdef PACentroid < handle
         %> @brief Returns the loadshape IDs.  These are the identifiers number of centroids that are currently of
         %> interest, based on the number of positive indices flagged in
         %> coiToggleOrder.
-        %> @param this Instance of PACentroid.
+        %> @param this Instance of PACluster.
         %> @retval loadShapeIDs Parent identifier for each load shape.
         %> Duplicate values in loadShapeIDs represent the same source (e.g. a
         %> specific person).
@@ -815,29 +815,29 @@ classdef PACentroid < handle
         %> @brief Returns the number of centroids that are currently of
         %> interest, based on the number of positive indices flagged in
         %> coiToggleOrder.
-        %> @param this Instance of PACentroid.
+        %> @param this Instance of PACluster.
         %> @retval numCOIs Number of centroids currently of interest: value
-        %> is in the range [1, this.numCentroids].
-        function numCOIs = getCentroidsOfInterestCount(this)
+        %> is in the range [1, this.numClusters].
+        function numCOIs = getClustersOfInterestCount(this)
             numCOIs = sum(this.coiToggleOrder);
         end
         
         %> @brief Returns the number of centroids that are currently of
         %> interest, based on the number of positive indices flagged in
         %> coiToggleOrder.
-        %> @param this Instance of PACentroid.
+        %> @param this Instance of PACluster.
         %> @retval cois Cell of centroid of interest structs.  See
-        %> getCentroidOfInterest for description of centroid of interest
+        %> getClusterOfInterest for description of centroid of interest
         %> struct.
-        function cois = getCentroidsOfInterest(this)
-            numCOIs = this.getCentroidsOfInterestCount();
+        function cois = getClustersOfInterest(this)
+            numCOIs = this.getClustersOfInterestCount();
             if(numCOIs<=1)
-                cois = {this.getCentroidOfInterest()};
+                cois = {this.getClusterOfInterest()};
             else
                 cois = cell(numCOIs,1);
                 coiSortOrders = find(this.coiToggleOrder);
                 for c=1:numel(coiSortOrders)
-                    cois{c} = this.getCentroidOfInterest(coiSortOrders(c));
+                    cois{c} = this.getClusterOfInterest(coiSortOrders(c));
                 end
             end
         end
@@ -849,12 +849,12 @@ classdef PACentroid < handle
         %> distribution, and sorted indices vector as member variables.
         %> See reset() method for a list of instance variables set (or reset on
         %> failure) from this method.
-        %> @param Instance of PACentroid
+        %> @param Instance of PACluster
         %> @param inputLoadShapes
         %> @param Structure of centroid configuration parameters.  These
         %> are passed to adaptiveKmeans method.        
         % ======================================================================
-        function calculateCentroids(this, inputLoadShapes, inputSettings)
+        function calculateClusters(this, inputLoadShapes, inputSettings)
             this.calculationState = 1;  % Calculating centroid
             if(nargin<3)
                 inputSettings = this.settings;
@@ -929,8 +929,8 @@ classdef PACentroid < handle
 
                 %                 [a,b]=sort([1,23,5,6],'ascend');
                 %                 [c,d] = sort(b,'ascend');  %for testings
-                if(~this.setCOISortOrder(1))  % Modified on 1/17/2017 from  ~this.setCOISortOrder(this.numCentroids()))
-                    fprintf(1,'Warning - could not set the centroid of interest sort order to %u\n',this.numCentroids);
+                if(~this.setCOISortOrder(1))  % Modified on 1/17/2017 from  ~this.setCOISortOrder(this.numClusters()))
+                    fprintf(1,'Warning - could not set the centroid of interest sort order to %u\n',this.numClusters);
                 end
                 
                 if(~this.getUserCancelled())
@@ -939,7 +939,7 @@ classdef PACentroid < handle
                 
                 idx = this.loadshapeIndex2centroidIndexMap;
                 if(strcmpi(this.performanceCriterion,'silhouette'))
-                    this.calinskiIndex = PACentroid.getCalinskiHarabaszIndex(idx,this.centroidShapes,this.sumD);
+                    this.calinskiIndex = PACluster.getCalinskiHarabaszIndex(idx,this.centroidShapes,this.sumD);
                     this.silhouetteIndex = this.performanceMeasure;            
                     fprintf('Calinski Index = %0.2f\n',this.calinskiIndex);
                 else
@@ -976,7 +976,7 @@ classdef PACentroid < handle
 
         %> @brief Calculates within-cluster sum of squares (WCSS); a metric of cluster tightness.  
         %> @note This measure is not helpful when clusters are not well separated (see @c getCalinskiHarabaszIndex).
-        %> @param Instance PACentroid
+        %> @param Instance PACluster
         %> @retval The within-cluster sum of squares (WCSS); a metric of cluster tightness
         function wcss = getWCSS(varargin)
             fprintf(1,'To be finished');
@@ -984,13 +984,13 @@ classdef PACentroid < handle
         end
         
         %> @brief Returns struct useful for logisitic or linear regression modeling.
-        %> @param Instance of PACentroid.
+        %> @param Instance of PACluster.
         %> @param Optional coi sort order index - index or indices to retrieve
         %> covariate structures of.
         %> @retval Struct with fields defining dependent variables to use in the
         %> model.  Fields include:
         %> - @c values NxM array of counts for M centroids (the covariate index) for N subject
-        %> keys.  Centroids are presented in order of popularity (i.e. sort
+        %> keys.  Clusters are presented in order of popularity (i.e. sort
         %> order).  Thus the first centroid is the most popular.
         %> - @c memberIDs Nx1 array of unique keys corresponding to each row.
         %> - @c colnames 1xM cell string of names describing the covariate columns.
@@ -998,7 +998,7 @@ classdef PACentroid < handle
             subjectIDs = this.getUniqueLoadShapeIDs(); %    unique(this.loadShapeIDs);
             numSubjects = numel(subjectIDs);
             
-            centroidPopularityCount = zeros(numSubjects,this.numCentroids);
+            centroidPopularityCount = zeros(numSubjects,this.numClusters);
             centroidIDCount = centroidPopularityCount;
             
             for row=1:numSubjects
@@ -1025,16 +1025,16 @@ classdef PACentroid < handle
             % okay because we have converted centroid indices to centroid
             % sort order indices in the above for loop.
             
-            idOrder = 1:this.numCentroids;
+            idOrder = 1:this.numClusters;
             sortOrder = this.coiIndex2SortOrder(idOrder);
-            idColnames = regexp(sprintf('Centroid #%u\n',idOrder),'\n','split');
+            idColnames = regexp(sprintf('Cluster #%u\n',idOrder),'\n','split');
             idColnames(end) = [];  %remove the last cell entry which will be empty.
             popularityColnames = regexp(sprintf('Popularity #%u\n',sortOrder),'\n','split');
             popularityColnames(end) = [];  %remove the last cell entry which will be empty.
             
 
             if(nargin>1 && ~isempty(optionalCOISortOder))
-                throw(MException('PA:Centroid:Covariates','Unhandled case with optional sort order.  Needs to be updated in code base'));
+                throw(MException('PA:Cluster:Covariates','Unhandled case with optional sort order.  Needs to be updated in code base'));
                 optionalIndexOrder = this.coiSortOrder2Index(optionalCOISortOrder);
                 centroidPopularityCount = centroidPopularityCount(:,optionalCOISortOder);
                 colnames = colnames(optionalCOISortOder);
@@ -1049,7 +1049,7 @@ classdef PACentroid < handle
         end
         
         %> @brief Returns Nx3 matrix useful for logisitic or linear regression modeling.
-        %> @param Instance of PACentroid.
+        %> @param Instance of PACluster.
         %> @retval cMat Covariate matrix with following column values
         %> - cMat(:,1) load shape parent ids
         %> - cMat(:,2) load shape day of week (0= sunday, 1 = monday, ... 6 = saturday)
@@ -1170,7 +1170,7 @@ classdef PACentroid < handle
                     if(firstLoop)
                         % prime the kmedoids algorithms starting centroids
                         % - Turn this off for reproducibility
-                        if(settings.initCentroidWithPermutation)
+                        if(settings.initClusterWithPermutation)
                             centroids = loadShapes(pa_randperm(N,K),:);
                             [idx, centroids, sumD, pointToClusterDistances] = kmedoids(loadShapes,K,'Start',centroids,'distance',this.distanceMetric);
                         else
@@ -1186,11 +1186,11 @@ classdef PACentroid < handle
                             performanceIndex  = mean(silhouette(loadShapes,idx,this.distanceMetric));
 
                         else
-                            performanceIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);
+                            performanceIndex  = PACluster.getCalinskiHarabaszIndex(idx,centroids,sumD);
                         end
                         X(end+1)= K;
                         Y(end+1)=performanceIndex;
-                        PACentroid.plot(performanceAxesH,X,Y);
+                        PACluster.plot(performanceAxesH,X,Y);
                         
                         %statusStr = sprintf('Calisnki index = %0.2f for K = %u clusters',performanceIndex,K);
                         statusStr = sprintf('%s index = %0.2f for K = %u clusters',this.performanceCriterion,performanceIndex,K);
@@ -1231,11 +1231,11 @@ classdef PACentroid < handle
                                 performanceIndex  = mean(silhouette(loadShapes,idx,this.distanceMetric));
                                 
                             else
-                                performanceIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);
+                                performanceIndex  = PACluster.getCalinskiHarabaszIndex(idx,centroids,sumD);
                             end
                             X(end+1)= K;
                             Y(end+1)=performanceIndex;
-                            PACentroid.plot(performanceAxesH,X,Y);
+                            PACluster.plot(performanceAxesH,X,Y);
                             
                             statusStr = sprintf('%s index = %0.2f for K = %u clusters',this.performanceCriterion,performanceIndex,K);
                             
@@ -1256,11 +1256,11 @@ classdef PACentroid < handle
                     toc
                     
                     point2centroidDistanceIndices = sub2ind(size(pointToClusterDistances),(1:N)',idx);
-                    distanceToCentroids = pointToClusterDistances(point2centroidDistanceIndices);
-                    sqEuclideanCentroids = (sum(centroids.^2,2));
+                    distanceToClusters = pointToClusterDistances(point2centroidDistanceIndices);
+                    sqEuclideanClusters = (sum(centroids.^2,2));
                     
-                    clusterThresholds = settings.clusterThreshold*sqEuclideanCentroids;
-                    notCloseEnoughPoints = distanceToCentroids>clusterThresholds(idx);
+                    clusterThresholds = settings.clusterThreshold*sqEuclideanClusters;
+                    notCloseEnoughPoints = distanceToClusters>clusterThresholds(idx);
                     notCloseEnoughClusters = unique(idx(notCloseEnoughPoints));
                     
                     numNotCloseEnough = numel(notCloseEnoughClusters);
@@ -1272,12 +1272,12 @@ classdef PACentroid < handle
                             numClusteredLoadShapes = size(clusteredLoadShapes,1);
                             if(numClusteredLoadShapes>1)
                                 try
-                                    [~,splitCentroids] = kmedoids(clusteredLoadShapes,2,'distance',this.distanceMetric);
+                                    [~,splitClusters] = kmedoids(clusteredLoadShapes,2,'distance',this.distanceMetric);
                                     
                                 catch me
                                     showME(me);
                                 end
-                                centroids = [centroids;splitCentroids];
+                                centroids = [centroids;splitClusters];
                             else
                                 if(numClusteredLoadShapes~=1)
                                     echo(numClusteredLoadShapes); %houston, we have a problem.
@@ -1320,11 +1320,11 @@ classdef PACentroid < handle
                             performanceIndex  = mean(silhouette(loadShapes,idx));
 
                         else
-                            performanceIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);                            
+                            performanceIndex  = PACluster.getCalinskiHarabaszIndex(idx,centroids,sumD);                            
                         end
                         X(end+1)= K;
                         Y(end+1)=performanceIndex;
-                        PACentroid.plot(performanceAxesH,X,Y);
+                        PACluster.plot(performanceAxesH,X,Y);
                         
                         statusStr = sprintf('%s index = %0.2f for K = %u clusters',this.performanceCriterion,performanceIndex,K);
                         
@@ -1488,7 +1488,7 @@ classdef PACentroid < handle
                         % prime the kmeans algorithms starting centroids
                         % Can be a problem when we are going to start with repeat
                         % clusters.
-                        if(settings.initCentroidWithPermutation)
+                        if(settings.initClusterWithPermutation)
                             centroids = loadShapes(pa_randperm(N,K),:);
                             [idx, centroids, sumD, pointToClusterDistances] = kmeans(loadShapes,K,'Start',centroids,'EmptyAction','drop','distance',this.distanceMetric);
                         else
@@ -1504,11 +1504,11 @@ classdef PACentroid < handle
                             performanceIndex  = mean(silhouette(loadShapes,idx));
 
                         else
-                            performanceIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);                            
+                            performanceIndex  = PACluster.getCalinskiHarabaszIndex(idx,centroids,sumD);                            
                         end
                         X(end+1)= K;
                         Y(end+1)=performanceIndex;
-                        PACentroid.plot(performanceAxesH,X,Y);
+                        PACluster.plot(performanceAxesH,X,Y);
                         
                         statusStr = sprintf('%s index = %0.2f for K = %u clusters',this.performanceCriterion,performanceIndex,K);
                         
@@ -1546,11 +1546,11 @@ classdef PACentroid < handle
                                 performanceIndex  = mean(silhouette(loadShapes,idx));
                                 
                             else
-                                performanceIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);
+                                performanceIndex  = PACluster.getCalinskiHarabaszIndex(idx,centroids,sumD);
                             end
                             X(end+1)= K;
                             Y(end+1)=performanceIndex;
-                            PACentroid.plot(performanceAxesH,X,Y);
+                            PACluster.plot(performanceAxesH,X,Y);
                             
                             statusStr = sprintf('%s index = %0.2f for K = %u clusters',this.performanceCriterion,performanceIndex,K);
                             
@@ -1571,11 +1571,11 @@ classdef PACentroid < handle
                     toc
                     
                     point2centroidDistanceIndices = sub2ind(size(pointToClusterDistances),(1:N)',idx);
-                    distanceToCentroids = pointToClusterDistances(point2centroidDistanceIndices);
-                    sqEuclideanCentroids = (sum(centroids.^2,2));
+                    distanceToClusters = pointToClusterDistances(point2centroidDistanceIndices);
+                    sqEuclideanClusters = (sum(centroids.^2,2));
                     
-                    clusterThresholds = settings.clusterThreshold*sqEuclideanCentroids;
-                    notCloseEnoughPoints = distanceToCentroids>clusterThresholds(idx);
+                    clusterThresholds = settings.clusterThreshold*sqEuclideanClusters;
+                    notCloseEnoughPoints = distanceToClusters>clusterThresholds(idx);
                     notCloseEnoughClusters = unique(idx(notCloseEnoughPoints));
                     
                     numNotCloseEnough = numel(notCloseEnoughClusters);
@@ -1587,12 +1587,12 @@ classdef PACentroid < handle
                             numClusteredLoadShapes = size(clusteredLoadShapes,1);
                             if(numClusteredLoadShapes>1)
                                 try
-                                    [~,splitCentroids] = kmeans(clusteredLoadShapes,2,'EmptyAction','drop','distance',this.distanceMetric);
+                                    [~,splitClusters] = kmeans(clusteredLoadShapes,2,'EmptyAction','drop','distance',this.distanceMetric);
                                     
                                 catch me
                                     showME(me);
                                 end
-                                centroids = [centroids;splitCentroids];
+                                centroids = [centroids;splitClusters];
                             else
                                 if(numClusteredLoadShapes~=1)
                                     echo(numClusteredLoadShapes); %houston, we have a problem.
@@ -1640,11 +1640,11 @@ classdef PACentroid < handle
                         if(strcmpi(this.performanceCriterion,'silhouette'))
                             performanceIndex  = mean(silhouette(loadShapes,idx));
                         else
-                            performanceIndex  = PACentroid.getCalinskiHarabaszIndex(idx,centroids,sumD);                            
+                            performanceIndex  = PACluster.getCalinskiHarabaszIndex(idx,centroids,sumD);                            
                         end
                         X(end+1)= K;
                         Y(end+1)=performanceIndex;
-                        PACentroid.plot(performanceAxesH,X,Y);
+                        PACluster.plot(performanceAxesH,X,Y);
                         
                         statusStr = sprintf('%s index = %0.2f for K = %u clusters',this.performanceCriterion,performanceIndex,K);
                         
@@ -1695,7 +1695,7 @@ classdef PACentroid < handle
         % ======================================================================
         %> @brief Calculates the distribution of load shapes according to
         %> centroid, in ascending order.
-        % @param Instance of PACentroid
+        % @param Instance of PACluster
         %> @param loadShapeMap Nx1 vector of centroid indices.  Each
         %> element's position represents the loadShape.  
         %> @note This is the @c @b idx parameter returned from kmeans
@@ -1709,7 +1709,7 @@ classdef PACentroid < handle
         %> @note originalIndices = 1:C.  sortedIndices == originalIndices(sortedIndices)        
         % ======================================================================
         function [sortedCounts, sortedIndices] = calculateAndSortDistribution(loadShapeMap)
-            centroidCounts = histc(loadShapeMap,1:max(loadShapeMap));
+            clusterCounts = histc(loadShapeMap,1:max(loadShapeMap));
             
             % Consider four centroids with following counts
             % Index, Count
@@ -1718,7 +1718,7 @@ classdef PACentroid < handle
             % 3, 50
             % 4, 354
             
-            [sortedCounts,sortedIndices] = sort(centroidCounts,'descend');
+            [sortedCounts,sortedIndices] = sort(clusterCounts,'descend');
             % Index, Sorted Count, Sorted indices
             % 1, 404, 1
             % 2, 354, 4
@@ -1729,12 +1729,12 @@ classdef PACentroid < handle
             % To make index 1 be the most popular, we sort in descending
             % order (high to low)
             
-            % sortedIndexToCentroidIndex = sortedIndices;
+            % sortedIndexToClusterIndex = sortedIndices;
             %   index of most popular centroid is
-            %               sortedIndexToCentroidIndex(end)
+            %               sortedIndexToClusterIndex(end)
             % index of least popular centroid is
-            %               sortedIndexToCentroidIndex(1)
-            % sortedCounts == centroidCounts(sortedIndices)
+            %               sortedIndexToClusterIndex(1)
+            % sortedCounts == clusterCounts(sortedIndices)
             %             this.histogram = sortedCounts;
             %             this.centroidSortMap = sortedIndices;
         end
@@ -1742,14 +1742,14 @@ classdef PACentroid < handle
     
     methods(Static)
         
-        %> @brief Retrieve a struct of default settings for the PACentroid
+        %> @brief Retrieve a struct of default settings for the PACluster
         %> class.
         %> @retval Struct with field value pairs as follows:
         %> - @c minClusters = 10
         %> - @c clusterThreshold = 0.2 
         %> - @c clusterMethod = 'kmeans'   {'kmeans','kmedoids'}
         %> - @c useDefaultRandomizer = false;
-        %> - @c initCentroidWithPermutation = false;            
+        %> - @c initClusterWithPermutation = false;            
         %> @note Higher thresholds result in fewer clusters (and vice versa).
         function settings = getDefaultParameters()
             settings.minClusters = 10;
@@ -1757,7 +1757,7 @@ classdef PACentroid < handle
 
             settings.clusterMethod = 'kmeans';
             settings.useDefaultRandomizer = false;
-            settings.initCentroidWithPermutation = false;            
+            settings.initClusterWithPermutation = false;            
         end
         
         function methods = getClusterMethods()
@@ -1774,24 +1774,24 @@ classdef PACentroid < handle
         %> @note See also http://www.mathworks.com/help/stats/clustering.evaluation.calinskiharabaszevaluation-class.html 
         %> @param Vector of output from mapping loadShapes to parent
         %> centroids.
-        %> @param Centroids calculated via kmeans
+        %> @param Clusters calculated via kmeans
         %> @param sum of euclidean distances
         %> @retval The Calinzki-Harabasz index
         function calinskiIndex = getCalinskiHarabaszIndex(loadShapeMap,centroids,sumD)
-            [sortedCounts, sortedIndices] = PACentroid.calculateAndSortDistribution(loadShapeMap);
-            sortedCentroids = centroids(sortedIndices,:);
+            [sortedCounts, sortedIndices] = PACluster.calculateAndSortDistribution(loadShapeMap);
+            sortedClusters = centroids(sortedIndices,:);
             numObservations = numel(loadShapeMap);
-            numCentroids = size(centroids,1);
-            globalMeans = mean(sortedCentroids,1);
+            numClusters = size(centroids,1);
+            globalMeans = mean(sortedClusters,1);
             
             ssWithin = sum(sumD,1);
-            ssBetween = (pdist2(sortedCentroids,globalMeans)).^2;
+            ssBetween = (pdist2(sortedClusters,globalMeans)).^2;
             ssBetween = sortedCounts(:)'*ssBetween(:);  %inner product
-            calinskiIndex = ssBetween/ssWithin*(numObservations-numCentroids)/(numCentroids-1);
+            calinskiIndex = ssBetween/ssWithin*(numObservations-numClusters)/(numClusters-1);
         end
         
         function h=plot(performanceAxesH,X,Y)
-            plotOptions = PACentroid.getPlotOptions();
+            plotOptions = PACluster.getPlotOptions();
             h=plot(performanceAxesH,X,Y,plotOptions{:});
             xlabel(performanceAxesH,'K');
             ylabel(performanceAxesH,'Performance Index');
