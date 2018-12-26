@@ -1594,7 +1594,7 @@ classdef PAController < PABase
             else
                 set(curHandles.menu_file_export_dataObj,'enable','on');
             end
-            if(isempty(this.StatTool) || ~this.StatTool.hasCentroid())
+            if(isempty(this.StatTool) || ~this.StatTool.hasCluster())
                 set([curHandles.menu_file_export_centroidObj;
                      curHandles.menu_file_export_centroids_to_disk],'enable','off');
             else
@@ -1637,13 +1637,13 @@ classdef PAController < PABase
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
         function menu_file_export_centroidObj_callback(obj,varargin)
-            centroidObj = obj.StatTool.getCentroidObj();
+            centroidObj = obj.StatTool.getClusterObj();
             varName = 'centroidObj';
             makeModal = true;
             titleStr = 'Data Export';
             try
                 assignin('base',varName,centroidObj);
-                pa_msgbox(sprintf('Centroid object was assigned to workspace variable %s',varName),titleStr,obj.iconFilename,makeModal);                
+                pa_msgbox(sprintf('Cluster object was assigned to workspace variable %s',varName),titleStr,obj.iconFilename,makeModal);                
             catch me
                 showME(me);
                 pa_msgbox('An error occurred while trying to export the centroid object to a workspace variable.  See console for details.','Warning',obj.iconFilename,makeModal);
@@ -1660,7 +1660,7 @@ classdef PAController < PABase
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
         function menu_file_export_centroids_to_disk_callback(obj,varargin)
-            obj.StatTool.exportCentroidToDisk();
+            obj.StatTool.exportClusterToDisk();
         end
         
         function viewMode = getViewMode(obj)

@@ -1182,22 +1182,25 @@ classdef PAStatTool < PABase
         %> @param Handle of the dropdown menu.
         %> @param unused
         % ======================================================================
-        function plotSelectionChange(this, menuHandle, ~)
-            this.clearPlots();
+        function plotSelectionChange(this, menuHandle, evtData)
+           
             plotType = this.getPlotType();  %this.base.plotTypes{get(menuHandle,'value')};
-            set(menuHandle,'tooltipstring',this.base.tooltipstring.(plotType));
-            
-            switch(plotType)
-                case 'clusters'
-                    this.switch2clustering();
-                otherwise
-                    if(strcmpi(this.previousState.plotType,'clusters'))
-                        this.switchFromClustering();
-                    else
-                        this.refreshPlot();
-                    end
+            if(~isequal(plotType, this.previousState.plotType))
+                this.clearPlots();
+                set(menuHandle,'tooltipstring',this.base.tooltipstring.(plotType));
+                
+                switch(plotType)
+                    case 'clustering'
+                        this.switch2clustering();
+                    otherwise
+                        if(strcmpi(this.previousState.plotType,'clustering'))
+                            this.switchFromClustering();
+                        else
+                            this.refreshPlot();
+                        end
+                end
+                this.previousState.plotType = plotType;
             end
-            this.previousState.plotType = plotType;
         end
         
 
@@ -1378,7 +1381,7 @@ classdef PAStatTool < PABase
             this.base.weekdayValues{customIndex} = widgetSettings.customDaysOfWeek;
             
             featuresPathname = this.featuresDirectory;
-            this.hideClusterControls();
+            % this.hideClusterControls();
 
             this.canPlot = false;    %changes to true if we find data that can be processed in featuresPathname
             set([
@@ -1657,9 +1660,10 @@ classdef PAStatTool < PABase
         % ======================================================================
         function switchFromClustering(this)
             % set(this.handles.check_normalizevalues,'value',this.previousState.normalizeValues,'enable','on');
+            disableHandles(this.handles.panel_clusterSettings);
             this.hideClusterControls();
             
-            disableHandles(this.handles.panel_clusterSettings);
+            
             set(this.handles.axes_secondary,'visible','off');
             set(this.figureH,'WindowKeyPressFcn',[]);
             set(this.analysisFigureH,'visible','off');
@@ -2293,7 +2297,9 @@ classdef PAStatTool < PABase
                 'edit_clusterConvergenceThreshold'
                 'edit_minClusters'
                 'push_refreshClusters'
-                'panel_clusterSettings'
+                'panel_shapeSettings'
+                'panel_clusterSettings'                
+                'panel_resultsContainer'
                 'panel_results'
                 'panel_clusterPlotControls'
                 'push_nextCluster'
@@ -3011,6 +3017,19 @@ classdef PAStatTool < PABase
             set([this.handles.panel_clusterPlotControls
                 this.handles.panel_clusterSettings],'visible','off'); 
             
+            clusterPos = get(this.handles.panel_clusterSettings,'position');
+            hDelta = sum(clusterPos([2,4]));
+            
+            shapePos = get(this.handles.panel_shapeSettings,'position');
+            shapePos(2) = shapePos(2)-hDelta;
+            set(this.handles.panel_shapeSettings,'position',shapePos);
+            
+            containerPos = get(this.handles.panel_resultsContainer,'position');            
+            containerPos(2) = containerPos(2)+hDelta;
+            containerPos(4) = containerPos(4)-hDelta;
+            set(this.handles.panel_resultsContainer,'position',containerPos);
+            
+            
             % remove anycontext menu on the primary axes
             set(this.handles.axes_primary,'uicontextmenu',[]);
         end
@@ -3022,6 +3041,20 @@ classdef PAStatTool < PABase
         function showClusterControls(this)
             set([this.handles.panel_clusterPlotControls
                 this.handles.panel_clusterSettings],'visible','on');
+            
+            
+            clusterPos = get(this.handles.panel_clusterSettings,'position');
+            hDelta = sum(clusterPos([2,4]));
+            
+            shapePos = get(this.handles.panel_shapeSettings,'position');
+            shapePos(2) = shapePos(2)+hDelta;
+            set(this.handles.panel_shapeSettings,'position',shapePos);
+            
+            containerPos = get(this.handles.panel_resultsContainer,'position');            
+            containerPos(2) = containerPos(2)-hDelta;
+            containerPos(4) = containerPos(4)+hDelta;
+            set(this.handles.panel_resultsContainer,'position',containerPos);
+            
         end
         
         %> @brief Enables panel_clusterSettings controls.
