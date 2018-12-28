@@ -1,12 +1,12 @@
 % ======================================================================
-%> @file PADataImport.cpp
-%> @brief Class for updating display properties of data found in a PAData
+%> @file PASensorDataImport.cpp
+%> @brief Class for updating display properties of data found in a PASensorData
 %> object.
 % ======================================================================
-%> @brief The PADataImport class handles the interface between the
-%> line handles connected with PAData signals.
+%> @brief The PASensorDataImport class handles the interface between the
+%> line handles connected with PASensorData signals.
 % ======================================================================
-classdef PADataImport < handle
+classdef PASensorDataImport < handle
     properties(Constant)
         FIG_FUNCTION = @importDlg;
         FIG_WIDTH_PIXELS = 380;
@@ -39,7 +39,7 @@ classdef PADataImport < handle
     end
     
     methods
-        function this = PADataImport(importSettings)
+        function this = PASensorDataImport(importSettings)
             this.figureH = this.FIG_FUNCTION('visible','off');            
             this.handles = guidata(this.figureH);
             
@@ -357,7 +357,7 @@ classdef PADataImport < handle
     methods(Static)
         % ======================================================================
         %> @brief Gets parameters for default initialization of a
-        %> PADataImport instance.
+        %> PASensorDataImport instance.
         %> @retval Struct of default paramters.  Fields include
         %> - @c trimResults
         % ======================================================================

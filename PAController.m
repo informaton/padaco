@@ -41,7 +41,7 @@ classdef PAController < PABase
         
     end
     properties(SetAccess=protected)
-        %> acceleration activity object - instance of PAData
+        %> acceleration activity object - instance of PASensorData
         accelObj;
         
         %> Instance of PAStatTool - results controller when in results view
@@ -423,17 +423,20 @@ classdef PAController < PABase
             % export
             set(viewHandles.menu_file_export,'callback',@obj.menu_file_exportMenu_callback);
             if(~isdeployed)
-                set(viewHandles.menu_file_export_dataObj,'callback',@obj.menu_file_export_dataObj_callback);
-                set(viewHandles.menu_file_export_clusterObj,'callback',@obj.menu_file_export_clusterObj_callback);
+                set(viewHandles.menu_file_export_accelObj,'callback',@obj.menu_file_export_accelObj_callback,...
+                    'label','Sensor object to MATLAB');
+                set(viewHandles.menu_file_export_clusterObj,'callback',@obj.menu_file_export_clusterObj_callback,...
+                    'label','Cluster object to MATLAB');
             % No point in sending data to the workspace on deployed
             % version.  There is no 'workspace'.
             else
-                set(viewHandles.menu_file_export_dataObj,'visible','off');
+                set(viewHandles.menu_file_export_accelObj,'visible','off');
                 set(viewHandles.menu_file_export_clusterObj,'visible','off');
             end
-            set(viewHandles.menu_file_export_clusters_to_disk,'callback',@obj.menu_file_export_clusters_to_disk_callback);
-            set(viewHandles.menu_export_timeseries_to_disk,'callback',@obj.exportTimeSeriesCb);
-            
+            set(viewHandles.menu_file_export_clusters_to_disk,'callback',@obj.menu_file_export_clusters_to_disk_callback,...
+                'label','Cluster results to disk');
+            set(viewHandles.menu_export_timeseries_to_disk,'callback',@obj.exportTimeSeriesCb,...
+                'label','Wear/nonwear to disk');
             
             
             %% View Modes
@@ -579,7 +582,7 @@ classdef PAController < PABase
             else
                 usageRules = obj.settingsObj.DATA.usageStateRules;
             end
-            defaultRules = PAData.getDefaultParameters();
+            defaultRules = PASensorData.getDefaultParameters();
             defaultRules = defaultRules.usageStateRules;
             updatedRules = simpleEdit(usageRules,defaultRules);
             
@@ -610,17 +613,17 @@ classdef PAController < PABase
         
         function initTimeSeriesWidgets(obj)
             
-            prefilterSelection = PAData.getPrefilterMethods();
+            prefilterSelection = PASensorData.getPrefilterMethods();
             set(obj.VIEW.menuhandle.prefilterMethod,'string',prefilterSelection,'value',1);
             
             % feature extractor
-            extractorStruct = rmfield(PAData.getFeatureDescriptionStruct(),'usagestate');
+            extractorStruct = rmfield(PASensorData.getFeatureDescriptionStruct(),'usagestate');
             
             % Don't include the following because these are more
             % complicated ... and require fieldnames to correspond to
             % function names.
             
-            %             psd_bandNames = PAData.getPSDBandNames();
+            %             psd_bandNames = PASensorData.getPSDBandNames();
             %             fieldsToRemove = ['usagestate';psd_bandNames];
             %             for f=1:numel(fieldsToRemove)
             %                 fieldToRemove = fieldsToRemove{f};
@@ -719,7 +722,7 @@ classdef PAController < PABase
         % --------------------------------------------------------------------
         function displayChangeCallback(obj,~,eventData)
             displayType = get(eventData.NewValue,'string');
-            obj.setDisplayType(PAData.getStructNameFromDescription(displayType));
+            obj.setDisplayType(PASensorData.getStructNameFromDescription(displayType));
             obj.VIEW.draw();
         end
         
@@ -1072,7 +1075,7 @@ classdef PAController < PABase
         end
         
         % --------------------------------------------------------------------
-        %> @brief Initializes the signal selection drop down menu using PAData's
+        %> @brief Initializes the signal selection drop down menu using PASensorData's
         %> default taglines and associated labels.
         %> signalSelection dropdown menu.
         %> @param obj Instance of PAController
@@ -1081,7 +1084,7 @@ classdef PAController < PABase
         %> userdata{1} = 'accelRaw.x'
         % --------------------------------------------------------------------
         function initSignalSelectionMenu(obj)
-            [tagLines,labels] = PAData.getDefaultTagLineLabels();
+            [tagLines,labels] = PASensorData.getDefaultTagLineLabels();
             offAccelType = obj.accelObj.getOffAccelType();
             if(~isempty(offAccelType))
                 cellIndices = strfind(tagLines,offAccelType);
@@ -1226,7 +1229,7 @@ classdef PAController < PABase
         
         % --------------------------------------------------------------------
         %> @brief Set the current window for the instance variable accelObj
-        %> (PAData)
+        %> (PASensorData)
         %> @param obj Instance of PAController
         %> @param new_window Value of the new window to set.
         %> @retval success True if the window is set successfully, and false otherwise.
@@ -1249,7 +1252,7 @@ classdef PAController < PABase
         
         % --------------------------------------------------------------------
         %> @brief Returns the current window of the instance variable accelObj
-        %> (PAData)
+        %> (PASensorData)
         %> @param obj Instance of PAController
         %> @retval window The  current window, or null if it has not been initialized.
         function window = getCurWindow(obj)
@@ -1287,14 +1290,14 @@ classdef PAController < PABase
                     obj.settingsObj.DATA.pathname = pathname;
                     obj.settingsObj.DATA.filename = strcat(basename,baseext);
                     
-                    obj.accelObj = PAData(f,obj.settingsObj.DATA);
+                    obj.accelObj = PASensorData(f,obj.settingsObj.DATA);
                     
                     obj.accelObj.addlistener('LinePropertyChanged',@obj.linePropertyChangeCallback);
                     
                     if(~strcmpi(obj.getViewMode(),'timeseries'))
                         obj.setViewMode('timeseries');  % Call initAccelDataView as well 
                     else
-                        %initialize the PAData object's visual properties
+                        %initialize the PASensorData object's visual properties
                         obj.initAccelDataView(); %calls show obj.VIEW.showReady() Ready...
                         
                     end
@@ -1316,7 +1319,7 @@ classdef PAController < PABase
         %> @brief Menubar callback for opening a text file
         %> @param obj Instance of PAController
         function menuFileOpenGeneralCallback(obj, ~, ~)
-            importObj = PADataImport(obj.settingsObj.IMPORT);
+            importObj = PASensorDataImport(obj.settingsObj.IMPORT);
             if(~importObj.cancelled)
                 obj.settingsObj.IMPORT = importObj.getSettings();
             end
@@ -1335,7 +1338,7 @@ classdef PAController < PABase
                     obj.settingsObj.DATA.pathname = pathname;
                     obj.settingsObj.DATA.filename = strcat(basename,baseext);
                     
-                    obj.accelObj = PAData([],obj.settingsObj.DATA);
+                    obj.accelObj = PASensorData([],obj.settingsObj.DATA);
                     fmtStruct.datetime = 1;
                     fmtStruct.datetimeType = 'elapsed'; %datetime
                     fmtStruct.datetimeFmtStr = '%f';
@@ -1353,7 +1356,7 @@ classdef PAController < PABase
                         obj.setViewMode('timeseries');
                     end
                     
-                    %initialize the PAData object's visual properties
+                    %initialize the PASensorData object's visual properties
                     obj.initAccelDataView(); %calls show obj.VIEW.showReady() Ready...
                     
                     % For testing/debugging
@@ -1394,7 +1397,7 @@ classdef PAController < PABase
                     obj.settingsObj.DATA.pathname = pathname;
                     obj.settingsObj.DATA.filename = strcat(basename,baseext);
                     
-                    obj.accelObj = PAData([],obj.settingsObj.DATA);
+                    obj.accelObj = PASensorData([],obj.settingsObj.DATA);
                     fmtStruct.datetime = 1;
                     fmtStruct.datetimeType = 'elapsed'; %datetime
                     fmtStruct.datetimeFmtStr = '%f';
@@ -1412,7 +1415,7 @@ classdef PAController < PABase
                         obj.setViewMode('timeseries');
                     end
                     
-                    %initialize the PAData object's visual properties
+                    %initialize the PASensorData object's visual properties
                     obj.initAccelDataView(); %calls show obj.VIEW.showReady() Ready...
                     
                     % For testing/debugging
@@ -1454,14 +1457,14 @@ classdef PAController < PABase
                     obj.settingsObj.DATA.pathname = pathname;
                     obj.settingsObj.DATA.filename = strcat(basename,baseext);
                     
-                    obj.accelObj = PAData(f,obj.settingsObj.DATA);
+                    obj.accelObj = PASensorData(f,obj.settingsObj.DATA);
                     
                     
                     if(~strcmpi(obj.getViewMode(),'timeseries'))
                         obj.setViewMode('timeseries');
                     end
                     
-                    %initialize the PAData object's visual properties
+                    %initialize the PASensorData object's visual properties
                     obj.initAccelDataView(); %calls show obj.VIEW.showReady() Ready...
                     
                     % For testing/debugging
@@ -1594,9 +1597,10 @@ classdef PAController < PABase
         % --------------------------------------------------------------------
         function menu_file_exportMenu_callback(this,hObject, ~)
             curHandles = guidata(hObject); %this.VIEW.getFigHandle());
-            timeSeriesH = [curHandles.menu_file_export_dataObj];
+            timeSeriesH = [curHandles.menu_file_export_accelObj
+                curHandles.menu_export_timeseries_to_disk];
             resultsH = [curHandles.menu_file_export_clusterObj;
-                            curHandles.menu_file_export_clusters_to_disk];
+                curHandles.menu_file_export_clusters_to_disk];
                     
             set([timeSeriesH(:);resultsH(:)],'enable','off');
             switch lower(this.getViewMode())
@@ -1605,8 +1609,7 @@ classdef PAController < PABase
                         set(timeSeriesH,'enable','off');
                     else
                         set(timeSeriesH,'enable','on');
-                    end
-                    
+                    end                    
                 case 'results'
                     if(isempty(this.StatTool) || ~this.StatTool.hasCluster())
                         set(resultsH,'enable','off');
@@ -1615,8 +1618,6 @@ classdef PAController < PABase
                     end                       
                 otherwise
             end
-                    
-            
         end
         
         % --------------------------------------------------------------------
@@ -1628,13 +1629,13 @@ classdef PAController < PABase
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
-        function menu_file_export_dataObj_callback(obj,varargin)
-            dataObj = obj.accelObj;
-            varName = 'dataObject';
+        function menu_file_export_accelObj_callback(obj,varargin)
+            accelObj = obj.accelObj;
+            varName = 'accelObject';
             makeModal = true;
             titleStr = 'Data Export';
             try
-                assignin('base',varName,dataObj);                
+                assignin('base',varName,accelObj);                
                 pa_msgbox(sprintf('Data object was assigned to workspace variable %s',varName),titleStr,obj.iconFilename,makeModal);
                 
             catch me
@@ -1681,57 +1682,13 @@ classdef PAController < PABase
         
         function exportTimeSeriesCb(obj, varargin)
             
-            
-            didExport = false;
-            curCluster = this.getClusterObj();
-            if(isempty(curCluster) || ~isa(curCluster,'PACluster'))
-                msg = 'No cluster object exists.  Nothing to save.';
+            dataObj = obj.accelObj;
+            if(isempty(dataObj) || ~isa(dataObj,'PASensorData'))
+                msg = 'No time series data found.  Nothing to export.';
                 pa_msgbox(msg,'Warning');
-                
-                % If this is not true, then we can just leave this
-                % function since the user would have cancelled.
-            elseif(this.updateExportPath())
-                try
-                    lastClusterSettings.StatTool = this.getStateAtTimeOfLastClustering();
-                    exportPath = this.getExportPath();
-                    % original widget settings are kept track of using a
-                    % separate gui
-                    exportNonwearFeatures = this.originalWidgetSettings.exportShowNonwear;
-                    if(exportNonwearFeatures)
-                        nonwearFeatures = {this.nonwear};
-                    else
-                        nonwearFeatures = {};
-                    end
-                    [didExport, msg] = curCluster.exportToDisk(exportPath, lastClusterSettings, nonwearFeatures{:});
-                    
-                    %                     if(~lastClusterSettings.discardNonwearFeatures)
-                    %                         [didExport, msg] = curCluster.exportToDisk(exportPath, lastClusterSettings, nonwearFeatures{:});
-                    %                     else
-                    %                         [didExport, msg] = curCluster.exportToDisk(exportPath, lastClusterSettings, nonwearFeatures{:});
-                    %                     end
-                    
-                catch me
-                    msg = 'An error occurred while trying to save the data to disk.  A thousand apologies.  I''m very sorry.';
-                    showME(me);
-                end
-                
-                % Give the option to look at the files in their saved folder.
-                if(didExport)
-                    dlgName = 'Export complete';
-                    closeStr = 'Close';
-                    showOutputFolderStr = 'Open output folder';
-                    options.Default = closeStr;
-                    options.Interpreter = 'none';
-                    buttonName = questdlg(msg,dlgName,closeStr,showOutputFolderStr,options);
-                    if(strcmpi(buttonName,showOutputFolderStr))
-                        openDirectory(this.getExportPath())
-                    end
-                else
-                    makeModal = true;
-                    pa_msgbox(msg,'Export',[],makeModal);
-                end
+            else
+                obj.accelObj.exportRequestCb();
             end
-            
             
         end
         
@@ -1859,7 +1816,7 @@ classdef PAController < PABase
         %> image on it using curData, saves the image to disk, and then
         %> removes the figure from view.
         %> @param obj Instance of PAController
-        %> @param curData Instance of PAData
+        %> @param curData Instance of PASensorData
         %> @param featureFcn Extractor method for obtaining features from
         %> curData.
         %> @param img_filename Filename to save image to.
@@ -1873,7 +1830,7 @@ classdef PAController < PABase
         
         % --------------------------------------------------------------------
         %> @brief Returns the total frame duration (i.e. hours and minutes) in aggregated minutes.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @retval curFrameDurationMin The current frame duration as total
         %> minutes.
         % --------------------------------------------------------------------
@@ -1885,7 +1842,7 @@ classdef PAController < PABase
         
         % --------------------------------------------------------------------
         %> @brief Returns the total frame duration (i.e. hours and minutes) in aggregated minutes.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @retval curFrameDurationMin The current frame duration as total
         %> minutes.
         % --------------------------------------------------------------------
@@ -1897,7 +1854,7 @@ classdef PAController < PABase
         
         % --------------------------------------------------------------------
         %> @brief Returns the current study's duration as seconds.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @retval curStudyDurationSec The duration of the current study in seconds.
         % --------------------------------------------------------------------
         function curStudyDurationSec = getStudyDurationSec(obj)
@@ -1921,11 +1878,11 @@ classdef PAController < PABase
         %> @param numSections (optional) Number of patches to break the
         %> accelObj lux time series data into and calculate the mean
         %> lumens over.
-        %> @param paDataObj Optional instance of PAData.  Mean lumens will
+        %> @param paDataObj Optional instance of PASensorData.  Mean lumens will
         %> be calculated from this when included, otherwise the instance
         %> variable accelObj is used.
         %> @retval meanLumens Vector of mean lumen values calculated
-        %> from the lux field of the accelObj PAData object instance
+        %> from the lux field of the accelObj PASensorData object instance
         %> variable.  Vector values are in consecutive order of the section they are calculated from.
         %> @retval startStopDatenums Nx2 matrix of datenum values whose
         %> rows correspond to the start/stop range that the meanLumens
@@ -1957,7 +1914,7 @@ classdef PAController < PABase
         %> @param obj Instance of PAController
         %> @param numSections (optional) Number of chunks to estimate
         %> daylight at across the study.  Default is 100.
-        %> @param paDataObj Optional instance of PAData.  Date time will
+        %> @param paDataObj Optional instance of PASensorData.  Date time will
         %> be calculated from this when included, otherwise date time from the
         %> instance variable accelObj is used.
         %> @retval daylightVector Vector of estimated daylight from the time of day at startStopDatenums.
@@ -2007,11 +1964,11 @@ classdef PAController < PABase
         %> accelObj instance variable (ie.. data = obj.accelObj.(fildName))
         %> @param numSections (optional) Number of patches to break the
         %> accelObj time series data into and calculate the features from.
-        %> @param paDataObj Optional instance of PAData.  Date time will
+        %> @param paDataObj Optional instance of PASensorData.  Date time will
         %> be calculated from this when included, otherwise date time from the
         %> instance variable accelObj is used.
         %> @retval featureVec Vector of specified feature values calculated
-        %> from the specified (fieldName) field of the accelObj PAData object instance
+        %> from the specified (fieldName) field of the accelObj PASensorData object instance
         %> variable.  Vector values are in consecutive order of the section they are calculated from.
         %> @retval startStopDatenums Nx2 matrix of datenum values whose
         %> rows correspond to the start/stop range that the feature vector
@@ -2054,7 +2011,7 @@ classdef PAController < PABase
             else
                 %featureVec = zeros(numSections,1);            
                 featureVec = featureStruct.(featureFcnName);
-                featureFcn = PAData.getFeatureFcn(featureFcnName);
+                featureFcn = PASensorData.getFeatureFcn(featureFcnName);
 
                 
                 timeSeriesStruct = paDataObj.getStruct('all','timeSeries');
@@ -2127,11 +2084,11 @@ classdef PAController < PABase
         %> accelObj instance variable (ie.. data = obj.accelObj.(fildName))
         %> @param numSections (optional) Number of patches to break the
         %> accelObj time series data into and calculate the features from.
-        %> @param paDataObj Optional instance of PAData.  Date time will
+        %> @param paDataObj Optional instance of PASensorData.  Date time will
         %> be calculated from this when included, otherwise date time from the
         %> instance variable accelObj is used.
         %> @retval featureVec Vector of specified feature values calculated
-        %> from the specified (fieldName) field of the accelObj PAData object instance
+        %> from the specified (fieldName) field of the accelObj PASensorData object instance
         %> variable.  Vector values are in consecutive order of the section they are calculated from.
         %> @retval startStopDatenums Nx2 matrix of datenum values whose
         %> rows correspond to the start/stop range that the feature vector
@@ -2153,7 +2110,7 @@ classdef PAController < PABase
         %> - @c timeSeries
         %> - @c bins
         %> - @c features
-        %> @note See PAData.getStructTypes()
+        %> @note See PASensorData.getStructTypes()
         % --------------------------------------------------------------------
         function structName = getDisplayType(obj)
             structName = obj.VIEW.getDisplayType();
@@ -2226,7 +2183,7 @@ classdef PAController < PABase
         % --------------------------------------------------------------------
         %> @brief Initializes the display for accelerometer data viewing
         %> using instantiated instance
-        %> variables VIEW (PAView) and accelObj (PAData)
+        %> variables VIEW (PAView) and accelObj (PASensorData)
         %> @param obj Instance of PAController
         % --------------------------------------------------------------------
         function initAccelDataView(obj)
@@ -2270,7 +2227,7 @@ classdef PAController < PABase
             
             % set the display to show time series data initially.
             displayType = 'Time Series';
-            displayStructName = PAData.getStructNameFromDescription(displayType);
+            displayStructName = PASensorData.getStructNameFromDescription(displayType);
             obj.setRadioButton(displayStructName);
             
             % Now I am showing labels
@@ -2408,7 +2365,7 @@ classdef PAController < PABase
         %> @brief Creates a temporary overlay from paDataObject's values
         %> and takes a screenshot of it which is saved as img_filename.
         %> @param obj Instance of PAController
-        %> @param paDataObject Instance of PAData
+        %> @param paDataObject Instance of PASensorData
         %> @param featureFcn Extractor method for obtaining features from
         %> curData.
         %> @param img_filename Filename (full) to save the screenshot too.
@@ -2470,7 +2427,7 @@ classdef PAController < PABase
             featureHandles = [];
             for s=1:numel(signalTagLines)
                 signalName = signalTagLines{s};
-                % Modified to pass in the PADataObj as last parameter
+                % Modified to pass in the PASensorDataObj as last parameter
                 [featureVec, startStopDatenums] = obj.getFeatureVec(featureFcn,signalName,numFrames,paDataObject);
                 if(s<numel(signalTagLines))
                     vecHandles = obj.VIEW.addFeaturesVecToAxes(featureVec,startStopDatenums,height,heightOffset,axesH);                    
@@ -2567,7 +2524,7 @@ classdef PAController < PABase
             
             filterspec = {'png','PNG';'jpeg','JPEG'};
             save_format = {'-dpng','-djpeg'};
-            if(isa(obj.accelObj,'PAData'))
+            if(isa(obj.accelObj,'PASensorData'))
                 img_filename = [obj.accelObj.filename,'_window ',num2str(obj.getCurWindow),'.png'];
             else
                 img_filename = ['padaco_window ',num2str(obj.getCurWindow),'.png'];
@@ -2677,7 +2634,7 @@ classdef PAController < PABase
         
         % =================================================================
         function singleStudy_displaySettings_callback(obj, hMenu, varargin)
-            PADataLineSettings(obj.accelObj,obj.getDisplayType(), obj.getDisplayableLineHandles());
+            PASensorDataLineSettings(obj.accelObj,obj.getDisplayType(), obj.getDisplayableLineHandles());
         end
         
         % =================================================================
@@ -2972,13 +2929,13 @@ classdef PAController < PABase
             child_menu_handles = get(hObject,'children');  %this is all of the handles of the children menu options
             
             % default_scale_handle = child_menu_handles(find(~cellfun('isempty',strfind(get(child_menu_handles,'tag'),'defaultScale')),1));
-            default_scale_handle = child_menu_handles(find(cointains(get(child_menu_handles,'tag'),'defaultScale'),1));
+            default_scale_handle = child_menu_handles(find(contains(get(child_menu_handles,'tag'),'defaultScale'),1));
             
             allScale = obj.accelObj.getScale();
             
             
             curScale = allScale.(lineTag);%curScale = eval(['allScale.',lineTag]);
-            pStruct = PAData.getDefaultParameters();
+            pStruct = PASensorData.getDefaultParameters();
             defaultScale = pStruct.scale.(lineTag);  %eval(strcat('pStruct.scale.',lineTag));
             
             
@@ -3083,7 +3040,7 @@ classdef PAController < PABase
                 set(hObject,'checked','on');
                 lineTag = get(gco,'tag');
                 
-                pStruct = PAData.getDefaultParameters;
+                pStruct = PASensorData.getDefaultParameters;
                 defaultScale = pStruct.scale.(lineTag); % eval(strcat('pStruct.scale.',lineTag));
                 
                 obj.accelObj.setScale(lineTag,defaultScale);
@@ -3253,8 +3210,8 @@ classdef PAController < PABase
         %> - @c featureFcnName
         %> - @c signalTagLine
         function pStruct = getDefaultParameters()
-            [tagLines,~] = PAData.getDefaultTagLineLabels();
-            featureStruct = PAData.getFeatureDescriptionStruct();
+            [tagLines,~] = PASensorData.getDefaultTagLineLabels();
+            featureStruct = PASensorData.getFeatureDescriptionStruct();
             featureFcnNames = fieldnames(featureStruct);
             pStruct.featureFcnName = featureFcnNames{1};
             pStruct.signalTagLine = tagLines{1};

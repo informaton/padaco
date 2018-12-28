@@ -1,12 +1,12 @@
 % ======================================================================
-%> @file PAData.cpp
+%> @file PASensorData.cpp
 %> @brief Accelerometer data loading class.
 % ======================================================================
-%> @brief The PAData class helps loads and stores accelerometer data used in the
+%> @brief The PASensorData class helps loads and stores accelerometer data used in the
 %> physical activity monitoring project.  The project is aimed at reducing
 %> obesity and improving health in children.
 % ======================================================================
-classdef PAData < handle
+classdef PASensorData < PAData
     events
         LinePropertyChanged;
     end
@@ -90,7 +90,7 @@ classdef PAData < handle
 
         %> @brief Struct of line handle properties corresponding to the
         %> fields of linehandle.  These are derived from the input files
-        %> loaded by the PAData class.
+        %> loaded by the PASensorData class.
         lineproperty;
 
         label;
@@ -183,17 +183,17 @@ classdef PAData < handle
     methods
 
         % ======================================================================
-        %> @brief Constructor for PAData class.
+        %> @brief Constructor for PASensorData class.
         %> @param fullFilenameOrPath Either
         %> - (1) the full filename (i.e. with pathname) of accelerometer data to load.
         %> - or (2) the path that contains raw accelerometer data stored in
         %> binary file(s) - Firmware versions 2.5 or 3.1 only.
         %> @param pStruct Optional struct of parameters to use.  If it is not
         %> included then parameters from getDefaultParameters method are used.
-        %> @retval Instance of PAData.
+        %> @retval Instance of PASensorData.
         % fullFile = '~/Google Drive/work/Stanford - Pediatrics/sampledata/female child 1 second epoch.csv'
         % =================================================================
-        function obj = PAData(fullFilenameOrPath,pStruct)
+        function obj = PASensorData(fullFilenameOrPath,pStruct)
             obj.pathname =[];
             obj.filename = [];
 
@@ -259,9 +259,82 @@ classdef PAData < handle
             hasIt = obj.hasCounts||obj.hasRaw;
         end
 
+        
+        function [didExport, resultMsg] = exportToDisk(obj,exportPath)
+            didExport = false;
+            try
+                if(nargin<2 || isempty(exportPath))
+                    exportPath = obj.exportPathname;
+                else
+                    this.setExportPath(exportPath);
+                end
+                if(~isdir(exportPath))
+                    msg = sprintf('Export path does not exist.  Nothing done.\nExport path: %s',exportPath);
+                else
+                    % Do you want usage stage per second?  With time stamps?
+                    % With x, y, z - do you want it framed and just take the
+                    % mode?
+                    [~,baseName,~] = fileparts(obj.filename);
+                    exportFilename = [baseName,'.activity.txt'];
+                    fid = fopen(fullfile(exportPath,exportFilename),'w');
+                    if(fid>1)
+                        fprintf(fid,'# Activity states for %s\n',fullfile(obj.pathname,obj.filename));
+                        tagStruct = obj.getActivityTags();
+                                                    
+                        tagNames = fieldnames(tagStruct);
+                        fprintf(fid,'#--Activity Descriptions--\n');
+                        for t=1:numel(tagNames)
+                            tag = tagNames{t};
+                            fprintf( fid,'# %2d: %s\n',tagStruct.(tag),tag);
+                        end
+                        
+                        fprintf(fid,'#-------------------\n');                        
+                        fprintf(fid,'# time stamp, x, y, z, vecMag\n');
+                        fprintf(fid,'%f, %2d, %2d, %2d, %2d\n',[obj.dateTimeNum,obj.usage.x,obj.usage.y,obj.usage.z,obj.usage.vecMag]');
+                        fclose(fid);
+                        msg = sprintf('Export saved to %s.',exportFilename);
+                        
+                        didExport = true;
+                    else
+                        msg = sprintf('Unable to open export file for writing (%s).\nCheck write permissions or filename.',exportFilename);
+                    end
+                end
+                resultMsg = msg;
+            catch me
+                showME(me);
+                resultMsg = 'Error occurred during export.\nExport failed. Check logs.';
+            end
+        end
+        
         % ======================================================================
-        %> @brief Returns a structure of PAData's time series data.
-        %> @param obj Instance of PAData.
+        %> @brief Saves data to an ascii file.
+        %> @note This is not yet implemented.
+        %> @param obj Instance of PASensorData.
+        %> @param activityType The type of activity to save.  This is a string.  Values include:
+        %> - c usageState
+        %> - c activitiy
+        %> - c inactivity
+        %> - c sleep
+        %> @param saveFilename Name of the file to save data to.
+        %> @note This method is under construction and does not actually
+        %> save any data at the moment.
+        % ======================================================================
+        function obj = saveToFile(obj,activityType, saveFilename)
+            switch(activityType)
+                case 'usageState'
+                    fprintf('Saving %s to %s.\n',activityType,saveFilename);
+                case 'activity'
+                    fprintf('Saving %s to %s.\n',activityType,saveFilename);
+                case 'inactivity'
+                    fprintf('Saving %s to %s.\n',activityType,saveFilename);
+                case 'sleep'
+                    fprintf('Saving %s to %s.\n',activityType,saveFilename);
+            end
+        end
+        
+        % ======================================================================
+        %> @brief Returns a structure of PASensorData's time series data.
+        %> @param obj Instance of PASensorData.
         %> @param structType Optional string identifying the type of data to obtain the
         %> offset from.  Can be
         %> @li @c timeSeries (default)
@@ -297,7 +370,7 @@ classdef PAData < handle
 
         % ======================================================================
         %> @brief Returns the current windows range
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @param structType Optional string identifying the type of data to obtain the
         %> offset from.  Can be
         %> @li @c timeSeries (default)
@@ -322,7 +395,7 @@ classdef PAData < handle
         % ======================================================================
         %> @brief Returns the number of sample units (samples, bins, frames) for the
         %> for the current window resolution (duration in seconds).
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @param structType Optional string identifying the type of data to obtain the
         %> offset from.  Can be
         %> @li @c timeSeries (default) - units are sample points
@@ -341,7 +414,7 @@ classdef PAData < handle
 
         % --------------------------------------------------------------------
         %> @brief Returns the sampling rate for the current window display selection
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @param structType Optional string identifying the type of data to obtain the
         %> offset from.  Can be
         %> @li @c timeSeries (default) - sample units are sample points
@@ -368,7 +441,7 @@ classdef PAData < handle
 
         % --------------------------------------------------------------------
         %> @brief Returns the samplerate of the x-axis accelerometer.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @retval fs Sample rate of the x-axis accelerometer.
         % --------------------------------------------------------------------
         function fs = getSampleRate(obj)
@@ -449,7 +522,7 @@ classdef PAData < handle
 
         % --------------------------------------------------------------------
         %> @brief Returns the frame rate in units of frames/second.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @retval fs Frames rate in Hz.
         % --------------------------------------------------------------------
         function fs = getFrameRate(obj)
@@ -460,7 +533,7 @@ classdef PAData < handle
 
         % --------------------------------------------------------------------
         %> @brief Returns the aggregate bin rate in units of aggregate bins/second.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @retval fs Aggregate bins per second.
         % --------------------------------------------------------------------
         function fs = getBinRate(obj)
@@ -469,8 +542,8 @@ classdef PAData < handle
 
         % --------------------------------------------------------------------
         %> @brief Set the current window for the instance variable accelObj
-        %> (PAData)
-        %> @param obj Instance of PAData
+        %> (PASensorData)
+        %> @param obj Instance of PASensorData
         %> @param window The window to set curWindow to.
         %> @retval curWindow The current value of instance variable curWindow.
         %> @note If the input argument for window is negative or exceeds
@@ -487,7 +560,7 @@ classdef PAData < handle
 
         % --------------------------------------------------------------------
         %> @brief Returns the current window.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @retval curWindow The current window;
         % --------------------------------------------------------------------
         function curWindow = getCurWindow(obj)
@@ -496,7 +569,7 @@ classdef PAData < handle
 
         % --------------------------------------------------------------------
         %> @brief Set the aggregate duration (in minutes) instance variable.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @param aggregateDurationMin The aggregate duration to set aggregateDurMin to.
         %> @retval aggregateDurationMin The current value of instance variable aggregateDurMin.
         %> @note If the input argument for aggregateDurationMin is negative or exceeds
@@ -513,7 +586,7 @@ classdef PAData < handle
 
         % --------------------------------------------------------------------
         %> @brief Returns the current aggregate duration in minutes.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @retval aggregateDuration The current window;
         % --------------------------------------------------------------------
         function aggregateDuration = getAggregateDurationInMinutes(obj)
@@ -523,7 +596,7 @@ classdef PAData < handle
         % --------------------------------------------------------------------
         %> @brief Returns the total number of aggregated bins the data can be divided
         %> into based on frame rate and the duration of the time series data.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @retval binCount The total number of frames contained in the data.
         %> @note In the case of data size is not broken perfectly into frames, but has an incomplete frame, the
         %> window count is rounded down.  For example, if the frame duration 1 min, and the study is 1.5 minutes long, then
@@ -534,7 +607,7 @@ classdef PAData < handle
         end
 
         %> @brief Returns studyID instance variable.
-        %> @param Instance of PAData
+        %> @param Instance of PASensorData
         %> @param Optional output format for the study id.  Can be
         %> - 'string'
         %> - 'numeric'
@@ -555,7 +628,7 @@ classdef PAData < handle
 
         % --------------------------------------------------------------------
         %> @brief Set the frame duration (in minutes) instance variable.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @param frameDurationMin The frame duration to set frameDurMin to.
         %> @retval frameDurationMin The current value of instance variable frameDurMin.
         %> @note If the input argument for frameDurationMin is negative or exceeds
@@ -572,7 +645,7 @@ classdef PAData < handle
 
         % --------------------------------------------------------------------
         %> @brief Set the frame duration (hours) instance variable.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @param frameDurationHours The frame duration to set frameDurHours instance variable to.
         %> @retval frameDurationHours The current value of instance variable frameDurHour.
         %> @note If the input argument for frameDurationHours is negative or exceeds
@@ -590,7 +663,7 @@ classdef PAData < handle
 
         % --------------------------------------------------------------------
         %> @brief Returns the frame duration (in hours and minutes)
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @retval curFrameDurationMin The current frame duration minutes field;
         %> @retval curFramDurationHour The current frame duration hours field;
         % --------------------------------------------------------------------
@@ -614,7 +687,7 @@ classdef PAData < handle
         % --------------------------------------------------------------------
         %> @brief Returns the total number of frames the data can be divided
         %> into evenly based on frame rate and the duration of the time series data.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @retval frameCount The total number of frames contained in the data.
         %> @note In the case of data size is not broken perfectly into frames, but has an incomplete frame, the
         %> window count is rounded down (floor).  For example, if the frame duration 1 min, and the study is 1.5 minutes long, then
@@ -628,7 +701,7 @@ classdef PAData < handle
 
         % --------------------------------------------------------------------
         %> @brief Returns the number of samples contained in the time series data.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @retval durationSamp Number of elements contained in durSamples instance var
         %> (initialized by number of elements in accelRaw.x
         % --------------------------------------------------------------------
@@ -639,7 +712,7 @@ classdef PAData < handle
         % --------------------------------------------------------------------
         %> @brief Set the window duration value in seconds.  This is the
         %> displays window size (i.e. one window shown at a time), in seconds.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @param durSec Duration in seconds.  Must be positive.  Value is first
         %> rounded to ensure it is an integer.
         %> @retval durSec Window duration in seconds of obj.
@@ -664,7 +737,7 @@ classdef PAData < handle
 
         % --------------------------------------------------------------------
         %> @brief Returns the visible instance variable
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @param structType String specifying the structure type of label to retrieve.
         %> Possible values include (all are included if this is not)
         %> @li @c timeSeries (default)
@@ -679,7 +752,7 @@ classdef PAData < handle
 
         % --------------------------------------------------------------------
         %> @brief Returns the color instance variable
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @param structTypeOrTag String specifying the structure type of
         %> label to retrieve, or the tag of the line handle to use.
         %> Possible values include (all are included if this is not)
@@ -701,7 +774,7 @@ classdef PAData < handle
 
         % --------------------------------------------------------------------
         %> @brief Returns the scale instance variable
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @param structType String specifying the structure type of label to retrieve.
         %> Possible values include (all are included if this not):
         %> @li @c timeSeries (default)
@@ -716,7 +789,7 @@ classdef PAData < handle
 
         % --------------------------------------------------------------------
         %> @brief Returns the offset instance variable
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @param structType String specifying the structure type of label to retrieve.
         %> Possible values include (all are included if this not):
         %> @li @c timeSeries (default)
@@ -731,7 +804,7 @@ classdef PAData < handle
 
         % --------------------------------------------------------------------
         %> @brief Returns the label instance variable
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @param structType String specifying the structure type of label to retrieve.
         %> Possible values include:
         %> @li @c timeSeries (default)
@@ -747,7 +820,7 @@ classdef PAData < handle
 
         % --------------------------------------------------------------------
         %> @brief Returns the property requested in the format requested.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @param structTypeOrTag String specifying the structure type of
         %> label to retrieve, or the tag of the line handle to use.
         %> Possible values include (all are included if this is not)
@@ -784,7 +857,7 @@ classdef PAData < handle
 
         %> @brief Retuns the accelType that is not set.  This is useful in
         %> later removing unwanted accel fields.
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @param accelTypeStr (optional) String that can be used in place
         %> of obj.accelType for determining the current accel type to find
         %> the opposing accel type of (i.e. the offAccelType).
@@ -812,7 +885,7 @@ classdef PAData < handle
 
         % --------------------------------------------------------------------
         %> @brief Returns the visible instance variable
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @param propertyName Name of instance variable being requested.
         %> @param structType String specifying the structure type of label to retrieve.
         %> Possible values include (all are included if this is not)
@@ -845,7 +918,7 @@ classdef PAData < handle
         % --------------------------------------------------------------------
         %> @brief Sets the offset instance variable for a particular sub
         %> field.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @param fieldName Dynamic field name to set in the 'offset' struct.
         %> @note For example if fieldName = 'timeSeries.vecMag' then
         %> obj.offset.timeSeries.vecMag = newOffset; is evaluated.
@@ -861,7 +934,7 @@ classdef PAData < handle
         % --------------------------------------------------------------------
         %> @brief Sets the scale instance variable for a particular sub
         %> field.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @param fieldName Dynamic field name to set in the 'scale' struct.
         %> @note For example if fieldName = 'timeSeries.vecMag' then
         %> obj.scale.timeSeries.vecMag = newScale; is evaluated.
@@ -881,7 +954,7 @@ classdef PAData < handle
         % --------------------------------------------------------------------
         %> @brief Sets the color instance variable for a particular sub
         %> field.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @param fieldName Dynamic field name to set in the 'color' struct.
         %> @note For example if fieldName = 'timeSeries.accel.vecMag' then
         %> obj.color.timeSerie.accel.vecMag = newColor; is evaluated.
@@ -897,7 +970,7 @@ classdef PAData < handle
         end
 
         %> @brief
-        %> @param obj - Instance of PAData
+        %> @param obj - Instance of PASensorData
         %> @param fieldName - Tag (string) of line to the set the label
         %> for.
         %> @param newLabel - String identifying the new label to associate
@@ -916,7 +989,7 @@ classdef PAData < handle
         % --------------------------------------------------------------------
         %> @brief Sets the visible instance variable for a particular sub
         %> field.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @param fieldName Dynamic field name to set in the 'visible' struct.
         %> @param newVisibilityStr Visibility property value.
         %> @note Valid values include
@@ -939,7 +1012,7 @@ classdef PAData < handle
         % --------------------------------------------------------------------
         %> @brief Sets the specified instance variable for a particular sub
         %> field.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @param propertyName instance variable to set the property of.
         %> @param fieldName Dynamic field name to set in the propertyName struct.
         %> @param propertyValueStr String value of property to set fieldName
@@ -965,7 +1038,7 @@ classdef PAData < handle
         %> @brief Returns the total number of windows the data can be divided
         %> into based on sampling rate, window resolution (i.e. duration), and the size of the time
         %> series data.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @retval windowCount The maximum/last window allowed
         %> @note In the case of data size is not broken perfectly into windows, but has an incomplete window, the
         %> window count is rounded up.  For example, if the time series data is 10 s in duration and the window size is
@@ -977,7 +1050,7 @@ classdef PAData < handle
 
         % --------------------------------------------------------------------
         %> @brief Returns the start and stop datenums for the study.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @retval startstopnum A 1x2 vector.
         %> - startstopnum(1) The datenum of the study's start
         %> - startstopnum(2) The datenum of the study's end.
@@ -989,7 +1062,7 @@ classdef PAData < handle
         % ======================================================================
         %> @brief Returns the minimum and maximum amplitudes that can be
         %> displayed uner the current configuration.
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @retval yLim 1x2 vector containing ymin and ymax.
         % ======================================================================
         function yLim = getDisplayMinMax(obj)
@@ -1000,7 +1073,7 @@ classdef PAData < handle
         %> @brief Returns the minmax value(s) for the object's (obj) time series data
         %> Returns either a structure or 1x2 vector of [min, max] values for the field
         %> specified.
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @param fieldType String value identifying the time series data to perform
         %> the minmax operation on.  Can be one of the following:
         %> - @b struct Returns a structure of minmax values with organization
@@ -1044,7 +1117,7 @@ classdef PAData < handle
         % ======================================================================
         %> @brief Returns the filename, pathname, and full filename (pathname + filename) of
         %> the file that the accelerometer data was loaded from.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @retval filename The short filename of the accelerometer data.
         %> @retval pathname The pathname of the accelerometer data.
         %> @retval fullFilename The full filename of the accelerometer data.
@@ -1059,7 +1132,7 @@ classdef PAData < handle
         % ======================================================================
         %> @brief Sets the pathname and filename instance variables using
         %> the input full filename.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @param fullfilename The full filenmae of the accelerometer data
         %> that will be set
         %> @retval success (T/F)
@@ -1081,7 +1154,7 @@ classdef PAData < handle
         % ======================================================================
         %> @brief Returns the full filename (pathname + filename) of
         %> the accelerometer data.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @retval fullFilename The full filenmae of the accelerometer data.
         %> @note See also getFilename()
         % =================================================================
@@ -1091,7 +1164,7 @@ classdef PAData < handle
 
         % ======================================================================
         %> @brief Returns the protected intance variable windowDurSec.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @retval windowDurationSec The value of windowDurSec
         % =================================================================
         function windowDurationSec = getWindowDurSec(obj)
@@ -1102,7 +1175,7 @@ classdef PAData < handle
         % ======================================================================
         %> @brief Load CSV header values (start time, start date, and window
         %> period).
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @param fullFilename The full filename to open and examine.
         % =================================================================
         function loadFileHeader(obj,fullFilename)
@@ -1192,7 +1265,7 @@ classdef PAData < handle
         %> - Window count
         %> - Start Date
         %> - Start Time
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @retval headerStr Character array listing header fields and
         %> corresponding values.  Field and values are separated by colon (:),
         %> while field:values are separated from each other with newlines (\n).
@@ -1209,7 +1282,7 @@ classdef PAData < handle
 
         % ======================================================================
         %> @brief Loads an accelerometer data file.
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @param fullfilename (optional) Full filename to load.  If this
         %> is not included, or does not exist, then the instance variables pathname and filename
         %> are used to identify the file to load.
@@ -1463,7 +1536,7 @@ classdef PAData < handle
 
         % ======================================================================
         %> @brief Loads an accelerometer "count" data file.
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @param fullCountFilename The full (i.e. with path) filename to load.
         % =================================================================
         function didLoad = loadCountFile(obj,fullFilename)
@@ -1597,7 +1670,7 @@ classdef PAData < handle
         %> sensor measurements are loaded into the object (obj).  The
         %> auxialiary measures (e.g. lux, steps) are upsampled to the
         %> sampling rate of the raw data (typically 40 Hz).
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @param fullRawCSVFilename The full (i.e. with path) filename for raw data to load.
         % =================================================================
         function didLoad = loadRawCSVFile(obj,fullFilename, loadFastOption)
@@ -1698,7 +1771,7 @@ classdef PAData < handle
         % ======================================================================
         %> @brief Loads an accelerometer's raw data from binary files stored
         %> in the path name given.
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @param pathWithRawBinaryFiles Name of the path (a string) that
         %> contains raw acceleromater data stored in one or more binary files.
         %> @note Currently, only two firmware versions are supported:
@@ -1733,7 +1806,7 @@ classdef PAData < handle
         % ======================================================================
         %> @brief Loads an accelerometer's raw data from binary files stored
         %> in the path name given.
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @param pathWithRawBinaryFiles Name of the path (a string) that
         %> contains raw acceleromater data stored in one or more binary files.
         %> @note Currently, only two firmware versions are supported:
@@ -1772,7 +1845,7 @@ classdef PAData < handle
         % ======================================================================
         %> @brief Resamples previously loaded 'count' data to match sample rate of
         %> raw accelerometer data that has been loaded in a following step (see loadFile()).
-        %> @param obj Instance of PAData.       %
+        %> @param obj Instance of PASensorData.       %
         %> @note countPeriodSec, sampleRate, steps, lux, and accel values
         %> must be set in advance of this call.
         % ======================================================================
@@ -1798,7 +1871,7 @@ classdef PAData < handle
         % ======================================================================
         %> @brief Resamples previously loaded 'count' data to match sample rate of
         %> raw accelerometer data that has been loaded in a following step (see loadFile()).
-        %> @param obj Instance of PAData.       %
+        %> @param obj Instance of PASensorData.       %
         %> @note countPeriodSec, sampleRate, steps, lux, and accel values
         %> must be set in advance of this call.
         % ======================================================================
@@ -1826,7 +1899,7 @@ classdef PAData < handle
 
         % ======================================================================
         %> @brief Calculates, and returns, the window for the given sample index of a signal.
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @param sample Sample point to discover the containing window of.
         %> @param windowDurSec Window duration in seconds (scalar) (optional)
         %> @param samplerate Sample rate of the data (optional)
@@ -1838,13 +1911,13 @@ classdef PAData < handle
             end
             if(nargin<3)
                 windowDurSec = obj.windowDurSec;
-            end;
+            end
             window = ceil(sample/(windowDurSec*samplerate));
         end
 
         % ======================================================================
         %> @brief Returns the display window for the given datenum
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @param datenumSample A date number (datenum) that should be in the range of
         %> instance variable dateTimeNum
         %> @param structType String (optional) identifying the type of data to obtain the
@@ -1870,7 +1943,7 @@ classdef PAData < handle
 
         % ======================================================================
         %> @brief Returns the starting datenum for the window given.
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @param windowSample Index of the window to check.       %
         %> @retval dateNum the datenum value at the start of windowSample.
         %> @note The starting point is adjusted based on obj startDatenum
@@ -1887,7 +1960,7 @@ classdef PAData < handle
         % ======================================================================
         %> @brief Prefilters accelerometer data.
         %> @note Not currently implemented.
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @param method String name of the prefilter method.
         % ======================================================================
         function obj = prefilter(obj,method)
@@ -1919,7 +1992,7 @@ classdef PAData < handle
         % ======================================================================
         %> @brief Extracts features from the identified signal using the
         %> given method.
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @param signalTagLine Tag identifying the signal to extract
         %> features from.  Default is 'accel.count.vecMag'
         %> @param method String name of the extraction method.  Possible
@@ -2107,7 +2180,7 @@ classdef PAData < handle
         %> @brief Calculates the number of complete days and the number of
         %> incomplete days available in the data for the most recently
         %> defined feature vector.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @param featureFcn Function name or handle to use to obtain
         % --------------------------------------------------------------------
         function [completeDayCount, incompleteDayCount, totalDayCount] = getDayCount(obj,elapsedStartHour, intervalDurationHours)
@@ -2183,7 +2256,7 @@ classdef PAData < handle
         % --------------------------------------------------------------------
         %> @brief Calculates a desired feature for a particular acceleration object's field value.
         %> and returns it as a matrix of elapsed time aligned vectors.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @param featureFcn Function name or handle to use to obtain
         %> features.
         %> @param signalTagLine String name of the field to obtain data from.
@@ -2257,7 +2330,7 @@ classdef PAData < handle
         % ======================================================================
         %> @brief Classifies the usage state for each axis using count data from
         %> each axis.
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @retval didClassify True/False depending on success.
         % ======================================================================
         function didClassify = classifyUsageForAllAxes(obj)
@@ -2295,7 +2368,7 @@ classdef PAData < handle
         % ======================================================================
         %> @brief Classifies epochs into wear and non-wear state using the
         %> count activity values and classification method given.
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @param vector of count activity to apply classification rules
         %> too.  If not provided, then the vector magnitude is used by
         %> default.
@@ -2358,7 +2431,7 @@ classdef PAData < handle
 
         % ======================================================================
         %> @brief Categorizes the study's usage state.
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @param vector of count activity to apply classification rules
         %> too.  If not provided, then the vector magnitude is used by
         %> default.
@@ -2556,7 +2629,7 @@ classdef PAData < handle
         % ======================================================================
         %> @brief Describes an activity.
         %> @note This is not yet implemented.
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @param categoryStr The type of activity to describe.  This is a string.  Values include:
         %> - c sleep
         %> - c wake
@@ -2577,36 +2650,11 @@ classdef PAData < handle
             end
         end
 
-        % ======================================================================
-        %> @brief Saves data to an ascii file.
-        %> @note This is not yet implemented.
-        %> @param obj Instance of PAData.
-        %> @param activityType The type of activity to save.  This is a string.  Values include:
-        %> - c usageState
-        %> - c activitiy
-        %> - c inactivity
-        %> - c sleep
-        %> @param saveFilename Name of the file to save data to.
-        %> @note This method is under construction and does not actually
-        %> save any data at the moment.
-        % ======================================================================
-        function obj = saveToFile(obj,activityType, saveFilename)
-            switch(activityType)
-                case 'usageState'
-                    fprintf('Saving %s to %s.\n',activityType,saveFilename);
-                case 'activity'
-                    fprintf('Saving %s to %s.\n',activityType,saveFilename);
-                case 'inactivity'
-                    fprintf('Saving %s to %s.\n',activityType,saveFilename);
-                case 'sleep'
-                    fprintf('Saving %s to %s.\n',activityType,saveFilename);
-            end
-        end
 
         % ======================================================================
         %> @brief overloaded subsindex method returns structure of time series data
         %> at indices provided.
-        %> @param obj Instance of PAData
+        %> @param obj Instance of PASensorData
         %> @param indices Vector (logical or ordinal) of indices to select time
         %> series data by.
         %> @param structType String (optional) identifying the type of data to obtain the
@@ -2614,7 +2662,7 @@ classdef PAData < handle
         %> @li @c timeSeries (default) - units are sample points
         %> @li @c features - units are frames
         %> @li @c bins - units are bins
-        %> @retval dat A struct of PAData's time series instance data for the indices provided.  The fields
+        %> @retval dat A struct of PASensorData's time series instance data for the indices provided.  The fields
         %> include:
         %> - accel.(accelType).x
         %> - accel.(accelType).y
@@ -2659,7 +2707,7 @@ classdef PAData < handle
                         dat.inclinometer.off = double(double(obj.inclinometer.off(indices)));
                     end
                 case 'features'
-                    dat = PAData.subsStruct(obj.features,indices);
+                    dat = PASensorData.subsStruct(obj.features,indices);
                 case 'bins'
                     dat.median = double(obj.feature.median(indices));
                 otherwise
@@ -2668,20 +2716,25 @@ classdef PAData < handle
         end
 
         function [sref,varargout] = subsref(obj,s)
-
+            
             if(strcmp(s(1).type,'()') && length(s)<2)
                 % Note that obj.Data is passed to subsref
                 sref = obj.subsindex(cell2mat(s.subs));
             else
-                varargout = cell(1,nargout-1);
-                [sref,varargout{:}] = builtin('subsref',obj,s);
+                if(nargout)
+                    varargout = cell(1,nargout-1);
+                    
+                    [sref,varargout{:}] = builtin('subsref',obj,s);
+                else
+                    builtin('subsref',obj,s);
+                end
             end
         end
 
         % ======================================================================
-        %> @brief Returns a structure of PAData's time series fields and
+        %> @brief Returns a structure of PASensorData's time series fields and
         %> values, depending on the user's input selection.
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @param choice (optional) String indicating the type of structure to be returned; optional. Can be
         %> - @b dummy Empty data.
         %> - @b dummydisplay Holds generic line properties for the time series structure.
@@ -2697,7 +2750,7 @@ classdef PAData < handle
         %> @li @c features - units are frames
         %> @li @c bins - units are bins
 
-        %> @retval dat A struct of PAData's time series, aggregate bins, or features instance data.  The fields
+        %> @retval dat A struct of PASensorData's time series, aggregate bins, or features instance data.  The fields
         %> for time series data include:
         %> - @c accel.(obj.accelType).x
         %> - @c accel.(obj.accelType).y
@@ -2739,8 +2792,8 @@ classdef PAData < handle
         end
 
         % ======================================================================
-        %> @brief Returns a structure of PAData's saveable parameters as a struct.
-        %> @param obj Instance of PAData.
+        %> @brief Returns a structure of PASensorData's saveable parameters as a struct.
+        %> @param obj Instance of PASensorData.
         %> @retval pStruct A structure of save parameters which include the following
         %> fields
         %> - @c curWindow
@@ -2830,7 +2883,7 @@ classdef PAData < handle
         %> sensor measurements are loaded into the object (obj).  The
         %> auxialiary measures (e.g. lux, steps) are upsampled to the
         %> sampling rate of the raw data (typically 40 Hz).
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @param fullRawActivityBinFilename The full (i.e. with path) filename for raw data,
         %> stored in binary format, to load.
         %> @param firmwareVersion String identifying the firmware version.
@@ -2999,14 +3052,14 @@ classdef PAData < handle
         end
 
         % ======================================================================
-        %> @brief Returns a structure of an insance PAData's time series data.
-        %> @param obj Instance of PAData.
+        %> @brief Returns a structure of an insance PASensorData's time series data.
+        %> @param obj Instance of PASensorData.
         %> @param structType String (optional) identifying the type of data to obtain the
         %> offset from.  Can be
         %> @li @c timeSeries (default) - units are sample points
         %> @li @c features - units are frames
         %> @li @c bins - units are bins
-        %> @retval dat A struct of PAData's time series instance data.  The fields
+        %> @retval dat A struct of PASensorData's time series instance data.  The fields
         %> include:
         %> - @c accel
         %> - @c accel
@@ -3044,15 +3097,15 @@ classdef PAData < handle
         end
 
         % ======================================================================
-        %> @brief Returns a structure of an insance PAData's time series
+        %> @brief Returns a structure of an insance PASensorData's time series
         %> data at the current window.
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @param structType String (optional) identifying the type of data to obtain the
         %> offset from.  Can be
         %> @li @c timeSeries (default) - units are sample points
         %> @li @c features - units are frames
         %> @li @c bins - units are bins
-        %> @retval curStruct A struct of PAData's time series or features instance data.  The fields
+        %> @retval curStruct A struct of PASensorData's time series or features instance data.  The fields
         %> for time series include:
         %> - @c accel.(obj.accelType).x
         %> - @c accel.(obj.accelType).y
@@ -3078,13 +3131,13 @@ classdef PAData < handle
         % ======================================================================
         %> @brief Returns the time series data as a struct for the current window range,
         %> adjusted for visual offset and scale.
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @param structType (Optional) String identifying the type of data to obtain the
         %> offset from.  Can be
         %> @li @c timeSeries (default) - units are sample points
         %> @li @c features - units are frames
         %> @li @c bins - units are bins
-        %> @retval dat A struct of PAData's time series or features instance data.  The fields
+        %> @retval dat A struct of PASensorData's time series or features instance data.  The fields
         %> for time series data include:
         %> - accel.(obj.accelType).x
         %> - accel.(obj.accelType).y
@@ -3124,7 +3177,7 @@ classdef PAData < handle
         % ======================================================================
         %> @brief Returns [x,y,z] offsets of the current time series
         %> data being displayed.  Values are stored in .position child field
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @param structType (Optional) String identifying the type of data to obtain the
         %> offset from.  Can be
         %> @li @c timeSeries (default)
@@ -3207,7 +3260,7 @@ classdef PAData < handle
         % ======================================================================
         %> @brief Parses the information found in input file name and returns
         %> the result as a struct of field-value pairs.
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @param infoTxtFullFilename Name of the info.txt that contains
         %> sensor meta data.
         %> @retval infoStruct A struct of the field value pairings parsed
@@ -3263,7 +3316,7 @@ classdef PAData < handle
             numFrames = floor(numelements/samplesPerFrame);
             frameableSamples = numelements*numFrames;
             NxM_dataFrames =  reshape(dataVector(1:frameableSamples),[],numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
-            featureVector = PAData.calcFeatureVectorFromFrames(NxM_dataFrames,featureFcn);
+            featureVector = PASensorData.calcFeatureVectorFromFrames(NxM_dataFrames,featureFcn);
         end
 
         function Mx1_featureVector = calcFeatureVectorFromFrames(NxM_dataFrames,featureFcn)
@@ -3339,12 +3392,12 @@ classdef PAData < handle
         %======================================================================
         function processVec = reprocessEventVector(logicalVec,min_duration_samples,merge_distance_samples)
 
-            candidate_events= PAData.thresholdcrossings(logicalVec,0);
+            candidate_events= PASensorData.thresholdcrossings(logicalVec,0);
 
             if(~isempty(candidate_events))
 
                 if(merge_distance_samples>0)
-                    candidate_events = PAData.merge_nearby_events(candidate_events,merge_distance_samples);
+                    candidate_events = PASensorData.merge_nearby_events(candidate_events,merge_distance_samples);
                 end
 
                 if(min_duration_samples>0)
@@ -3352,7 +3405,7 @@ classdef PAData < handle
                     candidate_events = candidate_events(diff_samples>=min_duration_samples,:);
                 end
             end
-            processVec = PAData.unrollEvents(candidate_events,numel(logicalVec));
+            processVec = PASensorData.unrollEvents(candidate_events,numel(logicalVec));
         end
 
         %======================================================================
@@ -3453,7 +3506,7 @@ classdef PAData < handle
         end
 
         % ======================================================================
-        %> @brief Returns a structure of PAData's default parameters as a struct.
+        %> @brief Returns a structure of PASensorData's default parameters as a struct.
         %> @retval pStruct A structure of default parameters which include the following
         %> fields
         %> - @c curWindow
@@ -3476,6 +3529,8 @@ classdef PAData < handle
         %> parameters in getSaveParameters()
         %======================================================================
         function pStruct = getDefaultParameters()
+            pStruct = PAData.getDefaultParameters();
+            
             pStruct.pathname = '.'; %directory of accelerometer data.
             pStruct.filename = ''; %last accelerometer data opened.
             pStruct.curWindow = 1;
@@ -3507,7 +3562,7 @@ classdef PAData < handle
 
             pStruct.usageStateRules = usageState;
 
-            featureStruct = PAData.getFeatureDescriptionStructWithPSDBands();
+            featureStruct = PASensorData.getFeatureDescriptionStructWithPSDBands();
             fnames = fieldnames(featureStruct);
 
             windowHeight = 1000; %diff(obj.getMinmax('all'))
@@ -3545,7 +3600,7 @@ classdef PAData < handle
 
 
             %Default is everything to be visible
-            timeSeriesStruct = PAData.getDummyStruct('timeSeries');
+            timeSeriesStruct = PASensorData.getDummyStruct('timeSeries');
             visibleProp.visible = 'on';
             pStruct.visible.timeSeries = overwriteEmptyStruct(timeSeriesStruct,visibleProp);
 
@@ -3599,7 +3654,7 @@ classdef PAData < handle
             pStruct.scale.timeSeries.inclinometer.lying = 5;
             pStruct.scale.timeSeries.inclinometer.off = 5;
 
-            [tagLines, labels] = PAData.getDefaultTagLineLabels();
+            [tagLines, labels] = PASensorData.getDefaultTagLineLabels();
             for t=1:numel(tagLines)
                 eval(['pStruct.label.timeSeries.',tagLines{t},'.string = ''',labels{t},''';']);
             end
@@ -3640,7 +3695,7 @@ classdef PAData < handle
                 structOut = struct();
 
                 for f=1:numel(fnames)
-                    structOut.(fnames{f}) = PAData.subsStruct(structIn.(fnames{f}),indices);
+                    structOut.(fnames{f}) = PASensorData.subsStruct(structIn.(fnames{f}),indices);
                 end
 
             elseif(isempty(structIn))
@@ -3713,14 +3768,14 @@ classdef PAData < handle
 
 
         % ======================================================================
-        %> @brief Returns an empty struct with fields that mirror PAData's
+        %> @brief Returns an empty struct with fields that mirror PASensorData's
         %> time series instance variables that contain
         %> @param structType (Optional) String identifying the type of data to obtain the
         %> offset from.  Can be
         %> @li @c timeSeries (default) - units are sample points
         %> @li @c features - units are frames
         %> @li @c bins - units are bins
-        %> @retval dat A struct of PAData's time series, feature, or aggregate bin instance variables.
+        %> @retval dat A struct of PASensorData's time series, feature, or aggregate bin instance variables.
         %> Time series include:
         %> - accel.(accelType).x
         %> - accel.(accelType).y
@@ -3756,15 +3811,15 @@ classdef PAData < handle
                     dat.lux = [];
                     dat.inclinometer = incl;
                 case 'bins'
-                    binNames =  PAData.getPrefilterMethods();
+                    binNames =  PASensorData.getPrefilterMethods();
                     dat = struct;
                     for f=1:numel(binNames)
                         dat.(lower(binNames{f})) = [];
                     end
 
                 case 'features'
-                    %                    featureNames =  PAData.getExtractorMethods();
-                    featureNames = fieldnames(PAData.getFeatureDescriptionStructWithPSDBands());
+                    %                    featureNames =  PASensorData.getExtractorMethods();
+                    featureNames = fieldnames(PASensorData.getFeatureDescriptionStructWithPSDBands());
                     dat = struct;
                     for f=1:numel(featureNames)
                         dat.(lower(featureNames{f})) = [];
@@ -3784,7 +3839,7 @@ classdef PAData < handle
         %> @li @c timeSeries (default) units are sample points
         %> @li @c features units are frames
         %> @li @c bins units are bins
-        %> @retval dat A struct of PAData's time series instance variables, which
+        %> @retval dat A struct of PASensorData's time series instance variables, which
         %> include:
         %> - accel.(accelType).x.(xdata, ydata, color)
         %> - accel.(accelType).y.(xdata, ydata, color)
@@ -3803,7 +3858,7 @@ classdef PAData < handle
                 structType = 'timeSeries';
             end
 
-            dat = PAData.getDummyStruct(structType);
+            dat = PASensorData.getDummyStruct(structType);
             dat = overwriteEmptyStruct(dat,lineProps);
 
         end
@@ -3817,7 +3872,7 @@ classdef PAData < handle
         %> - @c sum
         %> - @c median
         %> - @c mean
-        %> @note These methods can be passed as the argument to PAData's
+        %> @note These methods can be passed as the argument to PASensorData's
         %> prefilter() method.
         % --------------------------------------------------------------------
         function prefilterMethods = getPrefilterMethods()
@@ -3833,14 +3888,14 @@ classdef PAData < handle
         %> - @c sum
         %> - @c median
         %> - @c mean
-        %> @note These methods can be passed as the argument to PAData's
+        %> @note These methods can be passed as the argument to PASensorData's
         %> prefilter() method.
         % --------------------------------------------------------------------
         function extractorDescriptions = getExtractorDescriptions()
-            [~, extractorDescriptions] = PAData.getFeatureDescriptionStruct();
+            [~, extractorDescriptions] = PASensorData.getFeatureDescriptionStruct();
 
             %% This was before I rewrote getFeatureDescriptionStruct
-            % featureStruct = PAData.getFeatureDescriptionStruct();
+            % featureStruct = PASensorData.getFeatureDescriptionStruct();
             % extractorDescriptions = struct2cell(featureStruct);
 
             %%  This was apparently before I knew about struct2cell ...
@@ -3885,8 +3940,8 @@ classdef PAData < handle
         %> @retval varargout Cell with descriptive labels in the same order
         %> as they appear in argument one's keyvalue paired struct.
         function [featureStructWithPSDBands, varargout] = getFeatureDescriptionStructWithPSDBands()
-            featureStruct = rmfield(PAData.getFeatureDescriptionStruct(),'psd');
-            psdFeatureStruct = PAData.getPSDFeatureDescriptionStruct();
+            featureStruct = rmfield(PASensorData.getFeatureDescriptionStruct(),'psd');
+            psdFeatureStruct = PASensorData.getPSDFeatureDescriptionStruct();
             featureStructWithPSDBands = mergeStruct(featureStruct,psdFeatureStruct);
             if(nargout>1)
                 varargout{1} = struct2cell(featureStructWithPSDBands);
@@ -3895,7 +3950,7 @@ classdef PAData < handle
 
         function [psdFeatureStruct, varargout] = getPSDFeatureDescriptionStruct()
             psdFeatureStruct = struct();
-            psdNames = PAData.getPSDBandNames();
+            psdNames = PASensorData.getPSDBandNames();
             for p=1:numel(psdNames)
                 psdFeatureStruct.(psdNames{p}) = sprintf('Power Spectral Density (band - %u)',p);
             end
@@ -3905,12 +3960,12 @@ classdef PAData < handle
         end
 
         function psdExtractorDescriptions = getPSDExtractorDescriptions()
-            [~,psdExtractorDescriptions] = PAData.getPSDFeatureDescriptionStruct();
+            [~,psdExtractorDescriptions] = PASensorData.getPSDFeatureDescriptionStruct();
         end
 
         % --------------------------------------------------------------------
         %> @brief Returns a struct representing the internal architecture
-        %> used by PAData to hold and process acceleration data.
+        %> used by PASensorData to hold and process acceleration data.
         %> @li @c timeSeries = 'time series';
         %> @li @c bins = 'aggregate bins';
         %> @li @c features = 'features';
@@ -3926,7 +3981,7 @@ classdef PAData < handle
         end
 
         % --------------------------------------------------------------------
-        %> @brief Returns the fieldname of PAData's struct types (see getStructTypes())
+        %> @brief Returns the fieldname of PASensorData's struct types (see getStructTypes())
         %> that matches the string argument.
         %> @param description String description that can be
         %> @li @c timeSeries = 'time series';
@@ -3934,11 +3989,11 @@ classdef PAData < handle
         %> @li @c features = 'features';
         %> @retval structName Name of the field that matches the description.
         %> @note For example:
-        %> @note structName = PAData.getStructNameFromDescription('time series');
+        %> @note structName = PASensorData.getStructNameFromDescription('time series');
         %> @note results in structName = 'timeSeries'
         % --------------------------------------------------------------------
         function structName = getStructNameFromDescription(description)
-            structType = PAData.getStructTypes();
+            structType = PASensorData.getStructTypes();
             fnames = fieldnames(structType);
             structName = [];
             for f=1:numel(fnames)
@@ -3972,16 +4027,16 @@ classdef PAData < handle
             else
                 x_tmp = zeros(length(ind),2);
                 x_tmp(1,:) = [ind(1) ind(1)];
-                for k = 2:length(ind);
+                for k = 2:length(ind)
                     if(ind(k)==x_tmp(cur_i,2)+1)
                         x_tmp(cur_i,2)=ind(k);
                     else
                         cur_i = cur_i+1;
                         x_tmp(cur_i,:) = [ind(k) ind(k)];
-                    end;
-                end;
+                    end
+                end
                 x = x_tmp(1:cur_i,:);
-            end;
+            end
         end
 
         % ======================================================================
@@ -4021,11 +4076,11 @@ classdef PAData < handle
                         num_events_out = num_events_out + 1;
                         merged_events(num_events_out,:) = event_mat_in(k,:);
                     end
-                end;
+                end
                 merged_events = merged_events(1:num_events_out,:);
             else
                 merged_events = event_mat_in;
-            end;
+            end
         end
 
         %> @brief Parses the input file's basename (i.e. sans folder and extension)
@@ -4057,7 +4112,7 @@ classdef PAData < handle
         end
 
         function bandNamesAsCell = getPSDBandNames()
-            bandNamesAsCell = str2cell(sprintf('psd_band_%u\n',1:PAData.NUM_PSD_BANDS));
+            bandNamesAsCell = str2cell(sprintf('psd_band_%u\n',1:PASensorData.NUM_PSD_BANDS));
         end
 
     end

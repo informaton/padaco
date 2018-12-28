@@ -92,8 +92,6 @@ classdef PAStatTool < PABase
         allProfiles;
         profileTableData;
         
-        %> @brief Folder where exported files are saved to .
-        exportPathname;
         
     end
     properties(Access=private)
@@ -167,8 +165,7 @@ classdef PAStatTool < PABase
             if(~isfield(initSettings,'useDatabase'))
                 initSettings.useDatabase = false;
             end
-
-            this.exportPathname = initSettings.exportPathname;
+            
             this.bootstrapIterations =  initSettings.bootstrapIterations;
             this.bootstrapSampleName = initSettings.bootstrapSampleName;
             this.maxNumDaysAllowed = initSettings.maxNumDaysAllowed;
@@ -351,36 +348,6 @@ classdef PAStatTool < PABase
             canPlotValue = this.canPlot;
         end
         
-                % --------------------------------------------------------------------
-        % Helper functions for setting the export paths to be used when
-        % saving data about clusters and covariates to disk.
-        % --------------------------------------------------------------------
-        function didUpdate = updateExportPath(this)
-            displayMessage = 'Select a directory to place the exported files.';
-            initPath = this.getExportPath();
-            tmpOutputDirectory = uigetfulldir(initPath,displayMessage);
-            if(isempty(tmpOutputDirectory))
-                didUpdate = false;
-            else
-                didUpdate = this.setExportPath(tmpOutputDirectory);
-            end
-        end
-        
-        % --------------------------------------------------------------------
-        function exportPath = getExportPath(this)
-            exportPath = this.exportPathname;
-        end
-        
-        % --------------------------------------------------------------------
-        function didSet = setExportPath(this, newPath)
-            try
-                this.exportPathname = newPath;
-                didSet = true;
-            catch me
-                showME(me);
-                didSet = false;
-            end
-        end
         
         function didExport = exportClusterToDisk(this)
             
@@ -392,7 +359,7 @@ classdef PAStatTool < PABase
                 
                 % If this is not true, then we can just leave this
                 % function since the user would have cancelled.
-            elseif(this.updateExportPath())
+            elseif(curCluster.updateExportPath())
                 try 
                     lastClusterSettings.StatTool = this.getStateAtTimeOfLastClustering();
                     exportPath = this.getExportPath();
@@ -444,7 +411,6 @@ classdef PAStatTool < PABase
         function paramStruct = getSaveParameters(this)
             paramStruct = this.getPlotSettings();            
             
-            paramStruct.exportPathname = this.exportPathname;
             paramStruct.exportShowNonwear = this.originalWidgetSettings.exportShowNonwear;
             
             % These parameters not stored in figure widgets
@@ -3770,7 +3736,7 @@ classdef PAStatTool < PABase
                         usageStateStruct = [];
                     end
                     if(isstruct(usageStateStruct))
-                        tagStruct = PAData.getActivityTags();
+                        tagStruct = PASensorData.getActivityTags();
                         nonwearRows = any(usageStateStruct.shapes<=tagStruct.NONWEAR,2);                        
                     end
                 otherwise
@@ -3941,7 +3907,6 @@ classdef PAStatTool < PABase
             % Prime with cluster parameters.
             paramStruct = PACluster.getDefaultParameters();
             
-            paramStruct.exportPathname = workingPath;
             paramStruct.exportShowNonwear = true;
             paramStruct.cacheDirectory = fullfile(workingPath,'cache');
             paramStruct.useCache = 1;
@@ -4011,7 +3976,7 @@ classdef PAStatTool < PABase
         %> - @c weekdayTags
         % ======================================================================
         function baseSettings = getBaseSettings()
-            featureDescriptionStruct = PAData.getFeatureDescriptionStructWithPSDBands();
+            featureDescriptionStruct = PASensorData.getFeatureDescriptionStructWithPSDBands();
             baseSettings.featureDescriptions = struct2cell(featureDescriptionStruct);
             baseSettings.featureTypes = fieldnames(featureDescriptionStruct);
             baseSettings.signalTypes = {'x','y','z','vecMag'};

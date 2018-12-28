@@ -1,18 +1,18 @@
 % ======================================================================
-%> @file PAData.cpp
+%> @file PASensorData.cpp
 %> @brief Accelerometer data loading class.
 % ======================================================================
-%> @brief The PAData class helps loads and stores accelerometer data used in the
+%> @brief The PASensorData class helps loads and stores accelerometer data used in the
 %> physical activity monitoring project.  The project is aimed at reducing
 %> obesity and improving health in children.
 % ======================================================================
-classdef PADeriverData < PAData
+classdef PADeriverData < PASensorData
     properties
         
     end
     methods
         function obj = PADeriverData(varargin)
-            obj = obj@PAData(varargin{:});
+            obj = obj@PASensorData(varargin{:});
             
         end
     end
@@ -27,7 +27,7 @@ classdef PADeriverData < PAData
         %> sensor measurements are loaded into the object (obj).  The
         %> auxialiary measures (e.g. lux, steps) are upsampled to the
         %> sampling rate of the raw data (typically 40 Hz).
-        %> @param obj Instance of PAData.
+        %> @param obj Instance of PASensorData.
         %> @param fullRawActivityBinFilename The full (i.e. with path) filename for raw data,
         %> stored in binary format, to load.
         %> @param firmwareVersion String identifying the firmware version.

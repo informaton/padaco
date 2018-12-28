@@ -1,5 +1,5 @@
   - [Public](#public-methods)
-    - [PAData](#padata)
+    - [PASensorData](#padata)
     - [getWindowRange](#getwindowrange)
     - [getCurUncorrectedWindowRange](#getcuruncorrectedwindowrange)
     - [getSamplesPerWindow](#getsamplesperwindow)

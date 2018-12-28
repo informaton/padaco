@@ -1,12 +1,12 @@
 % ======================================================================
-%> @file PADataLineSettings.cpp
-%> @brief Class for updating display properties of data found in a PAData
+%> @file PASensorDataLineSettings.cpp
+%> @brief Class for updating display properties of data found in a PASensorData
 %> object.
 % ======================================================================
-%> @brief The PADataLineSettings class handles the interface between the
-%> line handles connected with PAData signals.
+%> @brief The PASensorDataLineSettings class handles the interface between the
+%> line handles connected with PASensorData signals.
 % ======================================================================
-classdef PADataLineSettings < handle
+classdef PASensorDataLineSettings < handle
     properties(Constant)
         figureFcn = @singleStudyDisplaySettings;
         
@@ -26,11 +26,11 @@ classdef PADataLineSettings < handle
         handles;
     end
     methods
-        function this = PADataLineSettings(dataObjIn, viewSelection, lineHandles)
+        function this = PASensorDataLineSettings(dataObjIn, viewSelection, lineHandles)
             this.figureH = this.figureFcn('visible','off');
             set(this.figureH,'visible','on');
             this.handles = guidata(this.figureH);
-            if(nargin<2 || ~isa(dataObjIn,'PAData') || ~any(strcmpi(viewSelection,fieldnames(dataObjIn.label))))
+            if(nargin<2 || ~isa(dataObjIn,'PASensorData') || ~any(strcmpi(viewSelection,fieldnames(dataObjIn.label))))
                 
             else
                 viewSelections = fieldnames(dataObjIn.label); % have to watch out for cases where view selection comes in as 'timeseries' and field name is actually 'timeSeries'

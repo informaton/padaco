@@ -108,8 +108,8 @@ classdef PAView < handle
         %> - @c signals - For the lines, reference lines, and labels
         contextmenuhandle; 
          
-        %> PAData instance
-        dataObj;
+        %> PASensorData instance
+        accelObj;
         window_resolution;%struct of different time resolutions, field names correspond to the units of time represented in the field        
     end
 
@@ -274,7 +274,7 @@ classdef PAView < handle
                 for n=1:numLines
                     curH = visibleLineHandles(n);
                     curTag = get(curH,'tag');
-                    obj.dataObj.setOffset(curTag,offset);
+                    obj.accelObj.setOffset(curTag,offset);
                     offset = offset+deltaHeight;
                 end
             end
@@ -434,9 +434,9 @@ classdef PAView < handle
         %> specified.        
         % --------------------------------------------------------------------
         function setDisplayType(obj,displayTypeStr,visibleProps)
-            if(any(strcmpi(fieldnames(PAData.getStructTypes()),displayTypeStr)))
+            if(any(strcmpi(fieldnames(PASensorData.getStructTypes()),displayTypeStr)))
                 allProps.visible = 'off';
-                allStructTypes = PAData.getStructTypes();
+                allStructTypes = PASensorData.getStructTypes();
                 fnames = fieldnames(allStructTypes);
                 for f=1:numel(fnames)
                     curStructName = fnames{f};
@@ -763,24 +763,24 @@ classdef PAView < handle
         %> @brief Initializes the graphic handles (label and line handles) and maps figure tag names
         %> to PAView instance variables.  Initializes the menubar and various widgets.  Also set the acceleration data instance variable and assigns
         %> line handle y values to those found with corresponding field
-        %> names in PADataObject.        
+        %> names in PASensorDataObject.        
         %> @note Resets the currentWindow to 1.
         %> @param obj Instance of PAView
-        %> @param PADataObject (Optional) PAData display struct that matches the linehandle struct of
+        %> @param PASensorDataObject (Optional) PASensorData display struct that matches the linehandle struct of
         %> obj and whose values will be assigned to the 'ydata','xdata', and 'color' fields of the
         %> line handles.  A label property struct will be created
         %> using the string values of labelStruct and the initial x, y value of the line
         %> props to initialize the 'string' and 'position' properties of 
         %> obj's corresponding label handles.          
         % --------------------------------------------------------------------
-        function obj = initWithAccelData(obj, PADataObject)
+        function obj = initWithAccelData(obj, PASensorDataObject)
             
-            obj.dataObj = PADataObject;
+            obj.accelObj = PASensorDataObject;
 
-            axesProps.primary.xlim = PADataObject.getCurWindowRange();
-            axesProps.primary.ylim = PADataObject.getDisplayMinMax();
+            axesProps.primary.xlim = PASensorDataObject.getCurWindowRange();
+            axesProps.primary.ylim = PASensorDataObject.getDisplayMinMax();
             
-            if(strcmpi(obj.dataObj.getAccelType(),'raw'))
+            if(strcmpi(obj.accelObj.getAccelType(),'raw'))
                 ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Daylight'};
             else
                 ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Lumens','Daylight'};
@@ -810,28 +810,28 @@ classdef PAView < handle
             %VIEW's line handles
 
             % However, all lines are invisible.
-            obj.createLineAndLabelHandles(PADataObject);
+            obj.createLineAndLabelHandles(PASensorDataObject);
             
             %resize the secondary axes according to the new window
             %resolution
-            obj.updateSecondaryAxes(PADataObject.getStartStopDatenum());
+            obj.updateSecondaryAxes(PASensorDataObject.getStartStopDatenum());
                         
             %initialize the various line handles and label content and
             %color.  Struct types consist of
             %> 1. timeSeries
             %> 2. features
-            structType = PADataObject.getStructTypes();
+            structType = PASensorDataObject.getStructTypes();
             fnames = fieldnames(structType);
             for f=1:numel(fnames)
                 curStructType = fnames{f};
                 
-                labelProps = PADataObject.getLabel(curStructType);
+                labelProps = PASensorDataObject.getLabel(curStructType);
                 labelPosStruct = obj.getLabelhandlePosition(curStructType);                
                 labelProps = mergeStruct(labelProps,labelPosStruct);
                 
-                colorStruct = PADataObject.getColor(curStructType);
+                colorStruct = PASensorDataObject.getColor(curStructType);
                 
-                visibleStruct = PADataObject.getVisible(curStructType);
+                visibleStruct = PASensorDataObject.getVisible(curStructType);
                 
                 % Keep everything invisible at this point - so ovewrite the
                 % visibility property before we merge it together.
@@ -843,7 +843,7 @@ classdef PAView < handle
                 labelProps = mergeStruct(labelProps,allStruct);
                 
                 
-                lineProps = PADataObject.getStruct('dummydisplay',curStructType);
+                lineProps = PASensorDataObject.getStruct('dummydisplay',curStructType);
                 lineProps = mergeStruct(lineProps,allStruct);
                 
                 obj.recurseHandleSetter(obj.linehandle.(curStructType),lineProps);
@@ -852,20 +852,20 @@ classdef PAView < handle
                 obj.recurseHandleSetter(obj.labelhandle.(curStructType),labelProps);                
             end
             
-            obj.setFilename(obj.dataObj.getFilename());  
+            obj.setFilename(obj.accelObj.getFilename());  
             
-            obj.setStudyPanelContents(PADataObject.getHeaderAsString());
+            obj.setStudyPanelContents(PASensorDataObject.getHeaderAsString());
             
             % initialize and enable widgets (drop down menus, edit boxes, etc.)
             obj.initWidgets('timeseries');
 
             
-            obj.setAggregateDurationMinutes(num2str(PADataObject.aggregateDurMin));
-            [frameDurationMinutes, frameDurationHours] = PADataObject.getFrameDuration();
+            obj.setAggregateDurationMinutes(num2str(PASensorDataObject.aggregateDurMin));
+            [frameDurationMinutes, frameDurationHours] = PASensorDataObject.getFrameDuration();
             obj.setFrameDurationMinutes(num2str(frameDurationMinutes));
             obj.setFrameDurationHours(num2str(frameDurationHours));
             
-            windowDurationSec = PADataObject.getWindowDurSec();
+            windowDurationSec = PASensorDataObject.getWindowDurSec();
             obj.setWindowDurSecMenu(windowDurationSec);
             
             set(obj.positionBarHandle,'visible','on','xdata',nan(1,5),'ydata',[0 1 1 0 0],'linestyle',':'); 
@@ -908,8 +908,8 @@ classdef PAView < handle
             axesProps.primary.xlim = axesRange;
             curWindow = obj.getCurWindow();
             windowDurSec = obj.getWindowDurSec();
-            curDateNum = obj.dataObj.window2datenum(curWindow);
-            nextDateNum = obj.dataObj.window2datenum(curWindow+1); 
+            curDateNum = obj.accelObj.window2datenum(curWindow);
+            nextDateNum = obj.accelObj.window2datenum(curWindow+1); 
             numTicks = 10;
             xTick = linspace(axesRange(1),axesRange(2),numTicks);
             dateTicks = linspace(curDateNum,nextDateNum,numTicks);
@@ -1129,10 +1129,10 @@ classdef PAView < handle
         %> that will be displayed by the view.
         %> This is based on the structure template generated by member
         %> function getStruct('dummydisplay').
-        %> @param PADataObject Instance of PAData.
+        %> @param PASensorDataObject Instance of PASensorData.
         %> @param obj Instance of PAView
         % --------------------------------------------------------------------
-        function createLineAndLabelHandles(obj,PADataObject)
+        function createLineAndLabelHandles(obj,PASensorDataObject)
             % Kill off anything else still in the primary and secondary
             % axes...
             zombieLines = findobj([obj.axeshandle.primary;obj.axeshandle.secondary],'type','line');
@@ -1151,11 +1151,11 @@ classdef PAView < handle
 
             handleProps.visible = 'off';
             
-            structType = PADataObject.getStructTypes();            
+            structType = PASensorDataObject.getStructTypes();            
             fnames = fieldnames(structType);
             for f=1:numel(fnames)
                 curName = fnames{f};
-                dataStruct = PADataObject.getStruct('dummy',curName);
+                dataStruct = PASensorDataObject.getStruct('dummy',curName);
             
                 handleType = 'line';
                 handleProps.tag = curName;
@@ -1188,7 +1188,7 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         %> @brief Enables the aggregate radio button.  
         %> @note Requires aggregate data exists in the associated
-        %> PAData object instance variable 
+        %> PASensorData object instance variable 
         %> @param obj Instance of PAView
         %> @param enableState Optional tag for specifying the 'enable' state. 
         %> - @c 'on' [default]
@@ -1220,7 +1220,7 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         %> @brief Enables the time series radio button.  
         %> @note Requires feature data exist in the associated
-        %> PAData object instance variable 
+        %> PASensorData object instance variable 
         %> @param obj Instance of PAView
         %> @param enableState Optional tag for specifying the 'enable' state. 
         %> - @c 'on' [default]
@@ -1260,7 +1260,7 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> @brief Displays the string argument in the view.
-        %> @param obj PADataObject Instance of PAData
+        %> @param obj PASensorDataObject Instance of PASensorData
         %> @param sourceFilename String that will be displayed in the view as the source filename when provided.
         % --------------------------------------------------------------------
         function setFilename(obj,sourceFilename)
@@ -1269,7 +1269,7 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> @brief Displays the contents of cellString in the study panel
-        %> @param obj PADataObject Instance of PAData
+        %> @param obj PASensorDataObject Instance of PASensorData
         %> @param cellString Cell of string that will be displayed in the study panel.  Each 
         %> cell element is given its own display line.
         % --------------------------------------------------------------------
@@ -1279,12 +1279,12 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> @brief Draws the view
-        %> @param obj PADataObject Instance of PAData
+        %> @param obj PASensorDataObject Instance of PASensorData
         % --------------------------------------------------------------------
         function draw(obj)
             % Axes range must occur at the top as it is used to determine
             % the position of text labels.
-            axesRange   = obj.dataObj.getCurUncorrectedWindowRange(obj.displayType);
+            axesRange   = obj.accelObj.getCurUncorrectedWindowRange(obj.displayType);
             
             %make it increasing
             if(diff(axesRange)==0)
@@ -1296,10 +1296,10 @@ classdef PAView < handle
             obj.updatePrimaryAxes(axesRange);
             
             structFieldName =obj.displayType;
-            lineProps   = obj.dataObj.getStruct('currentdisplay',structFieldName);
+            lineProps   = obj.accelObj.getStruct('currentdisplay',structFieldName);
             obj.recurseHandleSetter(obj.linehandle.(structFieldName),lineProps);
                         
-            offsetProps = obj.dataObj.getStruct('displayoffset',structFieldName);
+            offsetProps = obj.accelObj.getStruct('displayoffset',structFieldName);
             offsetStyle.LineStyle = '--';
             offsetStyle.color = [0.6 0.6 0.6];
             offsetProps = appendStruct(offsetProps,offsetStyle);
@@ -1309,7 +1309,7 @@ classdef PAView < handle
             % update label text positions based on the axes position.
             % So the axes range must be set above this!
             % link the x position with the axis x-position ...
-            labelProps = obj.dataObj.getLabel(structFieldName);
+            labelProps = obj.accelObj.getLabel(structFieldName);
             labelPosStruct = obj.getLabelhandlePosition();            
             labelProps = mergeStruct(labelProps,labelPosStruct);             
             obj.recurseHandleSetter(obj.labelhandle.(structFieldName),labelProps);
@@ -1345,8 +1345,8 @@ classdef PAView < handle
                 displayTypeStr = obj.displayType;
             end
             yOffset = -30; %Trial and error
-            dummyStruct = obj.dataObj.getStruct('dummy',displayTypeStr);
-            offsetStruct = obj.dataObj.getStruct('displayoffset',displayTypeStr);
+            dummyStruct = obj.accelObj.getStruct('dummy',displayTypeStr);
+            offsetStruct = obj.accelObj.getStruct('displayoffset',displayTypeStr);
             labelPosStruct = structEval('calculateposition',dummyStruct,offsetStruct);
             xOffset = 1/250*diff(get(obj.axeshandle.primary,'xlim'));            
             offset = [xOffset, yOffset, 0];

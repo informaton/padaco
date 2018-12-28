@@ -156,8 +156,8 @@ classdef PABatchTool < handle
             %             end
             %             set(this.handles.menu_imageFormat,'string',imageFormats,'value',imgSelection);
             %
-            featureFcns = fieldnames(PAData.getFeatureDescriptionStruct()); %spits field-value pairs of feature names and feature description strings
-            featureDesc = PAData.getExtractorDescriptions();  %spits out the string values      
+            featureFcns = fieldnames(PASensorData.getFeatureDescriptionStruct()); %spits field-value pairs of feature names and feature description strings
+            featureDesc = PASensorData.getExtractorDescriptions();  %spits out the string values      
 
             featureFcns = [featureFcns; 'all_sans_psd';'all_sans_psd_usagestate','all']; 
             featureLabels = [featureDesc;'All (sans PSD)';'All (sans PSD and activity categories)'; 'All'];
@@ -541,20 +541,20 @@ classdef PABatchTool < handle
                 
                 %% Setup output folders
                 
-                % PAData separates the psd feature into bands in order to
+                % PASensorData separates the psd feature into bands in order to
                 % create feature vectors.  Unfortunately, this does not give a
                 % clean way to separate the groups into the expanded feature
                 % vectors, hence the gobbly goop code here:
                 if(strcmpi(featureFcn,'all'))
-                    featureStructWithPSDBands= PAData.getFeatureDescriptionStructWithPSDBands();
+                    featureStructWithPSDBands= PASensorData.getFeatureDescriptionStructWithPSDBands();
                     outputFeatureFcns = fieldnames(featureStructWithPSDBands);
                     outputFeatureLabels = struct2cell(featureStructWithPSDBands);  % leave it here for the sake of other coders; yes, you can assign this using a second output argument from getFeatureDescriptionWithPSDBands
                 elseif(strcmpi(featureFcn,'all_sans_psd'))
-                    outputFeatureStruct = rmfield(PAData.getFeatureDescriptionStruct(),'psd');
+                    outputFeatureStruct = rmfield(PASensorData.getFeatureDescriptionStruct(),'psd');
                     outputFeatureFcns = fieldnames(outputFeatureStruct);
                     outputFeatureLabels = struct2cell(outputFeatureStruct);
                 elseif(strcmpi(featureFcn,'all_sans_psd_usagestate')) % and sans usage state
-                    outputFeatureStruct = rmfield(PAData.getFeatureDescriptionStruct(),{'psd','usagestate'});
+                    outputFeatureStruct = rmfield(PASensorData.getFeatureDescriptionStruct(),{'psd','usagestate'});
                     outputFeatureFcns = fieldnames(outputFeatureStruct);
                     outputFeatureLabels = struct2cell(outputFeatureStruct);
                 else
@@ -634,7 +634,7 @@ classdef PABatchTool < handle
                     try
                         
                         fprintf('Processing %s\n',filenames{f});
-                        curData = PAData(fullFilenames{f});%,this.SETTINGS.DATA
+                        curData = PASensorData(fullFilenames{f});%,this.SETTINGS.DATA
                         if(~curData.hasData())
                             errMsg = sprintf('No data loaded from file (%s)',filenames{f});
                             throw(MException('PA:BatchTool:FileLoad',errMsg));

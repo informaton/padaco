@@ -6,7 +6,7 @@
 %> physical activity monitoring project.  The project is aimed at reducing
 %> obesity and improving health in children.
 % ======================================================================
-classdef PAFitBit < PAData
+classdef PAFitBit < PASensorData
 
     
     methods
@@ -458,7 +458,7 @@ classdef PAFitBit < PAData
                 end
             end
             
-            extractFeature@PAData(obj,signalTagLine,method);
+            extractFeature@PASensorData(obj,signalTagLine,method);
 
         end
 

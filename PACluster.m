@@ -3,7 +3,7 @@
 %> @brief Class for clustering results data produced via padaco's batch
 %> processing.
 % ======================================================================
-classdef PACluster < handle
+classdef PACluster < PAData
     properties(Constant)
         WEEKDAY_ORDER = 0:6;  % for Sunday through Saturday
         WEEKDAY_LABELS = {'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'};            
@@ -270,12 +270,6 @@ classdef PACluster < handle
             if(~delayedStart)
                 this.calculateClusters();
             end
-        end
-        
-        
-        function exportDialog(this)
-            
-            
         end
         
         
@@ -1752,9 +1746,10 @@ classdef PACluster < handle
         %> - @c initClusterWithPermutation = false;            
         %> @note Higher thresholds result in fewer clusters (and vice versa).
         function settings = getDefaultParameters()
+            settings = PAData.getDefaultParameters();
             settings.minClusters = 10;
             settings.clusterThreshold = 1.0;    %higher threshold equates to fewer clusters.
-
+            
             settings.clusterMethod = 'kmeans';
             settings.useDefaultRandomizer = false;
             settings.initClusterWithPermutation = false;            
@@ -1763,10 +1758,7 @@ classdef PACluster < handle
         function methods = getClusterMethods()
             methods = {'kmeans','kmedoids'};
         end
-        
-        function pStruct = getExportDefaultParameters()
-            pStruct.exportPath = '.';
-        end        
+    
                 
         %> @brief Validation metric for cluster separation.   Useful in determining if clusters are well separated.  
         %> If clusters are not well separated, then the Adaptive K-means threshold should be adjusted according to the segmentation resolution desired.

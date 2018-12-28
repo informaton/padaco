@@ -23,11 +23,11 @@ classdef  PASettings < handle
         %> @brief name of text file that stores the toolkit's settings
         parameters_filename;
         %> @brief cell of string names corresponding to the struct properties that
-        %> contain settings  <b><i> {'DATA','VIEW', 'CONTROLLER','BATCH','StatTool','IMPORT','EXPORT'}</i></b>
-        fieldNames = {'DATA','CONTROLLER','VIEW','BATCH','StatTool','IMPORT','EXPORT'};  
+        %> contain settings  <b><i> {'DATA','VIEW', 'CONTROLLER','BATCH','StatTool','IMPORT'}</i></b>
+        fieldNames = {'DATA','CONTROLLER','VIEW','BATCH','StatTool','IMPORT'};  
         
         %> @brief Fieldnmaes whose structures are only one level deep.
-        liteFieldNames={'StatTool','VIEW','CONTROLLER','IMPORT','EXPORT'};                
+        liteFieldNames={'StatTool','VIEW','CONTROLLER','IMPORT'};                
         dictionary;
     end
     properties
@@ -35,7 +35,7 @@ classdef  PASettings < handle
         
         %> struct of PAController preferences.
         CONTROLLER;
-        %> struct of PAData preferences.
+        %> struct of PASensorData preferences.
         DATA;
         %> struct of viewer related settings.
         VIEW;
@@ -44,8 +44,8 @@ classdef  PASettings < handle
         %> struct of settings for data import
         IMPORT;
         
-        %> struct of settings for data/cluster export
-        EXPORT;
+        % struct of settings for data/cluster export
+        % EXPORT;
         
         %> struct of StatTool plot/analysis settings.
         StatTool;
@@ -378,8 +378,7 @@ classdef  PASettings < handle
                     % exist in the left hand argument as if it were a
                     % struct.  Instead, build a tmp struct first, merge it,
                     % and then put the tmp struct back into our object.                    
-                    % obj = mergeStruct(obj,paramStruct);                  
-                    
+                    % obj = mergeStruct(obj,paramStruct);  
                    
                     fnames = fieldnames(paramStruct);
                     
@@ -388,7 +387,9 @@ classdef  PASettings < handle
                     else
                         tmpStruct = struct;
                         for f=1:numel(fnames)
-                            tmpStruct.(fnames{f}) = obj.(fnames{f});
+                            if(isprop(obj,fnames{f}))
+                                tmpStruct.(fnames{f}) = obj.(fnames{f});
+                            end
                         end
                         
                         tmpStruct = mergeStruct(tmpStruct,paramStruct);
@@ -396,7 +397,9 @@ classdef  PASettings < handle
                         % Do not bring in any new tier-1 fields that may have
                         % existed independtly in the paramStruct.
                         for f=1:numel(fnames)
-                            obj.(fnames{f}) = tmpStruct.(fnames{f});
+                            if(isprop(obj,fnames{f}))
+                                obj.(fnames{f}) = tmpStruct.(fnames{f});
+                            end
                         end
                         
                         
@@ -554,8 +557,7 @@ classdef  PASettings < handle
         %> - @c VIEW
         %> - @c BATCH
         %> - @c CONTROLLER
-        %> - @c IMPORT
-        %> - @c EXPORT
+        %> - @c IMPORT        
         %> @retval wasModified a boolean value; true if any changes were
         %> made to the settings in the GUI and false otherwise.
         % =================================================================
@@ -662,14 +664,12 @@ classdef  PASettings < handle
             
             for f = 1:numel(fieldNames)
                 switch fieldNames{f}
-                    case 'EXPORT'
-                        obj.EXPORT = PACluster.getExportDefaultParameters();                    
                     case 'IMPORT'
-                        obj.IMPORT = PADataImport.getDefaultParameters();
+                        obj.IMPORT = PASensorDataImport.getDefaultParameters();
                     case 'StatTool'
                         obj.StatTool = PAStatTool.getDefaultParameters();
                     case 'DATA'
-                        obj.DATA = PAData.getDefaultParameters();
+                        obj.DATA = PASensorData.getDefaultParameters();
                     case 'CONTROLLER'
                         obj.CONTROLLER = PAController.getDefaultParameters();
                     case 'VIEW'
