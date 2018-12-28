@@ -40,19 +40,22 @@ classdef PAController < PABase
         iconFilename;
         
     end
-    properties
+    properties(SetAccess=protected)
         %> acceleration activity object - instance of PAData
         accelObj;
+        
+        %> Instance of PAStatTool - results controller when in results view
+        %> mode.
+        StatTool;
+        
         %> Instance of PASettings - this is brought in to eliminate the need for several globals
-        SETTINGS;
+        settingsObj;
         %> Instance of PAView - Padaco's view component.
         VIEW;
         %> Instance of PAModel - Padaco's model component.  See accelObj.
         MODEL;
         
-        %> Instance of PAStatTool - results controller when in results view
-        %> mode.
-        StatTool;
+
         
         %> Figure handle to the main figure window
         figureH;
@@ -119,9 +122,9 @@ classdef PAController < PABase
             obj.StatTool = [];
             
             %create/intilize the settings object
-            obj.SETTINGS = PASettings(rootPathname,parameters_filename);
-            obj.screenshotPathname = obj.SETTINGS.CONTROLLER.screenshotPathname;
-            obj.resultsPathname = obj.SETTINGS.CONTROLLER.resultsPathname;
+            obj.settingsObj = PASettings(rootPathname,parameters_filename);
+            obj.screenshotPathname = obj.settingsObj.CONTROLLER.screenshotPathname;
+            obj.resultsPathname = obj.settingsObj.CONTROLLER.resultsPathname;
             
             obj.iconFilename = fullfile(rootPathname,'resources','icons','logo','icon_32.png');
             obj.setVersionNum();
@@ -150,13 +153,13 @@ classdef PAController < PABase
                 %  Apply this so that later we can retrieve useSmoothing
                 %  and highlighting nonwear
                 %  from obj.VIEW when it comes time to save parameters.
-                % obj.VIEW.setUseSmoothing(obj.SETTINGS.CONTROLLER.useSmoothing);
-                obj.setSmoothingState(obj.SETTINGS.CONTROLLER.useSmoothing);
+                % obj.VIEW.setUseSmoothing(obj.settingsObj.CONTROLLER.useSmoothing);
+                obj.setSmoothingState(obj.settingsObj.CONTROLLER.useSmoothing);
                 
                 %  Apply this so that later we can retrieve useSmoothing
                 %  from obj.VIEW when it comes time to save parameters.
-                % obj.VIEW.setUseSmoothing(obj.SETTINGS.CONTROLLER.useSmoothing);
-                obj.setNonwearHighlighting(obj.SETTINGS.CONTROLLER.highlightNonwear);
+                % obj.VIEW.setUseSmoothing(obj.settingsObj.CONTROLLER.useSmoothing);
+                obj.setNonwearHighlighting(obj.settingsObj.CONTROLLER.highlightNonwear);
                 
                 
                 obj.initTimeSeriesWidgets();
@@ -167,7 +170,7 @@ classdef PAController < PABase
                 obj.initMenubarCallbacks();
                 
                 % attempt to load the last set of results
-                lastViewMode = obj.SETTINGS.CONTROLLER.viewMode;
+                lastViewMode = obj.settingsObj.CONTROLLER.viewMode;
                 try
                     obj.setViewMode(lastViewMode);
                 catch me
@@ -181,8 +184,8 @@ classdef PAController < PABase
         %% Shutdown functions
         %> Destructor
         function close(obj)            
-            obj.saveParameters(); %requires SETTINGS variable
-            obj.SETTINGS = [];
+            obj.saveParameters(); %requires settingsObj variable
+            obj.settingsObj = [];
             if(~isempty(obj.StatTool))
                 obj.StatTool.delete();
             end
@@ -190,8 +193,8 @@ classdef PAController < PABase
         end
         
         function saveParameters(obj)
-            obj.refreshSETTINGS(); % updates the parameters based on current state of the gui.
-            obj.SETTINGS.saveParametersToFile();
+            obj.refreshSettings(); % updates the parameters based on current state of the gui.
+            obj.settingsObj.saveParametersToFile();
             fprintf(1,'Settings saved to disk.\n');
         end
 
@@ -200,20 +203,20 @@ classdef PAController < PABase
         %> @param Instance of PAController;
         %> @retval Boolean Did refresh = true, false otherwise (e.g. an
         %> error occurred)
-        function didRefresh = refreshSETTINGS(obj)
+        function didRefresh = refreshSettings(obj)
             try
-                % Overwrite the current SETTINGS.DATA if we have an accelObj
+                % Overwrite the current settingsObj.DATA if we have an accelObj
                 % instantiated.
                 if(~isempty(obj.accelObj))
-                    obj.SETTINGS.DATA = obj.accelObj.getSaveParameters();
+                    obj.settingsObj.DATA = obj.accelObj.getSaveParameters();
                 end
                 
                 % update the stat tool settings if it was used successfully.
                 if(~isempty(obj.StatTool) && obj.StatTool.getCanPlot())
-                    obj.SETTINGS.StatTool = obj.StatTool.getSaveParameters();
+                    obj.settingsObj.StatTool = obj.StatTool.getSaveParameters();
                 end
                 
-                obj.SETTINGS.CONTROLLER = obj.getSaveParameters();
+                obj.settingsObj.CONTROLLER = obj.getSaveParameters();
                 didRefresh = true;
             catch me
                 showME(me);
@@ -222,7 +225,7 @@ classdef PAController < PABase
         end
         
         %         function paramStruct = getSaveParametersStruct(obj)
-        %             paramStruct = obj.SETTINGS.VIEW;
+        %             paramStruct = obj.settingsObj.VIEW;
         %         end
         
         
@@ -421,14 +424,16 @@ classdef PAController < PABase
             set(viewHandles.menu_file_export,'callback',@obj.menu_file_exportMenu_callback);
             if(~isdeployed)
                 set(viewHandles.menu_file_export_dataObj,'callback',@obj.menu_file_export_dataObj_callback);
-                set(viewHandles.menu_file_export_centroidObj,'callback',@obj.menu_file_export_centroidObj_callback);
+                set(viewHandles.menu_file_export_clusterObj,'callback',@obj.menu_file_export_clusterObj_callback);
             % No point in sending data to the workspace on deployed
             % version.  There is no 'workspace'.
             else
                 set(viewHandles.menu_file_export_dataObj,'visible','off');
-                set(viewHandles.menu_file_export_centroidObj,'visible','off')
+                set(viewHandles.menu_file_export_clusterObj,'visible','off');
             end
-            set(viewHandles.menu_file_export_centroids_to_disk,'callback',@obj.menu_file_export_centroids_to_disk_callback);
+            set(viewHandles.menu_file_export_clusters_to_disk,'callback',@obj.menu_file_export_clusters_to_disk_callback);
+            set(viewHandles.menu_export_timeseries_to_disk,'callback',@obj.exportTimeSeriesCb);
+            
             
             
             %% View Modes
@@ -445,7 +450,7 @@ classdef PAController < PABase
             %% Help
             set(viewHandles.menu_help_faq,'callback',@obj.menuHelpFAQCallback);
             
-            % enable everything   
+            % enable remaining 
             set([
                 viewHandles.menu_file
                 viewHandles.menu_file_about
@@ -478,7 +483,7 @@ classdef PAController < PABase
         function menuHelpFAQCallback(this,varargin)
             %msg = sprintf('Help FAQ');
             this.VIEW.showBusy('Initializing help');
-            filename = fullfile(this.SETTINGS.rootpathname,'resources/html','PadacoFAQ.html');
+            filename = fullfile(this.settingsObj.rootpathname,'resources/html','PadacoFAQ.html');
             url = sprintf('file://%s',filename);
             %             web(url,'-notoolbar','-noaddressbox');
             htmldlg('url',url);
@@ -540,12 +545,12 @@ classdef PAController < PABase
             end
             
             % Need to refresh the current settings
-            obj.refreshSETTINGS();
-            wasModified = obj.SETTINGS.defaultsEditor(optionalSettingsName);
+            obj.refreshSettings();
+            wasModified = obj.settingsObj.defaultsEditor(optionalSettingsName);
             if(wasModified)
                 if(isa(obj.StatTool,'PAStatTool'))
                     initializeOnSet = true;  % This is necessary to update widgets, which are used in follow on call to saveParameters
-                    obj.StatTool.setWidgetSettings(obj.SETTINGS.StatTool, initializeOnSet);
+                    obj.StatTool.setWidgetSettings(obj.settingsObj.StatTool, initializeOnSet);
                 end
                 obj.setStatus('Settings have been updated.');
                 
@@ -572,7 +577,7 @@ classdef PAController < PABase
             if(~isempty(obj.accelObj))
                 usageRules= obj.accelObj.usageStateRules;
             else
-                usageRules = obj.SETTINGS.DATA.usageStateRules;
+                usageRules = obj.settingsObj.DATA.usageStateRules;
             end
             defaultRules = PAData.getDefaultParameters();
             defaultRules = defaultRules.usageStateRules;
@@ -582,11 +587,11 @@ classdef PAController < PABase
                 if(~isempty(obj.accelObj))
                     obj.accelObj.setUsageClassificationRules(updatedRules);
                 else
-                    obj.SETTINGS.DATA.usageStateRules = updatedRules;
+                    obj.settingsObj.DATA.usageStateRules = updatedRules;
                 end
                 
                 %                 if(isa(obj.StatTool,'PAStatTool'))
-                %                     obj.StatTool.setWidgetSettings(obj.SETTINGS.StatTool);
+                %                     obj.StatTool.setWidgetSettings(obj.settingsObj.StatTool);
                 %                 end
                 fprintf('Settings have been updated.\n');
                 
@@ -1063,7 +1068,7 @@ classdef PAController < PABase
                     obj.accelTypeShown = v{1}{1};
                 end
             end
-            %             obj.SETTINGS.CONTROLLER.signalTagLine = signalTagLine;
+            %             obj.settingsObj.CONTROLLER.signalTagLine = signalTagLine;
         end
         
         % --------------------------------------------------------------------
@@ -1269,7 +1274,7 @@ classdef PAController < PABase
                 '*.bin','Raw Acceleration (binary format: firmwares 2.2.1, 2.5.0, and 3.1.0)';
                 '*.raw','Raw Acceleration (comma separated values)';
                 '*.gt3x','Raw GT3X binary'},...
-                'Select a file',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
+                'Select a file',fullfile(obj.settingsObj.DATA.pathname,obj.settingsObj.DATA.filename));
             try
                 if(~isempty(f))
                     %                     if(~strcmpi(obj.getViewMode(),'timeseries'))
@@ -1279,10 +1284,10 @@ classdef PAController < PABase
                     obj.VIEW.showBusy('Loading','all');
                     obj.VIEW.disableWidgets();
                     [pathname,basename, baseext] = fileparts(f);
-                    obj.SETTINGS.DATA.pathname = pathname;
-                    obj.SETTINGS.DATA.filename = strcat(basename,baseext);
+                    obj.settingsObj.DATA.pathname = pathname;
+                    obj.settingsObj.DATA.filename = strcat(basename,baseext);
                     
-                    obj.accelObj = PAData(f,obj.SETTINGS.DATA);
+                    obj.accelObj = PAData(f,obj.settingsObj.DATA);
                     
                     obj.accelObj.addlistener('LinePropertyChanged',@obj.linePropertyChangeCallback);
                     
@@ -1311,9 +1316,9 @@ classdef PAController < PABase
         %> @brief Menubar callback for opening a text file
         %> @param obj Instance of PAController
         function menuFileOpenGeneralCallback(obj, ~, ~)
-            importObj = PADataImport(obj.SETTINGS.IMPORT);
+            importObj = PADataImport(obj.settingsObj.IMPORT);
             if(~importObj.cancelled)
-                obj.SETTINGS.IMPORT = importObj.getSettings();
+                obj.settingsObj.IMPORT = importObj.getSettings();
             end
         end
         
@@ -1322,15 +1327,15 @@ classdef PAController < PABase
         %> @param obj Instance of PAController
         function menuFileOpenCsvFileCallback(obj, ~, ~)
             f=uigetfullfile({'*.csv','Comma separated values (.csv)';'*.*','All files'},...
-                'Select a file',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
+                'Select a file',fullfile(obj.settingsObj.DATA.pathname,obj.settingsObj.DATA.filename));
             try
                 if(~isempty(f))
                     obj.VIEW.showBusy('Loading','all');
                     [pathname,basename, baseext] = fileparts(f);
-                    obj.SETTINGS.DATA.pathname = pathname;
-                    obj.SETTINGS.DATA.filename = strcat(basename,baseext);
+                    obj.settingsObj.DATA.pathname = pathname;
+                    obj.settingsObj.DATA.filename = strcat(basename,baseext);
                     
-                    obj.accelObj = PAData([],obj.SETTINGS.DATA);
+                    obj.accelObj = PAData([],obj.settingsObj.DATA);
                     fmtStruct.datetime = 1;
                     fmtStruct.datetimeType = 'elapsed'; %datetime
                     fmtStruct.datetimeFmtStr = '%f';
@@ -1381,15 +1386,15 @@ classdef PAController < PABase
         % --------------------------------------------------------------------
         function menuFileOpenVasTracCSVCallback(obj, varargin)
             f=uigetfullfile({'*.csv','VasTrac (.csv)'},...
-                'Select a file',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
+                'Select a file',fullfile(obj.settingsObj.DATA.pathname,obj.settingsObj.DATA.filename));
             try
                 if(~isempty(f))
                     obj.VIEW.showBusy('Loading','all');
                     [pathname,basename, baseext] = fileparts(f);
-                    obj.SETTINGS.DATA.pathname = pathname;
-                    obj.SETTINGS.DATA.filename = strcat(basename,baseext);
+                    obj.settingsObj.DATA.pathname = pathname;
+                    obj.settingsObj.DATA.filename = strcat(basename,baseext);
                     
-                    obj.accelObj = PAData([],obj.SETTINGS.DATA);
+                    obj.accelObj = PAData([],obj.settingsObj.DATA);
                     fmtStruct.datetime = 1;
                     fmtStruct.datetimeType = 'elapsed'; %datetime
                     fmtStruct.datetimeFmtStr = '%f';
@@ -1438,7 +1443,7 @@ classdef PAController < PABase
             
             f=uigetfullfile({'*.txt;*.fbit','Fitbit';
                 '*.csv','Comma Separated Values'},...
-                'Select a file',fullfile(obj.SETTINGS.DATA.pathname,obj.SETTINGS.DATA.filename));
+                'Select a file',fullfile(obj.settingsObj.DATA.pathname,obj.settingsObj.DATA.filename));
             try
                 if(~isempty(f))
 
@@ -1446,10 +1451,10 @@ classdef PAController < PABase
                     
                     obj.VIEW.showBusy('Loading','all');
                     [pathname,basename, baseext] = fileparts(f);
-                    obj.SETTINGS.DATA.pathname = pathname;
-                    obj.SETTINGS.DATA.filename = strcat(basename,baseext);
+                    obj.settingsObj.DATA.pathname = pathname;
+                    obj.settingsObj.DATA.filename = strcat(basename,baseext);
                     
-                    obj.accelObj = PAData(f,obj.SETTINGS.DATA);
+                    obj.accelObj = PAData(f,obj.settingsObj.DATA);
                     
                     
                     if(~strcmpi(obj.getViewMode(),'timeseries'))
@@ -1589,18 +1594,29 @@ classdef PAController < PABase
         % --------------------------------------------------------------------
         function menu_file_exportMenu_callback(this,hObject, ~)
             curHandles = guidata(hObject); %this.VIEW.getFigHandle());
-            if(isempty(this.accelObj))
-                set(curHandles.menu_file_export_dataObj,'enable','off');
-            else
-                set(curHandles.menu_file_export_dataObj,'enable','on');
+            timeSeriesH = [curHandles.menu_file_export_dataObj];
+            resultsH = [curHandles.menu_file_export_clusterObj;
+                            curHandles.menu_file_export_clusters_to_disk];
+                    
+            set([timeSeriesH(:);resultsH(:)],'enable','off');
+            switch lower(this.getViewMode())
+                case 'timeseries'
+                    if(isempty(this.accelObj))
+                        set(timeSeriesH,'enable','off');
+                    else
+                        set(timeSeriesH,'enable','on');
+                    end
+                    
+                case 'results'
+                    if(isempty(this.StatTool) || ~this.StatTool.hasCluster())
+                        set(resultsH,'enable','off');
+                    else
+                        set(resultsH,'enable','on');
+                    end                       
+                otherwise
             end
-            if(isempty(this.StatTool) || ~this.StatTool.hasCluster())
-                set([curHandles.menu_file_export_centroidObj;
-                     curHandles.menu_file_export_centroids_to_disk],'enable','off');
-            else
-                set([curHandles.menu_file_export_centroidObj;
-                     curHandles.menu_file_export_centroids_to_disk],'enable','on');
-            end
+                    
+            
         end
         
         % --------------------------------------------------------------------
@@ -1636,7 +1652,7 @@ classdef PAController < PABase
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
-        function menu_file_export_centroidObj_callback(obj,varargin)
+        function menu_file_export_clusterObj_callback(obj,varargin)
             centroidObj = obj.StatTool.getClusterObj();
             varName = 'centroidObj';
             makeModal = true;
@@ -1659,8 +1675,64 @@ classdef PAController < PABase
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
-        function menu_file_export_centroids_to_disk_callback(obj,varargin)
+        function menu_file_export_clusters_to_disk_callback(obj,varargin)
             obj.StatTool.exportClusterToDisk();
+        end
+        
+        function exportTimeSeriesCb(obj, varargin)
+            
+            
+            didExport = false;
+            curCluster = this.getClusterObj();
+            if(isempty(curCluster) || ~isa(curCluster,'PACluster'))
+                msg = 'No cluster object exists.  Nothing to save.';
+                pa_msgbox(msg,'Warning');
+                
+                % If this is not true, then we can just leave this
+                % function since the user would have cancelled.
+            elseif(this.updateExportPath())
+                try
+                    lastClusterSettings.StatTool = this.getStateAtTimeOfLastClustering();
+                    exportPath = this.getExportPath();
+                    % original widget settings are kept track of using a
+                    % separate gui
+                    exportNonwearFeatures = this.originalWidgetSettings.exportShowNonwear;
+                    if(exportNonwearFeatures)
+                        nonwearFeatures = {this.nonwear};
+                    else
+                        nonwearFeatures = {};
+                    end
+                    [didExport, msg] = curCluster.exportToDisk(exportPath, lastClusterSettings, nonwearFeatures{:});
+                    
+                    %                     if(~lastClusterSettings.discardNonwearFeatures)
+                    %                         [didExport, msg] = curCluster.exportToDisk(exportPath, lastClusterSettings, nonwearFeatures{:});
+                    %                     else
+                    %                         [didExport, msg] = curCluster.exportToDisk(exportPath, lastClusterSettings, nonwearFeatures{:});
+                    %                     end
+                    
+                catch me
+                    msg = 'An error occurred while trying to save the data to disk.  A thousand apologies.  I''m very sorry.';
+                    showME(me);
+                end
+                
+                % Give the option to look at the files in their saved folder.
+                if(didExport)
+                    dlgName = 'Export complete';
+                    closeStr = 'Close';
+                    showOutputFolderStr = 'Open output folder';
+                    options.Default = closeStr;
+                    options.Interpreter = 'none';
+                    buttonName = questdlg(msg,dlgName,closeStr,showOutputFolderStr,options);
+                    if(strcmpi(buttonName,showOutputFolderStr))
+                        openDirectory(this.getExportPath())
+                    end
+                else
+                    makeModal = true;
+                    pa_msgbox(msg,'Export',[],makeModal);
+                end
+            end
+            
+            
         end
         
         function viewMode = getViewMode(obj)
@@ -1733,7 +1805,7 @@ classdef PAController < PABase
         % --------------------------------------------------------------------
         function menuToolsBatchCallback(obj,varargin)
             
-            batchTool = PABatchTool(obj.SETTINGS.BATCH);
+            batchTool = PABatchTool(obj.settingsObj.BATCH);
             batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
             
             batchTool.addlistener('SwitchToResults',@obj.setResultsViewModeCallback);
@@ -1753,7 +1825,7 @@ classdef PAController < PABase
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         % --------------------------------------------------------------------
         function menuToolsRaw2BinCallback(obj,varargin)
-            %batchTool = PABatchTool(obj.SETTINGS.BATCH);
+            %batchTool = PABatchTool(obj.settingsObj.BATCH);
             %batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
             %batchTool.addlistener('SwitchToResults',@obj.setResultsViewModeCallback);
         end        
@@ -1776,9 +1848,9 @@ classdef PAController < PABase
         end
         
         function updateBatchToolSettingsCallback(obj,batchToolObj,eventData)
-            obj.SETTINGS.BATCH = eventData.settings;
-            if(isdir(obj.SETTINGS.BATCH.outputDirectory))
-                obj.resultsPathname = obj.SETTINGS.BATCH.outputDirectory;
+            obj.settingsObj.BATCH = eventData.settings;
+            if(isdir(obj.settingsObj.BATCH.outputDirectory))
+                obj.resultsPathname = obj.settingsObj.BATCH.outputDirectory;
             end
         end
         
@@ -2103,7 +2175,7 @@ classdef PAController < PABase
             % empty (don't know if were going to use count or raw data,
             % etc.  So, just stick with whatever we began with at time of construction.
             if(isempty(pStruct.signalTagLine))
-                pStruct.signalTagLine = obj.SETTINGS.CONTROLLER.signalTagLine;
+                pStruct.signalTagLine = obj.settingsObj.CONTROLLER.signalTagLine;
             end
             
             pStruct.highlightNonwear = obj.VIEW.getNonwearHighlighting();
@@ -2160,7 +2232,7 @@ classdef PAController < PABase
         function initAccelDataView(obj)
             
             % accelObj has already been initialized with default/saved
-            % settings (i.e. obj.SETTINGS.DATA) and these are in turn
+            % settings (i.e. obj.settingsObj.DATA) and these are in turn
             % passed along to the VIEW class here and used to initialize
             % many of the selected widgets.
             
@@ -2181,8 +2253,8 @@ classdef PAController < PABase
             
             
             %set signal choice
-            signalSelection = obj.setSignalSelection(obj.SETTINGS.CONTROLLER.signalTagLine); %internally sets to 1st in list if not found..
-            obj.setExtractorMethod(obj.SETTINGS.CONTROLLER.featureFcnName);
+            signalSelection = obj.setSignalSelection(obj.settingsObj.CONTROLLER.signalTagLine); %internally sets to 1st in list if not found..
+            obj.setExtractorMethod(obj.settingsObj.CONTROLLER.featureFcnName);
             
             % Go ahead and extract features using current settings.  This
             % is good because then we can use
@@ -2308,7 +2380,7 @@ classdef PAController < PABase
                         
                     end
                 else
-                    this.StatTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname,this.SETTINGS.StatTool);
+                    this.StatTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname,this.settingsObj.StatTool);
                     this.StatTool.setIcon(this.iconFilename);
                 end
                 success = this.StatTool.getCanPlot();

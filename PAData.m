@@ -173,6 +173,8 @@ classdef PAData < handle
         %> @brief Sample rate of time series data.
         sampleRate;
 
+        nonwearAlgorithm;
+        
         % Flags for determining if counts and or raw data is loaded.
         hasCounts
         hasRaw;
