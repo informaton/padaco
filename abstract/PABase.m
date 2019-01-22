@@ -18,6 +18,12 @@ classdef PABase < handle
                end
            end
         end
+        
+        function logStatus(obj, fmtStr, varargin)
+            str = sprintf(fmtStr, varargin{:});
+            fprintf(1,'%s\n',str);
+        end
+        
         function didSet = setStatusHandle(obj, statusH)
             didSet = false;
             if(ishandle(statusH))

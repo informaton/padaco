@@ -46,7 +46,7 @@ classdef PAController < PABase
         
         %> Instance of PAStatTool - results controller when in results view
         %> mode.
-        StatTool;
+        statTool;
         
         %> Instance of PASettings - this is brought in to eliminate the need for several globals
         settingsObj;
@@ -100,8 +100,8 @@ classdef PAController < PABase
                 rootPathname,...
                 parameters_filename)
             
-%             obj.addlistener('StatToolCreationSuccess',{@obj.statToolCreationCallback,true});
-%             obj.addlistener('StatToolCreationFailure',{@obj.statToolCreationCallback,false});
+%             obj.addlistener('statToolCreationSuccess',{@obj.statToolCreationCallback,true});
+%             obj.addlistener('statToolCreationFailure',{@obj.statToolCreationCallback,false});
 
             obj.addlistener('StatToolCreationSuccess',@obj.statToolCreationCallback);
             obj.addlistener('StatToolCreationFailure',@obj.statToolCreationCallback);
@@ -119,7 +119,7 @@ classdef PAController < PABase
             end
             
          
-            obj.StatTool = [];
+            obj.statTool = [];
             
             %create/intilize the settings object
             obj.settingsObj = PASettings(rootPathname,parameters_filename);
@@ -186,8 +186,8 @@ classdef PAController < PABase
         function close(obj)            
             obj.saveParameters(); %requires settingsObj variable
             obj.settingsObj = [];
-            if(~isempty(obj.StatTool))
-                obj.StatTool.delete();
+            if(~isempty(obj.statTool))
+                obj.statTool.delete();
             end
             
         end
@@ -212,8 +212,8 @@ classdef PAController < PABase
                 end
                 
                 % update the stat tool settings if it was used successfully.
-                if(~isempty(obj.StatTool) && obj.StatTool.getCanPlot())
-                    obj.settingsObj.StatTool = obj.StatTool.getSaveParameters();
+                if(~isempty(obj.statTool) && obj.statTool.getCanPlot())
+                    obj.settingsObj.statTool = obj.statTool.getSaveParameters();
                 end
                 
                 obj.settingsObj.CONTROLLER = obj.getSaveParameters();
@@ -405,12 +405,14 @@ classdef PAController < PABase
             set(viewHandles.menu_file_open_resultspath,'callback',@obj.menuFileOpenResultsPathCallback);
             
             % import
-            set(viewHandles.menu_file_openVasTrac,'callback',@obj.menuFileOpenVasTracCSVCallback,'enable','off');
-            set(viewHandles.menu_file_openFitBit,'callback',@obj.menuFileOpenFitBitCallback,'enable','off');
+            set(viewHandles.menu_file_openVasTrac,'callback',@obj.menuFileOpenVasTracCSVCallback,'enable','off','visible','off');
+            set(viewHandles.menu_file_openFitBit,'callback',@obj.menuFileOpenFitBitCallback,'enable','off','visible','off');
+            
             set(viewHandles.menu_file_import_csv,'callback',@obj.menuFileOpenCsvFileCallback,'enable','off');
             set(viewHandles.menu_file_import_general,'label','Text (custom)',...
                 'callback',@obj.menuFileOpenGeneralCallback,'enable','on');
-
+            set(viewHandles.menubar_import_outcomes,'callback',@obj.importOutcomesFileCb);
+            
             % screeshots
             set(viewHandles.menu_file_screenshot_figure,'callback',{@obj.menuFileScreenshotCallback,'figure'});
             set(viewHandles.menu_file_screenshot_primaryAxes,'callback',{@obj.menuFileScreenshotCallback,'primaryAxes'});
@@ -468,7 +470,7 @@ classdef PAController < PABase
         
         % Activate the tool when it makes sense to do so.
         function statToolCreationCallback(this,varargin)            
-            if(isa(this.StatTool,'PAStatTool'))
+            if(isa(this.statTool,'PAStatTool'))
                 set(this.handles.menu_tools_bootstrap,'enable','on');
             else
                 set(this.handles.menu_tools_bootstrap,'enable','off');
@@ -493,6 +495,20 @@ classdef PAController < PABase
             
             this.VIEW.showReady();
             %             web(url);
+        end
+        
+        function importOutcomesFileCb(this, varargin)
+            
+            this.logStatus('Import outcome file');
+            outcomeFileExt = {'*.csv;*.txt','Comma Separated Values';
+                '*.*','All (only csv supported)'};
+            promptStr = 'Select outcomes file';
+            %bestGuessForFileLocation = fullfile(obj.settingsObj.)
+            %f=uigetfullfile(outcomeFileExt, promptStr, bestGuessForFileLocation);
+
+            
+            
+            
         end
         
         
@@ -551,9 +567,9 @@ classdef PAController < PABase
             obj.refreshSettings();
             wasModified = obj.settingsObj.defaultsEditor(optionalSettingsName);
             if(wasModified)
-                if(isa(obj.StatTool,'PAStatTool'))
+                if(isa(obj.statTool,'PAStatTool'))
                     initializeOnSet = true;  % This is necessary to update widgets, which are used in follow on call to saveParameters
-                    obj.StatTool.setWidgetSettings(obj.settingsObj.StatTool, initializeOnSet);
+                    obj.statTool.setWidgetSettings(obj.settingsObj.statTool, initializeOnSet);
                 end
                 obj.setStatus('Settings have been updated.');
                 
@@ -593,8 +609,8 @@ classdef PAController < PABase
                     obj.settingsObj.DATA.usageStateRules = updatedRules;
                 end
                 
-                %                 if(isa(obj.StatTool,'PAStatTool'))
-                %                     obj.StatTool.setWidgetSettings(obj.settingsObj.StatTool);
+                %                 if(isa(obj.statTool,'PAStatTool'))
+                %                     obj.statTool.setWidgetSettings(obj.settingsObj.statTool);
                 %                 end
                 fprintf('Settings have been updated.\n');
                 
@@ -608,7 +624,7 @@ classdef PAController < PABase
         end 
         
         function loadSettingsCb(obj, varargin)
-            obj.StatTool.loadSettings();
+            obj.statTool.loadSettings();
         end
         
         function initTimeSeriesWidgets(obj)
@@ -1497,10 +1513,10 @@ classdef PAController < PABase
             if(~isempty(resultsPath))
                 % Say good bye to your old stat tool if you selected a
                 % directory.  This ensures that if a breakdown occurs in
-                % the following steps, we do not have a previous StatTool
+                % the following steps, we do not have a previous statTool
                 % hanging around showing results and the user unaware that
                 % a problem occurred (i.e. no change took place).
-                obj.StatTool = [];
+                obj.statTool = [];
                 obj.resultsPathname = resultsPath;
                 if(~strcmpi(obj.getViewMode(),'results'))
                     obj.VIEW.showBusy('Switching to results view');
@@ -1611,7 +1627,7 @@ classdef PAController < PABase
                         set(timeSeriesH,'enable','on');
                     end                    
                 case 'results'
-                    if(isempty(this.StatTool) || ~this.StatTool.hasCluster())
+                    if(isempty(this.statTool) || ~this.statTool.hasCluster())
                         set(resultsH,'enable','off');
                     else
                         set(resultsH,'enable','on');
@@ -1654,7 +1670,7 @@ classdef PAController < PABase
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
         function menu_file_export_clusterObj_callback(obj,varargin)
-            centroidObj = obj.StatTool.getClusterObj();
+            centroidObj = obj.statTool.getClusterObj();
             varName = 'centroidObj';
             makeModal = true;
             titleStr = 'Data Export';
@@ -1677,7 +1693,7 @@ classdef PAController < PABase
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
         function menu_file_export_clusters_to_disk_callback(obj,varargin)
-            obj.StatTool.exportClusterToDisk();
+            obj.statTool.exportClusterToDisk();
         end
         
         function exportTimeSeriesCb(obj, varargin)
@@ -1772,7 +1788,7 @@ classdef PAController < PABase
         end
         function menuToolsBootstrapCallback(this, varargin)
             
-            this.StatTool.bootstrapCallback(varargin{:});
+            this.statTool.bootstrapCallback(varargin{:});
         end
         % --------------------------------------------------------------------
         %> @brief Menubar callback for starting the raw .csv to .bin file
@@ -2305,9 +2321,9 @@ classdef PAController < PABase
             success = false;
             % this.VIEW.initWidgets('results',false);
             if(isdir(this.resultsPathname))
-                if(~isempty(this.StatTool))
+                if(~isempty(this.statTool))
                     
-                    statToolResultsPath = this.StatTool.getResultsDirectory();
+                    statToolResultsPath = this.statTool.getResultsDirectory();
                     
                     refreshPath = false;
                     if(~strcmpi(statToolResultsPath,this.resultsPathname))
@@ -2329,26 +2345,26 @@ classdef PAController < PABase
                     end
 
                     if(refreshPath)
-                        this.StatTool.setResultsDirectory(this.resultsPathname);
+                        this.statTool.setResultsDirectory(this.resultsPathname);
                     else
                         % Make sure the resultsPath is up to date (e.g. when
                         % switching back from a batch mode.
-                        this.StatTool.init();  %calls a plot refresh
+                        this.statTool.init();  %calls a plot refresh
                         
                     end
                 else
-                    this.StatTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname,this.settingsObj.StatTool);
-                    this.StatTool.setIcon(this.iconFilename);
+                    this.statTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname,this.settingsObj.statTool);
+                    this.statTool.setIcon(this.iconFilename);
                 end
-                success = this.StatTool.getCanPlot();
+                success = this.statTool.getCanPlot();
             end
             
             if(~success)
-                if(isfield(this,'StatTool') && isa(this.StatTool,'PAStatTool'))
-                    this.StatTool.disable();
+                if(isfield(this,'StatTool') && isa(this.statTool,'PAStatTool'))
+                    this.statTool.disable();
                 end
                 
-                this.StatTool = [];
+                this.statTool = [];
                 this.notify('StatToolCreationFailure');
                 responseButton = questdlg('Results output pathname is either not set or was not found.  Would you like to choose one now?','Find results output path?');
                 if(strcmpi(responseButton,'yes'))
