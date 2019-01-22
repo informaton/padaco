@@ -114,6 +114,8 @@ classdef PAStatTool < PABase
         %> Booleans
         useCache;
         useDatabase;
+        useTableOutcomes;
+        outcomesObj;
         
         databaseObj;
         %> handle of scatter plot figure.
@@ -397,7 +399,7 @@ classdef PAStatTool < PABase
                     end
                 else
                     makeModal = true;
-                    pa_msgbox(msg,'Export',[],makeModal);
+                    pa_msgbox(msg,'Export',makeModal);
                 end
             end
         end
@@ -1065,6 +1067,7 @@ classdef PAStatTool < PABase
             
         end
         
+        
         %> @brief Database functionality
         function didSet = setUseDatabase(this, willSet)
             if(nargin>1)
@@ -1073,6 +1076,21 @@ classdef PAStatTool < PABase
                 didSet = true;
             else
                 didSet = false;
+            end
+        end
+        
+        function didSet = setOutcomesObj(this, outcomesController)
+            didSet = false;
+            if(isa(outcomesController,'PAOutcomesTable'))
+                this.outcomesObj = outcomesController;
+                
+                this.profileFields = this.outcomesObj.getColumnNames('subjectInfo_t');
+                addpath('../matlab/models');
+                addpath('../matlab/gee');
+                
+                
+                this.useTableOutcomes = true;
+                didSet = true;
             end
         end
         function didInit = initDatabaseObj(this)

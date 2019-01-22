@@ -23,11 +23,11 @@ classdef  PASettings < handle
         %> @brief name of text file that stores the toolkit's settings
         parameters_filename;
         %> @brief cell of string names corresponding to the struct properties that
-        %> contain settings  <b><i> {'DATA','VIEW', 'CONTROLLER','BATCH','StatTool','IMPORT'}</i></b>
-        fieldNames = {'DATA','CONTROLLER','VIEW','BATCH','StatTool','IMPORT'};  
+        %> contain settings  <b><i> {'DATA','VIEW', 'CONTROLLER','BATCH','statTool','IMPORT'}</i></b>
+        fieldNames = {'DATA','CONTROLLER','VIEW','BATCH','statTool','IMPORT'};  
         
         %> @brief Fieldnmaes whose structures are only one level deep.
-        liteFieldNames={'StatTool','VIEW','CONTROLLER','IMPORT'};                
+        liteFieldNames={'statTool','VIEW','CONTROLLER','IMPORT'};                
         dictionary;
     end
     properties
@@ -47,8 +47,8 @@ classdef  PASettings < handle
         % struct of settings for data/cluster export
         % EXPORT;
         
-        %> struct of StatTool plot/analysis settings.
-        StatTool;
+        %> struct of statTool plot/analysis settings.
+        statTool;
 
     end
     
@@ -553,7 +553,7 @@ classdef  PASettings < handle
         %> @param obj instance of PASettings class.
         %> @param optional_fieldName (Optional)  String indicating which settings to update.
         %> Can be
-        %> - @c StatTool
+        %> - @c statTool
         %> - @c VIEW
         %> - @c BATCH
         %> - @c CONTROLLER
@@ -575,7 +575,7 @@ classdef  PASettings < handle
             
             tmp_obj.fieldNames = lite_fieldNames;
             
-            %             tmp_obj.StatTool = rmfield(tmp_obj.StatTool,'customDaysOfWeek');  % get rid of fields that contain arrays of values, since I don't actually know how to handle this
+            %             tmp_obj.statTool = rmfield(tmp_obj.statTool,'customDaysOfWeek');  % get rid of fields that contain arrays of values, since I don't actually know how to handle this
             tmp_obj = pair_value_dlg(tmp_obj);
             
             
@@ -666,8 +666,8 @@ classdef  PASettings < handle
                 switch fieldNames{f}
                     case 'IMPORT'
                         obj.IMPORT = PASensorDataImport.getDefaultParameters();
-                    case 'StatTool'
-                        obj.StatTool = PAStatTool.getDefaultParameters();
+                    case 'statTool'
+                        obj.statTool = PAStatTool.getDefaultParameters();
                     case 'DATA'
                         obj.DATA = PASensorData.getDefaultParameters();
                     case 'CONTROLLER'

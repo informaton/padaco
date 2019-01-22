@@ -48,6 +48,10 @@ classdef PAController < PABase
         %> mode.
         statTool;
         
+        %> Instance of PAOutcomesTable - for importing outcomes data to be
+        %> used with cluster analysis.
+        outcomesTable;
+        
         %> Instance of PASettings - this is brought in to eliminate the need for several globals
         settingsObj;
         %> Instance of PAView - Padaco's view component.
@@ -103,8 +107,6 @@ classdef PAController < PABase
 %             obj.addlistener('statToolCreationSuccess',{@obj.statToolCreationCallback,true});
 %             obj.addlistener('statToolCreationFailure',{@obj.statToolCreationCallback,false});
 
-            obj.addlistener('StatToolCreationSuccess',@obj.statToolCreationCallback);
-            obj.addlistener('StatToolCreationFailure',@obj.statToolCreationCallback);
 
             if(nargin<1)
                 Padaco_fig_h = [];
@@ -121,8 +123,19 @@ classdef PAController < PABase
          
             obj.statTool = [];
             
+            obj.addlistener('StatToolCreationSuccess',@obj.statToolCreationCallback);
+            obj.addlistener('StatToolCreationFailure',@obj.statToolCreationCallback);
+            
+            
             %create/intilize the settings object
             obj.settingsObj = PASettings(rootPathname,parameters_filename);
+            obj.outcomesTable = PAOutcomesTable();
+      
+            
+            obj.outcomesTable.addlistener('LoadSuccess',@obj.outcomesLoadCb);
+            obj.outcomesTable.addlistener('LoadFail',@obj.outcomesLoadCb);
+
+            
             obj.screenshotPathname = obj.settingsObj.CONTROLLER.screenshotPathname;
             obj.resultsPathname = obj.settingsObj.CONTROLLER.resultsPathname;
             
@@ -244,6 +257,7 @@ classdef PAController < PABase
             set(figH,'WindowButtonDownFcn',@obj.windowButtonDownCallback);
             set(figH,'WindowButtonUpFcn',@obj.windowButtonUpCallback);
             
+                  
             %         function setLinehandle(obj, line_h)
             %             obj.clear_handles();
             %             obj.current_linehandle = line_h;
@@ -262,7 +276,7 @@ classdef PAController < PABase
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
-        function figureCloseCallback(obj,hObject, eventdata, handles)
+        function figureCloseCallback(obj,hObject, varargin)
             try
                 obj.close();
                 delete(hObject);
@@ -503,12 +517,25 @@ classdef PAController < PABase
             outcomeFileExt = {'*.csv;*.txt','Comma Separated Values';
                 '*.*','All (only csv supported)'};
             promptStr = 'Select outcomes file';
-            %bestGuessForFileLocation = fullfile(obj.settingsObj.)
-            %f=uigetfullfile(outcomeFileExt, promptStr, bestGuessForFileLocation);
-
-            
-            
-            
+            bestGuessForFileLocation = this.settingsObj.CONTROLLER.outcomesFilename;
+            f=uigetfullfile(outcomeFileExt, promptStr, bestGuessForFileLocation);
+            if(~isempty(f) && ~isdir(f) && exist(f,'file'))
+                this.settingsObj.CONTROLLER.outcomesFilename = f; 
+                this.outcomesTable.importOutcomesFile(f);
+            else
+                this.logStatus('User cancelled');                
+            end
+        end
+        function outcomesLoadCb(this, outcomesController, evtData)
+            switch(evtData.EventName)
+                case 'LoadSuccess'
+                    if(~isempty(this.statTool))
+                        this.statTool.setOutcomesTableController(outcomesController);
+                    this.logStatus('Outcome data loaded successfully');
+                case 'LoadFail'
+                    this.logStatus('Outcome data did not load successfully');
+                otherwise
+            end
         end
         
         
@@ -528,7 +555,7 @@ classdef PAController < PABase
                 '\n\nSoftware license: TBD',...
                 '\nCopyright 2014-2018\n'
                 ],obj.getVersionNum());
-            h=pa_msgbox(msg,'About',obj.iconFilename);
+            h=pa_msgbox(msg,'About');
             
             mbox_h=findobj(h,'tag','MessageBox');
             ok_h = findobj(h,'tag','OKButton');
@@ -558,7 +585,7 @@ classdef PAController < PABase
         %> @param optionalSettingsName String specifying the settings to
         %> update (optional)
         % --------------------------------------------------------------------
-        function menuFileSettingsApplicationCallback(obj,hObject,eventdata,optionalSettingsName)
+        function menuFileSettingsApplicationCallback(obj,~,~,optionalSettingsName)
             if(nargin<4)
                 optionalSettingsName = [];
             end
@@ -1558,7 +1585,7 @@ classdef PAController < PABase
         %> - @c primaryAxes
         %> - @c secondaryAxes
         % --------------------------------------------------------------------
-        function menuFileScreenshotCallback(obj,hObject,eventdata,screenshotDescription)
+        function menuFileScreenshotCallback(obj,~,~,screenshotDescription)
             
             switch(lower(screenshotDescription))
                 case 'figure'
@@ -1589,7 +1616,7 @@ classdef PAController < PABase
         %> @note See startBatchProcessCallback for actual batch processing
         %> steps.
         % --------------------------------------------------------------------
-        function menuFileQuitCallback(obj,hObject,eventdata,handles)
+        function menuFileQuitCallback(obj,~,eventdata,handles)
             obj.figureCloseCallback(gcbf,eventdata,handles);
         end
         
@@ -1646,17 +1673,17 @@ classdef PAController < PABase
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
         function menu_file_export_accelObj_callback(obj,varargin)
-            accelObj = obj.accelObj;
+            accelObj = obj.accelObj; %#ok<PROPLC>
             varName = 'accelObject';
             makeModal = true;
             titleStr = 'Data Export';
             try
-                assignin('base',varName,accelObj);                
-                pa_msgbox(sprintf('Data object was assigned to workspace variable %s',varName),titleStr,obj.iconFilename,makeModal);
+                assignin('base',varName,accelObj);                 %#ok<PROPLC>
+                pa_msgbox(sprintf('Data object was assigned to workspace variable %s',varName),titleStr,makeModal);
                 
             catch me
                 showME(me);
-                pa_msgbox('An error occurred while trying to export data object to a workspace variable.  See console for details.','Warning!',obj.iconFilename,makeModal);
+                pa_msgbox('An error occurred while trying to export data object to a workspace variable.  See console for details.','Warning!',makeModal);
             end
         end
         
@@ -1676,10 +1703,10 @@ classdef PAController < PABase
             titleStr = 'Data Export';
             try
                 assignin('base',varName,centroidObj);
-                pa_msgbox(sprintf('Cluster object was assigned to workspace variable %s',varName),titleStr,obj.iconFilename,makeModal);                
+                pa_msgbox(sprintf('Cluster object was assigned to workspace variable %s',varName),titleStr,makeModal);                
             catch me
                 showME(me);
-                pa_msgbox('An error occurred while trying to export the centroid object to a workspace variable.  See console for details.','Warning',obj.iconFilename,makeModal);
+                pa_msgbox('An error occurred while trying to export the centroid object to a workspace variable.  See console for details.','Warning',makeModal);
             end
         end
 
@@ -1759,15 +1786,11 @@ classdef PAController < PABase
                 case 'results'
                     obj.initResultsView();
             end
-            
             % Show ready when everything has been initialized to avoid
             % flickering (i.e. don't place this above the switch
             % statement).
             obj.VIEW.showReady();
-            
         end
-        
-        
         
         % --------------------------------------------------------------------
         %> @brief Menubar callback for running the batch tool.
@@ -1786,10 +1809,12 @@ classdef PAController < PABase
             batchTool.addlistener('BatchToolClosing',@obj.updateBatchToolSettingsCallback);
             
         end
+        
         function menuToolsBootstrapCallback(this, varargin)
             
             this.statTool.bootstrapCallback(varargin{:});
         end
+        
         % --------------------------------------------------------------------
         %> @brief Menubar callback for starting the raw .csv to .bin file
         %> converter.
@@ -1797,7 +1822,7 @@ classdef PAController < PABase
         %> @param hObject    handle to the menu item (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         % --------------------------------------------------------------------
-        function menuToolsRaw2BinCallback(obj,varargin)
+        function menuToolsRaw2BinCallback(varargin)
             %batchTool = PABatchTool(obj.settingsObj.BATCH);
             %batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
             %batchTool.addlistener('SwitchToResults',@obj.setResultsViewModeCallback);
@@ -1809,7 +1834,7 @@ classdef PAController < PABase
         %> @param hObject    handle to the menu item (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         % --------------------------------------------------------------------
-        function coptr2actigraphCallback(obj,varargin)
+        function coptr2actigraphCallback(varargin)
             coptr2actigraph();
         end        
         
@@ -2141,6 +2166,8 @@ classdef PAController < PABase
         %> - @c signalTagLine
         %> - @
         function pStruct = getSaveParameters(obj)
+            pStruct = obj.settingsObj.CONTROLLER;
+            
             pStruct.featureFcnName = obj.getExtractorMethod();
             pStruct.signalTagLine = obj.getSignalSelection();
             
@@ -2155,7 +2182,7 @@ classdef PAController < PABase
             pStruct.useSmoothing = obj.VIEW.getUseSmoothing();
             pStruct.screenshotPathname = obj.screenshotPathname;
             pStruct.viewMode = obj.viewMode;
-            pStruct.resultsPathname = obj.resultsPathname;            
+            pStruct.resultsPathname = obj.resultsPathname;
         end
         
         % ======================================================================
@@ -2270,12 +2297,15 @@ classdef PAController < PABase
             remainingHeight = 1-heightOffset;
             height = remainingHeight/itemsToDisplay;
             if(obj.accelObj.getSampleRate()<=1)
-                [usageVec,usageState, startStopDatenums] = obj.getUsageState();
+                
+                usageVec = obj.getUsageState();
                 obj.VIEW.addWeartimeToSecondaryAxes(usageVec,obj.accelObj.dateTimeNum,height,heightOffset);
                 % Old
                 % vecHandles = obj.VIEW.addFeaturesVecToSecondaryAxes(usageVec,obj.accelObj.dateTimeNum,height,heightOffset);
                 
                 % Older
+                %[usageVec,usageState, startStopDatenums] = obj.getUsageState();
+
                 %obj.VIEW.addOverlayToSecondaryAxes(usageState,startStopDatenums,1/numRegions,curRegion/numRegions);
             else
                 % Old
@@ -2355,6 +2385,9 @@ classdef PAController < PABase
                 else
                     this.statTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname,this.settingsObj.statTool);
                     this.statTool.setIcon(this.iconFilename);
+                    if(~isempty(this.outcomesTable))
+                        this.statTool.setOutcomesTable(this.outcomesTable);
+                    end
                 end
                 success = this.statTool.getCanPlot();
             end
@@ -2625,7 +2658,7 @@ classdef PAController < PABase
         end
         
         % --------------------------------------------------------------------
-        function contextmenu_primaryAxes_callback(obj,hObject, eventdata, hide_uimenu_h, unhide_uimenu_h)
+        function contextmenu_primaryAxes_callback(obj,~,~, hide_uimenu_h, unhide_uimenu_h)
             %configure sub contextmenus
             obj.configure_contextmenu_unhideSignals(unhide_uimenu_h);
             obj.configure_contextmenu_hideSignals(hide_uimenu_h);
@@ -2649,7 +2682,7 @@ classdef PAController < PABase
         %> @param hMenu instance of handle class.  The contextmenu's menu.
         
         % =================================================================
-        function singleStudy_displaySettings_callback(obj, hMenu, varargin)
+        function singleStudy_displaySettings_callback(obj, varargin)
             PASensorDataLineSettings(obj.accelObj,obj.getDisplayType(), obj.getDisplayableLineHandles());
         end
         
@@ -2684,7 +2717,7 @@ classdef PAController < PABase
         %> @param off_uimenu_h Handle to smoothing off menu option
         % =================================================================
         % --------------------------------------------------------------------
-        function configure_contextmenu_smoothing_callback(obj,hObject, eventdata, on_uimenu_h, off_uimenu_h)
+        function configure_contextmenu_smoothing_callback(obj,~,~, on_uimenu_h, off_uimenu_h)
             %configure sub contextmenus
             if(obj.VIEW.getUseSmoothing())
                 set(on_uimenu_h,'checked','on');
@@ -2706,7 +2739,7 @@ classdef PAController < PABase
         %> - @c true  : Turn smoothing on (default)
         %> - @c false : Turn smoothing off
         % =================================================================
-        function contextmenu_featureSmoothing_callback(obj,contextmenu_h,eventdata,useSmoothing)
+        function contextmenu_featureSmoothing_callback(obj,~,~,useSmoothing)
             % --------------------------------------------------------------------
             if(nargin<4)
                 useSmoothing = true;
@@ -2730,7 +2763,7 @@ classdef PAController < PABase
         %> @param on_uimenu_h Handle to Smoothing on menu option
         %> @param off_uimenu_h Handle to smoothing off menu option
         % =================================================================
-        function configure_contextmenu_nonwearHighlighting_callback(obj,hObject, eventdata, on_uimenu_h, off_uimenu_h)
+        function configure_contextmenu_nonwearHighlighting_callback(obj,~,~, on_uimenu_h, off_uimenu_h)
             %configure sub contextmenus
             if(obj.VIEW.getNonwearHighlighting())
                 set(on_uimenu_h,'checked','on');
@@ -2752,7 +2785,7 @@ classdef PAController < PABase
         %> - @c true  : Turn smoothing on (default)
         %> - @c false : Turn smoothing off
         % =================================================================
-        function contextmenu_nonwearHighlighting_callback(obj,contextmenu_h,eventdata,highlightNonwear)
+        function contextmenu_nonwearHighlighting_callback(obj,~,~,highlightNonwear)
             if(nargin<4)
                 highlightNonwear = true;
             end
@@ -2798,7 +2831,7 @@ classdef PAController < PABase
         %> channels.
         %> @param eventdata Unused.
         % =================================================================
-        function configure_contextmenu_hideSignals(obj,contextmenu_h,eventdata)
+        function configure_contextmenu_hideSignals(obj,contextmenu_h,~)
             % --------------------------------------------------------------------
             % start with a clean slate
             delete(get(contextmenu_h,'children'));
@@ -2832,7 +2865,7 @@ classdef PAController < PABase
         %> channels.
         %> @param eventdata Unused.
         % =================================================================
-        function configure_contextmenu_unhideSignals(obj,contextmenu_h,eventdata)
+        function configure_contextmenu_unhideSignals(obj,contextmenu_h,~)
             % --------------------------------------------------------------------
             % start with a clean slate
             delete(get(contextmenu_h,'children'));
@@ -2865,7 +2898,7 @@ classdef PAController < PABase
         %> @param eventdata Unused.
         %> @param lineHandle Line handle to be shown.
         % --------------------------------------------------------------------
-        function showLineHandle_callback(obj,hObject,eventdata,lineHandle)
+        function showLineHandle_callback(obj,~,~,lineHandle)
             % --------------------------------------------------------------------
             lineTag = get(lineHandle,'tag');
             tagHandles = findobj(get(lineHandle,'parent'),'tag',lineTag);
@@ -2882,7 +2915,7 @@ classdef PAController < PABase
         %> @param eventdata Unused.
         %> @param lineHandle Line handle to be shown.
         % --------------------------------------------------------------------
-        function hideLineHandle_callback(obj,hObject,eventdata,lineHandle)
+        function hideLineHandle_callback(obj,~,~,lineHandle)
             % --------------------------------------------------------------------
             lineTag = get(lineHandle,'tag');
             tagHandles = findobj(get(lineHandle,'parent'),'tag',lineTag);
@@ -3010,7 +3043,7 @@ classdef PAController < PABase
         %> these bounds.
         %> @retval obj instance of CLASS_channels_container.
         % =================================================================
-        function move_line_mouseFcnCallback(obj,hObject,eventdata,lineTag,y_lim)
+        function move_line_mouseFcnCallback(obj,~,~,lineTag,y_lim)
             %windowbuttonmotionfcn set by contextmenu_line_move_callback
             %axes_h is the axes that the current object (channel_object) is in
             pos = get(obj.VIEW.axeshandle.primary,'currentpoint');
@@ -3108,7 +3141,7 @@ classdef PAController < PABase
         %> This is used for dynamic indexing into the accelObj's datastructs.
         %> @param text_h Text handle for outputing the channel's size/scale.
         % =================================================================
-        function resize_WindowScrollWheelFcn(obj,hObject,eventdata,lineTag,text_h)
+        function resize_WindowScrollWheelFcn(obj,~,eventdata,lineTag,text_h)
             %the windowwheelscrollfcn set by contextmenu_line_resize_callback
             %it is used to adjust the size of the selected channel object (channelObj)
             scroll_step = 0.05;
@@ -3239,7 +3272,8 @@ classdef PAController < PABase
             pStruct.useSmoothing = true;
             pStruct.highlightNonwear = true;
             batchSettings = PABatchTool.getDefaultParameters();
-            pStruct.resultsPathname = batchSettings.outputDirectory;            
+            pStruct.resultsPathname = batchSettings.outputDirectory;   
+            pStruct.outcomesFilename = '~/Documents/outcomes.csv';            
         end
 
     end

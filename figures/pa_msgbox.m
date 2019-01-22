@@ -8,18 +8,17 @@
 %> is passed to uiwait and not releaed  until the uiwait is stopped because
 %> the msgbox has completed, been clicked on or closed, and deleted from
 %> memory.
-function h=pa_msgbox(msgStr,titleStr,iconFilename,makeModal)
-    if(nargin<4)
+function h=pa_msgbox(msgStr,titleStr,makeModal)
+    if(nargin<3)
         makeModal = true;
     end
     if(nargin<2 || isempty(titleStr))
         titleStr = '';
     end
-    if(nargin<3 || ~exist(iconFilename,'file'))
-        iconFilename = 'icon_64.png';
-        iconFilename = 'icon_128.png';
-        
-    end
+    %     if(nargin<3 || ~exist(iconFilename,'file'))
+    %         iconFilename = 'icon_64.png';
+    %         iconFilename = 'icon_128.png';
+    %     end
 
     
     iconFilename = 'icon_32.png';

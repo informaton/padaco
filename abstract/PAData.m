@@ -63,7 +63,7 @@ classdef PAData < PABase
                     end
                 else
                     makeModal = true;
-                    pa_msgbox(msg,'Export',[],makeModal);
+                    pa_msgbox(msg,'Export',makeModal);
                 end
             end
         end
