@@ -8,21 +8,51 @@ classdef PAOutcomesTable < PABase
         LoadFail;
     end
     properties(SetAccess=protected)
+        categories = {'outcomes','subjects','dictionary'};
+        filenames;
+        tables;
+        
         outcomes;
         dictionary;
         subjects;
         primaryKey;
-        keys;
+        
     end
     
     methods
         
         %> @brief Class constructor.
         %> @retval obj Class instance.
-        function this = PAOutcomesTable(outcomesCSVFilename)
+        function this = PAOutcomesTable(filenameStruct)
             this = this@PABase();
-            if nargin
-                this.importOutcomesFile(outcomesCSVFilename);
+            this.filenames = mkstruct(categories);
+            this.tables = mkstruct(categories);
+            if nargin 
+                this.setFilenames(filenameStruct)
+            end
+        end
+        
+        function setFilenames(this, fStruct)
+            for f=1:numel(this.categories)
+                field = this.categories{f};
+                if(isfield(fStruct,field))
+                    this.filenames.(field) = fStruct.field;
+                end
+            end
+        end
+        
+        function getImportFilesDlg(this)
+           outcomeFileStruct = getOutcomeFiles( this.filenames);
+           if(~isempty(outcomeFileStruct))
+               this.importFiles(outcomeFileStruct);
+           end
+        end
+        
+        function importFies(this)
+            for f=1:numel(this.categories)
+                category = this.categories{f};                
+                filename = this.filenames.(category);
+                this.importFile(category,filename);
             end
         end
         
