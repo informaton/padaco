@@ -512,8 +512,8 @@ classdef PAController < PABase
         end
         
         function importOutcomesFileCb(this, varargin)
-            f=getOutcomeFiles();
-            %this.outcomesTable.importOutcomesFile(f);
+            %f=getOutcomeFiles();
+            this.outcomesTable.importFilesFromDlg();
             %             
         end
         function outcomesLoadCb(this, outcomesController, evtData)

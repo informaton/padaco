@@ -9,6 +9,7 @@ classdef PAOutcomesTable < PABase
     end
     properties(Constant)
         categories = {'outcomes','subjects','dictionary'};
+        optionalCategory = 'dictionary';
     end
     properties(SetAccess=protected)
         filenames;
@@ -57,29 +58,38 @@ classdef PAOutcomesTable < PABase
             if(~this.canImport())
                 this.importFilesFromDlg();
             else
+                didImportAll = true;
                 for f=1:numel(this.categories)
                     category = this.categories{f};
                     filename = this.filenames.(category);
-                    this.importFile(category,filename);
+                    [didImport, msg] = this.importFile(category,filename);
+                    if(~strcmpi(category, this.optionalCategory))
+                        if(~didImport)
+                            didImportAll = false;
+                            break;
+                        end
+                    end
+                    this.logStatus(msg);
+                end
+                if(didImportAll)
+                    this.notify('LoadSuccess',EventData_Update('Files loaded'));%,'File does not exist')
+                else
+                    this.notify('LoadFail',msg);
                 end
             end
         end
         
-        function importFile(this, category, filename)
+        function [didImport, msg] = importFile(this, category, filename)
             
             narginchk(2,3);
             try
-                switch(lower(category))
-                    case { 'outcomes','dictionary','subjects'}
-                        category = lower(category);
-                    otherwise
-                        msg = sprintf('Unknown import category (%s) for file "%s"',category,filename);
-                        this.logStatus(msg);
-                        throw(MException('PA:OutcomesTable:ImportFile',msg));
-                end
-                
-                % throw(MException('PA:Outcomes:Debug','Debug exception'));
-                if(exist(filename,'file'))
+                category = lower(category);
+                if(~ismember(category,this.categories))
+                    msg = sprintf('Unknown import category (%s) for file "%s"',category,filename);
+                    this.logStatus(msg);
+                    didImport = false;
+                    %throw(MException('PA:OutcomesTable:ImportFile',msg));
+                elseif(exist(filename,'file'))
                     msg = sprintf('Loading %s table data',category);
                     makeModal = false;
                     h=pa_msgbox(msg,'Loading',makeModal);
@@ -88,12 +98,15 @@ classdef PAOutcomesTable < PABase
                     if(ishandle(h))
                         delete(h);
                     end
-                    this.notify('LoadSuccess',EventData_Update('Loaded %s',filename));%,'File does not exist')
+                    didImport = true;
+                    msg = sprintf('Loaded %s',filename);
                 else
-                    this.notify('LoadFail',EventData_Update('%s file not found: %s',category,filename));%
+                    didImport = false;
+                    msg = sprintf('%s file not found: %s',category,filename);%
                 end
             catch me
-                this.notify('LoadFail',EventData_Update('An exception was caught while trying to load %s file (''%s'').\n"%s"',category,filename,me.message));
+                didImport = false;
+                msg = sprintf('An exception was caught while trying to load %s file (''%s'').\n"%s"',category,filename,me.message);
             end
             
         end
