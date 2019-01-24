@@ -512,25 +512,16 @@ classdef PAController < PABase
         end
         
         function importOutcomesFileCb(this, varargin)
-            
-            this.logStatus('Import outcome file');
-            outcomeFileExt = {'*.csv;*.txt','Comma Separated Values';
-                '*.*','All (only csv supported)'};
-            promptStr = 'Select outcomes file';
-            bestGuessForFileLocation = this.settingsObj.CONTROLLER.outcomesFilename;
-            f=uigetfullfile(outcomeFileExt, promptStr, bestGuessForFileLocation);
-            if(~isempty(f) && ~isdir(f) && exist(f,'file'))
-                this.settingsObj.CONTROLLER.outcomesFilename = f; 
-                this.outcomesTable.importOutcomesFile(f);
-            else
-                this.logStatus('User cancelled');                
-            end
+            f=getOutcomeFiles();
+            %this.outcomesTable.importOutcomesFile(f);
+            %             
         end
         function outcomesLoadCb(this, outcomesController, evtData)
             switch(evtData.EventName)
                 case 'LoadSuccess'
                     if(~isempty(this.statTool))
                         this.statTool.setOutcomesTableController(outcomesController);
+                    end
                     this.logStatus('Outcome data loaded successfully');
                 case 'LoadFail'
                     this.logStatus('Outcome data did not load successfully');

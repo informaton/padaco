@@ -7,8 +7,10 @@ classdef PAOutcomesTable < PABase
         LoadSuccess;  
         LoadFail;
     end
-    properties(SetAccess=protected)
+    properties(Constant)
         categories = {'outcomes','subjects','dictionary'};
+    end
+    properties(SetAccess=protected)
         filenames;
         tables;
         
@@ -16,6 +18,10 @@ classdef PAOutcomesTable < PABase
         dictionary;
         subjects;
         primaryKey;
+        
+        figFcn = @importOutcomesDlg;
+        figureH;
+        
         
     end
     
@@ -25,8 +31,8 @@ classdef PAOutcomesTable < PABase
         %> @retval obj Class instance.
         function this = PAOutcomesTable(filenameStruct)
             this = this@PABase();
-            this.filenames = mkstruct(categories);
-            this.tables = mkstruct(categories);
+            this.filenames = mkstruct(this.categories);
+            this.tables = mkstruct(this.categories);
             if nargin 
                 this.setFilenames(filenameStruct)
             end
@@ -41,18 +47,21 @@ classdef PAOutcomesTable < PABase
             end
         end
         
-        function getImportFilesDlg(this)
-           outcomeFileStruct = getOutcomeFiles( this.filenames);
-           if(~isempty(outcomeFileStruct))
-               this.importFiles(outcomeFileStruct);
-           end
+        function importFilesFromDlg(this)
+            if this.confirmFilenamesDlg() % make them go through the dialog successfully first.
+                this.importFiles();
+            end
         end
         
-        function importFies(this)
-            for f=1:numel(this.categories)
-                category = this.categories{f};                
-                filename = this.filenames.(category);
-                this.importFile(category,filename);
+        function importFiles(this)
+            if(~this.canImport())
+                this.importFilesFromDlg();
+            else
+                for f=1:numel(this.categories)
+                    category = this.categories{f};
+                    filename = this.filenames.(category);
+                    this.importFile(category,filename);
+                end
             end
         end
         
@@ -67,12 +76,6 @@ classdef PAOutcomesTable < PABase
                         msg = sprintf('Unknown import category (%s) for file "%s"',category,filename);
                         this.logStatus(msg);
                         throw(MException('PA:OutcomesTable:ImportFile',msg));
-                end
-                
-                if(nargin<3 || isempty(filename))
-                    promptStr = sprintf('Select %s file to import',category);
-                    filename = uigetfullfile({'*.csv;*.txt;*.xls','Comma separated values (*.csv)'},...
-                        promptStr);
                 end
                 
                 % throw(MException('PA:Outcomes:Debug','Debug exception'));
@@ -133,8 +136,111 @@ classdef PAOutcomesTable < PABase
                 throw(MException('CLASS_database_goals','Invalid arguments for loadStudyInfo_T'));
             end
         end
+        
+        function didSet = setFilename(this, category, filename)
+            didSet = false;
+            if(isfield(this.filenames,category)&& exist(filename,'file')&& ~isdir(filename))
+                this.filenames.(category) = filename;
+                if(ishandle(this.figureH))
+                    [~,textH] = this.getCategoryHandles(category);
+                    if(ishandle(textH))
+                        set(textH,'string',filename,'enable','inactive');
+                    end
+                    this.updateCanImport();                    
+                end
+            end
+            
+        end
+       
+
+        %% Import dialog and functionality
+        function didConfirmUpdate = confirmFilenamesDlg(this)
+            
+            % figFile = 'importOutcomesDlg.fig';
+            % x = load(figFile,'-mat');
+            outcomeFileStruct = [];
+            this.figureH = this.figFcn('visible','off');               
+            if(this.initHandles())
+                set(this.figureH,'visible','on');                
+                waitfor(this.figureH,'visible','off');
+                if(ishandle(this.figureH))
+                    outcomeFileStruct = this.filenames;  
+                    delete(this.figureH);
+                end
+            end
+            didConfirmUpdate = ~isempty(outcomeFileStruct);
+        end
+        
+        function updateCanImport(this)
+            if(this.canImport())
+                set(this.handles.push_import,'enable','on');
+            else
+                set(this.handles.push_import,'enable','off');
+            end
+        end
+        function canIt = canImport(this)            
+            canIt = exist(this.filenames.outcomes,'file') && exist(this.filenames.subjects,'file');
+        end
+        
+        function didInit = initHandles(this)
+            if(ishandle(this.figureH))
+                this.handles = guidata(this.figureH);
+                
+                fields = fieldnames(this.filenames);
+                for f=1:numel(fields)
+                    category = fields{f};
+                    [pushH, editH] = this.getCategoryHandles(category);
+                    
+                    set(editH,'enable','inactive','string','');
+                    set(pushH,'callback',{@this.getFileCb,category});
+                    
+                    filename = this.filenames.(category);
+                    if(exist(filename,'file') && ~isdir(filename))
+                        set(editH,'string',filename);
+                    end
+                end
+                set(this.handles.push_import,'callback', @this.hideFigureCb);
+                set(this.handles.push_cancel,'callback', 'closereq');
+                
+                this.updateCanImport();
+                didInit = true;
+            else
+                didInit = false;
+            end
+        end
+        
+        function hideFigureCb(this, varargin)
+            set(this.figureH,'visible','off');
+        end
+        
+        function getFileCb(this, hObject, ~, category)
+            % this.logStatus('Import outcome file');
+            fileExt = {'*.csv;*.txt','Comma Separated Values';
+                '*.*','All (only csv supported)'};
+            promptStr = sprintf('Select %s file',category);
+            locationGuess = this.filenames.(category);
+            
+            f=uigetfullfile(fileExt, promptStr, locationGuess);            
+            if(~isempty(f) && ~isdir(f) && exist(f,'file'))
+                this.setFilename(category, f);                
+            else
+                this.logStatus('User cancelled');
+            end            
+        end
+        
+        function [pushH, editH] = getCategoryHandles(this, categoryString)
+           pushH = [];
+           editH = [];
+           if(ishandle(this.figureH))
+               pushTag = sprintf('push_%s',categoryString);
+               editTag = sprintf('edit_%s',categoryString);
+               pushH = this.handles.(pushTag);
+               editH = this.handles.(editTag);
+           end
+        end
 
     end
+    
 end
 
 

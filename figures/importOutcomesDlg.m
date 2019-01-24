@@ -22,7 +22,7 @@ function varargout = importOutcomesDlg(varargin)
 
 % Edit the above text to modify the response to help importOutcomesDlg
 
-% Last Modified by GUIDE v2.5 22-Jan-2019 00:15:23
+% Last Modified by GUIDE v2.5 24-Jan-2019 08:19:49
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -74,8 +74,8 @@ varargout{1} = handles.output;
 
 
 % --- Executes during object creation, after setting all properties.
-function edit_dictionaryFilename_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to edit_dictionaryFilename (see GCBO)
+function edit_dictionary_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit_dictionary (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 
