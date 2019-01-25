@@ -129,7 +129,7 @@ classdef PAController < PABase
             
             %create/intilize the settings object
             obj.settingsObj = PASettings(rootPathname,parameters_filename);
-            obj.outcomesTable = PAOutcomesTable();
+            obj.outcomesTable = PAOutcomesTable(obj.settingsObj.outcomesTable);
       
             
             obj.outcomesTable.addlistener('LoadSuccess',@obj.outcomesLoadCb);
@@ -229,6 +229,9 @@ classdef PAController < PABase
                     obj.settingsObj.statTool = obj.statTool.getSaveParameters();
                 end
                 
+                if(~isempty(obj.outcomesTable))
+                    obj.settingsObj.outcomesTable = obj.outcomesTable.getSaveParameters();
+                end
                 obj.settingsObj.CONTROLLER = obj.getSaveParameters();
                 didRefresh = true;
             catch me
@@ -516,11 +519,12 @@ classdef PAController < PABase
             this.outcomesTable.importFilesFromDlg();
             %             
         end
+        
         function outcomesLoadCb(this, outcomesController, evtData)
             switch(evtData.EventName)
                 case 'LoadSuccess'
                     if(~isempty(this.statTool))
-                        this.statTool.setOutcomesTableController(outcomesController);
+                        this.statTool.setOutcomesTable(outcomesController);
                     end
                     this.logStatus('Outcome data loaded successfully');
                 case 'LoadFail'
@@ -528,7 +532,6 @@ classdef PAController < PABase
                 otherwise
             end
         end
-        
         
         % --------------------------------------------------------------------
         %> @brief Assign figure's file->about menubar callback.
@@ -565,7 +568,6 @@ classdef PAController < PABase
                 set(h,'visible','on');
             end
         end
-        
         
         % --------------------------------------------------------------------
         %> @brief Assign figure's menubar callbacks.
@@ -665,8 +667,7 @@ classdef PAController < PABase
             %                     extractorStruct = rmfield(extractorStruct,fieldToRemove);
             %                 end
             %             end
-            
-            
+                        
             extractorMethodFcns = fieldnames(extractorStruct);
             extractorMethodDescriptions = struct2cell(extractorStruct);
             
@@ -737,8 +738,6 @@ classdef PAController < PABase
             %                 handles.menu_feature;
             %                 handles.menu_signalsource;
             %                 handles.menu_plottype],'callback',@refreshResultsPlot);
-            
-            
         end
         
         % --------------------------------------------------------------------
@@ -850,7 +849,6 @@ classdef PAController < PABase
                 % This is disabled until the first time features are
                 % calculated.
                 obj.VIEW.enableTimeSeriesRadioButton();
-                
                 
                 obj.VIEW.draw();
                 obj.VIEW.showReady('all');
@@ -991,8 +989,6 @@ classdef PAController < PABase
             obj.VIEW.showReady('secondary');
             set(hObject,'enable','on');
         end
-        
-
         
         % --------------------------------------------------------------------
         %> @brief Retrieves current prefilter method from the GUI
@@ -2186,10 +2182,6 @@ classdef PAController < PABase
             lineHandleStruct = obj.VIEW.getLinehandle(obj.getDisplayType());
             lineHandles = struct2vec(lineHandleStruct);
         end        
-        
-        
-        
-        
     end
     
     methods(Access=private)
@@ -2377,7 +2369,7 @@ classdef PAController < PABase
                     this.statTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname,this.settingsObj.statTool);
                     this.statTool.setIcon(this.iconFilename);
                     if(~isempty(this.outcomesTable))
-                        this.statTool.setOutcomesTable(this.outcomesTable);
+                    %    this.statTool.setOutcomesTable(this.outcomesTable);
                     end
                 end
                 success = this.statTool.getCanPlot();

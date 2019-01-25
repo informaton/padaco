@@ -24,10 +24,10 @@ classdef  PASettings < handle
         parameters_filename;
         %> @brief cell of string names corresponding to the struct properties that
         %> contain settings  <b><i> {'DATA','VIEW', 'CONTROLLER','BATCH','statTool','IMPORT'}</i></b>
-        fieldNames = {'DATA','CONTROLLER','VIEW','BATCH','statTool','IMPORT'};  
+        fieldNames = {'DATA','CONTROLLER','VIEW','BATCH','statTool','IMPORT','outcomesTable'};  
         
         %> @brief Fieldnmaes whose structures are only one level deep.
-        liteFieldNames={'statTool','VIEW','CONTROLLER','IMPORT'};                
+        liteFieldNames={'statTool','VIEW','CONTROLLER','IMPORT','outcomesTable'};
         dictionary;
     end
     properties
@@ -49,6 +49,9 @@ classdef  PASettings < handle
         
         %> struct of statTool plot/analysis settings.
         statTool;
+        
+        %> struct for PAOutcomesTable settings
+        outcomesTable;
 
     end
     
@@ -667,7 +670,9 @@ classdef  PASettings < handle
                     case 'IMPORT'
                         obj.IMPORT = PASensorDataImport.getDefaultParameters();
                     case 'statTool'
-                        obj.statTool = PAStatTool.getDefaultParameters();
+                        obj.statTool = PAStatTool.getDefaultParameters();                    
+                    case 'outcomesTable'
+                        obj.outcomesTable = PAOutcomesTable.getDefaultParameters();
                     case 'DATA'
                         obj.DATA = PASensorData.getDefaultParameters();
                     case 'CONTROLLER'

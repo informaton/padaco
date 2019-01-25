@@ -114,7 +114,7 @@ classdef PAStatTool < PABase
         %> Booleans
         useCache;
         useDatabase;
-        useTableOutcomes;
+        useOutcomes;
         outcomesObj;
         
         databaseObj;
@@ -1002,9 +1002,23 @@ classdef PAStatTool < PABase
             end
             
         end
-
-
-
+        
+        function didSet = setOutcomesTable(this, outcomesController)
+            didSet = false;
+            if(isa(outcomesController,'PAOutcomesTable'))
+                this.outcomesObj = outcomesController;
+                
+                this.profileFields = this.outcomesObj.getColumnNames('subjects');
+                addpath('../matlab/models');
+                addpath('../matlab/gee');
+                
+                
+                this.useOutcomes = true;
+                this.refreshCOIProfile();
+                set(this.handles.check_showAnalysisFigure,'visible','on');
+                didSet = true;
+            end
+        end
     end
     
     methods(Access=private)
@@ -1072,27 +1086,18 @@ classdef PAStatTool < PABase
         function didSet = setUseDatabase(this, willSet)
             if(nargin>1)
                 this.useDatabase = willSet && true;
+                % Convoluted way of doing this, but it works out, see
+                % initDatabaseObj below ...
                 this.useDatabase = this.initDatabaseObj();% initDatabase returns false if it fails to initialize and is supposed to.
                 didSet = true;
             else
                 didSet = false;
             end
         end
-        
-        function didSet = setOutcomesObj(this, outcomesController)
-            didSet = false;
-            if(isa(outcomesController,'PAOutcomesTable'))
-                this.outcomesObj = outcomesController;
-                
-                this.profileFields = this.outcomesObj.getColumnNames('subjectInfo_t');
-                addpath('../matlab/models');
-                addpath('../matlab/gee');
-                
-                
-                this.useTableOutcomes = true;
-                didSet = true;
-            end
+        function hasIt = hasProfileData(this)
+            hasIt = ~isempty(this.profileFields);
         end
+        
         function didInit = initDatabaseObj(this)
             didInit = false;
             try
@@ -1601,7 +1606,7 @@ classdef PAStatTool < PABase
             
             %% Analysis Figure
             % Profile Summary
-            if(this.useDatabase)
+            if(this.useDatabase || this.useOutcomes)
                 this.initProfileTable(widgetSettings.profileFieldSelection);
                 
                 % Initialize the scatter plot axes
@@ -1755,7 +1760,6 @@ classdef PAStatTool < PABase
         function shouldShow = shouldShowAnalysisFigure(this)
             shouldShow = get(this.handles.check_showAnalysisFigure,'value');
         end
-        
         
     end
     
@@ -3568,7 +3572,7 @@ classdef PAStatTool < PABase
         %> @retval didRefresh True on successful refresh, false otherwise.        
         function didRefresh = refreshCOIProfile(this)
             try
-               if(~isempty(this.databaseObj) && this.hasCluster())
+               if(this.hasProfileData() && this.hasCluster())
                 
                     % This gets the memberIDs attached to each cluster.
                     % This gives us all 
@@ -3668,18 +3672,26 @@ classdef PAStatTool < PABase
         function [coiProfile, dataSummaryStruct] = getProfileCell(this,primaryKeys,fieldsOfInterest)
             
             if(nargin<2)
-                fieldsOfInterest = this.databaseObj.getColumnNames('subjectInfo_t');
+                if(~isempty(this.outcomesObj))   
+                    fieldsOfInterest = this.outcomesObj.getColumnNames('subjects');
+                elseif(~isempty(this.databaseObj))
+                    fieldsOfInterest = this.databaseObj.getColumnNames('subjectInfo_t');
+                end
                 %                 fieldsOfInterest = {'bmi_zscore';
                 %                     'insulin'};
             end
             statOfInterest = 'AVG';
-            if(~isempty(this.databaseObj))
+            if(~isempty(this.outcomesObj))
+                [dataSummaryStruct, ~]=this.outcomesObj.getSubjectInfoSummary(primaryKeys,fieldsOfInterest,statOfInterest);
+            elseif(~isempty(this.databaseObj))
                 [dataSummaryStruct, ~]=this.databaseObj.getSubjectInfoSummary(primaryKeys,fieldsOfInterest,statOfInterest);
-                coiProfile = PAStatTool.profile2cell(dataSummaryStruct);
-            else
-                dataSummaryStruct = [];
-                coiProfile = [];
             end
+            if(isempty(dataSummaryStruct))
+                coiProfile = [];
+            else
+                coiProfile = PAStatTool.profile2cell(dataSummaryStruct);
+            end
+                
         end
         
         %> @brief Listening and checking for changes to the split checkbox.

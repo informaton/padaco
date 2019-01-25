@@ -22,8 +22,10 @@ classdef PAOutcomesTable < PABase
         
         figFcn = @importOutcomesDlg;
         figureH;
-        
-        
+    end
+    
+    properties(Access=protected)
+        lastPathChecked;
     end
     
     methods
@@ -39,14 +41,70 @@ classdef PAOutcomesTable < PABase
             end
         end
         
-        function setFilenames(this, fStruct)
-            for f=1:numel(this.categories)
-                field = this.categories{f};
-                if(isfield(fStruct,field))
-                    this.filenames.(field) = fStruct.field;
+        function [dataSummaryStruct, statStruct, dataStruct] = getSubjectInfoSummary(this, primaryKeys, fieldNames, stat)
+            wherePrimaryKeysIn = this.makeWhereInString(primaryKeys,'numeric');
+            if(nargin<3)
+                stat = [];
+            end
+            
+            % This calculates summary stats directly within MySQL server
+            selectStatFieldsStr = this.cellstr2statcsv(fieldNames,stat);
+            sqlStatStr = sprintf('SELECT %s FROM %s WHERE %s in %s',selectStatFieldsStr,this.tableNames.subjectInfo,this.primaryKeys.subjectInfo, wherePrimaryKeysIn);
+            statStruct = this.query(sqlStatStr);
+            
+            
+            % This calculates summary stats directly within MySQL server
+            selectFieldsStr  = this.cellstr2csv(fieldNames);
+            sqlStr = sprintf('SELECT %s FROM %s WHERE %s in %s',selectFieldsStr,this.tableNames.subjectInfo,this.primaryKeys.subjectInfo, wherePrimaryKeysIn);
+            dataStruct = this.query(sqlStr);
+            
+            if(isfield(dataStruct,'sex') && iscell(dataStruct.sex))
+                dataStruct.sex = str2double(dataStruct.sex);
+            end
+            
+            dataSummaryStruct = summarizeStruct(dataStruct);
+        end
+        
+        function isValid = isvalidCategory(this, categoryName)
+            isValid = ismember(categoryName,this.categories);
+        end
+        function colNames = getColumnNames(this, categoryName)
+            colNames = {};
+            if(this.isvalidCategory(categoryName))
+                tableProp = this.(categoryName);
+                if(isa(tableProp,'table'))
+                    colNames = tableProp.Properties.VariableNames;
                 end
             end
         end
+           
+        
+        %% import file functionality
+        
+        function setFilenames(this, fStruct)
+            for f=1:numel(this.categories)
+                category = this.categories{f};
+                if(isfield(fStruct,category))
+                    filename = fStruct.(category);
+                    this.setFilename(category,filename);
+                end
+            end
+        end
+        
+        function didSet = setFilename(this, category, filename)
+            didSet = false;
+            if(isfield(this.filenames,category)&& exist(filename,'file')&& ~isdir(filename))
+                this.filenames.(category) = filename;
+                this.lastPathChecked = fileparts(filename);
+                if(ishandle(this.figureH))
+                    [~,textH] = this.getCategoryHandles(category);
+                    if(ishandle(textH))
+                        set(textH,'string',filename,'enable','inactive');
+                    end
+                    this.updateCanImport();                    
+                end
+            end
+        end       
         
         function importFilesFromDlg(this)
             if this.confirmFilenamesDlg() % make them go through the dialog successfully first.
@@ -107,9 +165,8 @@ classdef PAOutcomesTable < PABase
             catch me
                 didImport = false;
                 msg = sprintf('An exception was caught while trying to load %s file (''%s'').\n"%s"',category,filename,me.message);
-            end
-            
-        end
+            end            
+        end        
         
         function importDictionary(this, varargin)
             this.importFile('dictionary',varargin{:});
@@ -119,60 +176,17 @@ classdef PAOutcomesTable < PABase
             this.importFile('subjects',varargin{:})
         end
         
-        function importOutcomesFile(this, varargin)
-            
+        function importOutcomesFile(this, varargin)            
             this.importFile('outcomes',varargin{:})            
-        end
-
-        function loadStudyInfo_T(this,csv_filename, visitNumber)
-            
-                        
-            if(exist(csv_filename,'file'))
-                
-                fid = fopen(csv_filename,'r');
-                [~,lineTerminator] = fgets(fid);
-                fclose(fid);
-                loadStr = sprintf([
-                    'LOAD DATA LOCAL INFILE ''%s'' INTO TABLE %s ',...
-                    ' FIELDS TERMINATED BY '','' ENCLOSED BY ''"''',...
-                    ' LINES TERMINATED BY ''%s''',...
-                    ' IGNORE 1 LINES',...
-                    '(kidid, filename, total_day_count, complete_day_count, incomplete_day_count, x_cpm, y_cpm, z_cpm, vecmag_cpm)',...
-                    ' SET visitnum = %d '],csv_filename,tableName,char(lineTerminator),visitNumber);
-                
-                this.open();                
-                mym(loadStr);
-                this.selectSome(tableName);
-                this.close();
-                %                     'set visitNum=%u'],subjectinfo_csv_filename,tableName,visitNum);
-            else
-                throw(MException('CLASS_database_goals','Invalid arguments for loadStudyInfo_T'));
-            end
-        end
+        end        
         
-        function didSet = setFilename(this, category, filename)
-            didSet = false;
-            if(isfield(this.filenames,category)&& exist(filename,'file')&& ~isdir(filename))
-                this.filenames.(category) = filename;
-                if(ishandle(this.figureH))
-                    [~,textH] = this.getCategoryHandles(category);
-                    if(ishandle(textH))
-                        set(textH,'string',filename,'enable','inactive');
-                    end
-                    this.updateCanImport();                    
-                end
-            end
-            
-        end
-       
-
         %% Import dialog and functionality
         function didConfirmUpdate = confirmFilenamesDlg(this)
             
             % figFile = 'importOutcomesDlg.fig';
             % x = load(figFile,'-mat');
             outcomeFileStruct = [];
-            this.figureH = this.figFcn('visible','off');               
+            this.figureH = this.figFcn('visible','off','name','Select outcome files');               
             if(this.initHandles())
                 set(this.figureH,'visible','on');                
                 waitfor(this.figureH,'visible','off');
@@ -191,6 +205,7 @@ classdef PAOutcomesTable < PABase
                 set(this.handles.push_import,'enable','off');
             end
         end
+        
         function canIt = canImport(this)            
             canIt = exist(this.filenames.outcomes,'file') && exist(this.filenames.subjects,'file');
         end
@@ -233,6 +248,10 @@ classdef PAOutcomesTable < PABase
             promptStr = sprintf('Select %s file',category);
             locationGuess = this.filenames.(category);
             
+            if(isempty(locationGuess) || ~exist(locationGuess,'file'))
+                locationGuess = this.lastPathChecked;
+            end
+            
             f=uigetfullfile(fileExt, promptStr, locationGuess);            
             if(~isempty(f) && ~isdir(f) && exist(f,'file'))
                 this.setFilename(category, f);                
@@ -251,9 +270,20 @@ classdef PAOutcomesTable < PABase
                editH = this.handles.(editTag);
            end
         end
-
+        
+        function pStruct = getSaveParameters(obj)
+            pStruct = obj.filenames;
+        end
+        
     end
     
+    methods(Static)
+        
+       function pStruct = getDefaultParameters()
+            pStruct = mkstruct(PAOutcomesTable.categories);
+       end 
+       
+    end
 end
 
 

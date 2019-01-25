@@ -10,6 +10,9 @@ Version history
 - Export menu options added
   - Save activity states from single study to disk
   - Export clusters to disk for external processing.
+- Import outcomes data to pair with cluster analysis tool.
+  - added saveable settings (filenames for outcome tables)
+  - added last path checked property to give some intelligence/memory to follow on file selections.
 
 
 1.75 (11/01/2018)
