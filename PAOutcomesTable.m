@@ -8,16 +8,16 @@ classdef PAOutcomesTable < PABase
         LoadFail;
     end
     properties(Constant)
-        categories = {'outcomes','subjects','dictionary'};
+        categories = {'studyinfo','subjects','dictionary'}; % padaco results
         optionalCategory = 'dictionary';
     end
     properties(SetAccess=protected)
         filenames;
         tables;
         
-        outcomes;
+        studyinfo;
         dictionary;
-        subjects;
+        subjects;  % outcomes, this will be study info...
         primaryKey;
         
         figFcn = @importOutcomesDlg;
@@ -42,7 +42,7 @@ classdef PAOutcomesTable < PABase
         end
         
         function [dataSummaryStruct, statStruct, dataStruct] = getSubjectInfoSummary(this, primaryKeys, fieldNames, stat)
-            wherePrimaryKeysIn = this.makeWhereInString(primaryKeys,'numeric');
+            %wherePrimaryKeysIn = this.makeWhereInString(primaryKeys,'numeric');
             if(nargin<3)
                 stat = [];
             end
@@ -176,9 +176,13 @@ classdef PAOutcomesTable < PABase
             this.importFile('subjects',varargin{:})
         end
         
-        function importOutcomesFile(this, varargin)            
-            this.importFile('outcomes',varargin{:})            
+%         function importOutcomesFile(this, varargin)            
+%             this.importFile('outcomes',varargin{:})            
+%         end        
+        function importStudyInfoFile(this, varargin)            
+            this.importFile('studyinfo',varargin{:})            
         end        
+        
         
         %% Import dialog and functionality
         function didConfirmUpdate = confirmFilenamesDlg(this)
@@ -206,8 +210,9 @@ classdef PAOutcomesTable < PABase
             end
         end
         
+        % Check all required categories have a filename for import 
         function canIt = canImport(this)            
-            canIt = exist(this.filenames.outcomes,'file') && exist(this.filenames.subjects,'file');
+            canIt = all(cellfun(@(x)exist(this.filenames.(x),'file') && ~isdir(this.filenames.(x)),setdiff(this.categories,this.optionalCategory)));            
         end
         
         function didInit = initHandles(this)

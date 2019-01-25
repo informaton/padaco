@@ -113,8 +113,8 @@ classdef PAStatTool < PABase
         
         %> Booleans
         useCache;
-        useDatabase;
-        useOutcomes;
+        useDatabase = 0;
+        useOutcomes = 0;
         outcomesObj;
         
         databaseObj;
@@ -167,6 +167,11 @@ classdef PAStatTool < PABase
             if(~isfield(initSettings,'useDatabase'))
                 initSettings.useDatabase = false;
             end
+            
+            if(~isfield(initSettings,'useOutcomes'))
+                initSettings.useOutcomes = false;
+            end
+            
             
             this.bootstrapIterations =  initSettings.bootstrapIterations;
             this.bootstrapSampleName = initSettings.bootstrapSampleName;
@@ -417,6 +422,7 @@ classdef PAStatTool < PABase
             
             % These parameters not stored in figure widgets
             paramStruct.useDatabase = this.useDatabase;
+            paramStruct.useOutcomes = this.useOutcomes;
             paramStruct.minDaysAllowed = this.minNumDaysAllowed;
             paramStruct.minNumDaysAllowed = this.minNumDaysAllowed;
             paramStruct.maxNumDaysAllowed = this.maxNumDaysAllowed;
@@ -1109,13 +1115,13 @@ classdef PAStatTool < PABase
                     didInit = true;
                 else
                     this.databaseObj = [];
-                    this.profileFields = {''};                    
+                    this.profileFields = {};                    
                 end
             catch me
                 showME(me);
                 this.databaseObj = [];
                 this.useDatabase = false;
-                this.profileFields = {''};
+                this.profileFields = {};
             end
             
         end
@@ -3940,6 +3946,9 @@ classdef PAStatTool < PABase
             paramStruct.exportShowNonwear = true;
             paramStruct.cacheDirectory = fullfile(workingPath,'cache');
             paramStruct.useCache = 1;
+            
+            paramStruct.useOutcomes = 1;
+            paramStruct.outcomesFile = '';
             
             paramStruct.useDatabase = 0;
             paramStruct.databaseClass = 'CLASS_database_goals';
