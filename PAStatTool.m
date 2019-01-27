@@ -962,8 +962,7 @@ classdef PAStatTool < PABase
             resultPanels = [
                 obj.handles.panel_results;
                 obj.handles.panel_clusterPlotControls;
-                obj.handles.panel_clusterSettings;
-                
+                obj.handles.panel_clusterSettings;                
                 ];
             
             switch( enableState )
@@ -1607,8 +1606,12 @@ classdef PAStatTool < PABase
             
             % Previous state initialization - set to current state.            
             this.previousState.normalizeValues = widgetSettings.normalizeValues;
-            this.previousState.plotType = this.base.plotTypes{widgetSettings.plotTypeSelection};
             this.previousState.weekdaySelection = widgetSettings.weekdaySelection;
+            
+            % Set previous plot type to 'clustering' which is how it look
+            % in the guide figure on startup, and is dynamically when
+            % switching from clustering.
+            this.previousState.plotType = 'clustering';  %  this.base.plotTypes{widgetSettings.plotTypeSelection};
             
             %% Analysis Figure
             % Profile Summary
@@ -1629,8 +1632,7 @@ classdef PAStatTool < PABase
            
             % disable everything
             if(~this.canPlot)
-                set(findall(this.handles.panel_results,'enable','on'),'enable','off');
-                this.hideClusterControls();
+                set(findall(this.handles.panel_results,'enable','on'),'enable','off');                
             end
         end
         
@@ -3011,18 +3013,21 @@ classdef PAStatTool < PABase
             set([this.handles.panel_clusterPlotControls
                 this.handles.panel_clusterSettings],'visible','off'); 
             
+            containerPos = get(this.handles.panel_resultsContainer,'position');
             clusterPos = get(this.handles.panel_clusterSettings,'position');
+            shapePos = get(this.handles.panel_shapeSettings,'position');
+            
             hDelta = sum(clusterPos([2,4]));
             
-            shapePos = get(this.handles.panel_shapeSettings,'position');
-            shapePos(2) = shapePos(2)-hDelta;
-            set(this.handles.panel_shapeSettings,'position',shapePos);
-            
-            containerPos = get(this.handles.panel_resultsContainer,'position');            
-            containerPos(2) = containerPos(2)+hDelta;
-            containerPos(4) = containerPos(4)-hDelta;
-            set(this.handles.panel_resultsContainer,'position',containerPos);
-            
+            % only resize if necessary...
+            if(containerPos(4)>hDelta+shapePos(4))
+                shapePos(2) = shapePos(2)-hDelta;
+                set(this.handles.panel_shapeSettings,'position',shapePos);
+                
+                containerPos(2) = containerPos(2)+hDelta;
+                containerPos(4) = containerPos(4)-hDelta;
+                set(this.handles.panel_resultsContainer,'position',containerPos);
+            end
             
             % remove anycontext menu on the primary axes
             set(this.handles.axes_primary,'uicontextmenu',[]);
@@ -3033,21 +3038,27 @@ classdef PAStatTool < PABase
         end
         
         function showClusterControls(this)
-            set([this.handles.panel_clusterPlotControls
-                this.handles.panel_clusterSettings],'visible','on');
+
             
-            
+            containerPos = get(this.handles.panel_resultsContainer,'position');
+            shapePos = get(this.handles.panel_shapeSettings,'position');
             clusterPos = get(this.handles.panel_clusterSettings,'position');
+
             hDelta = sum(clusterPos([2,4]));
             
-            shapePos = get(this.handles.panel_shapeSettings,'position');
-            shapePos(2) = shapePos(2)+hDelta;
-            set(this.handles.panel_shapeSettings,'position',shapePos);
+            % only resize if necessary...
+            if(containerPos(4)<hDelta+shapePos(4))
+                
+                shapePos(2) = shapePos(2)+hDelta;
+                set(this.handles.panel_shapeSettings,'position',shapePos);                
+                
+                containerPos(2) = containerPos(2)-hDelta;
+                containerPos(4) = containerPos(4)+hDelta;
+                set(this.handles.panel_resultsContainer,'position',containerPos);
+            end
             
-            containerPos = get(this.handles.panel_resultsContainer,'position');            
-            containerPos(2) = containerPos(2)-hDelta;
-            containerPos(4) = containerPos(4)+hDelta;
-            set(this.handles.panel_resultsContainer,'position',containerPos);
+            set([this.handles.panel_clusterPlotControls
+                this.handles.panel_clusterSettings],'visible','on');
             
         end
         

@@ -46,12 +46,12 @@ classdef PAOutcomesTable < PABase
             if(nargin<3)
                 stat = [];
             end
-            
+            tableCategory = 'subjects';
+            t=this.(tableCategory);
             % This calculates summary stats directly within MySQL server
             selectStatFieldsStr = this.cellstr2statcsv(fieldNames,stat);
             sqlStatStr = sprintf('SELECT %s FROM %s WHERE %s in %s',selectStatFieldsStr,this.tableNames.subjectInfo,this.primaryKeys.subjectInfo, wherePrimaryKeysIn);
             statStruct = this.query(sqlStatStr);
-            
             
             % This calculates summary stats directly within MySQL server
             selectFieldsStr  = this.cellstr2csv(fieldNames);
