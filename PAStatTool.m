@@ -849,8 +849,7 @@ classdef PAStatTool < PABase
             if(nargin<2 || isempty(initSettings))
                 initSettings = this.getPlotSettings();
             end
-            this.initWidgets(initSettings);
-            this.plotSelectionChange(this.handles.menu_plottype);
+            this.initWidgets(initSettings);            
         end
         
         % ======================================================================
@@ -1077,7 +1076,6 @@ classdef PAStatTool < PABase
             end
         end
         
-        
         function didSet = setIconData(this, iconData, iconCMap)
             if(nargin==3)
                 didSet = true;
@@ -1089,7 +1087,6 @@ classdef PAStatTool < PABase
             end
             
         end
-        
         
         %> @brief Database functionality
         function didSet = setUseDatabase(this, willSet)
@@ -1180,12 +1177,22 @@ classdef PAStatTool < PABase
         %> @param Handle of the dropdown menu.
         %> @param unused
         % ======================================================================
-        function plotSelectionChange(this, menuHandle, evtData)
-           
-            plotType = this.getPlotType();  %this.base.plotTypes{get(menuHandle,'value')};
-            if(~isequal(plotType, this.previousState.plotType))
+        function plotSelectionChangeCb(this, varargin)           
+            plotType = this.getPlotType();
+            this.setPlotType(plotType);
+        end
+        function refreshPlotType(this)        
+            forceSet = true;
+            this.setPlotType(this.getPlotType(),forceSet);
+        end
+        
+        function setPlotType(this, plotType, forceSet)
+            if(nargin<3 || isempty(forceSet))
+                forceSet = false;
+            end        
+            if(~isequal(plotType, this.previousState.plotType) || forceSet)
                 this.clearPlots();
-                set(menuHandle,'tooltipstring',this.base.tooltipstring.(plotType));
+                set(this.handles.menu_plottype,'tooltipstring',this.base.tooltipstring.(plotType));
                 
                 switch(plotType)
                     case 'clustering'
@@ -1200,8 +1207,6 @@ classdef PAStatTool < PABase
                 this.previousState.plotType = plotType;
             end
         end
-        
-
         
         % ======================================================================
         %> @brief Window key press callback for cluster view changes
@@ -1244,8 +1249,6 @@ classdef PAStatTool < PABase
             end
         end
         
-        
-
         % ======================================================================
         %> @brief Mouse button callback when clicking on the cluster
         %> day-of-week distribution histogram. Clicking on this will add/remove
@@ -1270,8 +1273,7 @@ classdef PAStatTool < PABase
             end
             this.plotClusters();
         end
-
-                
+       
         % ======================================================================
         %> @brief Mouse button callback when clicking on the cluster
         %> distribution histogram.
@@ -1296,8 +1298,6 @@ classdef PAStatTool < PABase
             this.plotClusters();         
         end
         
-        
-        
         % ======================================================================
         %> @brief Mouse button callback when clicking a patch overlay of the cluster histogram.
         %> @param this Instance of PAStatTool
@@ -1316,7 +1316,6 @@ classdef PAStatTool < PABase
             this.plotClusters();
         end
 
-        
         % ======================================================================
         %> @brief Mouse button callback when clicking on a scatter plot entry.
         %> @param this Instance of PAStatTool
@@ -1335,8 +1334,6 @@ classdef PAStatTool < PABase
             end
             this.plotClusters();         
         end
-        
-        
         
         % ======================================================================
         %> @brief Mouse button callback when clicking on a highlighted member (coi) 
@@ -1360,7 +1357,6 @@ classdef PAStatTool < PABase
     end
     
     methods
-            
         
         % ======================================================================
         %> @brief Initialize gui handles using input parameter or default
@@ -1488,7 +1484,7 @@ classdef PAStatTool < PABase
                             this.handles.menu_clusterMethod;
                             this.handles.check_segment],'callback',@this.enableClusterRecalculation);
                         
-                        set(this.handles.menu_plottype,'callback',@this.plotSelectionChange);
+                        set(this.handles.menu_plottype,'callback',@this.plotSelectionChangeCb);
                        
                         set(this.handles.check_showClusterMembership,'callback',@this.checkShowClusterMembershipCallback);
                         
@@ -1529,13 +1525,6 @@ classdef PAStatTool < PABase
                         set(this.handles.push_previousCluster,'callback',@this.showPreviousClusterCallback);
                         set(this.handles.push_nextCluster,'callback',@this.showNextClusterCallback);
                         
-%                         set(this.handles.push_nextCluster,'units','pixels');
-%                         set(this.handles.push_previousCluster,'units','pixels');
-
-%                         set(this.handles.push_nextCluster,'units','normalized');
-%                         set(this.handles.push_previousCluster,'units','normalized');
-                        
-
                         drawnow();
                         %
                         % bgColor = get(this.handles.panel_clusterPlotControls,'Backgroundcolor');
@@ -1566,7 +1555,6 @@ classdef PAStatTool < PABase
                         nextImg(~transparentIndices)=originalImg(~transparentIndices)/RGB_MAX; %normalize back to between 0.0 and 1.0 or NaN
                         previousImg = fliplr(nextImg);
                         
-                        
                         %setIcon(this.handles.push_nextCluster,'arrow-right_16px.png',imgBgColor);
                         fgColor = get(0,'FactoryuicontrolForegroundColor');
                         defaultBackgroundColor = get(0,'FactoryuicontrolBackgroundColor');
@@ -1577,9 +1565,6 @@ classdef PAStatTool < PABase
                             'string',[],'foregroundcolor',fgColor,...
                             'backgroundcolor',defaultBackgroundColor);
                         
-%                         set(this.handles.push_nextCluster,'units','normalized');
-%                         set(this.handles.push_previousCluster,'units','normalized');
-
                         set(this.handles.check_holdYAxes,'value',strcmpi(widgetSettings.primaryAxis_yLimMode,'manual'),'callback',@this.checkHoldYAxesCallback);
                         set(this.handles.check_holdPlots,'value',strcmpi(widgetSettings.primaryAxis_nextPlot,'add'),'callback',@this.checkHoldPlotsCallback);
                         set(this.handles.check_showAnalysisFigure,'value',widgetSettings.showAnalysisFigure,'callback',@this.checkShowAnalysisFigureCallback);
@@ -1594,7 +1579,6 @@ classdef PAStatTool < PABase
                         
                         set(this.handles.edit_clusterConvergenceThreshold,'tooltipstring','Hint: Enter ''inf'' to fix the number of clusters to the min value');
             
-                        
                         % add a context menu now to secondary axes
                         contextmenu_secondaryAxes = uicontextmenu('callback',@this.contextmenu_secondaryAxesCallback,'parent',this.figureH);
                         this.handles.contextmenu.secondaryAxes.performance = uimenu(contextmenu_secondaryAxes,'Label','Show adaptive separation performance progression','callback',{@this.clusterDistributionCallback,'performance'});
@@ -1615,7 +1599,11 @@ classdef PAStatTool < PABase
             % Set previous plot type to 'clustering' which is how it look
             % in the guide figure on startup, and is dynamically when
             % switching from clustering.
-            this.previousState.plotType = 'clustering';  %  this.base.plotTypes{widgetSettings.plotTypeSelection};
+            if(~isfield(this.previousState,'plotType') || isempty(this.previousState.plotType))
+                this.previousState.plotType = 'clustering';  % don't refresh here, as we may want to use a chaced result.  
+            else
+                this.refreshPlotType();
+            end
             
             %% Analysis Figure
             % Profile Summary
@@ -1634,9 +1622,11 @@ classdef PAStatTool < PABase
                 set(this.handles.check_showAnalysisFigure,'visible','off');
             end
            
+
+            
             % disable everything
             if(~this.canPlot)
-                set(findall(this.handles.panel_results,'enable','on'),'enable','off');                
+                set(findall(this.handles.panel_results,'enable','on'),'enable','off');  
             end
         end
         
@@ -1653,7 +1643,6 @@ classdef PAStatTool < PABase
                 'fontweight','normal',...
                 'fontsize',12);
         end
-        
 
         % ======================================================================
         %> @brief Configure gui handles for non cluster/clusting viewing
@@ -1664,14 +1653,12 @@ classdef PAStatTool < PABase
             disableHandles(this.handles.panel_clusterSettings);
             this.hideClusterControls();
             
-            
             set(this.handles.axes_secondary,'visible','off');
             set(this.figureH,'WindowKeyPressFcn',[]);
             set(this.analysisFigureH,'visible','off');
 
             this.refreshPlot();
         end    
-        
         
         % ======================================================================
         %> @brief Configure gui handles for cluster analysis and viewing.

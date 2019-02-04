@@ -1530,7 +1530,7 @@ classdef PAController < PABase
                 % the following steps, we do not have a previous statTool
                 % hanging around showing results and the user unaware that
                 % a problem occurred (i.e. no change took place).
-                obj.statTool = [];
+                % obj.statTool = [];
                 obj.resultsPathname = resultsPath;
                 if(~strcmpi(obj.getViewMode(),'results'))
                     obj.VIEW.showBusy('Switching to results view');
