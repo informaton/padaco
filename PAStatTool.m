@@ -252,7 +252,8 @@ classdef PAStatTool < PABase
                     % fprintf('Assuming features pathFeatures pathname (%s) does not exist!\n',featuresPath);
                 end
                 this.featuresDirectory = featuresPath;
-                this.initWidgets(this.originalWidgetSettings);  %initializes previousstate.plotType on success
+                this.init(this.originalWidgetSettings);  %initializes previousstate.plotType on success and calls plot selection change cb for sync.
+                
 
                 this.clearPlots();
                 
@@ -844,8 +845,11 @@ classdef PAStatTool < PABase
         %> refreshes the view.
         %> @param this Instance of PAStatTool
         % ======================================================================        
-        function init(this)
-            this.initWidgets(this.getPlotSettings());
+        function init(this, initSettings)
+            if(nargin<2 || isempty(initSettings))
+                initSettings = this.getPlotSettings();
+            end
+            this.initWidgets(initSettings);
             this.plotSelectionChange(this.handles.menu_plottype);
         end
         
