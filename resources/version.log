@@ -13,6 +13,11 @@ Version history
 - Import outcomes data to pair with cluster analysis tool.
   - added saveable settings (filenames for outcome tables)
   - added last path checked property to give some intelligence/memory to follow on file selections.
+- Menubar: Changed "Analysis Mode" -> "View"
+- Resolved issues
+  - Transition issue (#102)
+  - Analysis mode startup sync (#101)
+  - Transition issue (#1)
 
 
 1.75 (11/01/2018)

@@ -41,28 +41,36 @@ classdef PAOutcomesTable < PABase
             end
         end
         
-        function [dataSummaryStruct, statStruct, dataStruct] = getSubjectInfoSummary(this, primaryKeys, fieldNames, stat)
+        % I want a summary statistic of each subject field, grouped by the primary keys given.
+        function [dataSummaryStruct, statStruct, infoTable] = getSubjectInfoSummary(this, primaryKeys, fieldNames, stat)
             %wherePrimaryKeysIn = this.makeWhereInString(primaryKeys,'numeric');
             if(nargin<3)
                 stat = [];
             end
+            this.primaryKey = 'ID_KID';
             tableCategory = 'subjects';
             t=this.(tableCategory);
-            % This calculates summary stats directly within MySQL server
-            selectStatFieldsStr = this.cellstr2statcsv(fieldNames,stat);
-            sqlStatStr = sprintf('SELECT %s FROM %s WHERE %s in %s',selectStatFieldsStr,this.tableNames.subjectInfo,this.primaryKeys.subjectInfo, wherePrimaryKeysIn);
-            statStruct = this.query(sqlStatStr);
-            
-            % This calculates summary stats directly within MySQL server
-            selectFieldsStr  = this.cellstr2csv(fieldNames);
-            sqlStr = sprintf('SELECT %s FROM %s WHERE %s in %s',selectFieldsStr,this.tableNames.subjectInfo,this.primaryKeys.subjectInfo, wherePrimaryKeysIn);
-            dataStruct = this.query(sqlStr);
-            
-            if(isfield(dataStruct,'sex') && iscell(dataStruct.sex))
-                dataStruct.sex = str2double(dataStruct.sex);
-            end
-            
-            dataSummaryStruct = summarizeStruct(dataStruct);
+            %Rows Of Interest:
+            roi = ismember(primaryKeys,t.(this.primaryKey),'legacy');
+            infoTable = t(roi, fieldNames);
+            statStruct = summary(infoTable);
+            dataSummaryStruct = summarizeStruct(infoTable);
+            %
+            %             % This calculates summary stats directly within MySQL server
+            %             selectStatFieldsStr = cellstr2statcsv(fieldNames,stat);
+            %             sqlStatStr = sprintf('SELECT %s FROM %s WHERE %s in %s',selectStatFieldsStr,this.tableNames.subjectInfo,this.primaryKeys.subjectInfo, wherePrimaryKeysIn);
+            %             statStruct = this.query(sqlStatStr);
+            %
+            %             % This calculates summary stats directly within MySQL server
+            %             selectFieldsStr  = this.cellstr2csv(fieldNames);
+            %             sqlStr = sprintf('SELECT %s FROM %s WHERE %s in %s',selectFieldsStr,this.tableNames.subjectInfo,this.primaryKeys.subjectInfo, wherePrimaryKeysIn);
+            %             dataStruct = this.query(sqlStr);
+            %
+            %             if(isfield(dataStruct,'sex') && iscell(dataStruct.sex))
+            %                 dataStruct.sex = str2double(dataStruct.sex);
+            %             end
+            %
+            %             dataSummaryStruct = summarizeStruct(dataStruct);
         end
         
         function isValid = isvalidCategory(this, categoryName)

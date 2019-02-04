@@ -1022,7 +1022,7 @@ classdef PAStatTool < PABase
                 
                 
                 this.useOutcomes = true;
-                this.refreshCOIProfile();
+                this.initProfileTable();  % this.refreshCOIProfile();
                 set(this.handles.check_showAnalysisFigure,'visible','on');
                 didSet = true;
             end
@@ -1101,7 +1101,7 @@ classdef PAStatTool < PABase
             end
         end
         function hasIt = hasProfileData(this)
-            hasIt = ~isempty(this.profileFields);
+            hasIt = ~isempty(this.profileFields) && ~isempty(this.profileTableData);
         end
         
         function didInit = initDatabaseObj(this)
