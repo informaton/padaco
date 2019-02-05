@@ -200,14 +200,15 @@ classdef PAStatTool < PABase
             this.figureH = padaco_fig_h;
             this.featureStruct = [];
             
-            this.initScatterPlotFigure();
             
-            this.initHandles();            
             this.initBase();
             this.clusterDistributionType = initSettings.clusterDistributionType;  % {'performance','membership','weekday'}
             
             this.featureInputFilePattern = ['%s',filesep,'%s',filesep,'features.%s.accel.%s.%s.txt'];
             this.featureInputFileFieldnames = {'inputPathname','displaySeletion','processType','curSignal'};       
+            
+            this.initScatterPlotFigure();
+
             
             if(isdir(resultsPathname))
                 this.setResultsDirectory(resultsPathname); % a lot of initialization code in side this call.
@@ -255,7 +256,6 @@ classdef PAStatTool < PABase
                 this.featuresDirectory = featuresPath;
                 this.init(this.originalWidgetSettings);  %initializes previousstate.plotType on success and calls plot selection change cb for sync.
                 
-
                 this.clearPlots();
                 
                 if(exist(this.getFullClusterCacheFilename(),'file') && this.useCache)
@@ -1025,7 +1025,8 @@ classdef PAStatTool < PABase
                 % addpath('../matlab/gee');                
                 
                 this.useOutcomes = true;
-                this.initProfileTable();  % this.refreshCOIProfile();
+                this.initProfileTable();
+                
                 set(this.handles.check_showAnalysisFigure,'visible','on');
                 didSet = true;
             end
@@ -1608,19 +1609,10 @@ classdef PAStatTool < PABase
                 this.refreshPlotType();
             end
             
-            %% Analysis Figure
-            % Profile Summary
+            
+            % Profile Summary and analysis figure
             if(this.useDatabase || this.useOutcomes)
                 this.initProfileTable(widgetSettings.profileFieldSelection);
-                
-                % Initialize the scatter plot axes
-                this.initScatterPlotAxes();
-                set(this.handles.push_analyzeClusters,'string','Analyze Clusters','callback',@this.analyzeClustersCallback);
-                
-                set(this.handles.push_exportTable,'string','Export Table','callback',@this.exportTableResultsCallback);
-                set(this.handles.text_analysisTitle,'string','','fontsize',12);
-                set(this.handles.check_showAnalysisFigure,'visible','on');
-
             else
                 set(this.handles.check_showAnalysisFigure,'visible','off');
             end
@@ -2125,7 +2117,24 @@ classdef PAStatTool < PABase
                 'name','Cluster Analysis',...
                 'WindowKeyPressFcn',@this.mainFigureKeyPressFcn,...
                 'CloseRequestFcn',@this.hideAnalysisFigure);
+            
+            % Create handle place holders and initialize
+            this.initHandles();
+
+            
+            % Initialize the scatter plot axes
+            this.initScatterPlotAxes();
+            set(this.handles.push_analyzeClusters,'string','Analyze Clusters','callback',@this.analyzeClustersCallback);
+            
+            set(this.handles.push_exportTable,'string','Export Table','callback',@this.exportTableResultsCallback);
+            set(this.handles.text_analysisTitle,'string','','fontsize',12);
+            set(this.handles.check_showAnalysisFigure,'visible','on');           
+
+            
         end
+        
+        
+        
         
         % ======================================================================
         %>  @brief Initializes the row table and menu_ySelection menu
@@ -2174,13 +2183,20 @@ classdef PAStatTool < PABase
                 'units','points','fontname','arial','fontsize',12,'fontunits','pixels','visible','on',...
                 'backgroundColor',backgroundColor,'rowStriping','on',...
                 'userdata',userData,'CellSelectionCallback',@this.analysisTableCellSelectionCallback);
-            
-                        
 
             
-            this.refreshProfileTableData();
-                        
+            % May or may not occur depending on state of cached values, but
+            % if there are loaded table or database values, go ahead and
+            % load these up now.
+            this.refreshGlobalProfile();
+            if(~this.refreshCOIProfile())        
+                % this will clear it out to a blank table.
+                this.refreshProfileTableData();  
+            end
+            
             fitTableWidth(this.handles.table_clusterProfiles);
+
+
         end
 
         % ======================================================================
@@ -3614,7 +3630,7 @@ classdef PAStatTool < PABase
         % ======================================================================
         function didRefresh = refreshGlobalProfile(this)
             try
-                if(this.useDatabase && this.hasCluster())
+                if(this.hasCluster() && (this.useDatabase || this.useOutcomes))
                     
                     % This gets the memberIDs attached to each cluster.
                     % This gives us all values with clusters interpreted
@@ -3643,7 +3659,7 @@ classdef PAStatTool < PABase
                     % Previously a remapping would occur because the getCovariateStruct returned the coi index.
                     % Now this is no longer necessary.
                     for coiSO=1:numClusters
-                        coiMemberIDs = globalStruct.memberIDs(globalStruct.values(:,coiSO)>0);  % pull out the members contributing to index of the current cluster of interest (coi)
+                        coiMemberIDs = globalStruct.memberIDs(globalStruct.id.values(:,coiSO)>0);  % pull out the members contributing to index of the current cluster of interest (coi)
                         
                         %sortOrder = this.clusterObj.getCOISortOrder(coiSO);
                         %                         if(sortOrder==21)

@@ -1037,7 +1037,7 @@ classdef PACluster < PAData
             covariateStruct.id.values = centroidIDCount;
             covariateStruct.id.colnames = idColnames;
             covariateStruct.id.varnames = strrep(strrep(covariateStruct.id.colnames,'#',''),' ',''); % create valid variable names for use with MATLAB table and dataset constructs.
-            covariateStruct.poplarity.values = centroidPopularityCount;
+            covariateStruct.popularity.values = centroidPopularityCount;
             covariateStruct.popularity.colnames = popularityColnames;
             covariateStruct.popularity.varnames = strrep(strrep(covariateStruct.popularity.colnames,'#',''),' ',''); % create valid variable names for use with MATLAB table and dataset constructs.
         end
