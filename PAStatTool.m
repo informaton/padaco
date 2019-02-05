@@ -1017,9 +1017,12 @@ classdef PAStatTool < PABase
                 this.outcomesObj = outcomesController;
                 
                 this.profileFields = this.outcomesObj.getColumnNames('subjects');
-                addpath('../matlab/models');
-                addpath('../matlab/gee');
                 
+                % These have been moved to application add path routine to
+                % avoid relative path differences when working within
+                % matlab and changing the working path.  
+                % addpath('../matlab/models');
+                % addpath('../matlab/gee');                
                 
                 this.useOutcomes = true;
                 this.initProfileTable();  % this.refreshCOIProfile();

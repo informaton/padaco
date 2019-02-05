@@ -9,5 +9,12 @@ function mPathname = pathsetup(mPathname)
         for s=1:numel(subPaths)
             addpath(fullfile(mPathname,subPaths{s}));
         end
+        
+        try
+           addpath(fullfile(mPathname,'../matlab/models'));
+           addpath(fullfile(mPathname,'../matlab/gee'));           
+        catch me
+            showME(me);
+        end
     end
 end
