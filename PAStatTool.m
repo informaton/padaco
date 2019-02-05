@@ -92,29 +92,30 @@ classdef PAStatTool < PABase
         allProfiles;
         profileTableData;
         
-        
-    end
-    properties(Access=private)
+        useCache;
+        useDatabase = 0;
+        useOutcomes = 0;
         resultsDirectory;
         featuresDirectory;
         cacheDirectory;
-        %> @brief Bool (true: has icon/false: does not have icon)        
-        hasIcon; 
-        iconData;
-        iconCMap;
-        iconFilename;
         
         %> @brief Struct with key value pairs for clustering:
         %> - @c clusterMethod Cluster method employed {'kmeans','kmedoids'}
         %> - @c useDefaultRandomizer = widgetSettings.useDefaultRandomizer;
         %> - @c initClusterWithPermutation = settings.initClusterWithPermutation;
         %> @note Initialized in the setWidgetSettings() method
-        clusterSettings;
+        clusterSettings;        
+    end
+    properties(Access=private)
+        %> @brief Bool (true: has icon/false: does not have icon)  
+        hasIcon; 
+        iconData;
+        iconCMap;
+        iconFilename;
+        
+
         
         %> Booleans
-        useCache;
-        useDatabase = 0;
-        useOutcomes = 0;
         outcomesObj;
         
         databaseObj;
@@ -423,7 +424,7 @@ classdef PAStatTool < PABase
             
             % These parameters not stored in figure widgets
             paramStruct.useDatabase = this.useDatabase;
-            paramStruct.useOutcomes = this.useOutcomes;
+            paramStruct.useOutcomes = this.useOutcomes;            
             paramStruct.minDaysAllowed = this.minNumDaysAllowed;
             paramStruct.minNumDaysAllowed = this.minNumDaysAllowed;
             paramStruct.maxNumDaysAllowed = this.maxNumDaysAllowed;
@@ -434,7 +435,6 @@ classdef PAStatTool < PABase
             
             paramStruct.bootstrapIterations = this.bootstrapIterations;
             paramStruct.bootstrapSampleName = this.bootstrapSampleName;
-
         end
         
         function loadSettings(obj, settingsFilename)
@@ -2119,6 +2119,7 @@ classdef PAStatTool < PABase
         % ======================================================================
         function initScatterPlotFigure(this)
             this.analysisFigureH = clusterAnalysisFig('visible','off',...
+                'name','Cluster Analysis',...
                 'WindowKeyPressFcn',@this.mainFigureKeyPressFcn,...
                 'CloseRequestFcn',@this.hideAnalysisFigure);
         end
@@ -3949,9 +3950,7 @@ classdef PAStatTool < PABase
             paramStruct.cacheDirectory = fullfile(workingPath,'cache');
             paramStruct.useCache = 1;
             
-            paramStruct.useOutcomes = 1;
-            paramStruct.outcomesFile = '';
-            
+            paramStruct.useOutcomes = 0;
             paramStruct.useDatabase = 0;
             paramStruct.databaseClass = 'CLASS_database_goals';
             paramStruct.discardNonwearFeatures = 1;

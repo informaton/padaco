@@ -59,8 +59,6 @@ classdef PAController < PABase
         %> Instance of PAModel - Padaco's model component.  See accelObj.
         MODEL;
         
-
-        
         %> Figure handle to the main figure window
         figureH;
         
@@ -2369,7 +2367,7 @@ classdef PAController < PABase
                     this.statTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname,this.settingsObj.statTool);
                     this.statTool.setIcon(this.iconFilename);
                     if(~isempty(this.outcomesTable))
-                    %    this.statTool.setOutcomesTable(this.outcomesTable);
+                        this.statTool.setOutcomesTable(this.outcomesTable);
                     end
                 end
                 success = this.statTool.getCanPlot();
@@ -3257,6 +3255,7 @@ classdef PAController < PABase
             batchSettings = PABatchTool.getDefaultParameters();
             pStruct.resultsPathname = batchSettings.outputDirectory;   
             pStruct.outcomesFilename = '~/Documents/outcomes.csv';            
+            pStruct.loadOutcomesOnStartup = true;
         end
 
     end

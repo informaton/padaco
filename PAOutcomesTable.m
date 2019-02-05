@@ -15,6 +15,7 @@ classdef PAOutcomesTable < PABase
         filenames;
         tables;
         
+        importOnStartup; 
         studyinfo;
         dictionary;
         subjects;  % outcomes, this will be study info...
@@ -32,12 +33,24 @@ classdef PAOutcomesTable < PABase
         
         %> @brief Class constructor.
         %> @retval obj Class instance.
-        function this = PAOutcomesTable(filenameStruct)
+        function this = PAOutcomesTable(settingsStruct)
             this = this@PABase();
-            this.filenames = mkstruct(this.categories);
             this.tables = mkstruct(this.categories);
-            if nargin 
-                this.setFilenames(filenameStruct)
+            pStruct = this.getDefaultParameters();
+            this.filenames = pStruct.filenames; %mkstruct(this.categories);            
+            this.importOnStartup= pStruct.importOnStartup;
+            try
+                if nargin
+                    this.setFilenames(settingsStruct.filenames);
+                    this.importOnStartup = settingsStruct.importOnStartup;
+                    
+                    if(this.importOnStartup && this.canImport())
+                        this.importFiles();
+                    end
+                end
+                
+            catch me
+                this.logError('Constructor exception',me);
             end
         end
         
@@ -184,9 +197,6 @@ classdef PAOutcomesTable < PABase
             this.importFile('subjects',varargin{:})
         end
         
-%         function importOutcomesFile(this, varargin)            
-%             this.importFile('outcomes',varargin{:})            
-%         end        
         function importStudyInfoFile(this, varargin)            
             this.importFile('studyinfo',varargin{:})            
         end        
@@ -203,11 +213,16 @@ classdef PAOutcomesTable < PABase
                 set(this.figureH,'visible','on');                
                 waitfor(this.figureH,'visible','off');
                 if(ishandle(this.figureH))
-                    outcomeFileStruct = this.filenames;  
+                    outcomeFileStruct = this.filenames;
+                    this.importOnStartup = get(this.handles.check_importOnStartup,'value');
                     delete(this.figureH);
                 end
             end
             didConfirmUpdate = ~isempty(outcomeFileStruct);
+        end
+        
+        function loadOn = getLoadOnStartup(this)
+            loadOn = this.importOnStartup;
         end
         
         function updateCanImport(this)
@@ -240,6 +255,8 @@ classdef PAOutcomesTable < PABase
                         set(editH,'string',filename);
                     end
                 end
+                
+                set(this.handles.check_importOnStartup,'value',this.importOnStartup);
                 set(this.handles.push_import,'callback', @this.hideFigureCb);
                 set(this.handles.push_cancel,'callback', 'closereq');
                 
@@ -285,7 +302,8 @@ classdef PAOutcomesTable < PABase
         end
         
         function pStruct = getSaveParameters(obj)
-            pStruct = obj.filenames;
+            pStruct = struct('filenames',obj.filenames,...
+                'importOnStartup',obj.importOnStartup);
         end
         
     end
@@ -293,7 +311,8 @@ classdef PAOutcomesTable < PABase
     methods(Static)
         
        function pStruct = getDefaultParameters()
-            pStruct = mkstruct(PAOutcomesTable.categories);
+            pStruct.filenames = mkstruct(PAOutcomesTable.categories);
+            pStruct.importOnStartup = true;
        end 
        
     end

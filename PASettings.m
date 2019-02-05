@@ -27,7 +27,7 @@ classdef  PASettings < handle
         fieldNames = {'DATA','CONTROLLER','VIEW','BATCH','statTool','IMPORT','outcomesTable'};  
         
         %> @brief Fieldnmaes whose structures are only one level deep.
-        liteFieldNames={'statTool','VIEW','CONTROLLER','IMPORT','outcomesTable'};
+        liteFieldNames={'statTool','VIEW','CONTROLLER','IMPORT'};
         dictionary;
     end
     properties
@@ -695,8 +695,6 @@ classdef  PASettings < handle
                         obj.BATCH = PABatchTool.getDefaultParameters();
                     otherwise
                         fprintf(1,'Unsupported fieldname: %s\n',fieldNames{f});
-                
-                        
                 end
             end
         end
