@@ -2366,7 +2366,7 @@ classdef PAController < PABase
                 else
                     this.statTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname,this.settingsObj.statTool);
                     this.statTool.setIcon(this.iconFilename);
-                    if(~isempty(this.outcomesTable))
+                    if(~isempty(this.outcomesTable) && this.outcomesTable.importOnStartup)
                         this.statTool.setOutcomesTable(this.outcomesTable);
                     end
                 end
@@ -3253,9 +3253,7 @@ classdef PAController < PABase
             pStruct.useSmoothing = true;
             pStruct.highlightNonwear = true;
             batchSettings = PABatchTool.getDefaultParameters();
-            pStruct.resultsPathname = batchSettings.outputDirectory;   
-            pStruct.outcomesFilename = '~/Documents/outcomes.csv';            
-            pStruct.loadOutcomesOnStartup = true;
+            pStruct.resultsPathname = batchSettings.outputDirectory;
         end
 
     end

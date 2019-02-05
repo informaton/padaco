@@ -1114,8 +1114,6 @@ classdef PAStatTool < PABase
                 if(this.useDatabase)
                     this.databaseObj = feval(this.originalWidgetSettings.databaseClass);
                     this.profileFields = this.databaseObj.getColumnNames('subjectInfo_t');
-                    addpath('../matlab/models');
-                    addpath('../matlab/gee');
                     didInit = true;
                 else
                     this.databaseObj = [];
