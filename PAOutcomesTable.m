@@ -44,7 +44,7 @@ classdef PAOutcomesTable < PABase
                     this.setFilenames(settingsStruct.filenames);
                     this.importOnStartup = settingsStruct.importOnStartup;
                     
-                    if(this.importOnStartup && this.canImport())
+                    if(this.importOnStartup && this.canImport())                        
                         this.importFiles();
                     end
                 end
@@ -129,17 +129,36 @@ classdef PAOutcomesTable < PABase
         
         function importFilesFromDlg(this)
             if this.confirmFilenamesDlg() % make them go through the dialog successfully first.
-                this.importFiles();
+                this.importFiles(true);
             end
         end
         
-        function importFiles(this)
+        % Show message box is flag ([false]) indicating whether to show a
+        % message box to the user with feedback of which file category is
+        % being loaded.
+        function importFiles(this, showMsgBox)
+            if(nargin<2 || isempty(showMsgBox))
+                showMsgBox = false;
+            end
             if(~this.canImport())
                 this.importFilesFromDlg();
             else
                 didImportAll = true;
+                makeModal = false;
+                
+                h = [];
                 for f=1:numel(this.categories)
+                    
                     category = this.categories{f};
+                    msg = sprintf('Loading %s table data',category);
+                    if(showMsgBox)
+                        if f==1
+                            h=pa_msgbox(msg,'Loading',makeModal);
+                        elseif(~isempty(h))
+                            update_msgbox(h,msg);
+                        end
+                    end
+                    
                     filename = this.filenames.(category);
                     [didImport, msg] = this.importFile(category,filename);
                     if(~strcmpi(category, this.optionalCategory))
@@ -150,6 +169,10 @@ classdef PAOutcomesTable < PABase
                     end
                     this.logStatus(msg);
                 end
+                if(ishandle(h))
+                   delete(h);
+                end
+                
                 if(didImportAll)
                     this.notify('LoadSuccess',EventData_Update('Files loaded'));%,'File does not exist')
                 else
@@ -170,13 +193,8 @@ classdef PAOutcomesTable < PABase
                     %throw(MException('PA:OutcomesTable:ImportFile',msg));
                 elseif(exist(filename,'file'))
                     msg = sprintf('Loading %s table data',category);
-                    makeModal = false;
-                    h=pa_msgbox(msg,'Loading',makeModal);
                     this.logStatus(msg);
-                    this.(category) = readtable(filename);
-                    if(ishandle(h))
-                        delete(h);
-                    end
+                    this.(category) = readtable(filename);                    
                     didImport = true;
                     msg = sprintf('Loaded %s',filename);
                 else
