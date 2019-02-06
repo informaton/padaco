@@ -2366,7 +2366,7 @@ classdef PAController < PABase
                 else
                     this.statTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname,this.settingsObj.statTool);
                     this.statTool.setIcon(this.iconFilename);
-                    if(~isempty(this.outcomesTable) && this.outcomesTable.importOnStartup)
+                    if(~isempty(this.outcomesTable) && this.outcomesTable.importOnStartup && this.statTool.useOutcomes)
                         this.statTool.setOutcomesTable(this.outcomesTable);
                     end
                 end

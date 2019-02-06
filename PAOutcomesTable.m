@@ -55,7 +55,10 @@ classdef PAOutcomesTable < PABase
         end
         
         % I want a summary statistic of each subject field, grouped by the primary keys given.
-        function [dataSummaryStruct, statStruct, infoTable] = getSubjectInfoSummary(this, primaryKeys, fieldNames, stat)
+        % dataTable - a filtered version of table, filtered by primary
+        %             key and field selection.
+        % summaryTable - results of calling summary(dataTable)
+        function [dataSummaryStruct, summaryTable, dataTable] = getSubjectInfoSummary(this, primaryKeys, fieldNames, stat)
             %wherePrimaryKeysIn = this.makeWhereInString(primaryKeys,'numeric');
             if(nargin<3)
                 stat = [];
@@ -64,10 +67,11 @@ classdef PAOutcomesTable < PABase
             tableCategory = 'subjects';
             t=this.(tableCategory);
             %Rows Of Interest:
-            roi = ismember(primaryKeys,t.(this.primaryKey),'legacy');
-            infoTable = t(roi, fieldNames);
-            statStruct = summary(infoTable);
-            dataSummaryStruct = summarizeStruct(infoTable);
+            [~,roi,~] = intersect(t.(this.primaryKey),primaryKeys,'stable');
+            
+            dataTable = t(roi, fieldNames);
+            summaryTable = summary(dataTable);
+            dataSummaryStruct = summarizeStruct(dataTable);
             %
             %             % This calculates summary stats directly within MySQL server
             %             selectStatFieldsStr = cellstr2statcsv(fieldNames,stat);

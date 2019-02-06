@@ -93,8 +93,8 @@ classdef PAStatTool < PABase
         profileTableData;
         
         useCache;
-        useDatabase = 0;
-        useOutcomes = 0;
+        useDatabase;
+        useOutcomes;
         resultsDirectory;
         featuresDirectory;
         cacheDirectory;
@@ -173,6 +173,10 @@ classdef PAStatTool < PABase
                 initSettings.useOutcomes = false;
             end
             
+            % A flag, whether you want to use them or not.  Separate from
+            % whether you can use them or not (e.g. outcome data may or may
+            % not be present).
+            this.useOutcomes = initSettings.useOutcomes;
             
             this.bootstrapIterations =  initSettings.bootstrapIterations;
             this.bootstrapSampleName = initSettings.bootstrapSampleName;
@@ -1024,7 +1028,7 @@ classdef PAStatTool < PABase
                 % addpath('../matlab/models');
                 % addpath('../matlab/gee');                
                 
-                this.useOutcomes = true;
+                % this.useOutcomes = true;
                 this.initProfileTable();
                 
                 set(this.handles.check_showAnalysisFigure,'visible','on');
@@ -1223,7 +1227,6 @@ classdef PAStatTool < PABase
             else
                 toggleOn = false;
             end
-
             switch(key)
                 case 'rightarrow'
                     set(this.handles.push_nextCluster,'enable','off');
@@ -1862,6 +1865,9 @@ classdef PAStatTool < PABase
                % all
                
                covariateStruct = this.clusterObj.getCovariateStruct();
+               
+               
+               covariateStruct = covariateStruct.id; 
                % Normalize values
                values = covariateStruct.values;
                covariateStruct.values = diag(sum(values,2))*values;
@@ -2067,10 +2073,11 @@ classdef PAStatTool < PABase
     methods
       
         
-        function refreshScatterPlot(this)
+        function refreshScatterPlot(this)            
             displayStrings = get(this.handles.line_coiInScatterPlot,'displayname');
-            
+
             this.initScatterPlotAxes();
+
             numClusters = this.clusterObj.getNumClusters();  %or numel(globalStruct.colnames).
             sortOrders = find( this.clusterObj.getCOIToggleOrder() );
             curProfileFieldIndex = this.getProfileFieldIndex();
@@ -2098,7 +2105,11 @@ classdef PAStatTool < PABase
             %             set(this.handles.line_coiInScatterPlot,'ydata',y(coiSortOrders));
             
             set(this.handles.line_coiInScatterPlot,'xdata',sortOrders,'ydata',y(sortOrders));%,'displayName','blah');
-            legend(this.handles.axes_scatterplot,this.handles.line_coiInScatterPlot,displayStrings,'location','southwest');
+            if(isempty(displayStrings))                
+                legend(this.handles.axes_scatterplot,'off');
+            else
+                legend(this.handles.axes_scatterplot,this.handles.line_coiInScatterPlot,displayStrings,'location','southwest');
+            end
             
         end
         
@@ -2118,7 +2129,6 @@ classdef PAStatTool < PABase
             
             % Create handle place holders and initialize
             this.initHandles();
-
             
             % Initialize the scatter plot axes
             this.initScatterPlotAxes();
@@ -2186,10 +2196,11 @@ classdef PAStatTool < PABase
             % May or may not occur depending on state of cached values, but
             % if there are loaded table or database values, go ahead and
             % load these up now.
-            this.refreshGlobalProfile();
-            if(~this.refreshCOIProfile())        
-                % this will clear it out to a blank table.
-                this.refreshProfileTableData();  
+            if(this.refreshGlobalProfile())
+                if(~this.refreshCOIProfile())
+                    % this will clear it out to a blank table.
+                    this.refreshProfileTableData();
+                end
             end
             
             fitTableWidth(this.handles.table_clusterProfiles);
@@ -2198,19 +2209,20 @@ classdef PAStatTool < PABase
         end
 
         % ======================================================================
-        %> @brief I itialize the scatter plot axes (of the analysis
+        %> @brief Initialize the scatter plot axes (of the analysis
         %> figure).
         %> @param this Instance of PAStatTool
         % ======================================================================
         function initScatterPlotAxes(this)
             cla(this.handles.axes_scatterplot);
             set(this.handles.axes_scatterplot,'box','on');
+            this.handles.line_coiInScatterPlot = line('parent',this.handles.axes_scatterplot,'xdata',[],'ydata',[],'color','r','linestyle','none','markerFaceColor','g','marker','o','markersize',6,'buttondownfcn',@this.scatterPlotCOIButtonDownFcn);
             this.handles.line_meanScatterPlot = line('parent',this.handles.axes_scatterplot,'xdata',[],'ydata',[],'color','b','linestyle','--');
             this.handles.line_upper95PctScatterPlot = line('parent',this.handles.axes_scatterplot,'xdata',[],'ydata',[],'color','b','linestyle',':');
             this.handles.line_lower95PctScatterPlot = line('parent',this.handles.axes_scatterplot,'xdata',[],'ydata',[],'color','b','linestyle',':');
             
             this.handles.line_allScatterPlot = line('parent',this.handles.axes_scatterplot,'xdata',[],'ydata',[],'color','k','linestyle','none','marker','.','buttondownfcn',@this.scatterplotButtonDownFcn);
-            this.handles.line_coiInScatterPlot = line('parent',this.handles.axes_scatterplot,'xdata',[],'ydata',[],'color','r','linestyle','none','markerFaceColor','g','marker','o','markersize',6,'buttondownfcn',@this.scatterPlotCOIButtonDownFcn);
+            
             [~,profileFieldName] = this.getProfileFieldIndex();
             ylabel(this.handles.axes_scatterplot,profileFieldName,'interpreter','none');
             xlabel(this.handles.axes_scatterplot,'Cluster popularity');
@@ -2572,8 +2584,7 @@ classdef PAStatTool < PABase
                 if(toggleOn)
                     didChange = this.clusterObj.toggleOnNextCOI();
                 else
-                    didChange = this.clusterObj.increaseCOISortOrder();
-                    
+                    didChange = this.clusterObj.increaseCOISortOrder();                    
                 end
                 if(didChange)
                     this.plotClusters();
@@ -3328,15 +3339,16 @@ classdef PAStatTool < PABase
                     
                     %% Analysis figure and scatter plot
                     %                 title(this.handles.axes_scatterplot,clusterTitle,'fontsize',12);
-                    if(this.useDatabase)
+                    if(this.useDatabase || this.useOutcomes)
                         set(this.handles.text_analysisTitle,'string',clusterTitle);
                         displayName = sprintf('Cluster #%u (%0.2f%%)\n',[coiSortOrders(:),coiPctMemberships(:)]');
                         displayName(end)=[];  %remove the final new line character
-                        % displayName(end-1:end) = []; %remove trailing '\n'
+                        
                         yData = get(this.handles.line_allScatterPlot,'ydata');
                         if(~isempty(yData))
-                            set(this.handles.line_coiInScatterPlot,'xdata',coiSortOrders,'ydata',yData(coiSortOrders),'displayName',displayName);
+                            set(this.handles.line_coiInScatterPlot,'xdata',coiSortOrders,'ydata',yData(coiSortOrders));
                         end
+                        set(this.handles.line_coiInScatterPlot,'displayName',displayName);                        
                     end
 
                     oldVersion = verLessThan('matlab','7.14');
@@ -3619,6 +3631,13 @@ classdef PAStatTool < PABase
             end            
         end
         
+        function canIt = canUseDatabase(this)
+            canIt = this.useDatabase && ~isempty(this.databaseObj) && this.hasValidCluster();            
+        end
+        function canIt = canUseOutcomes(this)            
+            canIt = this.useOutcomes && ~isempty(this.outcomesObj) && this.hasValidCluster();
+        end
+        
         % ======================================================================
         %> @brief Refreshes the global profile statistics based on the
         %> current clusters available.  This method should be called
@@ -3628,7 +3647,7 @@ classdef PAStatTool < PABase
         % ======================================================================
         function didRefresh = refreshGlobalProfile(this)
             try
-                if(this.hasCluster() && (this.useDatabase || this.useOutcomes))
+                if(this.canUseDatabase() || this.canUseOutcomes())
                     
                     % This gets the memberIDs attached to each cluster.
                     % This gives us all values with clusters interpreted
@@ -3711,6 +3730,8 @@ classdef PAStatTool < PABase
                 [dataSummaryStruct, ~]=this.outcomesObj.getSubjectInfoSummary(primaryKeys,fieldsOfInterest,statOfInterest);
             elseif(~isempty(this.databaseObj))
                 [dataSummaryStruct, ~]=this.databaseObj.getSubjectInfoSummary(primaryKeys,fieldsOfInterest,statOfInterest);
+            else
+                dataSummaryStruct = [];
             end
             if(isempty(dataSummaryStruct))
                 coiProfile = [];
