@@ -15,6 +15,7 @@ classdef PAOutcomesTable < PABase
         filenames;
         tables;
         
+        selectedField;
         importOnStartup; 
         studyinfo;
         dictionary;
@@ -38,17 +39,16 @@ classdef PAOutcomesTable < PABase
             this.tables = mkstruct(this.categories);
             pStruct = this.getDefaultParameters();
             this.filenames = pStruct.filenames; %mkstruct(this.categories);            
-            this.importOnStartup= pStruct.importOnStartup;
+            this.importOnStartup= pStruct.importOnStartup;            
             try
                 if nargin
                     this.setFilenames(settingsStruct.filenames);
                     this.importOnStartup = settingsStruct.importOnStartup;
-                    
+                     this.selectedField = settingsStruct.selectedField;
                     if(this.importOnStartup && this.canImport())                        
                         this.importFiles();
                     end
-                end
-                
+                end                
             catch me
                 this.logError('Constructor exception',me);
             end
@@ -72,22 +72,6 @@ classdef PAOutcomesTable < PABase
             dataTable = t(roi, fieldNames);
             summaryTable = summary(dataTable);
             dataSummaryStruct = summarizeStruct(dataTable);
-            %
-            %             % This calculates summary stats directly within MySQL server
-            %             selectStatFieldsStr = cellstr2statcsv(fieldNames,stat);
-            %             sqlStatStr = sprintf('SELECT %s FROM %s WHERE %s in %s',selectStatFieldsStr,this.tableNames.subjectInfo,this.primaryKeys.subjectInfo, wherePrimaryKeysIn);
-            %             statStruct = this.query(sqlStatStr);
-            %
-            %             % This calculates summary stats directly within MySQL server
-            %             selectFieldsStr  = this.cellstr2csv(fieldNames);
-            %             sqlStr = sprintf('SELECT %s FROM %s WHERE %s in %s',selectFieldsStr,this.tableNames.subjectInfo,this.primaryKeys.subjectInfo, wherePrimaryKeysIn);
-            %             dataStruct = this.query(sqlStr);
-            %
-            %             if(isfield(dataStruct,'sex') && iscell(dataStruct.sex))
-            %                 dataStruct.sex = str2double(dataStruct.sex);
-            %             end
-            %
-            %             dataSummaryStruct = summarizeStruct(dataStruct);
         end
         
         function isValid = isvalidCategory(this, categoryName)
@@ -103,9 +87,18 @@ classdef PAOutcomesTable < PABase
             end
         end
            
+        function setSelectedField(this, fName)            
+            this.selectedField = fName;
+        end
         
-        %% import file functionality
+        function index = getSelectedIndex(this)
+            index = find(strcmpi(this.subjects.Properties.VariableNames,this.selectedField));
+            if(isempty(index))
+                index = 1;
+            end
+        end
         
+        %% import file functionality        
         function setFilenames(this, fStruct)
             for f=1:numel(this.categories)
                 category = this.categories{f};
@@ -221,8 +214,7 @@ classdef PAOutcomesTable < PABase
         
         function importStudyInfoFile(this, varargin)            
             this.importFile('studyinfo',varargin{:})            
-        end        
-        
+        end
         
         %% Import dialog and functionality
         function didConfirmUpdate = confirmFilenamesDlg(this)
@@ -325,7 +317,8 @@ classdef PAOutcomesTable < PABase
         
         function pStruct = getSaveParameters(obj)
             pStruct = struct('filenames',obj.filenames,...
-                'importOnStartup',obj.importOnStartup);
+                'importOnStartup',obj.importOnStartup,...
+                'selectedField',obj.selectedField);
         end
         
     end
@@ -335,6 +328,7 @@ classdef PAOutcomesTable < PABase
        function pStruct = getDefaultParameters()
             pStruct.filenames = mkstruct(PAOutcomesTable.categories);
             pStruct.importOnStartup = true;
+            pStruct.selectedField = '';
        end 
        
     end

@@ -1028,8 +1028,8 @@ classdef PAStatTool < PABase
                 % addpath('../matlab/models');
                 % addpath('../matlab/gee');                
                 
-                % this.useOutcomes = true;
-                this.initProfileTable();
+                % this.useOutcomes = true;                
+                this.initProfileTable(outcomesController.getSelectedIndex());
                 
                 set(this.handles.check_showAnalysisFigure,'visible','on');
                 didSet = true;
@@ -1865,8 +1865,6 @@ classdef PAStatTool < PABase
                % all
                
                covariateStruct = this.clusterObj.getCovariateStruct();
-               
-               
                covariateStruct = covariateStruct.id; 
                % Normalize values
                values = covariateStruct.values;
@@ -2133,16 +2131,10 @@ classdef PAStatTool < PABase
             % Initialize the scatter plot axes
             this.initScatterPlotAxes();
             set(this.handles.push_analyzeClusters,'string','Analyze Clusters','callback',@this.analyzeClustersCallback);
-            
             set(this.handles.push_exportTable,'string','Export Table','callback',@this.exportTableResultsCallback);
             set(this.handles.text_analysisTitle,'string','','fontsize',12);
-            set(this.handles.check_showAnalysisFigure,'visible','on');           
-
-            
+            set(this.handles.check_showAnalysisFigure,'visible','on');            
         end
-        
-        
-        
         
         % ======================================================================
         %>  @brief Initializes the row table and menu_ySelection menu
@@ -2201,11 +2193,8 @@ classdef PAStatTool < PABase
                     % this will clear it out to a blank table.
                     this.refreshProfileTableData();
                 end
-            end
-            
+            end            
             fitTableWidth(this.handles.table_clusterProfiles);
-
-
         end
 
         % ======================================================================
@@ -3784,6 +3773,10 @@ classdef PAStatTool < PABase
             statToolObj.jhandles.table_clusterProfiles.changeSelection(sRow,sCol,false,false);
             statToolObj.jhandles.table_clusterProfiles.repaint();
             statToolObj.refreshScatterPlot();
+            if(statToolObj.useOutcomes && ~isempty(statToolObj.outcomesObj))
+                statToolObj.outcomesObj.setSelectedField(eventData.fieldName);
+            end
+
         end
         
         % ======================================================================
