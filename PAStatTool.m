@@ -428,7 +428,8 @@ classdef PAStatTool < PABase
             
             % These parameters not stored in figure widgets
             paramStruct.useDatabase = this.useDatabase;
-            paramStruct.useOutcomes = this.useOutcomes;            
+            paramStruct.useOutcomes = this.useOutcomes;     
+            paramStruct.profileFieldIndex = this.getProfileFieldIndex();
             paramStruct.minDaysAllowed = this.minNumDaysAllowed;
             paramStruct.minNumDaysAllowed = this.minNumDaysAllowed;
             paramStruct.maxNumDaysAllowed = this.maxNumDaysAllowed;
@@ -2195,6 +2196,7 @@ classdef PAStatTool < PABase
                 end
             end            
             fitTableWidth(this.handles.table_clusterProfiles);
+            this.setProfileFieldIndex(profileFieldSelection);
         end
 
         % ======================================================================
@@ -3555,31 +3557,35 @@ classdef PAStatTool < PABase
         function didRefresh = refreshProfileTableData(this)
             %             curStack = dbstack;
             %             fprintf(1,'Skipping %s on line %u of %s\n',curStack(1).name,curStack(1).line,curStack(1).file);
-            
-            sRow = this.getProfileFieldIndex()-1;  % Java is 0-based, MATLAB is 1-based
-            sCol = max(0,this.jhandles.table_clusterProfiles.getSelectedColumn());  %give us the first column if nothing is selected)
-                         
-            jViewPort = this.jhandles.table_clusterProfiles.getParent();
-            initViewPos = jViewPort.getViewPosition();
-            set(this.handles.table_clusterProfiles,'data',this.profileTableData);
-            
-            %
-            %             colNames = get(this.handles.table_clusterProfiles,'columnname');
-%             this.jhandles.table_clusterProfiles.getModel.setDataVector(this.profileTableData, colNames); % data = java.util.Vector
-            %             %             data = this.jhandles.table_clusterProfiles.getModel.getDataVector;
-            
-            drawnow();
-            this.jhandles.table_clusterProfiles.changeSelection(sRow,sCol,false,false);            
-            jViewPort.setViewPosition(initViewPos);
-            drawnow();
-%             jViewPort.repaint();
-            
-            this.jhandles.table_clusterProfiles.repaint();
-            
-%             this.jhandles.table_clusterProfiles.clearSelection();
-%              this.jhandles.table_clusterProfiles.setRowSelectionInterval(sRow,sRow);  
-%          
-            didRefresh = true;
+            try
+                sRow = this.getProfileFieldIndex()-1;  % Java is 0-based, MATLAB is 1-based
+                sCol = max(0,this.jhandles.table_clusterProfiles.getSelectedColumn());  %give us the first column if nothing is selected)
+                
+                jViewPort = this.jhandles.table_clusterProfiles.getParent();
+                initViewPos = jViewPort.getViewPosition();
+                set(this.handles.table_clusterProfiles,'data',this.profileTableData);
+                
+                %
+                %             colNames = get(this.handles.table_clusterProfiles,'columnname');
+                %             this.jhandles.table_clusterProfiles.getModel.setDataVector(this.profileTableData, colNames); % data = java.util.Vector
+                %             %             data = this.jhandles.table_clusterProfiles.getModel.getDataVector;
+                
+                drawnow();
+                this.jhandles.table_clusterProfiles.changeSelection(sRow,sCol,false,false);
+                jViewPort.setViewPosition(initViewPos);
+                drawnow();
+                %             jViewPort.repaint();
+                
+                this.jhandles.table_clusterProfiles.repaint();
+                
+                %             this.jhandles.table_clusterProfiles.clearSelection();
+                %              this.jhandles.table_clusterProfiles.setRowSelectionInterval(sRow,sRow);
+                %
+                didRefresh = true;
+            catch me
+                showME(me);
+                didRefresh = false;
+            end
         end
         
         function analysisTableCellSelectionCallback(this, hObject, eventdata)
@@ -3983,6 +3989,7 @@ classdef PAStatTool < PABase
             
             paramStruct.useOutcomes = 0;
             paramStruct.useDatabase = 0;
+            paramStruct.profileFieldIndex = 1;
             paramStruct.databaseClass = 'CLASS_database_goals';
             paramStruct.discardNonwearFeatures = 1;
             paramStruct.trimResults = 0;
