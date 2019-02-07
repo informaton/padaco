@@ -440,20 +440,16 @@ classdef PAController < PABase
             % export
             set(viewHandles.menu_file_export,'callback',@obj.menu_file_exportMenu_callback);
             if(~isdeployed)
-                set(viewHandles.menu_file_export_accelObj,'callback',@obj.menu_file_export_accelObj_callback,...
-                    'label','Sensor object to MATLAB');
-                set(viewHandles.menu_file_export_clusterObj,'callback',@obj.menu_file_export_clusterObj_callback,...
-                    'label','Cluster object to MATLAB');
+                set(viewHandles.menu_file_export_accelObj,'callback',@obj.menu_file_export_accelObj_callback);%,'label','Sensor object to MATLAB');
+                set(viewHandles.menu_file_export_clusterObj,'callback',@obj.menu_file_export_clusterObj_callback); %,'label','Cluster object to MATLAB');
             % No point in sending data to the workspace on deployed
             % version.  There is no 'workspace'.
             else
                 set(viewHandles.menu_file_export_accelObj,'visible','off');
                 set(viewHandles.menu_file_export_clusterObj,'visible','off');
             end
-            set(viewHandles.menu_file_export_clusters_to_disk,'callback',@obj.menu_file_export_clusters_to_disk_callback,...
-                'label','Cluster results to disk');
-            set(viewHandles.menu_export_timeseries_to_disk,'callback',@obj.exportTimeSeriesCb,...
-                'label','Wear/nonwear to disk');
+            set(viewHandles.menu_file_export_clusters_to_disk,'callback',@obj.menu_file_export_clusters_to_disk_callback);%, 'label','Cluster results to disk');
+            set(viewHandles.menu_export_timeseries_to_disk,'callback',@obj.exportTimeSeriesCb);%,'label','Wear/nonwear to disk');
             
             
             %% View Modes

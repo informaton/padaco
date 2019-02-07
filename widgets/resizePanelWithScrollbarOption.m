@@ -1,4 +1,4 @@
-function handles  = resizePanelWithScrollbarOption(innerPanel_H,verticalScrollbarH,num_rows_desired, num_rows_displayable,handles,optional_vertical_buffer)
+function handles  = resizePanelWithScrollbarOption(innerPanel_H,verticalScrollbarH,num_rows_desired, num_rows_displayable,handles,optional_ceiling_buffer)
     %
     %panel_h is the handle of the panel that is to be resized
     %num_rows_desired = number of rows to be used; if this is smaller than the
@@ -12,8 +12,6 @@ function handles  = resizePanelWithScrollbarOption(innerPanel_H,verticalScrollba
     % Hyatt Moore, IV 3/8/2016
     
     containerPanel_h = get(innerPanel_H,'parent');
-    
-    
     figureH = containerPanel_h;
     
     while(~strcmpi(get(figureH,'type'),'figure'))
@@ -33,19 +31,26 @@ function handles  = resizePanelWithScrollbarOption(innerPanel_H,verticalScrollba
     %find the largest suffix that currently exists...
     pan_children_tag = get(pan_children_h,'tag');
     f=regexp(pan_children_tag,'.*_(?<suffix>\d+)','names');
-    suffixes = zeros(numel(f),1);
     
-    for k=1:numel(f)
-        if(isempty(f{k}))
-            suffixes(k)=-1;
-        else
-            suffixes(k) = str2double(f{k}.suffix);
+    % remove potentially empty suffixes here so we have a better chance
+    % below.  
+    f(cellfun(@isempty,f))=[];
+    try
+        suffixes = cellfun(@(x)str2double(x.suffix),f);
+    catch me
+        suffixes = zeros(numel(f),1);
+        for k=1:numel(f)
+            if(isempty(f{k}))
+                suffixes(k)=-1;
+            else
+                suffixes(k) = str2double(f{k}.suffix);
+            end
         end
     end
     %the largest tag suffix that we have.
     % later we will add or (remove||hide)
     max_suffix = max(suffixes);
-    min_suffix = min(suffixes);
+    min_suffix = min(suffixes(suffixes>-1));
     
     %let's calculate the size that we need to set this too now.
     %get the units so we can restore later
@@ -118,17 +123,19 @@ function handles  = resizePanelWithScrollbarOption(innerPanel_H,verticalScrollba
     %we order suffixes from 1 to N, starting from the top and working our way
     %down to the bottom of the panel.
     if(nargin<6 || isempty(optional_height_offset))
-%         verticalBuffer = min(original_innerPanel_height-sum([first_uicontrol_pos(:,2),first_uicontrol_pos(:,4)],2));
-        verticalBuffer = 11;        
+        ceilingBuffer = min(original_innerPanel_height-sum([first_uicontrol_pos(:,2),first_uicontrol_pos(:,4)],2));
+        %ceilingBuffer = 11,21;     
+        ceilingBuffer = 11;
     else
-        verticalBuffer = optional_vertical_buffer;
+        ceilingBuffer = optional_ceiling_buffer;
     end
+    % rowHeight = original_innerPanel_height-min(first_uicontrol_pos(:,2));
+    rowHeight = ceilingBuffer+max(first_uicontrol_pos(:,4));
     
-    innerPanel_delta_yOffset = original_innerPanel_height-min(first_uicontrol_pos(:,2));
     
     num_rows_displayed = min(num_rows_desired, num_rows_displayable);
-    new_containerPanel_height = (num_rows_displayed)*innerPanel_delta_yOffset+verticalBuffer;
-    new_innerPanel_height = (num_rows_desired)*innerPanel_delta_yOffset+verticalBuffer;
+    new_containerPanel_height = (num_rows_displayed)*rowHeight+ceilingBuffer;
+    new_innerPanel_height = (num_rows_desired)*rowHeight+ceilingBuffer;
     
     %negative value means we expanded
     %positive value means we shrunk
@@ -151,7 +158,7 @@ function handles  = resizePanelWithScrollbarOption(innerPanel_H,verticalScrollba
                 % want to be able to reference the top of the settings
                 % figure, which is what a viewer first sees and has
                 % access to.
-                y_offset = new_innerPanel_height-innerPanel_delta_yOffset*(k);  %num_rows_desired-k+1);
+                y_offset = new_innerPanel_height-rowHeight*(k);  %num_rows_desired-k+1);
                 tagStr = sprintf('%s_%u',tag_prefixes{t},k);
                 tmp_pos(2) = y_offset;
                 
@@ -190,7 +197,7 @@ function handles  = resizePanelWithScrollbarOption(innerPanel_H,verticalScrollba
         
         
         %y_location shifts down when the inner panel is larger than the outer panel (thus cropped); height changes
-        new_innerPanel_pos = [innerPanel_pos(1), verticalBuffer/4-delta_innerOuterPanel_height, innerPanel_pos(3), new_innerPanel_height];
+        new_innerPanel_pos = [innerPanel_pos(1), ceilingBuffer/4-delta_innerOuterPanel_height, innerPanel_pos(3), new_innerPanel_height];
         set(innerPanel_H,'position',new_innerPanel_pos);
         set(innerPanel_H,'units',innerPanel_units0);
         
@@ -211,7 +218,7 @@ function handles  = resizePanelWithScrollbarOption(innerPanel_H,verticalScrollba
         set(containerPanel_h,'position',new_outerPanel_pos);
         if(num_rows_desired>num_rows_displayed)
             minScrollbarValue = new_innerPanel_pos(2);
-            maxScrollbarValue = verticalBuffer/4;
+            maxScrollbarValue = ceilingBuffer/4;
 
             set(verticalScrollbarH,'position',new_verticalScrollbar_pos,'visible','on','min',minScrollbarValue,'max',maxScrollbarValue,'callback',{@scrollbarCallback,innerPanel_H,new_innerPanel_pos});
         else

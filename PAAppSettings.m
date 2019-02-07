@@ -131,7 +131,6 @@ classdef  PAAppSettings < PASettings
                             end
                         end
                         
-                        
                         % Alternative with more debugging information on what
                         % changed or is not found correctly in the parameter
                         % file.  Unfortunately, it only checks one or two

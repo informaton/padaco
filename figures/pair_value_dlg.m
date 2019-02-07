@@ -79,7 +79,9 @@ function handles = initializeView(handles)
     
     numTabs = numel(handles.user.settings_obj.fieldNames);
     tabs = zeros(numTabs,1);
-    
+    % panel_main_wrapper
+    % panel_tabs
+    % panel_main
     numRecords = 0;
     for f=1:numTabs %fieldNames; %The field names of the parameters to be shown to the user (i.e. VIEW, BATCH_PROCESS, PSD,....)
         fname = handles.user.settings_obj.fieldNames{f}; %current field/tab name
@@ -92,7 +94,7 @@ function handles = initializeView(handles)
         numRecords = max(numRecords,numel(fieldnames(handles.user.settings_obj.(fname))));
     end    
     
-    % User maxRecords on the first iteration through
+    % Use maxRecords on the first iteration through
     handles = resizePanelWithScrollbarOption(handles.panel_main,handles.slider_verticalScroll, numRecords,handles.user.maxNumRecordsShown,handles);
     
     handles.tabgroup = tabgroup;
@@ -131,19 +133,19 @@ function tabgroup_callback(hObject,eventdata)
     handles = guidata(hObject);
     
     % Not sure what this is in here for ....
-%     h=get(handles.figure1,'currentobject');
-%     % get(h,'string')
-%     if(ishandle(h))
-%         if(strcmpi(get(h,'type'),'uicontrol')&& strcmpi(get(h,'style'),'edit'))
-%             try
-%                 refresh(handles.figure1);
-%                 %                 getframe(handles.figure1);
-%                 %                 get(h,'string')
-%             catch me
-%                 showME(me);
-%             end            
-%         end
-%     end
+    %     h=get(handles.figure1,'currentobject');
+    %     % get(h,'string')
+    %     if(ishandle(h))
+    %         if(strcmpi(get(h,'type'),'uicontrol')&& strcmpi(get(h,'style'),'edit'))
+    %             try
+    %                 refresh(handles.figure1);
+    %                 %                 getframe(handles.figure1);
+    %                 %                 get(h,'string')
+    %             catch me
+    %                 showME(me);
+    %             end
+    %         end
+    %     end
     
     if(eventdata.OldValue == 0)
         tabName = get(handles.tabs(eventdata.NewValue),'Title');
@@ -165,15 +167,15 @@ function tabgroup_callback(hObject,eventdata)
         end
         % Make sure the old settings are updated correctly
         handles = getCurrentSettings(handles,oldTabName);
-        numRecords = numel(fnames);
-        handles = resizePanelWithScrollbarOption(handles.panel_main,handles.slider_verticalScroll, numRecords,handles.user.maxNumRecordsShown,handles);
     end
     
     %want to return the new handles that I have here...
-    % handles = resizePanelAndFigureForUIControls(handles.panel_main,maxRecords,handles);
+    %handles = resizePanelAndFigureForUIControls(handles.panel_main,handles.user.maxNumRecordsShown,handles);
     
+    numRecords = numel(fnames);
+
     try        
-        for f = 1:numel(fnames)
+        for f = 1:numRecords
             text_tag = sprintf('%s%u',handles.user.static_prefix,f);
             value_tag = sprintf('%s%u',handles.user.edit_prefix,f);
             
@@ -199,6 +201,9 @@ function tabgroup_callback(hObject,eventdata)
                fprintf(1,'Structures are not handled here.\n'); 
             end
         end
+        
+        handles = resizePanelWithScrollbarOption(handles.panel_main,handles.slider_verticalScroll, numRecords,handles.user.maxNumRecordsShown,handles);
+
         
     catch me
         showME(me);
@@ -280,8 +285,7 @@ function figure1_CloseRequestFcn(hObject, eventdata, handles)
     uiresume(handles.figure1);
     
     
-function slider_verticalScroll_Callback(hObject, eventdata, handles)
-    
+   
     
 function slider_verticalScroll_CreateFcn(hObject, eventdata, handles)
     
