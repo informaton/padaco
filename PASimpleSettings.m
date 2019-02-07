@@ -1,14 +1,17 @@
-classdef PASimpleSettings < handle
+classdef PASimpleSettings < PASettings
    properties
-       fieldNames;
        inputStruct;
        defaultStruct;
        outputStruct;
        Settings;
    end
+   properties(SetAccess=protected)
+       fieldNames = {'Settings'};
+   end
    
    methods
        function this = PASimpleSettings(inputStruct, defaultStruct)
+           narginchk(1,2);
            if(nargin<2)
                defaultStruct = inputStruct;
            end
@@ -17,8 +20,6 @@ classdef PASimpleSettings < handle
            this.inputStruct = inputStruct;
            
            this.Settings = this.inputStruct;
-           
-           this.fieldNames = {'Settings'};
            this.outputStruct = [];
            
            this.runEditor();

@@ -52,7 +52,7 @@ classdef PAController < PABase
         %> used with cluster analysis.
         outcomesTable;
         
-        %> Instance of PASettings - this is brought in to eliminate the need for several globals
+        %> Instance of PAAppSettings - keeps track of application wide settings.
         settingsObj;
         %> Instance of PAView - Padaco's view component.
         VIEW;
@@ -126,7 +126,7 @@ classdef PAController < PABase
             
             
             %create/intilize the settings object
-            obj.settingsObj = PASettings(rootPathname,parameters_filename);
+            obj.settingsObj = PAAppSettings(rootPathname,parameters_filename);
             obj.outcomesTable = PAOutcomesTable(obj.settingsObj.outcomesTable);
       
             
