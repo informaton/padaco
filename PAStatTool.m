@@ -3242,8 +3242,9 @@ classdef PAStatTool < PABase
                             else
                                 membersLineH = plot(clusterAxes,coi.dayOfWeek.memberShapes','-','linewidth',1,'color',this.COLOR_MEMBERSHAPE);
                             end
-                            if(coi.numMembers<50)
-                                for m=1:coi.numMembers
+                            numLines = numel(membersLineH);
+                            if(numLines<50)
+                                for m=1:numLines
                                     set(membersLineH(m),'uicontextmenu',this.handles.contextmenu.clusterLineMember,'userdata',coi.memberIDs(m),'buttondownfcn',{@this.memberLineButtonDownCallback,coi.memberIDs(m)});
                                 end
                             end
