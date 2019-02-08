@@ -1073,15 +1073,18 @@ classdef PAStatTool < PABase
         %> @param Numeric identifier for the member shape (i.e. of the
         %> subject, or subjectID it is associated with).
         function memberLineButtonDownCallback(this,lineH,~, memberID)
-            if(strcmpi(get(lineH,'selected'),'off'))
-                set(lineH,'selected','on','color',this.COLOR_LINESELECTION);
+            ax = get(lineH,'parent');
+            if(strcmpi(get(lineH,'selected'),'off'))                
+                set(findobj(get(ax,'children'),'flat','selected','on'),'selected','off','color',this.COLOR_MEMBERSHAPE,'linewidth',1);
+                set(lineH,'selected','on','color',this.COLOR_LINESELECTION,'linewidth',1.5,'displayname',num2str(get(lineH,'userdata')));
                 this.setStatus('%d selected',get(lineH,'userdata'));
-                
+                legend(ax,lineH);
 
             % Toggle off
             else
                 set(lineH,'selected','off','color',this.COLOR_MEMBERSHAPE);
                 this.clearStatus();
+                legend(ax,'off');
             end
         end
         
