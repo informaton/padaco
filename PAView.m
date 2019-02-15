@@ -634,7 +634,8 @@ classdef PAView < handle
             set(handles.edit_curWindow,'string','');
             
             %what about all of the menus that I have ?
-            set(handles.panel_study,'visible','off');            
+            set(handles.panel_study,'visible','off');
+            set(handles.panel_clusterInfo,'visible','off');            
         end
         
         
@@ -756,6 +757,7 @@ classdef PAView < handle
             set(menubarHandles,'visible','on','enable','on');
             
             set(handles.panel_study,'visible','off');
+            set(handles.panel_clusterInfo,'visible','off');
             
         end        
 

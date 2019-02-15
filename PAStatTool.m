@@ -480,7 +480,15 @@ classdef PAStatTool < PABase
             this.originalWidgetSettings = widgetSettings;
             
             % Merge the defaults with what is here otherwise.  
+            
+            % setUseDatabase() is problematic in that the profileFields
+            % property is emptied if it is not used, which would wipe out
+            % the outcomesTable profileFields if it is called after
+            % setUseOutcomesTable.  The preference at this point is given
+            % to the outcomesTable.  2/14/2019 @hyatt
             this.setUseDatabase(widgetSettings.useDatabase);  %sets this.useDatabase to false if it was initially true and then fails to open the database
+            this.setUseOutcomesTable(widgetSettings.useOutcomes);
+            
             this.useCache = widgetSettings.useCache;
             this.cacheDirectory = widgetSettings.cacheDirectory;
             this.clusterSettings.clusterMethod = widgetSettings.clusterMethod;
@@ -904,6 +912,7 @@ classdef PAStatTool < PABase
                 set(this.handles.axes_primary,'ylimmode',currentYLimMode);
                 set(this.handles.axes_primary,'xlimmode',currentXLimMode);                
                 set(this.handles.axes_primary,'nextplot',currentNextPlot);
+                
             end                
         end
      
@@ -1020,20 +1029,7 @@ classdef PAStatTool < PABase
             didSet = false;
             if(isa(outcomesController,'PAOutcomesTable'))
                 this.outcomesObj = outcomesController;
-                
-                this.profileFields = this.outcomesObj.getColumnNames('subjects');
-                
-                % These have been moved to application add path routine to
-                % avoid relative path differences when working within
-                % matlab and changing the working path.  
-                % addpath('../matlab/models');
-                % addpath('../matlab/gee');                
-                
-                % this.useOutcomes = true;                
-                this.initProfileTable(outcomesController.getSelectedIndex());
-                
-                set(this.handles.check_showAnalysisFigure,'visible','on');
-                didSet = true;
+                didSet = this.setUseOutcomesTable(true);
             end
         end
     end
@@ -1112,6 +1108,25 @@ classdef PAStatTool < PABase
                 didSet = false;
             end
         end
+        
+        %> @brief Database functionality
+        function didSet = setUseOutcomesTable(this, willSet)
+            if(nargin>1)
+                this.useOutcomes = willSet && true;
+                
+                if(isa(this.outcomesObj,'PAOutcomesTable'))                    
+                    this.profileFields = this.outcomesObj.getColumnNames('subjects');                    
+                    this.initProfileTable(this.outcomesObj.getSelectedIndex());                    
+                    set(this.handles.check_showAnalysisFigure,'visible','on');
+                end
+                
+                didSet = true;
+            else
+                didSet = false;
+            end
+        end
+        
+        
         function hasIt = hasProfileData(this)
             hasIt = ~isempty(this.profileFields) && ~isempty(this.profileTableData);
         end
@@ -1144,9 +1159,7 @@ classdef PAStatTool < PABase
             set(findall(this.handles.panels_sansClusters,'enable','on'),'enable','off');
             % For some reason, this does not catch them all the first time
             set(findall(this.handles.panels_sansClusters,'enable','on'),'enable','off');
-            
-            set(this.figureH,'pointer','watch');
-            drawnow();
+            this.showMouseBusy();
         end
         
         % ======================================================================
@@ -1593,6 +1606,7 @@ classdef PAStatTool < PABase
                         this.handles.contextmenu.secondaryAxes.performance = uimenu(contextmenu_secondaryAxes,'Label','Show adaptive separation performance progression','callback',{@this.clusterDistributionCallback,'performance'});
                         this.handles.contextmenu.secondaryAxes.weekday = uimenu(contextmenu_secondaryAxes,'Label','Show current cluster''s weekday distribution','callback',{@this.clusterDistributionCallback,'weekday'});
                         this.handles.contextmenu.secondaryAxes.membership = uimenu(contextmenu_secondaryAxes,'Label','Show membership distribution by cluster','callback',{@this.clusterDistributionCallback,'membership'});
+                        this.handles.contextmenu.secondaryAxes.weekday_scores = uimenu(contextmenu_secondaryAxes,'Label','Show weekday scores','callback',{@this.clusterDistributionCallback,'weekday_scores'});
                         set(this.handles.axes_secondary,'uicontextmenu',contextmenu_secondaryAxes);
                     end
                 end                
@@ -1621,9 +1635,7 @@ classdef PAStatTool < PABase
             else
                 set(this.handles.check_showAnalysisFigure,'visible','off');
             end
-           
 
-            
             % disable everything
             if(~this.canPlot)
                 set(findall(this.handles.panel_results,'enable','on'),'enable','off');  
@@ -1683,7 +1695,7 @@ classdef PAStatTool < PABase
 
                     this.enableClusterControls();
 
-                    this.plotClusters();                     
+                    this.plotClusters();                    
                 else
                     this.disableClusterControls();
                     this.refreshClustersAndPlot();
@@ -1708,6 +1720,8 @@ classdef PAStatTool < PABase
                 if(this.shouldShowAnalysisFigure())
                     set(this.analysisFigureH,'visible','on');
                 end
+            else
+                set(handles.panel_clusterInfo,'visible','off');
             end
         end        
 
@@ -1973,10 +1987,6 @@ classdef PAStatTool < PABase
         %             end
         %         end
         
-
-        
-
-        
         
         function primaryAxesScalingContextmenuCallback(this,hObject,~)
             set(get(hObject,'children'),'checked','off');            
@@ -2080,39 +2090,40 @@ classdef PAStatTool < PABase
 
             this.initScatterPlotAxes();
 
-            numClusters = this.clusterObj.getNumClusters();  %or numel(globalStruct.colnames).
-            sortOrders = find( this.clusterObj.getCOIToggleOrder() );
-            curProfileFieldIndex = this.getProfileFieldIndex();
-            % get the current profile's ('curProfileIndex' row) mean ('2' column) for all clusters
-            % (':').
-            x = 1:numClusters;
-            y = this.allProfiles(curProfileFieldIndex, 2, :);  % rows (1) = 
-                        % columns (2) = 
-                        % dimension (3) = cluster popularity (1 to least popular index)
-            
-            globalMean = repmat(this.profileTableData{curProfileFieldIndex,5},size(x));
-            profileSEM = this.profileTableData{curProfileFieldIndex,6};
-            upper95 = globalMean+1.96*profileSEM;
-            lower95 = globalMean-1.96*profileSEM;
-            
-            set(this.handles.line_allScatterPlot,'xdata',x(:),'ydata',y(:));
-            set(this.handles.line_meanScatterPlot,'xdata',x(:),'ydata',globalMean(:));
-            set(this.handles.line_upper95PctScatterPlot,'xdata',x(:),'ydata',upper95(:));
-            set(this.handles.line_lower95PctScatterPlot,'xdata',x(:),'ydata',lower95(:));
-            
-            % The sort order indices will not change on a refresh like
-            % this, but the y values at these indices will; so update them
-            % here.
-            %             coiSortOrders = get(this.handles.line_coiInScatterPlot,'xdata');
-            %             set(this.handles.line_coiInScatterPlot,'ydata',y(coiSortOrders));
-            
-            set(this.handles.line_coiInScatterPlot,'xdata',sortOrders,'ydata',y(sortOrders));%,'displayName','blah');
-            if(isempty(displayStrings))                
-                legend(this.handles.axes_scatterplot,'off');
-            else
-                legend(this.handles.axes_scatterplot,this.handles.line_coiInScatterPlot,displayStrings,'location','southwest');
+            if(~isempty(this.clusterObj))
+                numClusters = this.clusterObj.getNumClusters();  %or numel(globalStruct.colnames).
+                sortOrders = find( this.clusterObj.getCOIToggleOrder() );
+                curProfileFieldIndex = this.getProfileFieldIndex();
+                % get the current profile's ('curProfileIndex' row) mean ('2' column) for all clusters
+                % (':').
+                x = 1:numClusters;
+                y = this.allProfiles(curProfileFieldIndex, 2, :);  % rows (1) =
+                % columns (2) =
+                % dimension (3) = cluster popularity (1 to least popular index)
+                
+                globalMean = repmat(this.profileTableData{curProfileFieldIndex,5},size(x));
+                profileSEM = this.profileTableData{curProfileFieldIndex,6};
+                upper95 = globalMean+1.96*profileSEM;
+                lower95 = globalMean-1.96*profileSEM;
+                
+                set(this.handles.line_allScatterPlot,'xdata',x(:),'ydata',y(:));
+                set(this.handles.line_meanScatterPlot,'xdata',x(:),'ydata',globalMean(:));
+                set(this.handles.line_upper95PctScatterPlot,'xdata',x(:),'ydata',upper95(:));
+                set(this.handles.line_lower95PctScatterPlot,'xdata',x(:),'ydata',lower95(:));
+                
+                % The sort order indices will not change on a refresh like
+                % this, but the y values at these indices will; so update them
+                % here.
+                %             coiSortOrders = get(this.handles.line_coiInScatterPlot,'xdata');
+                %             set(this.handles.line_coiInScatterPlot,'ydata',y(coiSortOrders));
+                
+                set(this.handles.line_coiInScatterPlot,'xdata',sortOrders,'ydata',y(sortOrders));%,'displayName','blah');
+                if(isempty(displayStrings))
+                    legend(this.handles.axes_scatterplot,'off');
+                else
+                    legend(this.handles.axes_scatterplot,this.handles.line_coiInScatterPlot,displayStrings,'location','southwest');
+                end
             end
-            
         end
         
         % only extract the handles we are interested in using for the stat tool.
@@ -2321,6 +2332,9 @@ classdef PAStatTool < PABase
                 'check_holdPlots'
                 'check_holdYAxes'
                 'check_showAnalysisFigure'
+                'panel_clusterInfo'
+                'text_clusterID'
+                'text_clusterDescription'
 
 %                 'text_clusterResultsOverlay'
 %                 'table_clusterProfiles'
@@ -2859,6 +2873,7 @@ classdef PAStatTool < PABase
             end
             this.clearPrimaryAxes();
             this.showBusy();
+            set(this.handles.panel_clusterInfo,'visible','off');
             pSettings= this.getPlotSettings();
             
             this.clusterObj = [];
@@ -3025,7 +3040,8 @@ classdef PAStatTool < PABase
         %> @param Instance of PAStatTool
         function hideClusterControls(this)
             set([this.handles.panel_clusterPlotControls
-                this.handles.panel_clusterSettings],'visible','off'); 
+                this.handles.panel_clusterSettings
+                this.handles.panel_clusterInfo],'visible','off'); 
             
             containerPos = get(this.handles.panel_resultsContainer,'position');
             clusterPos = get(this.handles.panel_clusterSettings,'position');
@@ -3124,6 +3140,7 @@ classdef PAStatTool < PABase
         function disableClusterControls(this)
             sethandles(this.handles.panel_clusterPlotControls,'enable','inactive');
             
+            set(this.handles.panel_clusterInfo,'visible','off');
             set(this.handles.text_clusterResultsOverlay,'enable','on');
             % add a context menu now to primary axes           
             set(this.handles.axes_primary,'uicontextmenu',[]);
@@ -3154,7 +3171,6 @@ classdef PAStatTool < PABase
                     if(nargin<2)
                         clusterAndPlotSettings = this.getPlotSettings();
                     end
-                    
                     
                     numClusters = this.clusterObj.numClusters();
                     numLoadShapes = this.clusterObj.numLoadShapes();
@@ -3228,7 +3244,7 @@ classdef PAStatTool < PABase
                     totalMembers = 0;
                     coiMemberIDs = [];
                     
-                    summaryTextH = this.handles.text_clusterResultsOverlay;
+                    % summaryTextH = this.handles.text_clusterResultsOverlay;
                     
                     for c=1:numCOIs
                         coi = cois{c};
@@ -3295,47 +3311,14 @@ classdef PAStatTool < PABase
                         % 'displayname',legendStrings{c};
                     end
                     
-                    %want to figure out unique individuals that may be
-                    %contributing to a particular load shape.
-                    uniqueMemberIDs = unique(coiMemberIDs);
-                    numUniqueMemberIDs = numel(uniqueMemberIDs);
-                    
-                    % The cluster of interest will change according to user
-                    % selection or interaction with the gui.  It is updated
-                    % internally within clusterObj.
-                    coi = this.clusterObj.getClusterOfInterest();
-                    pctMembership =  coi.dayOfWeek.numMembers/numLoadShapes*100;
                     
                     set(clusterAxes,'nextplot',nextPlot);
-                    
-                    totalMemberIDsCount = this.clusterObj.getUniqueLoadShapeIDsCount();
-                    pctOfTotalMemberIDs = numUniqueMemberIDs/totalMemberIDsCount*100;
-                    if(numCOIs>1)
-                        coiSortOrdersString = num2str(coiSortOrders(:)','%d,');
-                        coiSortOrdersString(end)=[]; %remove trailing ','
-                        legend(clusterAxes,clusterHandles,legendStrings,'box','on','fontsize',12);
-                        clusterTitle = sprintf('Clusters #{%s}. Loadshapes: %u of %u (%0.2f%%).  Individuals: %u of %u (%0.2f%%)',coiSortOrdersString,...
-                            totalMembers, numLoadShapes, sum(coiPctMemberships), numUniqueMemberIDs,totalMemberIDsCount, pctOfTotalMemberIDs);
-                    else
-                        legend(clusterAxes,'off');
-                        % Use when show most popular first, on left side
-                        clusterTitle = sprintf('Cluster #%u (%s). Popularity %u of %u. Loadshapes: %u of %u (%0.2f%%).  Individuals: %u of %u (%0.2f%%)',coi.index,...
-                            this.featureStruct.method, coi.sortOrder,numClusters, coi.dayOfWeek.numMembers, numLoadShapes, pctMembership, numUniqueMemberIDs, totalMemberIDsCount, pctOfTotalMemberIDs);
-                        % Use when show most popular last, (right most side)
-                        % clusterTitle = sprintf('Cluster #%u (%s). Popularity %u of %u. Loadshapes: %u of %u (%0.2f%%).  Individuals: %u of %u (%0.2f%%)',coi.sortOrder,...
-                        %   this.featureStruct.method, numClusters-coi.sortOrder+1,numClusters, coi.dayOfWeek.numMembers, numLoadShapes, pctMembership, numUniqueMemberIDs, totalMemberIDsCount, pctOfTotalMemberIDs);
-                    end
-                    title(clusterAxes,clusterTitle,'fontsize',14,'interpreter','none');
-
-                    set(summaryTextH,'string',summaryStrings);
-
-
-                    
+            
+                    this.displayClusterSummary(coiSortOrders, coiMemberIDs);
                     
                     %% Analysis figure and scatter plot
                     %                 title(this.handles.axes_scatterplot,clusterTitle,'fontsize',12);
-                    if(this.useDatabase || this.useOutcomes)
-                        set(this.handles.text_analysisTitle,'string',clusterTitle);
+                    if(this.useDatabase || this.useOutcomes)                        
                         displayName = sprintf('Cluster #%u (%0.2f%%)\n',[coiSortOrders(:),coiPctMemberships(:)]');
                         displayName(end)=[];  %remove the final new line character
                         
@@ -3359,6 +3342,7 @@ classdef PAStatTool < PABase
                             % plots the distribution of weekdays on x-axis
                             % and the loadshape count (for the cluster of
                             % interest) on the y-axis.
+                            
                         case 'weekday'
                             daysofweekStr = this.base.daysOfWeekShortDescriptions;%{'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
                             daysofweekOrder = this.base.daysOfWeekOrder;  %1:7;
@@ -3394,26 +3378,32 @@ classdef PAStatTool < PABase
                                 end
                             end
                             
-                            
                             set(h,'buttonDownFcn',{@this.clusterDayOfWeekHistogramButtonDownFcn,pH});
                             
                             if(numCOIs==1)
-                                title(distributionAxes,sprintf('Weekday distribution for Cluster #%u (membership count = %u)',coi.sortOrder,numMembers),'fontsize',14);
+                                title(distributionAxes,sprintf('Weekday distribution for Cluster #%u (membership count = %u)',coi.index,numMembers),'fontsize',14);
                             else
-                                title(distributionAxes,sprintf('Weekday distribution for selected clusters,n=%u (membership count = %u)',numCOIs,numMembers),'fontsize',14);                                
+                                title(distributionAxes,sprintf('Weekday distribution for selected clusters,n=%u (membership count = %u)',numCOIs,numMembers),'fontsize',14);
                             end
                             %ylabel(distributionAxes,sprintf('Load shape count'));
                             xlabel(distributionAxes,'Days of week');
                             xlim(distributionAxes,[daysofweekOrder(1)-0.75 daysofweekOrder(end)+0.75]);
                             set(distributionAxes,'ylim',[0,1],'ygrid','on','ytickmode','auto','xtick',daysofweekOrder,'xticklabel',daysofweekStr);
                             
-                            % plots clusters id's (sorted by membership in ascending order) on x-axis
-                            % and the count of loadshapes (i.e. membership count) on the y-axis.
-                        case 'membership'
+                        % plots clusters id's (sorted by membership in ascending order) on x-axis
+                        % and the count of loadshapes (i.e. membership count) on the y-axis.                            
+                        case {'membership','weekday_scores'}
+                            
                             set(distributionAxes,'ylimmode','auto');
                             barWidth = 0.8;
                             
-                            y = this.clusterObj.getHistogram();
+                            if(strcmpi(this.clusterDistributionType,'membership'))                                
+                                y = this.clusterObj.getHistogram();
+                            elseif(strcmpi(this.clusterDistributionType,'weekday_scores'))                                
+                                sortLikeHistogram = true;
+                                y = this.clusterObj.getWeekdayScores(sortLikeHistogram);
+                            end
+                            
                             x = 1:numel(y);
                             
                             highlightColor = [0.75 0.75 0];
@@ -3460,16 +3450,84 @@ classdef PAStatTool < PABase
                             warndlg(sprintf('Distribution type (%s) is unknonwn and or not supported',this.clusterDistributionType));
                     end
                     
-                    
                     this.refreshCOIProfile();
-                    
                 end
             catch me
                 showME(me);
-                this.clearPrimaryAxes();                
+                this.clearPrimaryAxes();           
+            end
+            this.showMouseReady();
+        end
+        
+        function clusterTitle = displayClusterSummary(this, coiSortOrders, coiMemberIDs)
+            clusterAxes = this.handles.axes_primary;
+          
+            numClusters = this.clusterObj.numClusters();
+            numLoadShapes = this.clusterObj.numLoadShapes();
+            
+            cois = this.clusterObj.getClustersOfInterest();            
+            numCOIs = numel(cois);
+            
+            % The cluster of interest will change according to user
+            % selection or interaction with the gui.  It is updated
+            % internally within clusterObj.
+            coi = this.clusterObj.getClusterOfInterest();
+            pctMembership =  coi.dayOfWeek.numMembers/numLoadShapes*100;            
+            
+            %want to figure out unique individuals that may be
+            %contributing to a particular load shape.
+            uniqueMemberIDs = unique(coiMemberIDs);
+            numUniqueMemberIDs = numel(uniqueMemberIDs);
+
+
+            totalMemberIDsCount = this.clusterObj.getUniqueLoadShapeIDsCount();
+            pctOfTotalMemberIDs = numUniqueMemberIDs/totalMemberIDsCount*100;
+            weekdayScore = coi.dayOfWeek.score;
+            clusterDescription = sprintf('Loadshapes: %u of %u (%0.2f%%)\nIndividuals: %u of %u (%0.2f%%)',...
+                coi.dayOfWeek.numMembers, numLoadShapes, pctMembership, numUniqueMemberIDs, totalMemberIDsCount, pctOfTotalMemberIDs);
+            
+            if(numCOIs>1)
+                coiSortOrdersString = num2str(coiSortOrders(:)','%d,');
+                coiSortOrdersString(end)=[]; %remove trailing ','
+                legend(clusterAxes,clusterHandles,legendStrings,'box','on','fontsize',12);
+                clusterID = sprintf('Clusters #{%s}',coiSortOrdersString);
+                clusterTitle = sprintf('Clusters #{%s}. Loadshapes: %u of %u (%0.2f%%).  Individuals: %u of %u (%0.2f%%)',coiSortOrdersString,...
+                    totalMembers, numLoadShapes, sum(coiPctMemberships), numUniqueMemberIDs,totalMemberIDsCount, pctOfTotalMemberIDs);
+            else
+                legend(clusterAxes,'off');
+                % Use when show most popular first, on left side
+                clusterID = sprintf('Cluster #%u',coi.index);
+                clusterTitle = sprintf('Cluster #%u (%s). Popularity %u of %u. Loadshapes: %u of %u (%0.2f%%).  Individuals: %u of %u (%0.2f%%)',coi.index,...
+                    this.featureStruct.method, coi.sortOrder,numClusters, coi.dayOfWeek.numMembers, numLoadShapes, pctMembership, numUniqueMemberIDs, totalMemberIDsCount, pctOfTotalMemberIDs);
+                % Use when show most popular last, (right most side)
+                % clusterTitle = sprintf('Cluster #%u (%s). Popularity %u of %u. Loadshapes: %u of %u (%0.2f%%).  Individuals: %u of %u (%0.2f%%)',coi.sortOrder,...
+                %   this.featureStruct.method, numClusters-coi.sortOrder+1,numClusters, coi.dayOfWeek.numMembers, numLoadShapes, pctMembership, numUniqueMemberIDs, totalMemberIDsCount, pctOfTotalMemberIDs);
+                
+                clusterDescription = sprintf('%s\nPopularity: %u of %u\nWeekday Score: %+0.2f',clusterDescription,coi.sortOrder,numClusters,weekdayScore);
             end
             
-            this.showMouseReady();
+            set(this.handles.text_clusterID,'string',clusterID);
+            set(this.handles.text_clusterDescription,'string',clusterDescription);
+            
+            if(this.originalWidgetSettings.showClusterSummary)
+                set(this.handles.panel_clusterInfo,'visible','on');                
+                % the title is cleared automatically already.
+                %title(clusterAxes,clusterTitle,'fontsize',14,'interpreter','none','visible','off');
+            else
+                set(this.handles.panel_clusterInfo,'visible','off');
+                title(clusterAxes,clusterTitle,'fontsize',14,'interpreter','none','visible','on');
+            end
+            
+            if(this.useDatabase || this.useOutcomes)
+                set(this.handles.text_analysisTitle,'string',clusterTitle);
+            end
+            
+            %set(summaryTextH,'string',summaryStrings);
+            
+            %                     summaryStrings = strrep(summaryStrings,'%','%%');
+            %                     this.setStatus(cell2str(summaryStrings,' - '));
+            %                     this.logStatus(cell2str(summaryStrings,' - '));
+            
         end
         
         % Refresh the user settings from current GUI configuration.
@@ -3483,11 +3541,13 @@ classdef PAStatTool < PABase
             
             userSettings.showClusterMembers = get(this.handles.check_showClusterMembership,'value');
             
-            if(isfield(this.handles.contextmenu,'show'))
-                userSettings.showClusterSummary = strcmpi(get(this.handles.contextmenu.show.clusterSummary,'checked'),'on');
-            else
-                userSettings.showClusterSummary = false;
-            end
+            userSettings.showClusterSummary = this.originalWidgetSettings.showClusterSummary;
+            
+%             if(isfield(this.handles.contextmenu,'show'))
+%                 userSettings.showClusterSummary = strcmpi(get(this.handles.contextmenu.show.clusterSummary,'checked'),'on');
+%             else
+%                 userSettings.showClusterSummary = false;
+%             end
             
             
             userSettings.processedTypeSelection = 1;  %defaults to count!
@@ -3697,7 +3757,13 @@ classdef PAStatTool < PABase
         end
         
         function [fieldIndex, fieldName] = getProfileFieldIndex(this)
-            [fieldName, fieldIndex] = getSelectedMenuString(this.handles.menu_ySelection);
+            fieldIndex = 1;
+            fieldName = '';
+            try
+                [fieldName, fieldIndex] = getSelectedMenuString(this.handles.menu_ySelection);
+            catch me
+                % this.logError(me);
+            end
         end
         
         % ======================================================================
@@ -3715,7 +3781,7 @@ classdef PAStatTool < PABase
         % ======================================================================
         function [coiProfile, dataSummaryStruct] = getProfileCell(this,primaryKeys,fieldsOfInterest)
             
-            if(nargin<2)
+            if(nargin<2 || isempty(fieldsOfInterest))
                 if(~isempty(this.outcomesObj))   
                     fieldsOfInterest = this.outcomesObj.getColumnNames('subjects');
                 elseif(~isempty(this.databaseObj))
@@ -3783,7 +3849,7 @@ classdef PAStatTool < PABase
             statToolObj.jhandles.table_clusterProfiles.changeSelection(sRow,sCol,false,false);
             statToolObj.jhandles.table_clusterProfiles.repaint();
             statToolObj.refreshScatterPlot();
-            if(statToolObj.useOutcomes && ~isempty(statToolObj.outcomesObj))
+            if(statToolObj.useOutcomes && ~isempty(statToolObj.outcomesObj) && statToolObj.hasValidCluster)
                 statToolObj.outcomesObj.setSelectedField(eventData.fieldName);
             end
 

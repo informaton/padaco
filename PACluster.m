@@ -7,6 +7,8 @@ classdef PACluster < PAData
     properties(Constant)
         WEEKDAY_ORDER = 0:6;  % for Sunday through Saturday
         WEEKDAY_LABELS = {'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'};            
+        WEEKDAY_SCORE = [-1, 0, 1, 1, 1, 0, -1];  % for Sunday through Saturday
+        WEEKDAY_WEIGHT = [1.5, 1.5, 1, 1, 1, 1.5, 1.5]
     end
     
     %> @brief The sort order can be difficult to understand.  First, the
@@ -117,12 +119,18 @@ classdef PACluster < PAData
         %> which converts to match the index the centroid load shape corresponds to.
         centroidShapes;
         
+        clusterMemberIndices; %  Cx1 cell with logical indices to load shapes that are members of the centroid of index
+        
         sumD;
         
         %> Sorted distribution of centroid shapes by frequency of children load shape members.
         %> (Cx1 vector - where is C is the number centroids)
         histogram;
         
+        %> Weekday scores for cluster shapes, sorted according to frequency
+        %> of load shape popularity *see histogram note.
+        %> (Cx1 vector - where is C is the number clusters)
+        weekdayScores;
         
         %> @brief Numeric value indicating current state: values include
         %> - 0 Ready
@@ -506,6 +514,29 @@ classdef PACluster < PAData
             failedState = isempty(this.centroidShapes);
         end        
         
+        
+        % If sortOrder is true, then weekdayScores are returned in the same
+        % order as the clusters when sorted by popularity.  Otherwise,
+        % weekdayScores are returned in the same order as original cluster
+        % index the score corresponds to.
+        function scores = getWeekdayScores(this, sortOrder)
+            if(nargin<2)
+                sortOrder = false;
+            end
+            scores = this.weekdayScores;
+            if(sortOrder)
+                % Scores are in order of original index,  so if you want
+                % them sorted, and give it a sorted index (e.g. 1 for most
+                % popular, then this will transform it such the 1 will give
+                % you the most popular index, perhaps 37 for example.
+                % Whereas histogram is already in sorted order, so
+                % histogram(1) will be the most popular item, and
+                % scores(this.coiSortOrder2Index(1)) will provide the
+                % matching weekday score for it. @hyatt 2/15/2019
+                scores = scores(this.coiSortOrder2Index);
+            end
+        end
+        
         function distribution = getHistogram(this)
             distribution = this.histogram;
         end
@@ -561,6 +592,7 @@ classdef PACluster < PAData
             this.loadshapeIndex2centroidIndexMap = [];
             this.centroidShapes = [];
             this.histogram = [];
+            this.weekdayScores = [];
             this.loadShapes = [];
             % this.sortIndices = [];
             this.coiSortOrder = [];
@@ -783,10 +815,11 @@ classdef PACluster < PAData
             coi.dayOfWeek.numMembers = size(coi.dayOfWeek.memberShapes,1);
             coi.dayOfWeek.startDays = this.loadShapeDayOfWeek(coi.memberIndices);
             coi.dayOfWeek.count = histc(coi.dayOfWeek.startDays,this.WEEKDAY_ORDER);
+            
+%              coi.dayOfWeek.score = this.WEEKDAY_WEIGHT*coi.dayOfWeek.count(:)/sum(coi.dayOfWeek.count);
+             coi.dayOfWeek.score = (this.WEEKDAY_SCORE.*this.WEEKDAY_WEIGHT*coi.dayOfWeek.count(:))/(this.WEEKDAY_WEIGHT*coi.dayOfWeek.count(:));
         end
 
-
-        
         %> @brief Returns the loadshape IDs.  These are the identifiers number of centroids that are currently of
         %> interest, based on the number of positive indices flagged in
         %> coiToggleOrder.
@@ -907,6 +940,21 @@ classdef PACluster < PAData
                 [this.histogram, this.centroidSortMap] = this.calculateAndSortDistribution(this.loadshapeIndex2centroidIndexMap);%  was -->       calculateAndSortDistribution(this.loadshapeIndex2centroidIndexMap);
                 this.coiSortOrder2Index = this.centroidSortMap;  % coiSortOrder2Index(c) contains the original centroid index that corresponds to the c_th most popular position 
                 [~,this.coiIndex2SortOrder] = sort(this.centroidSortMap,1,'ascend');
+                
+                K = this.getNumClusters();
+                % May need to look into a sparse matrix at some point here ...
+                this.clusterMemberIndices = false(K,this.getNumLoadShapes());
+                this.weekdayScores = nan(K,1);
+                for k = 1:K
+                    this.clusterMemberIndices(k,:) = k==this.loadshapeIndex2centroidIndexMap;
+                    dayOfWeek.startDays = this.loadShapeDayOfWeek(this.clusterMemberIndices(k,:));
+                    dayOfWeek.count = histc(dayOfWeek.startDays,this.WEEKDAY_ORDER);
+                    
+                    %                     this.weekdayScores(k) = this.WEEKDAY_WEIGHT*dayOfWeek.count(:)/sum(dayOfWeek.count);
+                    this.weekdayScores(k) = (this.WEEKDAY_SCORE.*this.WEEKDAY_WEIGHT*dayOfWeek.count(:))/(this.WEEKDAY_WEIGHT*dayOfWeek.count(:));
+                end
+                
+                %this.weekdayScores =
                 
                 % Consider
                 % original centroid index, centroid count, (sort order ,/= coiSortOrder2Index)

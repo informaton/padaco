@@ -178,7 +178,7 @@ classdef  PAAppSettings < PASettings
             x.plotType = 'Plot type';
             x.numShades = 'Number of shades for heatmap';
             x.baseFeature = 'Feature function';
-            x.centroidDurationHours = 'Centroid length (hours)';
+            x.clusterDurationHours = 'Cluster length (hours)';
             
             x.minDaysAllowed= 'Minimum number of days required';
             
@@ -187,7 +187,7 @@ classdef  PAAppSettings < PASettings
             x.clusterThreshold = 'Cluster threshold';
             x.clusterMethod = 'Clustering method';
             x.useDefaultRandomizer = {'Turn off randomizer','(1 for reproducibility)'};
-            x.initCentroidWithPermutation = 'Initialize centroids with permutation';           
+            x.initClusterWithPermutation = 'Initialize clusters with permutation';           
             
             x.featureFcnName = 'Feature function';
             x.signalTagLine = 'Signal label';
@@ -212,7 +212,7 @@ classdef  PAAppSettings < PASettings
             x.isOutputPathLinked = 'Link output and input pathnames (0/1)';
             
             x.exportPathname = 'Export save directory';
-            x.exportShowNonwear = 'Include nonwear flags with centroid export?';
+            x.exportShowNonwear = 'Include nonwear flags with cluster export?';
             
             x.cacheDirectory = 'Caching directory';
             x.useCache = 'Use caching (0/1)';
@@ -243,23 +243,25 @@ classdef  PAAppSettings < PASettings
             x.plotTypeSelection = {'Plot type selection','[1]'};
             x.trimToPercent = {'Trim to (%)','[100]'};
             x.cullToValue = {'Cull to','[0]'};
-            x.showCentroidMembers = 'Show centroid members (0/1)';
-            x.showCentroidSummary = 'Show centroid summary (0/1)';
+            x.showClusterMembers = {'Show shapes with cluster','[0]/1'};
+            x.showClusterSummary = {'Display cluster summary','[0]/1'};
             
             x.weekdaySelection = 'Weekday selection (1)';
             x.startTimeSelection = 'Start time selection (1)';
             x.stopTimeSelection = 'Stop time selection (-1)';
             x.customDaysOfWeek = {'Custom days of week selection','(0 for sunday)'};
             
-            x.centroidDurationSelection = 'Centroid duration selection';                        
+            x.clusterDurationSelection = 'Cluster duration selection';                        
             x.primaryAxis_yLimMode = {'y Limit','(auto, manual)'};
             x.primaryAxis_nextPlot = {'Next plot','(replace, hold)'};
             x.showAnalysisFigure = 'Show analysis figure (0/1)'; % do not display the other figure at first
-            x.centroidDistributionType = sprintf('Centroid distribution type\n{''performance'',''membership'',''weekday''}'); 
+            x.clusterDistributionType = sprintf('Cluster distribution type\n{''performance'',''membership'',''weekday''}'); 
             x.profileFieldSelection = 'Profile field selection (numeric)';
             
             x.bootstrapIterations =  'Bootstrap iterations';
             x.bootstrapSampleName = {'Bootstrap sampling ID','{''studyID'',''days''}'};  
+            
+            
             
             obj.dictionary = x;
             

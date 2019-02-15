@@ -19,6 +19,10 @@ classdef PABase < handle
            end
         end
         
+        function logError(obj, me, fmtStr, varargin)
+           showME(me);           
+        end
+        
         function logStatus(obj, fmtStr, varargin)
             str = sprintf(fmtStr, varargin{:});
             fprintf(1,'%s\n',str);

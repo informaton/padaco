@@ -71,7 +71,11 @@ classdef PAOutcomesTable < PABase
             
             dataTable = t(roi, fieldNames);
             summaryTable = summary(dataTable);
-            dataSummaryStruct = summarizeStruct(dataTable);
+            if(isempty(fieldNames))
+                dataSummaryStruct = [];
+            else
+                dataSummaryStruct = summarizeStruct(dataTable);
+            end
         end
         
         function isValid = isvalidCategory(this, categoryName)
