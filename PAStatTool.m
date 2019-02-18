@@ -1603,10 +1603,11 @@ classdef PAStatTool < PABase
             
                         % add a context menu now to secondary axes
                         contextmenu_secondaryAxes = uicontextmenu('callback',@this.contextmenu_secondaryAxesCallback,'parent',this.figureH);
-                        this.handles.contextmenu.secondaryAxes.performance = uimenu(contextmenu_secondaryAxes,'Label','Show adaptive separation performance progression','callback',{@this.clusterDistributionCallback,'performance'});
-                        this.handles.contextmenu.secondaryAxes.weekday = uimenu(contextmenu_secondaryAxes,'Label','Show current cluster''s weekday distribution','callback',{@this.clusterDistributionCallback,'weekday'});
-                        this.handles.contextmenu.secondaryAxes.membership = uimenu(contextmenu_secondaryAxes,'Label','Show membership distribution by cluster','callback',{@this.clusterDistributionCallback,'membership'});
-                        this.handles.contextmenu.secondaryAxes.weekday_scores = uimenu(contextmenu_secondaryAxes,'Label','Show weekday scores','callback',{@this.clusterDistributionCallback,'weekday_scores'});
+                        this.handles.contextmenu.secondaryAxes.loadshape_membership = uimenu(contextmenu_secondaryAxes,'Label','Loadshapes per cluster','callback',{@this.clusterDistributionCallback,'loadshape_membership'});
+                        this.handles.contextmenu.secondaryAxes.participant_membership = uimenu(contextmenu_secondaryAxes,'Label','Participants per cluster','callback',{@this.clusterDistributionCallback,'participant_membership'});
+                        this.handles.contextmenu.secondaryAxes.weekday_scores = uimenu(contextmenu_secondaryAxes,'Label','Weekday scores by cluster','callback',{@this.clusterDistributionCallback,'weekday_scores'},'separator','on');
+                        this.handles.contextmenu.secondaryAxes.weekday = uimenu(contextmenu_secondaryAxes,'Label','Current cluster''s weekday distribution','callback',{@this.clusterDistributionCallback,'weekday'});
+                        this.handles.contextmenu.secondaryAxes.performance = uimenu(contextmenu_secondaryAxes,'Label','Adaptive separation performance progression','callback',{@this.clusterDistributionCallback,'performance'},'separator','on');
                         set(this.handles.axes_secondary,'uicontextmenu',contextmenu_secondaryAxes);
                     end
                 end                
@@ -3392,23 +3393,30 @@ classdef PAStatTool < PABase
                             
                         % plots clusters id's (sorted by membership in ascending order) on x-axis
                         % and the count of loadshapes (i.e. membership count) on the y-axis.                            
-                        case {'membership','weekday_scores'}
+                        case {'loadshape_membership','participant_membership','weekday_scores'}
                             
                             set(distributionAxes,'ylimmode','auto');
                             barWidth = 0.8;
                             
-                            if(strcmpi(this.clusterDistributionType,'membership'))                                
-                                y = this.clusterObj.getHistogram();
+                            if(strcmpi(this.clusterDistributionType,'loadshape_membership'))                                
+                                y = this.clusterObj.getHistogram('loadshapes');                                
+                                distTitle = 'Number of loadshapes by cluster';
+                            elseif(strcmpi(this.clusterDistributionType,'participant_membership'))
+                                distTitle = 'Number of unique participant by cluster';
+                                y = this.clusterObj.getHistogram('participants');
                             elseif(strcmpi(this.clusterDistributionType,'weekday_scores'))                                
                                 sortLikeHistogram = true;
                                 y = this.clusterObj.getWeekdayScores(sortLikeHistogram);
+                                distTitle = 'Weekday score by cluster';
                             end
                             
-                            x = 1:numel(y);
-                            
-                            highlightColor = [0.75 0.75 0];
-                            
+                            x = 1:numel(y);                            
+                            highlightColor = [0.75 0.75 0];                            
                             barH = bar(distributionAxes,y,barWidth,'buttonDownFcn',@this.clusterHistogramButtonDownFcn);
+                            
+                            if(strcmpi(this.clusterDistributionType,'weekday_scores'))     
+                               set(distributionAxes,'ylim',[-1 1]); 
+                            end
                             
                             if(oldVersion)
                                 %barH = bar(distributionAxes,y,barWidth);
@@ -3432,7 +3440,7 @@ classdef PAStatTool < PABase
                                 
                             end
                             
-                            title(distributionAxes,sprintf('Cluster vs Load shape count. Clusters: %u Load shapes: %u',this.clusterObj.numClusters(), this.clusterObj.numLoadShapes()),'fontsize',14);
+                            title(distributionAxes,sprintf('%s. Clusters: %u Load shapes: %u',distTitle,this.clusterObj.numClusters(), this.clusterObj.numLoadShapes()),'fontsize',14);
                             %ylabel(distributionAxes,sprintf('Load shape count'));
                             xlabel(distributionAxes,'Cluster popularity');
                             xlim(distributionAxes,[0.25 numClusters+.75]);
@@ -4100,7 +4108,7 @@ classdef PAStatTool < PABase
             paramStruct.primaryAxis_yLimMode = 'auto';
             paramStruct.primaryAxis_nextPlot = 'replace';
             paramStruct.showAnalysisFigure = 0; % do not display the other figure at first
-            paramStruct.clusterDistributionType = 'membership';  %{'performance','membership','weekday'}            
+            paramStruct.clusterDistributionType = 'loadshape_membership';  %{'loadshape_membership','participant_membership','performance','membership','weekday'}            
             paramStruct.profileFieldSelection = 1;    
             
             paramStruct.bootstrapIterations =  100;

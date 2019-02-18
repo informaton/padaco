@@ -537,8 +537,15 @@ classdef PACluster < PAData
             end
         end
         
-        function distribution = getHistogram(this)
-            distribution = this.histogram;
+        function distribution = getHistogram(this,histogramOf)
+            if(nargin<2 || isempty(histogramOf))
+                histogramOf = 'loadshapes';
+            end
+            if(strcmpi(histogramOf,'participants'))
+                distribution = this.histogram.participants;
+            else
+                distribution = this.histogram.loadshapes;
+            end
         end
         
         % ======================================================================
@@ -591,7 +598,8 @@ classdef PACluster < PAData
         function init(this)
             this.loadshapeIndex2centroidIndexMap = [];
             this.centroidShapes = [];
-            this.histogram = [];
+            this.histogram.loadShapes = [];
+            this.histogram.participants = [];            
             this.weekdayScores = [];
             this.loadShapes = [];
             % this.sortIndices = [];
@@ -937,7 +945,10 @@ classdef PACluster < PAData
                     end
                     fprintf(1,'%s\n',msg);
                 end
-                [this.histogram, this.centroidSortMap] = this.calculateAndSortDistribution(this.loadshapeIndex2centroidIndexMap);%  was -->       calculateAndSortDistribution(this.loadshapeIndex2centroidIndexMap);
+                [this.histogram.loadshapes, this.centroidSortMap] = this.calculateAndSortDistribution(this.loadshapeIndex2centroidIndexMap);%  was -->       calculateAndSortDistribution(this.loadshapeIndex2centroidIndexMap);
+                
+                this.histogram.participants = zeros(size(this.histogram.loadshapes));
+                
                 this.coiSortOrder2Index = this.centroidSortMap;  % coiSortOrder2Index(c) contains the original centroid index that corresponds to the c_th most popular position 
                 [~,this.coiIndex2SortOrder] = sort(this.centroidSortMap,1,'ascend');
                 
@@ -952,6 +963,11 @@ classdef PACluster < PAData
                     
                     %                     this.weekdayScores(k) = this.WEEKDAY_WEIGHT*dayOfWeek.count(:)/sum(dayOfWeek.count);
                     this.weekdayScores(k) = (this.WEEKDAY_SCORE.*this.WEEKDAY_WEIGHT*dayOfWeek.count(:))/(this.WEEKDAY_WEIGHT*dayOfWeek.count(:));
+                    
+                    dayOfWeek.memberIDs = this.loadShapeIDs(this.clusterMemberIndices(k,:));
+                    
+                    % Keep it in the same order as histogram.loadshapes
+                    this.histogram.participants(this.coiIndex2SortOrder(k)) = numel(unique(dayOfWeek.memberIDs));
                 end
                 
                 %this.weekdayScores =
@@ -989,8 +1005,6 @@ classdef PACluster < PAData
                     this.silhouetteIndex = mean(silhouette(this.loadShapes,idx));                    
                     fprintf('Silhouette Index = %0.4f\n',this.silhouetteIndex);
                 end
-                
-                
             else
                 fprintf('Clustering failed!  No clusters found!\n');
                 this.calculationState = -1;  % Calculation failed
