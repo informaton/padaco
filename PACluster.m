@@ -355,10 +355,10 @@ classdef PACluster < PAData
         
         function [headerStr, dataStr] = exportWeekDayCovariates(this, nwStruct)
             csMat = this.getCovariateMat();
-            headerStr = sprintf('# memberID, Day of week (Sun=0 to Sat=6), Cluster index, cluster popularity (1=highest, %d=lowest)',max(csMat(:,end)));
-                strFmt = ['%i',repmat(', %i',1,size(csMat,2)-1),'\n'];  % Make rows ('\n') of comma separated integers (', %i') 
+            headerStr = sprintf('# memberID, Day of week (Sun=0 to Sat=6), Cluster index, cluster popularity (1 is most and %d is least)',max(csMat(:,end)));
+            strFmt = ['%i',repmat(', %i',1,size(csMat,2)-1),'\n'];  % Make rows ('\n') of comma separated integers (', %i')
             
-            if(nargin>1 && ~isempty(nwStruct) && isstruct(nwStruct))
+            if(nargin>1 && ~isempty(nwStruct) && isstruct(nwStruct) && ~isempty(nwStruct.rows))
                headerStr = sprintf('%s, Contains nonwear (%s)',headerStr,nwStruct.method); 
                strFmt = [strFmt(1:end-2),',%d\n'];               
                if(isfield(nwStruct,'featureStruct') && ~isempty(nwStruct.featureStruct))

@@ -380,11 +380,11 @@ classdef PAStatTool < PABase
                     % separate gui                    
                     exportNonwearFeatures = this.originalWidgetSettings.exportShowNonwear;
                     if(exportNonwearFeatures)
-                        nonwearFeatures = {this.nonwear};                        
+                        nonwearFeatures = this.nonwear;                        
                     else
-                        nonwearFeatures = {};
+                        nonwearFeatures = [];
                     end
-                    [didExport, msg] = curCluster.exportToDisk(exportPath, lastClusterSettings, nonwearFeatures{:});
+                    [didExport, msg] = curCluster.exportToDisk(exportPath, lastClusterSettings, nonwearFeatures);
 
                     %                     if(~lastClusterSettings.discardNonwearFeatures)
                     %                         [didExport, msg] = curCluster.exportToDisk(exportPath, lastClusterSettings, nonwearFeatures{:});
