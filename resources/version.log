@@ -24,6 +24,7 @@ Version history
   - Transition issue (#102)
   - Analysis mode startup sync (#101)
   - Transition issue (#1)
+  - Fixed export clusters to .txt file (some bugs from previous refactor.)
 
 
 1.75 (11/01/2018)

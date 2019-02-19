@@ -375,7 +375,7 @@ classdef PAStatTool < PABase
             elseif(curCluster.updateExportPath())
                 try 
                     lastClusterSettings.StatTool = this.getStateAtTimeOfLastClustering();
-                    exportPath = this.getExportPath();
+                    exportPath = curCluster.getExportPath();
                     % original widget settings are kept track of using a
                     % separate gui                    
                     exportNonwearFeatures = this.originalWidgetSettings.exportShowNonwear;
@@ -406,7 +406,7 @@ classdef PAStatTool < PABase
                     options.Interpreter = 'none';
                     buttonName = questdlg(msg,dlgName,closeStr,showOutputFolderStr,options);
                     if(strcmpi(buttonName,showOutputFolderStr))
-                        openDirectory(this.getExportPath())
+                        openDirectory(exportPath)
                     end
                 else
                     makeModal = true;
