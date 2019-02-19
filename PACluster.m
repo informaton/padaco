@@ -292,17 +292,16 @@ classdef PACluster < PAData
                 end
                 
                 [covHeader, covDataStr] = this.exportFrequencyCovariates();
-                [weekdayCovHeader, weekdayCovDataStr] = this.exportWeekDayCovariates(nonwearStruct);
-                
+                [weekdayCovHeader, weekdayCovDataStr] = this.exportWeekDayCovariates(nonwearStruct);                
                 [shapesHeaderStr, shapesStr] = this.exportClusterShapes();
-                timeStamp = datestr(now,'DDmmmYYYY');
-                shapeTimesInCSV = cell2str(this.loadShapeTimes,',');
+                [summaryHeaderStr, summaryStr] = this.exportClusterSummary();                
                 
-                shapesHeaderStr = [shapesHeaderStr ',' shapeTimesInCSV];
+                timeStamp = datestr(now,'DDmmmYYYY');
                 
                 cov2Filename = fullfile(exportPath,sprintf('cluster_by_weekday_%s.csv',timeStamp));
                 covFilename = fullfile(exportPath,sprintf('cluster_frequency_%s.csv',timeStamp));
                 shapesFilename = fullfile(exportPath,sprintf('cluster_shapes_%s.csv',timeStamp));
+                summaryFilename = fullfile(exportPath,sprintf('cluster_summary_%s.csv',timeStamp));
                 settingsFilename = fullfile(exportPath,sprintf('padaco_config_%s.txt',timeStamp));
                 
                 covFid = fopen(covFilename,'w');
@@ -336,13 +335,21 @@ classdef PACluster < PAData
                     msg = sprintf('%sCluster shapes NOT saved.  Could not open file (%s) for writing!\n ',msg,shapesFilename);
                 end
                 
-                settingsFid = fopen(settingsFilename,'w');
-                clusterSettings = clusterSettingsStruct;
+                summaryFid = fopen(summaryFilename,'w');
+                if(summaryFid>1)
+                    fprintf(summaryFid,'%s\n%s',summaryHeaderStr,summaryStr);
+                    msg = sprintf('%sCluster summary saved to:\n\t%s\n',msg,summaryFilename);
+                    fclose(summaryFid);
+                else
+                    msg = sprintf('%sCluster summary NOT saved.  Could not open file (%s) for writing!\n ',msg,summaryFilename);
+                end                
                 
-                if(settingsFid>1)
+                settingsFid = fopen(settingsFilename,'w');
+                
+                if(settingsFid>1)                    
                     fprintf(settingsFid,['-Last saved: %s',newline,newline],datestr(now)); %want to include the '-' sign to prevent this line from getting loaded in the loadFromFile function (i.e. it breaks the regular expression pattern that is used to load everything else).
                 
-                    PASettings.saveStruct(settingsFid,clusterSettings);
+                    PASettings.saveStruct(settingsFid,clusterSettingsStruct);
                     msg = sprintf('%sPadaco cluster settings saved to:\n\t%s\n',msg,settingsFilename);
                     fclose(settingsFid);
                     didExport = true;
@@ -402,38 +409,59 @@ classdef PACluster < PAData
             membersStr = sprintf(strFmt,allData'); % Need to transpose here because arguments to sprintf are taken in column order, but I am output by row.
         end
         
-        %> @brief Returns text describing the centroids in a comma separated
-        %> value (csv) format.
+        %> @brief Returns centroid shape in comma separated value (csv) format.
         %> @param this Instance of PACluster
         %> @retval headerStr Header line; helpful to place at the top of a
-        %> file.  It does not contain description of time based values of
-        %> the shape indices.  These can be added elsewhere.
+        %> file.  Contains centroid index and popularity followed by
+        %> time stamps corresponding to centroid shape values.
         %> @retval centroidStr String containg N lines for N centroids.
-        %> The nth line describes the nth centroid according to the descriptions given
-        %> by the header string.
-        function [headerStr, centroidStr] = exportClusterShapes(this)
+        %> The nth line describes the nth centroid
+        function [headerStr, shapeStr] = exportClusterShapes(this)
+            shapeStr = '';
             
             if(this.getNumClusters<=0)
-                headerStr = '# No centroids found!';
-                centroidStr = '';
+                headerStr = '# No clusters found!';
             else
-                % print header
-                headerStr = sprintf('# Cluster index, Popularity (1 = highest), membership count');
-                for d=1:numel(this.WEEKDAY_ORDER)
-                    headerStr = sprintf('%s, %s (%d)',headerStr,this.WEEKDAY_LABELS{d},this.WEEKDAY_ORDER(d));
-                end
-                centroidStr = '';
+                shapeTimesInCSV = cell2str(this.loadShapeTimes,',');
+                headerStr = sprintf('# Cluster index, Popularity (1 = highest), %s',shapeTimesInCSV);
+                
                 for sortOrder=1:this.getNumClusters()
                     coi = this.getClusterOfInterest(sortOrder);
-                    coiStr = sprintf('%i,%i, %i',coi.index,coi.sortOrder,coi.numMembers);
-                    dayStr = sprintf(', %i',coi.dayOfWeek.count);
-                    shapeStr = sprintf(', %f',coi.shape);
-                    centroidStr = sprintf('%s%s%s%s\n',centroidStr,coiStr,dayStr,shapeStr);
-                end
+                    coiStr = sprintf('%i, %i',coi.index,coi.sortOrder);
+                    coiShapeStr = sprintf(', %f',coi.shape);
+                    shapeStr = sprintf('%s%s%s\n',shapeStr,coiStr,coiShapeStr);
+                end                
             end
         end
         
-        
+        %> @brief Returns text summarizing centroid membership distributions
+        %> in a comma separated value (csv) format.
+        %> @param this Instance of PACluster
+        %> @retval headerStr Header line; helpful to place at the top of a
+        %> file.  
+        %> @retval summaryStr String containg N lines for N centroids.
+        %> The nth line describes the nth centroid according to the descriptions given
+        %> by the header string.
+        function [headerStr, summaryStr] = exportClusterSummary(this)            
+            summaryStr = '';
+            
+            if(this.getNumClusters<=0)
+                headerStr = '# No clusters found!';
+            else
+                % print header
+                headerStr = sprintf('# Cluster index, popularity (1 = highest), loadshapes, unique participants, weekday score');
+                for d=1:numel(this.WEEKDAY_ORDER)
+                    headerStr = sprintf('%s, %s (%d)',headerStr,this.WEEKDAY_LABELS{d},this.WEEKDAY_ORDER(d));
+                end
+
+                for sortOrder=1:this.getNumClusters()
+                    coi = this.getClusterOfInterest(sortOrder);
+                    coiStr = sprintf('%i, %i, %i, %i, %+0.3f',coi.index,coi.sortOrder,coi.numMembers,coi.numUniqueParticipants, coi.weekdayScore);
+                    dayStr = sprintf(', %i',coi.dayOfWeek.count);
+                    summaryStr = sprintf('%s%s%s\n',summaryStr,coiStr,dayStr);
+                end
+            end
+        end
         
         function value = getParam(this, paramName)
             switch(lower(paramName))
@@ -598,7 +626,7 @@ classdef PACluster < PAData
         function init(this)
             this.loadshapeIndex2centroidIndexMap = [];
             this.centroidShapes = [];
-            this.histogram.loadShapes = [];
+            this.histogram.loadshapes = [];
             this.histogram.participants = [];            
             this.weekdayScores = [];
             this.loadShapes = [];
@@ -815,15 +843,17 @@ classdef PACluster < PAData
             % clustered to the centroid index of interest.
             coi.memberShapes = this.loadShapes(coi.memberIndices,:);
             coi.memberIDs = this.loadShapeIDs(coi.memberIndices,:);
-            coi.numMembers = size(coi.memberShapes,1);            
-            
+            coi.numMembers = size(coi.memberShapes,1); 
+            % coi.numMembers = this.histogram.loadshapes(coi.sortOrder);            
+            coi.numUniqueParticipants = this.histogram.participants(coi.sortOrder);
+            coi.weekdayScore = this.weekdayScores(coi.index);
             coi.dayOfWeek.memberIndices = coi.memberIndices  & ismember(this.loadShapeDayOfWeek,this.WEEKDAY_ORDER(this.daysOfInterest));
             coi.dayOfWeek.memberShapes = this.loadShapes(coi.dayOfWeek.memberIndices,:);
             coi.dayOfWeek.memberIDs = this.loadShapeIDs(coi.dayOfWeek.memberIndices,:);
             coi.dayOfWeek.numMembers = size(coi.dayOfWeek.memberShapes,1);
             coi.dayOfWeek.startDays = this.loadShapeDayOfWeek(coi.memberIndices);
             coi.dayOfWeek.count = histc(coi.dayOfWeek.startDays,this.WEEKDAY_ORDER);
-            
+
 %              coi.dayOfWeek.score = this.WEEKDAY_WEIGHT*coi.dayOfWeek.count(:)/sum(coi.dayOfWeek.count);
              coi.dayOfWeek.score = (this.WEEKDAY_SCORE.*this.WEEKDAY_WEIGHT*coi.dayOfWeek.count(:))/(this.WEEKDAY_WEIGHT*coi.dayOfWeek.count(:));
         end
