@@ -15,9 +15,8 @@ Version history
   - added last path checked property to give some intelligence/memory to follow on file selections.
 - Cluster analysis plots (access using context menu)
   - Added weekday score metric
-    * Negative values indicate more weekend prevalence, positive values indicate higher weekday prevalence.
-    * -1 indicates day of week distribution is entirely weekend (Saturday-Sunday)
-    * +1 indicates distribution is entirely weekdays (Tuesday - Thursday).
+    * -1 indicates day of week distribution is entirely weekend (Saturday/Sundaynegative is more weekend, positive is more weekday)
+    * +1 indicates distribution is entirely weekdays (Tuesday - Thursday)
   - Added distribution of unique participants per cluster.  
 - Menubar: Changed "Analysis Mode" -> "View"
 - Resolved issues
