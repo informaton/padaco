@@ -218,7 +218,9 @@ classdef  PAAppSettings < PASettings
             x.useCache = 'Use caching (0/1)';
             
             x.processType = {'Processing type','{''count'',''raw''}'};
-            x.useDatabase = 'Use database (0/1)';
+            x.useOutcomes = 'Use text file for outcomes data - [0], 1';
+            x.profileFieldIndex = 'Profile field index - [1]';
+            x.useDatabase = 'Use database - [0], 1';
             x.databaseClass = 'Database classname to use';
             x.discardNonwearFeatures = 'Discard nonwear features (0/1)';
             x.trimResults = 'Trim result';
@@ -233,36 +235,41 @@ classdef  PAAppSettings < PASettings
             x.preclusterReduction = 'Preclustering reduction method';
             % x.reductionTransformationFcn = 'Precluster reduction method';
             
-            x.maxNumDaysAllowed = {'Max days per subject.','Leave 0 to include all days.'};
-            x.minNumDaysAllowed = {'Min days per subject.','Leave 0 for no minimum.  Currently variable has no effect at all.'};
+            x.maxNumDaysAllowed = {'Max days per subject.','0 = all days'};
+            x.minNumDaysAllowed = {'Min days per subject.','0 = no minimum.  Not supported.'};
             
-            x.normalizeValues = {'Normalize values','(0/1)'};            
+            x.normalizeValues = {'Normalize values - (0, 1)'};            
             x.processedTypeSelection = {'Processed type selection','[1]'};
             x.baseFeatureSelection = {'Base feature selection','[1]'};
             x.signalSelection = {'Signal selection','[1]'};
             x.plotTypeSelection = {'Plot type selection','[1]'};
-            x.trimToPercent = {'Trim to (%)','[100]'};
-            x.cullToValue = {'Cull to','[0]'};
-            x.showClusterMembers = {'Show shapes with cluster','[0]/1'};
-            x.showClusterSummary = {'Display cluster summary','[0]/1'};
-            
-            x.weekdaySelection = 'Weekday selection (1)';
-            x.startTimeSelection = 'Start time selection (1)';
-            x.stopTimeSelection = 'Stop time selection (-1)';
+            x.trimToPercent = {'Trim to (%)','1 .. [100]'};
+            x.cullToValue = {'Cull to - ','[0] .. inf)'};
+            x.showClusterMembers = {'Show shapes with cluster','[0], 1'};
+            x.showClusterSummary = {'Display cluster summary','[0], 1'};
+            x.yDir = {'Direction of y-axis','{normal, inverted}'};
+            x.weekdaySelection = 'Weekday selection [1]';
+            x.startTimeSelection = 'Start time selection [1]';
+            x.stopTimeSelection = 'Stop time selection [-1]';
             x.customDaysOfWeek = {'Custom days of week selection','(0 for sunday)'};
             
             x.clusterDurationSelection = 'Cluster duration selection';                        
             x.primaryAxis_yLimMode = {'y Limit','(auto, manual)'};
             x.primaryAxis_nextPlot = {'Next plot','(replace, hold)'};
-            x.showAnalysisFigure = 'Show analysis figure (0/1)'; % do not display the other figure at first
+            x.showAnalysisFigure = 'Show analysis figure - [0], 1'; % do not display the other figure at first
             x.clusterDistributionType = sprintf('Cluster distribution type\n{''performance'',''membership'',''weekday''}'); 
             x.profileFieldSelection = 'Profile field selection (numeric)';
             
             x.bootstrapIterations =  'Bootstrap iterations';
             x.bootstrapSampleName = {'Bootstrap sampling ID','{''studyID'',''days''}'};  
             
+            x.titleStr = {'Title string'};
             
             
+            % VIEW
+            x.filter_inf_file = 'Filter settings file';
+            x.database_inf_file = 'Database credentials file';
+            x.loadOutcomesOnStartup = {'Load outcomes file on startup when present','[0], 1'};
             obj.dictionary = x;
             
         end

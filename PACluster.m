@@ -54,7 +54,7 @@ classdef PACluster < PAData
         coiSortOrder2Index;  % To get original index of the most popular cluster (sort order =1 ) use index =  coiSortOrder2Index(1)
          
         
-        coiIndex2SortOrder;
+        coiIndex2SortOrder; % To get the popularity order based off the original cluster index.
         
         
         
@@ -164,8 +164,20 @@ classdef PACluster < PAData
                 didSet = true;                
             end
         end
-            
+         
+        % returns the popularity of each cluster, ordered by original
+        % index.  Nx1 array with popularity(1) referring to the popularity
+        % of cluster index 1.
+        function popularity = getPopularityOrder(this)
+            popularity = this.coiIndex2SortOrder;
+        end
         
+        function index = popularity2index(this, sortOrder)
+            index = this.coiSortOrder2Index;
+            if(nargin>1 && ~isempty(sortOrder))
+                index = index(sortOrder);
+            end
+        end        
         % ======================================================================
         %> @param loadShapes NxM matrix to  be clustered (Each row represents an M dimensional value).
         %> @param settings  Optional struct with following fields [and
@@ -1015,8 +1027,8 @@ classdef PACluster < PAData
                 % 3, 233, 2, 2
                 % 4, 50, 3, 3
 
-                %                 [a,b]=sort([1,23,5,6],'ascend');
-                %                 [c,d] = sort(b,'ascend');  %for testings
+                %  [a,b]=sort([1,23,5,6],'ascend');
+                %  [c,d] = sort(b,'ascend');  %for testings
                 if(~this.setCOISortOrder(1))  % Modified on 1/17/2017 from  ~this.setCOISortOrder(this.numClusters()))
                     fprintf(1,'Warning - could not set the centroid of interest sort order to %u\n',this.numClusters);
                 end

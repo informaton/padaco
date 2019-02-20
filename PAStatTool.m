@@ -1881,21 +1881,20 @@ classdef PAStatTool < PABase
                dependentVar = this.getProfileFieldSelection();
                %                'bmi_zscore'
                %                'bmi_zscore+'  %for logistic regression modeling
-               % all
-               
+               %
+               % --all--               
                covariateStruct = this.clusterObj.getCovariateStruct();
+               covariateStruct.id.memberIDs = covariateStruct.memberIDs;
                covariateStruct = covariateStruct.id; 
                % Normalize values
-               values = covariateStruct.values;
-               covariateStruct.values = diag(sum(values,2))*values;
+               % values = covariateStruct.values;
+               % covariateStruct.values = diag(sum(values,2))*values;
+               % [resultStr, resultStruct] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'});
                
-
-               %                [resultStr, resultStruct] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'});
-               
-               % current selection
-               
+               % current selection               
                coiSortOrders = this.clusterObj.getAllCOISortOrders();
-               covariateStruct = this.clusterObj.getCovariateStruct();
+               %covariateStruct = this.clusterObj.getCovariateStruct();
+               
                if(numel(coiSortOrders)>1)
                    % If we have multiple elements selected then group
                    % together and add as an extra element to the other
@@ -2086,7 +2085,7 @@ classdef PAStatTool < PABase
     methods
       
         
-        function refreshScatterPlot(this)            
+        function refreshScatterPlot(this)
             displayStrings = get(this.handles.line_coiInScatterPlot,'displayname');
 
             this.initScatterPlotAxes();
@@ -2099,6 +2098,8 @@ classdef PAStatTool < PABase
                 % (':').
                 x = 1:numClusters;
                 y = this.allProfiles(curProfileFieldIndex, 2, :);  % rows (1) =
+                y = y(this.clusterObj.popularity2index());
+                
                 % columns (2) =
                 % dimension (3) = cluster popularity (1 to least popular index)
                 
@@ -2234,6 +2235,9 @@ classdef PAStatTool < PABase
             xlabel(this.handles.axes_scatterplot,'Cluster popularity');
             
             
+            % REmove any existing contextmenus from previous
+            % initializations
+            delete(findobj(this.analysisFigureH,'type',{'uicontextmenu','uimenu'}))
             % add a context menu now to primary axes
             contextmenu_ScatterPlotAxes = uicontextmenu('parent',this.analysisFigureH);
             this.handles.contextmenu.toggleLegend = uimenu(contextmenu_ScatterPlotAxes,'Label','Toggle legend','callback',{@this.toggleLegendCallback,this.handles.axes_scatterplot});
