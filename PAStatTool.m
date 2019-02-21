@@ -3166,8 +3166,8 @@ classdef PAStatTool < PABase
         function plotClusters(this,clusterAndPlotSettings)
             
             this.clearPrimaryAxes();
-%            this.clearPlots();
-            this.showMouseBusy();
+            %  this.clearPlots();            
+            % this.showMouseBusy();
             try
                 if(isempty(this.clusterObj)|| this.clusterObj.failedToConverge())
                     % clear everything and give a warning that the cluster is empty
@@ -3178,8 +3178,7 @@ classdef PAStatTool < PABase
                     end
                     
                     numClusters = this.clusterObj.numClusters();
-                    numLoadShapes = this.clusterObj.numLoadShapes();
-                    
+ 
                     distributionAxes = this.handles.axes_secondary;
                     clusterAxes = this.handles.axes_primary;
                     
@@ -3196,25 +3195,28 @@ classdef PAStatTool < PABase
                     % this.drawClusterXTicksAndLabels();
                     
                     
-                    %% Show clusters on primary axes
-                    %                 coi = this.clusterObj.getClusterOfInterest();
-                    cois = this.clusterObj.getClustersOfInterest();
-                    
+                    %% Show clusters on primary axes                    
+                    cois = this.clusterObj.getClustersOfInterest();                    
                     numCOIs = numel(cois);
-                    nextPlot = get(clusterAxes,'nextplot');
-                    coiMarkers = '+o*xv^.';
-                    coiColors =  'kbgrycm';
+                    clusterHandles = nan(numCOIs,1);
+                    coiSortOrders = nan(numCOIs,1);
+                    coiMemberIDs = [];
                     
+                    % coiMarkers = '+o*xv^.';
+                    
+                    % Clever ...
+                    coiColors =  'kbgrycm';
                     coiStyles = repmat('-:',size(coiColors));
-                    coiMarkers = [coiMarkers,coiMarkers];
                     coiColors = [coiColors, fliplr(coiColors)];
                     maxColorStyles = numel(coiColors);
+                    % coiMarkers = [coiMarkers,coiMarkers];
                     
                     yLimMode = clusterAndPlotSettings.primaryAxis_yLimMode;
                     set(clusterAxes,'ytickmode',yLimMode,...
                         'ylimmode',yLimMode,...
                         'yticklabelmode',yLimMode);
                     
+                    originalNextPlot = get(clusterAxes,'nextplot');
                     if(clusterAndPlotSettings.showClusterMembers || numCOIs>1)
                         hold(clusterAxes,'on');
                         % set(clusterAxes,'ygrid','on');
@@ -3223,36 +3225,10 @@ classdef PAStatTool < PABase
                         % set(clusterAxes,'ygrid','off');
                     end
                     
-                    %                 % Prep the x-axis.  This should probably be done elsewhere
-                    %                 % as it will not change when going from one cluster to the
-                    %                 % next, but only (though not necessarily) when refreshing clusters.
-                    %                 xTicks = 1:8:this.featureStruct.totalCount;
-                    %                 if(xTicks(end)~=this.featureStruct.totalCount)
-                    %                     xTicks(end+1)=this.featureStruct.totalCount;
-                    %                 end
-                    %                 xTickLabels = this.featureStruct.startTimes(xTicks);
-                    %                 set(clusterAxes,'xlim',[1,this.featureStruct.totalCount],'xtick',xTicks,'xticklabel',xTickLabels);
-                    
-                    
-                    %                 dailyDivisionTicks = 1:8:featureStruct.totalCount;
-                    %                 xticks = dailyDivisionTicks;
-                    %                 weekdayticks = xticks;
-                    %                 xtickLabels = featureStruct.startTimes(1:8:end);
-                    %                 daysofweekStr = xtickLabels;
-                    
-                    legendStrings = cell(numCOIs,1);
-                    summaryStrings = cell(numCOIs,1);
-                    clusterHandles = nan(numCOIs,1);
-                    coiSortOrders = clusterHandles;
-                    coiPctMemberships = coiSortOrders;
-                    %                 coiIndices = clusterHandles;
-                    totalMembers = 0;
-                    coiMemberIDs = [];
-                    
-                    % summaryTextH = this.handles.text_clusterResultsOverlay;
-                    
                     for c=1:numCOIs
                         coi = cois{c};
+                        coiSortOrders(c) = coi.sortOrder;
+                        coiMemberIDs = [coi.memberIDs(:);coiMemberIDs(:)];
                         if(clusterAndPlotSettings.showClusterMembers)
                             if(numel(coi.shape)==1)
                                 markerOff = true;
@@ -3272,19 +3248,7 @@ classdef PAStatTool < PABase
                                     set(membersLineH(m),'uicontextmenu',this.handles.contextmenu.clusterLineMember,'userdata',coi.memberIDs(m),'buttondownfcn',{@this.memberLineButtonDownCallback,coi.memberIDs(m)});
                                 end
                             end
-                           
                         end
-                        
-                        pctMembership =  coi.dayOfWeek.numMembers/numLoadShapes*100;
-                        
-                        legendStrings{c} = sprintf('Cluster #%u (Popularity: #%d, %0.2f%%)',coi.index, coi.sortOrder,pctMembership);
-                        summaryStrings{c} = sprintf('#%u (%0.2f%%) Sum=%0.2f\tMean=%0.2f',coi.index, pctMembership,sum(coi.shape),mean(coi.shape));
-                        coiSortOrders(c) = coi.sortOrder;
-                        coiPctMemberships(c) =  coi.dayOfWeek.numMembers/numLoadShapes*100;
-                        %                     coiIndices(c) = coi.index;
-                        coiMemberIDs = [coiMemberIDs;coi.dayOfWeek.memberIDs(:)];
-                        totalMembers = totalMembers+coi.numMembers;  %total load shape counts
-                        
                         
                         % This changes my axes limit mode if nextplot is set to
                         % 'replace' instead of 'replacechildren'
@@ -3313,36 +3277,38 @@ classdef PAStatTool < PABase
                         else
                             %set(clusterHandles(c),'visible','off');                            
                         end
-                        % 'displayname',legendStrings{c};
                     end
                     
-                    
-                    set(clusterAxes,'nextplot',nextPlot);
+                    set(clusterAxes,'nextplot',originalNextPlot);
             
-                    this.displayClusterSummary(coiSortOrders, coiMemberIDs);
+                    legendStrings = this.displayClusterSummary(coiMemberIDs, coiSortOrders);
                     
-                    %% Analysis figure and scatter plot
-                    %                 title(this.handles.axes_scatterplot,clusterTitle,'fontsize',12);
+                    if(numCOIs>1)
+                        legend(clusterAxes,clusterHandles,legendStrings,'box','on','fontsize',12);                
+                    else
+                        legend(clusterAxes,'off');
+                    end
+                    
+                    % Analysis figure and scatter plot - highlight the
+                    % selected point; the cluster of interest (coi)
                     if(this.useDatabase || this.useOutcomes)                        
-                        displayName = sprintf('Cluster #%u (%0.2f%%)\n',[coiSortOrders(:),coiPctMemberships(:)]');
-                        displayName(end)=[];  %remove the final new line character
-                        
                         yData = get(this.handles.line_allScatterPlot,'ydata');
                         if(~isempty(yData))
                             set(this.handles.line_coiInScatterPlot,'xdata',coiSortOrders,'ydata',yData(coiSortOrders));
                         end
-                        set(this.handles.line_coiInScatterPlot,'displayName',displayName);                        
                     end
 
                     oldVersion = verLessThan('matlab','7.14');
  
+                    yLabelStr = '';
+                    titleStr = '';
                     %%  Show distribution on secondary axes
                     switch(this.clusterDistributionType)
                         
                         % plots the Calinski-Harabasz indices obtained during
                         % adaptve k-means filtering.
                         case 'performance'
-                            this.clusterObj.plotPerformance(distributionAxes);
+                            [~, yLabelStr, titleStr]=this.clusterObj.plotPerformance(distributionAxes);
                             
                             % plots the distribution of weekdays on x-axis
                             % and the loadshape count (for the cluster of
@@ -3386,11 +3352,12 @@ classdef PAStatTool < PABase
                             set(h,'buttonDownFcn',{@this.clusterDayOfWeekHistogramButtonDownFcn,pH});
                             
                             if(numCOIs==1)
-                                title(distributionAxes,sprintf('Weekday distribution for Cluster #%u (membership count = %u)',coi.index,numMembers),'fontsize',14);
+                                titleStr = sprintf('Cluster #%u weekday distribution (%u members)',coi.index,numMembers);
                             else
-                                title(distributionAxes,sprintf('Weekday distribution for selected clusters,n=%u (membership count = %u)',numCOIs,numMembers),'fontsize',14);
+                                titleStr = sprintf('Weekday distribution for %u selected clusters (%u members)',numCOIs,numMembers);
                             end
-                            %ylabel(distributionAxes,sprintf('Load shape count'));
+                            
+                            yLabelStr = 'Relative occurrence';
                             xlabel(distributionAxes,'Days of week');
                             xlim(distributionAxes,[daysofweekOrder(1)-0.75 daysofweekOrder(end)+0.75]);
                             set(distributionAxes,'ylim',[0,1],'ygrid','on','ytickmode','auto','xtick',daysofweekOrder,'xticklabel',daysofweekStr);
@@ -3403,16 +3370,20 @@ classdef PAStatTool < PABase
                             barWidth = 0.8;
                             
                             if(strcmpi(this.clusterDistributionType,'loadshape_membership'))                                
-                                y = this.clusterObj.getHistogram('loadshapes');                                
-                                distTitle = 'Number of loadshapes by cluster';
-                            elseif(strcmpi(this.clusterDistributionType,'participant_membership'))
-                                distTitle = 'Number of unique participant by cluster';
+                                y = this.clusterObj.getHistogram('loadshapes');    
+                                yLabelStr = 'Loadshapes (n)';                                
+                                distTitle = 'Loadshapes by cluster';
+                            elseif(strcmpi(this.clusterDistributionType,'participant_membership'))                                
+                                yLabelStr = 'Unique participants (n)';
+                                distTitle = 'Unique participants by cluster';
                                 y = this.clusterObj.getHistogram('participants');
                             elseif(strcmpi(this.clusterDistributionType,'weekday_scores'))                                
                                 sortLikeHistogram = true;
+                                yLabelStr = 'Score';
                                 y = this.clusterObj.getWeekdayScores(sortLikeHistogram);
-                                distTitle = 'Weekday score by cluster';
+                                distTitle = 'Weekday distribution scores';
                             end
+                            titleStr = distTitle;
                             
                             x = 1:numel(y);                            
                             highlightColor = [0.75 0.75 0];                            
@@ -3444,7 +3415,8 @@ classdef PAStatTool < PABase
                                 
                             end
                             
-                            title(distributionAxes,sprintf('%s. Clusters: %u Load shapes: %u',distTitle,this.clusterObj.numClusters(), this.clusterObj.numLoadShapes()),'fontsize',14);
+                            %title(distributionAxes,sprintf('%s. Clusters: %u Load shapes: %u',distTitle,this.clusterObj.numClusters(), this.clusterObj.numLoadShapes()),'fontsize',14);
+                            
                             %ylabel(distributionAxes,sprintf('Load shape count'));
                             xlabel(distributionAxes,'Cluster popularity');
                             xlim(distributionAxes,[0.25 numClusters+.75]);
@@ -3462,6 +3434,8 @@ classdef PAStatTool < PABase
                             warndlg(sprintf('Distribution type (%s) is unknonwn and or not supported',this.clusterDistributionType));
                     end
                     
+                    ylabel(distributionAxes,yLabelStr);
+                    title(distributionAxes,titleStr,'fontsize',14);
                     this.refreshCOIProfile();
                 end
             catch me
@@ -3471,46 +3445,61 @@ classdef PAStatTool < PABase
             this.showMouseReady();
         end
         
-        function clusterTitle = displayClusterSummary(this, coiSortOrders, coiMemberIDs)
+        function [legendStrings, clusterTitle, clusterDescription] = displayClusterSummary(this, coiMemberIDs, coiSortOrders)
+            % summaryTextH = this.handles.text_clusterResultsOverlay;
             clusterAxes = this.handles.axes_primary;
           
             numClusters = this.clusterObj.numClusters();
             numLoadShapes = this.clusterObj.numLoadShapes();
             
+            % The cluster of interest will change according to user
+            % selection or interaction with the gui.  It is updated
+            % internally within clusterObj.            
             cois = this.clusterObj.getClustersOfInterest();            
             numCOIs = numel(cois);
             
-            % The cluster of interest will change according to user
-            % selection or interaction with the gui.  It is updated
-            % internally within clusterObj.
-            coi = this.clusterObj.getClusterOfInterest();
-            pctMembership =  coi.dayOfWeek.numMembers/numLoadShapes*100;            
+            legendStrings = cell(numCOIs,1);
+            summaryStrings = cell(numCOIs,1);
+            coiPctOfLoadShapes = zeros(numCOIs,1);
+            
+            % summaryTextH = this.handles.text_clusterResultsOverlay;
+            
+            for c=1:numCOIs
+                coi = cois{c};
+                numCOILoadShapes = coi.numMembers;  %total load shape counts;
+                coiPctOfLoadShapes(c) = numCOILoadShapes/numLoadShapes*100;
+                legendStrings{c} = sprintf('Cluster #%u (Popularity: #%d, %0.2f%%)',coi.index, coi.sortOrder,coiPctOfLoadShapes(c));
+                summaryStrings{c} = sprintf('#%u (%0.2f%%) Sum=%0.2f\tMean=%0.2f',coi.index, coiPctOfLoadShapes(c),sum(coi.shape),mean(coi.shape));
+                
+            end
+            
+            % Tallied here for all load coi's - may be 1, in which case it
+            % is the same value as above
+            numCOILoadShapes = numel(coiMemberIDs);  % member IDs need not be unique here
+            pctOfLoadShapes = numCOILoadShapes/numLoadShapes*100;
             
             %want to figure out unique individuals that may be
             %contributing to a particular load shape.
             uniqueMemberIDs = unique(coiMemberIDs);
             numUniqueMemberIDs = numel(uniqueMemberIDs);
 
-
             totalMemberIDsCount = this.clusterObj.getUniqueLoadShapeIDsCount();
             pctOfTotalMemberIDs = numUniqueMemberIDs/totalMemberIDsCount*100;
             weekdayScore = coi.dayOfWeek.score;
             clusterDescription = sprintf('Loadshapes: %u of %u (%0.2f%%)\nIndividuals: %u of %u (%0.2f%%)',...
-                coi.dayOfWeek.numMembers, numLoadShapes, pctMembership, numUniqueMemberIDs, totalMemberIDsCount, pctOfTotalMemberIDs);
+                numCOILoadShapes, numLoadShapes, pctOfLoadShapes, numUniqueMemberIDs, totalMemberIDsCount, pctOfTotalMemberIDs);
             
             if(numCOIs>1)
                 coiSortOrdersString = num2str(coiSortOrders(:)','%d,');
                 coiSortOrdersString(end)=[]; %remove trailing ','
-                legend(clusterAxes,clusterHandles,legendStrings,'box','on','fontsize',12);
                 clusterID = sprintf('Clusters #{%s}',coiSortOrdersString);
                 clusterTitle = sprintf('Clusters #{%s}. Loadshapes: %u of %u (%0.2f%%).  Individuals: %u of %u (%0.2f%%)',coiSortOrdersString,...
-                    totalMembers, numLoadShapes, sum(coiPctMemberships), numUniqueMemberIDs,totalMemberIDsCount, pctOfTotalMemberIDs);
+                    numCOILoadShapes, numLoadShapes, pctOfLoadShapes, numUniqueMemberIDs, totalMemberIDsCount, pctOfTotalMemberIDs);
             else
-                legend(clusterAxes,'off');
                 % Use when show most popular first, on left side
                 clusterID = sprintf('Cluster #%u',coi.index);
                 clusterTitle = sprintf('Cluster #%u (%s). Popularity %u of %u. Loadshapes: %u of %u (%0.2f%%).  Individuals: %u of %u (%0.2f%%)',coi.index,...
-                    this.featureStruct.method, coi.sortOrder,numClusters, coi.dayOfWeek.numMembers, numLoadShapes, pctMembership, numUniqueMemberIDs, totalMemberIDsCount, pctOfTotalMemberIDs);
+                    this.featureStruct.method, coi.sortOrder,numClusters, coi.dayOfWeek.numMembers, numLoadShapes, pctOfLoadShapes, numUniqueMemberIDs, totalMemberIDsCount, pctOfTotalMemberIDs);
                 % Use when show most popular last, (right most side)
                 % clusterTitle = sprintf('Cluster #%u (%s). Popularity %u of %u. Loadshapes: %u of %u (%0.2f%%).  Individuals: %u of %u (%0.2f%%)',coi.sortOrder,...
                 %   this.featureStruct.method, numClusters-coi.sortOrder+1,numClusters, coi.dayOfWeek.numMembers, numLoadShapes, pctMembership, numUniqueMemberIDs, totalMemberIDsCount, pctOfTotalMemberIDs);
@@ -3521,7 +3510,7 @@ classdef PAStatTool < PABase
             set(this.handles.text_clusterID,'string',clusterID);
             set(this.handles.text_clusterDescription,'string',clusterDescription);
             
-            if(this.originalWidgetSettings.showClusterSummary)
+            if(this.originalWidgetSettings.showClusterSummary && isempty(intersect(this.clusterDistributionType,{'performance','weekday_scores'})))
                 set(this.handles.panel_clusterInfo,'visible','on');                
                 % the title is cleared automatically already.
                 %title(clusterAxes,clusterTitle,'fontsize',14,'interpreter','none','visible','off');
@@ -3534,12 +3523,21 @@ classdef PAStatTool < PABase
                 set(this.handles.text_analysisTitle,'string',clusterTitle);
             end
             
-            %set(summaryTextH,'string',summaryStrings);
             
-            %                     summaryStrings = strrep(summaryStrings,'%','%%');
-            %                     this.setStatus(cell2str(summaryStrings,' - '));
-            %                     this.logStatus(cell2str(summaryStrings,' - '));
+            % Analysis figure and scatter plot
+            % title(this.handles.axes_scatterplot,clusterTitle,'fontsize',12);
+            if(this.useDatabase || this.useOutcomes)
+                displayName = sprintf('Cluster #%u (%0.2f%%)\n',[coiSortOrders(:),coiPctOfLoadShapes(:)]');
+                displayName(end)=[];  %remove the final new line character
+                set(this.handles.line_coiInScatterPlot,'displayName',displayName);
+            end            
             
+            % Additional ways to display/update summary text
+            %   set(summaryTextH,'string',summaryStrings);
+            %   summaryStrings = strrep(summaryStrings,'%','%%');
+            %   this.setStatus(cell2str(summaryStrings,' - '));
+            %   this.logStatus(cell2str(summaryStrings,' - '));
+
         end
         
         % Refresh the user settings from current GUI configuration.

@@ -1056,7 +1056,7 @@ classdef PACluster < PAData
             end
         end
         
-        function h= plotPerformance(this, axesH)
+        function [h, yLabelStr] = plotPerformance(this, axesH)
             X = this.performanceProgression.X;
             Y = this.performanceProgression.Y;
 %             axesSettings.font = get(axesH,'font');
@@ -1064,6 +1064,8 @@ classdef PACluster < PAData
             fontSettings.fontsize = get(axesH,'fontsize');
             
             h=this.plot(axesH,X,Y);
+            yLabelStr = this.performanceProgression.criterion;
+            ylabel(axesH,yLabelStr);
             
             set(axesH,'xlim',[min(X)-0.5,max(X)+0.5],'ylimmode','auto','ygrid','on',...
                 'ytickmode','auto','xtickmode','auto',...
@@ -1184,7 +1186,7 @@ classdef PACluster < PAData
         %> cluster sizes and corresponding Calinski indices obtained for
         %> each iteration of k means.
         % ======================================================================
-        function [idx, centroids, performanceIndex, performanceProgression, sumD] = adaptiveKmedoids(this,loadShapes,settings,performanceAxesH,textStatusH)
+        function [idx, medoids, performanceIndex, performanceProgression, sumD] = adaptiveKmedoids(this,loadShapes,settings,performanceAxesH,textStatusH)
             performanceIndex = [];
             X = [];
             Y = [];
@@ -1234,7 +1236,7 @@ classdef PACluster < PAData
                 performanceProgression.X = X;
                 performanceProgression.Y = Y;
                 performanceProgression.statusStr = 'Did not converge: empty data set received for clustering';
-                centroids = [];
+                medoids = [];
                 
             else
                 % prime loop condition since we don't have a do while ...
@@ -1269,14 +1271,14 @@ classdef PACluster < PAData
                         % prime the kmedoids algorithms starting centroids
                         % - Turn this off for reproducibility
                         if(settings.initClusterWithPermutation)
-                            centroids = loadShapes(pa_randperm(N,K),:);
-                            [idx, centroids, sumD, pointToClusterDistances] = kmedoids(loadShapes,K,'Start',centroids,'distance',this.distanceMetric);
+                            medoids = loadShapes(pa_randperm(N,K),:);
+                            [idx, medoids, sumD, pointToClusterDistances] = kmedoids(loadShapes,K,'Start',medoids,'distance',this.distanceMetric);
                         else
-                            [idx, centroids, sumD, pointToClusterDistances] = kmedoids(loadShapes,K,'distance',this.distanceMetric);
+                            [idx, medoids, sumD, pointToClusterDistances] = kmedoids(loadShapes,K,'distance',this.distanceMetric);
                         end
                         firstLoop = false;
                     else
-                        [idx, centroids, sumD, pointToClusterDistances] = kmedoids(loadShapes,K,'Start',centroids,'distance',this.distanceMetric);
+                        [idx, medoids, sumD, pointToClusterDistances] = kmedoids(loadShapes,K,'Start',medoids,'distance',this.distanceMetric);
                     end
 
                     if(ishandle(performanceAxesH))
@@ -1284,7 +1286,7 @@ classdef PACluster < PAData
                             performanceIndex  = mean(silhouette(loadShapes,idx,this.distanceMetric));
 
                         else
-                            performanceIndex  = PACluster.getCalinskiHarabaszIndex(idx,centroids,sumD);
+                            performanceIndex  = PACluster.getCalinskiHarabaszIndex(idx,medoids,sumD);
                         end
                         X(end+1)= K;
                         Y(end+1)=performanceIndex;
@@ -1308,7 +1310,7 @@ classdef PACluster < PAData
                     end
                     
                     
-                    removed = sum(isnan(centroids),2)>0;
+                    removed = sum(isnan(medoids),2)>0;
                     numRemoved = sum(removed);
                     if(numRemoved>0)
                         statusStr = sprintf('%u clusters were dropped during this iteration.',numRemoved);
@@ -1318,9 +1320,9 @@ classdef PACluster < PAData
                             set(textStatusH,'string',[curString(end);statusStr]);
                         end
                         
-                        centroids(removed,:)=[];
+                        medoids(removed,:)=[];
                         K = K-numRemoved;
-                        [idx, centroids, sumD, pointToClusterDistances] = kmedoids(loadShapes,K,'Start',centroids,'onlinephase','off','distance',this.distanceMetric);
+                        [idx, medoids, sumD, pointToClusterDistances] = kmedoids(loadShapes,K,'Start',medoids,'onlinephase','off','distance',this.distanceMetric);
                         
                         % We performed another clustering step just now, so
                         % show these results.
@@ -1329,7 +1331,7 @@ classdef PACluster < PAData
                                 performanceIndex  = mean(silhouette(loadShapes,idx,this.distanceMetric));
                                 
                             else
-                                performanceIndex  = PACluster.getCalinskiHarabaszIndex(idx,centroids,sumD);
+                                performanceIndex  = PACluster.getCalinskiHarabaszIndex(idx,medoids,sumD);
                             end
                             X(end+1)= K;
                             Y(end+1)=performanceIndex;
@@ -1355,7 +1357,7 @@ classdef PACluster < PAData
                     
                     point2centroidDistanceIndices = sub2ind(size(pointToClusterDistances),(1:N)',idx);
                     distanceToClusters = pointToClusterDistances(point2centroidDistanceIndices);
-                    sqEuclideanClusters = (sum(centroids.^2,2));
+                    sqEuclideanClusters = (sum(medoids.^2,2));
                     
                     clusterThresholds = settings.clusterThreshold*sqEuclideanClusters;
                     notCloseEnoughPoints = distanceToClusters>clusterThresholds(idx);
@@ -1363,7 +1365,7 @@ classdef PACluster < PAData
                     
                     numNotCloseEnough = numel(notCloseEnoughClusters);
                     if(numNotCloseEnough>0)
-                        centroids(notCloseEnoughClusters,:)=[];
+                        medoids(notCloseEnoughClusters,:)=[];
                         for k=1:numNotCloseEnough
                             curClusterIndex = notCloseEnoughClusters(k);
                             clusteredLoadShapes = loadShapes(idx==curClusterIndex,:);
@@ -1375,19 +1377,19 @@ classdef PACluster < PAData
                                 catch me
                                     showME(me);
                                 end
-                                centroids = [centroids;splitClusters];
+                                medoids = [medoids;splitClusters];
                             else
                                 if(numClusteredLoadShapes~=1)
                                     echo(numClusteredLoadShapes); %houston, we have a problem.
                                 end
                                 numNotCloseEnough = numNotCloseEnough-1;
-                                centroids = [centroids;clusteredLoadShapes];
+                                medoids = [medoids;clusteredLoadShapes];
                             end
                         end
                         
                         % reset cluster centers now / batch update
                         K = K+numNotCloseEnough;
-                        [~, centroids] = kmedoids(loadShapes,K,'Start',centroids,'onlinephase','off','distance',this.distanceMetric);
+                        [~, medoids] = kmedoids(loadShapes,K,'Start',medoids,'onlinephase','off','distance',this.distanceMetric);
                     end
                 end  % end adaptive while loop
                 
@@ -1400,7 +1402,7 @@ classdef PACluster < PAData
                         drawnow();
                     end
                     
-                    [performanceIndex, X, Y, idx, centroids] = deal([]);
+                    [performanceIndex, X, Y, idx, medoids] = deal([]);
                 else
                     if(this.getUserCancelled())
                         statusStr = sprintf('User cancelled - completing final clustering operation ...');
@@ -1409,7 +1411,7 @@ classdef PACluster < PAData
                             curString = get(textStatusH,'string');
                             set(textStatusH,'string',[curString(end);statusStr]);
                         end
-                        [idx, centroids, sumD, pointToClusterDistances] = kmedoids(loadShapes,K,'Start',centroids,'distance',this.distanceMetric);
+                        [idx, medoids, sumD, pointToClusterDistances] = kmedoids(loadShapes,K,'Start',medoids,'distance',this.distanceMetric);
                     end
                     % This may only pertain to when the user cancelled.
                     % Not sure if it is needed otherwise...
@@ -1418,7 +1420,7 @@ classdef PACluster < PAData
                             performanceIndex  = mean(silhouette(loadShapes,idx));
 
                         else
-                            performanceIndex  = PACluster.getCalinskiHarabaszIndex(idx,centroids,sumD);                            
+                            performanceIndex  = PACluster.getCalinskiHarabaszIndex(idx,medoids,sumD);                            
                         end
                         X(end+1)= K;
                         Y(end+1)=performanceIndex;
@@ -1459,6 +1461,7 @@ classdef PACluster < PAData
                 performanceProgression.X = X;
                 performanceProgression.Y = Y;
                 performanceProgression.statusStr = statusStr;
+                performanceProgression.criterion = sprintf('%s Index',sentencecase(this.performanceCriterion));
                 
             end
         end
@@ -1781,6 +1784,7 @@ classdef PACluster < PAData
                 performanceProgression.X = X;
                 performanceProgression.Y = Y;
                 performanceProgression.statusStr = statusStr;
+                performanceProgression.criterion = sprintf('%s Index',sentencecase(this.performanceCriterion));
                 
                 
             end
