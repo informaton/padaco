@@ -2111,6 +2111,14 @@ classdef PAStatTool < PABase
             displayStrings = get(this.handles.line_coiInScatterPlot,'displayname');
 
             this.initScatterPlotAxes();
+            
+            figSource = 'unset';
+            if(this.useDatabase)
+                figSource = 'MySQL';
+            elseif(this.useOutcomesTable)
+                figSource = 'Outcome .txt files';
+            end
+            set(this.analysisFigureH,'name',sprintf('Cluster Analysis (%s)',figSource));
 
             if(~isempty(this.clusterObj))
                 numClusters = this.clusterObj.getNumClusters();  %or numel(globalStruct.colnames).
