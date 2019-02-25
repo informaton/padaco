@@ -153,6 +153,10 @@ classdef PACluster < PAData
         % dimension (e.g.     '00:00'    '04:40'    '09:30'    '14:10'
         % '19:00'    '23:50')
         loadShapeTimes;
+        
+        % Nx1 logical vector with 1 indicating loadshapes identified having
+        % nonwear.
+        nonwearRows;
     end
     
             
@@ -162,6 +166,16 @@ classdef PACluster < PAData
             if(iscell(cellOfTimes) && size(cellOfTimes,2)==size(this.loadShapes,2))
                 this.loadShapeTimes = cellOfTimes;
                 didSet = true;                
+            end
+        end
+        
+        function didSet = setNonwearRows(this, nonwearRows)            
+            if(size(nonwearRows,1)==size(this.loadShapes,1))
+                this.nonwearRows = nonwearRows;
+                didSet = true;                
+            else
+                this.nonwearRows = [];
+                didSet = false;
             end
         end
          
@@ -609,10 +623,16 @@ classdef PACluster < PAData
             if(nargin<2 || isempty(histogramOf))
                 histogramOf = 'loadshapes';
             end
-            if(strcmpi(histogramOf,'participants'))
-                distribution = this.histogram.participants;
-            else
-                distribution = this.histogram.loadshapes;
+            switch(lower(histogramOf))
+                case 'participants'
+                    distribution = this.histogram.participants;
+                case 'loadshapes'
+                    distribution = this.histogram.loadshapes;
+                case 'nonwear'
+                    distribution = this.histogram.nonwear;
+                otherwise
+                    this.logError([],'Unrecognized histogram option (%s) - returning loadshapes',histogramOf);
+                    distribution = this.histogram.loadshapes;
             end
         end
         
@@ -666,8 +686,7 @@ classdef PACluster < PAData
         function init(this)
             this.loadshapeIndex2centroidIndexMap = [];
             this.centroidShapes = [];
-            this.histogram.loadshapes = [];
-            this.histogram.participants = [];            
+            this.histogram = mkstruct({'loadshapes','participants','nonwear'});                
             this.weekdayScores = [];
             this.loadShapes = [];
             % this.sortIndices = [];
@@ -879,11 +898,18 @@ classdef PACluster < PAData
             % index.  We want the rows with the centroid index:            
             coi.memberIndices = (coi.index==this.loadshapeIndex2centroidIndexMap);
             
+            
             % Now we can pull the member variables that were
             % clustered to the centroid index of interest.
             coi.memberShapes = this.loadShapes(coi.memberIndices,:);
             coi.memberIDs = this.loadShapeIDs(coi.memberIndices,:);
             coi.numMembers = size(coi.memberShapes,1); 
+            if(~isempty(this.nonwearRows))
+                coi.numNonwear = sum(this.nonwearRows(coi.memberIndices));
+            else
+                coi.numNonwear = 0;
+            end
+            
             % coi.numMembers = this.histogram.loadshapes(coi.sortOrder);            
             coi.numUniqueParticipants = this.histogram.participants(coi.sortOrder);
             coi.weekdayScore = this.weekdayScores(coi.index);
@@ -1018,6 +1044,7 @@ classdef PACluster < PAData
                 [this.histogram.loadshapes, this.centroidSortMap] = this.calculateAndSortDistribution(this.loadshapeIndex2centroidIndexMap);%  was -->       calculateAndSortDistribution(this.loadshapeIndex2centroidIndexMap);
                 
                 this.histogram.participants = zeros(size(this.histogram.loadshapes));
+                this.histogram.nonwear = zeros(size(this.histogram.loadshapes));
                 
                 this.coiSortOrder2Index = this.centroidSortMap;  % coiSortOrder2Index(c) contains the original centroid index that corresponds to the c_th most popular position 
                 [~,this.coiIndex2SortOrder] = sort(this.centroidSortMap,1,'ascend');
@@ -1038,6 +1065,11 @@ classdef PACluster < PAData
                     
                     % Keep it in the same order as histogram.loadshapes
                     this.histogram.participants(this.coiIndex2SortOrder(k)) = numel(unique(dayOfWeek.memberIDs));
+                    
+                    if(~isempty(this.nonwearRows))
+                        % Keep it in the same order as histogram.loadshapes
+                        this.histogram.nonwear(this.coiIndex2SortOrder(k)) = sum(this.nonwearRows(this.clusterMemberIndices(k,:)));
+                    end
                 end
                 
                 %this.weekdayScores =

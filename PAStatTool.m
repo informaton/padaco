@@ -1617,6 +1617,7 @@ classdef PAStatTool < PABase
                         contextmenu_secondaryAxes = uicontextmenu('callback',@this.contextmenu_secondaryAxesCallback,'parent',this.figureH);
                         this.handles.contextmenu.secondaryAxes.loadshape_membership = uimenu(contextmenu_secondaryAxes,'Label','Loadshapes per cluster','callback',{@this.clusterDistributionCallback,'loadshape_membership'});
                         this.handles.contextmenu.secondaryAxes.participant_membership = uimenu(contextmenu_secondaryAxes,'Label','Participants per cluster','callback',{@this.clusterDistributionCallback,'participant_membership'});
+                        this.handles.contextmenu.secondaryAxes.nonwear_membership = uimenu(contextmenu_secondaryAxes,'Label','Nonwear per cluster','callback',{@this.clusterDistributionCallback,'nonwear_membership'});
                         this.handles.contextmenu.secondaryAxes.weekday_scores = uimenu(contextmenu_secondaryAxes,'Label','Weekday scores by cluster','callback',{@this.clusterDistributionCallback,'weekday_scores'},'separator','on');
                         this.handles.contextmenu.secondaryAxes.weekday = uimenu(contextmenu_secondaryAxes,'Label','Current cluster''s weekday distribution','callback',{@this.clusterDistributionCallback,'weekday'});
                         this.handles.contextmenu.secondaryAxes.performance = uimenu(contextmenu_secondaryAxes,'Label','Adaptive separation performance progression','callback',{@this.clusterDistributionCallback,'performance'},'separator','on');
@@ -2989,6 +2990,8 @@ classdef PAStatTool < PABase
                 else
                     this.setStatus('');
                 end
+                
+                tmpClusterObj.setNonwearRows(this.nonwear.rows);
                 this.clusterObj = tmpClusterObj;
                 
                 if(enableUserCancel)
@@ -3404,7 +3407,7 @@ classdef PAStatTool < PABase
                             
                         % plots clusters id's (sorted by membership in ascending order) on x-axis
                         % and the count of loadshapes (i.e. membership count) on the y-axis.                            
-                        case {'loadshape_membership','participant_membership','weekday_scores'}
+                        case {'loadshape_membership','participant_membership','weekday_scores','nonwear_membership'}
                             
                             set(distributionAxes,'ylimmode','auto');
                             barWidth = 0.8;
@@ -3422,6 +3425,12 @@ classdef PAStatTool < PABase
                                 yLabelStr = 'Score';
                                 y = this.clusterObj.getWeekdayScores(sortLikeHistogram);
                                 distTitle = 'Weekday distribution scores';
+                            elseif(strcmpi(this.clusterDistributionType,'nonwear_membership'))                                
+                                yLabelStr = 'Loadshapes with nonwear (n)';
+                                %y = this.clusterObj.getHistogram('loadshapes');
+                                y = this.clusterObj.getHistogram('nonwear');
+                                
+                                distTitle = 'Nonwear Occurrence';
                             end
                             titleStr = distTitle;
                             
@@ -3458,7 +3467,7 @@ classdef PAStatTool < PABase
                             %title(distributionAxes,sprintf('%s. Clusters: %u Load shapes: %u',distTitle,this.clusterObj.numClusters(), this.clusterObj.numLoadShapes()),'fontsize',14);
                             
                             %ylabel(distributionAxes,sprintf('Load shape count'));
-                            xlabel(distributionAxes,'Cluster popularity');
+                            xlabel(distributionAxes,'Cluster popularity','fontsize',14);
                             xlim(distributionAxes,[0.25 numClusters+.75]);
                             set(distributionAxes,'ygrid','on','ytickmode','auto','xtick',[]);
                             %                     case 'globalprofile'
@@ -3474,7 +3483,7 @@ classdef PAStatTool < PABase
                             warndlg(sprintf('Distribution type (%s) is unknonwn and or not supported',this.clusterDistributionType));
                     end
                     
-                    ylabel(distributionAxes,yLabelStr);
+                    ylabel(distributionAxes,yLabelStr,'fontsize',14);
                     title(distributionAxes,titleStr,'fontsize',14);
                     this.refreshCOIProfile();
                 end
@@ -3491,7 +3500,7 @@ classdef PAStatTool < PABase
           
             numClusters = this.clusterObj.numClusters();
             numLoadShapes = this.clusterObj.numLoadShapes();
-            
+%             numNonwear
             % The cluster of interest will change according to user
             % selection or interaction with the gui.  It is updated
             % internally within clusterObj.            
@@ -3501,12 +3510,14 @@ classdef PAStatTool < PABase
             legendStrings = cell(numCOIs,1);
             summaryStrings = cell(numCOIs,1);
             coiPctOfLoadShapes = zeros(numCOIs,1);
-            
+            coiNumNonwear = zeros(numCOIs,1);
             % summaryTextH = this.handles.text_clusterResultsOverlay;
             
-            for c=1:numCOIs
+            for c=1:numCOIs                
                 coi = cois{c};
+                
                 numCOILoadShapes = coi.numMembers;  %total load shape counts;
+                coiNumNonwear(c) = coi.numNonwear;
                 coiPctOfLoadShapes(c) = numCOILoadShapes/numLoadShapes*100;
                 legendStrings{c} = sprintf('Cluster #%u (Popularity: #%d, %0.2f%%)',coi.index, coi.sortOrder,coiPctOfLoadShapes(c));
                 summaryStrings{c} = sprintf('#%u (%0.2f%%) Sum=%0.2f\tMean=%0.2f',coi.index, coiPctOfLoadShapes(c),sum(coi.shape),mean(coi.shape));
@@ -3518,6 +3529,9 @@ classdef PAStatTool < PABase
             numCOILoadShapes = numel(coiMemberIDs);  % member IDs need not be unique here
             pctOfLoadShapes = numCOILoadShapes/numLoadShapes*100;
             
+            numCOINonwear = sum(coiNumNonwear);
+            pctCOINonwear = numCOINonwear/numCOILoadShapes*100;
+            
             %want to figure out unique individuals that may be
             %contributing to a particular load shape.
             uniqueMemberIDs = unique(coiMemberIDs);
@@ -3526,8 +3540,9 @@ classdef PAStatTool < PABase
             totalMemberIDsCount = this.clusterObj.getUniqueLoadShapeIDsCount();
             pctOfTotalMemberIDs = numUniqueMemberIDs/totalMemberIDsCount*100;
             weekdayScore = coi.dayOfWeek.score;
-            clusterDescription = sprintf('Loadshapes: %u of %u (%0.2f%%)\nIndividuals: %u of %u (%0.2f%%)',...
-                numCOILoadShapes, numLoadShapes, pctOfLoadShapes, numUniqueMemberIDs, totalMemberIDsCount, pctOfTotalMemberIDs);
+            clusterDescription = sprintf('Loadshapes: %u of %u (%0.2f%%)\nIndividuals: %u of %u (%0.2f%%)\nNonwear: %u of %u (%0.2f%%)',...
+                numCOILoadShapes, numLoadShapes, pctOfLoadShapes, numUniqueMemberIDs, totalMemberIDsCount, pctOfTotalMemberIDs,...
+                numCOINonwear, numCOILoadShapes,pctCOINonwear);
             
             if(numCOIs>1)
                 coiSortOrdersString = num2str(coiSortOrders(:)','%d,');

@@ -19,7 +19,8 @@ Version history
     * Negative values indicate more weekend prevalence, positive values indicate higher weekday prevalence.
     * -1 indicates day of week distribution is entirely weekend (Saturday-Sunday)
     * +1 indicates distribution is entirely weekdays (Tuesday - Thursday).
-  - Added distribution of unique participants per cluster.  
+  - Added distribution of unique participants per cluster.
+  - Add nonwear occurrence  
 - Menubar: Changed "Analysis Mode" -> "View"
 - Resolved issues
   - Transition issue (#102)

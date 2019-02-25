@@ -22,7 +22,11 @@ classdef PABase < handle
         end
         
         function logError(obj, me, fmtStr, varargin)
-           showME(me);           
+            if(~isempty(me))
+                showME(me);
+            end
+            errMsg = sprintf(fmtStr,varargin{:});
+            obj.logStatus('[Error] %s',errMsg);
         end
         
         function logStatus(obj, fmtStr, varargin)
