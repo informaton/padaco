@@ -270,7 +270,8 @@ classdef PAStatTool < PABase
                             'originalFeatureStruct'
                             'usageStateStruct'
                             'resultsDirectory'
-                            'featuresDirectory'};
+                            'featuresDirectory'
+                            'nonwear'};
                         tmpStruct = load(this.getFullClusterCacheFilename(),'-mat',validFields{:});
                         
                         % Double check that the cached data is still there in
@@ -384,7 +385,7 @@ classdef PAStatTool < PABase
                     else
                         nonwearFeatures = [];
                     end
-                    [didExport, msg] = curCluster.exportToDisk(exportPath, lastClusterSettings, nonwearFeatures);
+                    [didExport, msg] = curCluster.exportToDisk(lastClusterSettings, nonwearFeatures);
 
                     %                     if(~lastClusterSettings.discardNonwearFeatures)
                     %                         [didExport, msg] = curCluster.exportToDisk(exportPath, lastClusterSettings, nonwearFeatures{:});
@@ -413,6 +414,10 @@ classdef PAStatTool < PABase
                     pa_msgbox(msg,'Export',makeModal);
                 end
             end
+        end
+        
+        function clusterParameterChangeCb(this, clusterObj, paramEventData)
+           cluserObj 
         end
         
         % ======================================================================
@@ -2679,6 +2684,7 @@ classdef PAStatTool < PABase
                         tmpStruct.usageStateStruct = this.usageStateStruct;
                         tmpStruct.resultsDirectory = this.resultsDirectory;
                         tmpStruct.featuresDirectory = this.featuresDirectory;
+                        tmpStruct.nonwear = this.nonwear;
                         fnames = fieldnames(tmpStruct);
                         save(this.getFullClusterCacheFilename(),'-mat','-struct','tmpStruct',fnames{:});
                         didCache = true;
@@ -2944,6 +2950,7 @@ classdef PAStatTool < PABase
                 % than in the constructor.
                 delayedStart = true;
                 tmpClusterObj = PACluster(this.featureStruct.features,pSettings,this.handles.axes_primary,resultsTextH,this.featureStruct.studyIDs, this.featureStruct.startDaysOfWeek, delayedStart);
+                tmpClusterObj.addlistener('DefaultParameterChange',@this.clusterParameterChangeCb);
                 this.addlistener('UserCancel_Event',@tmpClusterObj.cancelCalculations);
                 if(~tmpClusterObj.setShapeTimes(this.featureStruct.startTimes))
                     this.setStatus('Shape times not set!');
@@ -3017,6 +3024,7 @@ classdef PAStatTool < PABase
             this.enable();
             this.showReady();
         end
+        
         
         % Original widget settings from when the last cluster calculation
         % was performed.

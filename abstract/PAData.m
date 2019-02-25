@@ -31,8 +31,10 @@ classdef PAData < PABase
         % --------------------------------------------------------------------
         function didSet = setExportPath(this, newPath)
             try
+                oldPath = this.exportPathname;
                 this.exportPathname = newPath;
                 didSet = true;
+                this.notify('DefaultParameterChange',EventData_ParameterChange('exportPathname',newPath, oldPath));
             catch me
                 showME(me);
                 didSet = false;

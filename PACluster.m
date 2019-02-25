@@ -293,9 +293,18 @@ classdef PACluster < PAData
         end
         
         
-        function [didExport, resultMsg] = exportToDisk(this,exportPath, clusterSettingsStruct, nonwearStruct)
+        function [didExport, resultMsg] = exportToDisk(this, clusterSettingsStruct, nonwearStruct, exportPath)
             didExport = false;
             
+            if(nargin>3)
+                if(isdir(exportPath))
+                    this.setExportPath(exportPath);
+                else
+                    % keep the passed exportPath, which will fail below: ~isdir(exportPath)
+                end
+            else
+                exportPath = this.getExportPath();
+            end
             if(~isdir(exportPath))                
                 msg = sprintf('Export path does not exist.  Nothing done.\nExport path: %s',exportPath);
             else
@@ -538,7 +547,8 @@ classdef PACluster < PAData
         function removeHandleReferences(this)
             this.statusTextHandle = 1;
             this.performanceAxesHandle = -1;
-            this.performanceLineHandle = -1;            
+            this.performanceLineHandle = -1; 
+            % any listeners?
         end
         
         
@@ -1878,7 +1888,8 @@ classdef PACluster < PAData
             
             settings.clusterMethod = 'kmeans';
             settings.useDefaultRandomizer = false;
-            settings.initClusterWithPermutation = false;            
+            settings.initClusterWithPermutation = false;
+            
         end
         
         function methods = getClusterMethods()
