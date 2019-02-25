@@ -492,12 +492,11 @@ classdef PACluster < PAData
                     value = nan;
             end
         end
-        
-                    
+                            
         function silhouetteIndex = getSilhouetteIndex(this)
             silhouetteIndex = mean(this.getSilhouette());
-            
         end
+        
         function [silh, varargout] = getSilhouette(this)
             if(this.numClusters==0)
                 silh = NaN;
@@ -511,7 +510,26 @@ classdef PACluster < PAData
                     % silhouette(X, idx,'distance','sqEuclidean');
                     % 
             end
+        end        
+                
+        %> @brief Validation metric for cluster separation.   Useful in determining if clusters are well separated.  
+        %> If clusters are not well separated, then the Adaptive K-means threshold should be adjusted according to the segmentation resolution desired.
+        %> @note See Calinski, T., and J. Harabasz. "A dendrite method for cluster analysis." Communications in Statistics. Vol. 3, No. 1, 1974, pp. 1?27.
+        %> @note See also http://www.mathworks.com/help/stats/clustering.evaluation.calinskiharabaszevaluation-class.html 
+        %> @param Vector of output from mapping loadShapes to parent
+        %> centroids.
+        %> @param Clusters calculated via kmeans
+        %> @param sum of euclidean distances
+        %> @retval The Calinzki-Harabasz index
+        function calinskiIndex = getCalinskiHarabaszIndex(this,loadShapeMap,centroids,sumD)
+            if(this.numClusters==0)
+                calinskiIndex = NaN;
+                fprintf(1,'Warning no clusters exist.  Calinski index returning NaN\n');
+            else             
+                calinskiIndex = calinski(loadShapeMap, centroids, sumD);
+            end
         end
+        
         
         %> @brief Removes any graphic handle to references.  This is
         %> a helpful precursor to calling 'save' on the object, as it
@@ -1039,7 +1057,7 @@ classdef PACluster < PAData
                 
                 idx = this.loadshapeIndex2centroidIndexMap;
                 if(strcmpi(this.performanceCriterion,'silhouette'))
-                    this.calinskiIndex = PACluster.getCalinskiHarabaszIndex(idx,this.centroidShapes,this.sumD);
+                    this.calinskiIndex = this.getCalinskiHarabaszIndex(idx,this.centroidShapes,this.sumD);
                     this.silhouetteIndex = this.performanceMeasure;            
                     fprintf('Calinski Index = %0.2f\n',this.calinskiIndex);
                 else
@@ -1286,7 +1304,7 @@ classdef PACluster < PAData
                             performanceIndex  = mean(silhouette(loadShapes,idx,this.distanceMetric));
 
                         else
-                            performanceIndex  = PACluster.getCalinskiHarabaszIndex(idx,medoids,sumD);
+                            performanceIndex  = this.getCalinskiHarabaszIndex(idx,medoids,sumD);
                         end
                         X(end+1)= K;
                         Y(end+1)=performanceIndex;
@@ -1331,7 +1349,7 @@ classdef PACluster < PAData
                                 performanceIndex  = mean(silhouette(loadShapes,idx,this.distanceMetric));
                                 
                             else
-                                performanceIndex  = PACluster.getCalinskiHarabaszIndex(idx,medoids,sumD);
+                                performanceIndex  = this.getCalinskiHarabaszIndex(idx,medoids,sumD);
                             end
                             X(end+1)= K;
                             Y(end+1)=performanceIndex;
@@ -1420,7 +1438,7 @@ classdef PACluster < PAData
                             performanceIndex  = mean(silhouette(loadShapes,idx));
 
                         else
-                            performanceIndex  = PACluster.getCalinskiHarabaszIndex(idx,medoids,sumD);                            
+                            performanceIndex  = this.getCalinskiHarabaszIndex(idx,medoids,sumD);                            
                         end
                         X(end+1)= K;
                         Y(end+1)=performanceIndex;
@@ -1605,7 +1623,7 @@ classdef PACluster < PAData
                             performanceIndex  = mean(silhouette(loadShapes,idx));
 
                         else
-                            performanceIndex  = PACluster.getCalinskiHarabaszIndex(idx,centroids,sumD);                            
+                            performanceIndex  = this.getCalinskiHarabaszIndex(idx,centroids,sumD);                            
                         end
                         X(end+1)= K;
                         Y(end+1)=performanceIndex;
@@ -1647,7 +1665,7 @@ classdef PACluster < PAData
                                 performanceIndex  = mean(silhouette(loadShapes,idx));
                                 
                             else
-                                performanceIndex  = PACluster.getCalinskiHarabaszIndex(idx,centroids,sumD);
+                                performanceIndex  = this.getCalinskiHarabaszIndex(idx,centroids,sumD);
                             end
                             X(end+1)= K;
                             Y(end+1)=performanceIndex;
@@ -1741,7 +1759,7 @@ classdef PACluster < PAData
                         if(strcmpi(this.performanceCriterion,'silhouette'))
                             performanceIndex  = mean(silhouette(loadShapes,idx));
                         else
-                            performanceIndex  = PACluster.getCalinskiHarabaszIndex(idx,centroids,sumD);                            
+                            performanceIndex  = this.getCalinskiHarabaszIndex(idx,centroids,sumD);                            
                         end
                         X(end+1)= K;
                         Y(end+1)=performanceIndex;
@@ -1867,29 +1885,6 @@ classdef PACluster < PAData
             methods = {'kmeans','kmedoids'};
         end
     
-                
-        %> @brief Validation metric for cluster separation.   Useful in determining if clusters are well separated.  
-        %> If clusters are not well separated, then the Adaptive K-means threshold should be adjusted according to the segmentation resolution desired.
-        %> @note See Calinski, T., and J. Harabasz. "A dendrite method for cluster analysis." Communications in Statistics. Vol. 3, No. 1, 1974, pp. 1?27.
-        %> @note See also http://www.mathworks.com/help/stats/clustering.evaluation.calinskiharabaszevaluation-class.html 
-        %> @param Vector of output from mapping loadShapes to parent
-        %> centroids.
-        %> @param Clusters calculated via kmeans
-        %> @param sum of euclidean distances
-        %> @retval The Calinzki-Harabasz index
-        function calinskiIndex = getCalinskiHarabaszIndex(loadShapeMap,centroids,sumD)
-            [sortedCounts, sortedIndices] = PACluster.calculateAndSortDistribution(loadShapeMap);
-            sortedClusters = centroids(sortedIndices,:);
-            numObservations = numel(loadShapeMap);
-            numClusters = size(centroids,1);
-            globalMeans = mean(sortedClusters,1);
-            
-            ssWithin = sum(sumD,1);
-            ssBetween = (pdist2(sortedClusters,globalMeans)).^2;
-            ssBetween = sortedCounts(:)'*ssBetween(:);  %inner product
-            calinskiIndex = ssBetween/ssWithin*(numObservations-numClusters)/(numClusters-1);
-        end
-        
         function h=plot(performanceAxesH,X,Y)
             plotOptions = PACluster.getPlotOptions();
             h=plot(performanceAxesH,X,Y,plotOptions{:});
