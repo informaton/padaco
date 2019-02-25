@@ -292,7 +292,11 @@ classdef PAStatTool < PABase
                             end
                             % updates our features and start/stop times
                             this.setStartTimes(this.originalFeatureStruct.startTimes);
-                                                        
+                            if(this.hasValidCluster())
+                                this.clusterObj.setExportPath(this.originalWidgetSettings.exportPathname);
+                                this.clusterObj.addlistener('DefaultParameterChange',@this.clusterParameterChangeCb);
+                            end
+                            
                             % Updates our scatter plot as applicable.
                             this.refreshGlobalProfile();
                         end
@@ -417,7 +421,9 @@ classdef PAStatTool < PABase
         end
         
         function clusterParameterChangeCb(this, clusterObj, paramEventData)
-           cluserObj 
+            if(isfield(this.originalWidgetSettings,paramEventData.fieldName))
+                this.originalWidgetSettings.(paramEventData.fieldName) = paramEventData.changedTo;
+            end
         end
         
         % ======================================================================
@@ -430,6 +436,7 @@ classdef PAStatTool < PABase
             paramStruct = this.getPlotSettings();            
             
             paramStruct.exportShowNonwear = this.originalWidgetSettings.exportShowNonwear;
+            paramStruct.exportPathname = this.originalWidgetSettings.exportPathname;
             
             % These parameters not stored in figure widgets
             paramStruct.useDatabase = this.useDatabase;
@@ -1837,6 +1844,16 @@ classdef PAStatTool < PABase
                 'backgroundcolor',bgColor,'string','Cancelling',...
                 'fontsize',12,'fontweight','normal');
             this.notify('UserCancel_Event');
+            
+            cobj = this.getClusterObj();
+            if(~isempty(cobj))
+                this.setStatus('Cancelling calcuations');
+                cobj.cancelCalculations();
+                this.clearStatus();
+            else
+                this.logStatus('No cluster object exists to cancel');
+            end
+            
         end        
         
         
@@ -2661,8 +2678,8 @@ classdef PAStatTool < PABase
             else
                 set(this.handles.axes_primary,'ygrid','off');
             end
-        end
-        
+        end        
+                
         %> @brief Creates a matlab struct with pertinent fields related to
         %> the current cluster and its calculation, and then saves the
         %> struct in a matlab binary (.mat) file.  Fields include
@@ -2950,8 +2967,15 @@ classdef PAStatTool < PABase
                 % than in the constructor.
                 delayedStart = true;
                 tmpClusterObj = PACluster(this.featureStruct.features,pSettings,this.handles.axes_primary,resultsTextH,this.featureStruct.studyIDs, this.featureStruct.startDaysOfWeek, delayedStart);
+                tmpClusterObj.setExportPath(this.originalWidgetSettings.exportPathname);
                 tmpClusterObj.addlistener('DefaultParameterChange',@this.clusterParameterChangeCb);
-                this.addlistener('UserCancel_Event',@tmpClusterObj.cancelCalculations);
+                
+                % This creates multiple, unused listeners unless we
+                % specifically track and delete them use the event.listener
+                % constructor.  Let's forgo that and just call
+                % this.clusterObj.cancelCalculation when we do our
+                % notification.
+                %                 this.addlistener('UserCancel_Event',@tmpClusterObj.cancelCalculations);
                 if(~tmpClusterObj.setShapeTimes(this.featureStruct.startTimes))
                     this.setStatus('Shape times not set!');
                 else
@@ -4123,6 +4147,8 @@ classdef PAStatTool < PABase
             
             paramStruct.bootstrapIterations =  100;
             paramStruct.bootstrapSampleName = 'studyID';  % or 'days'
+            
+            paramStruct.exportPathname = '';
            
         end
         
