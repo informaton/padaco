@@ -2684,6 +2684,8 @@ classdef PAStatTool < PABase
             % Is it checked?
             if(get(hObject,'value'))
                 set(this.handles.axes_primary,'ygrid','on');
+                [~, uniqueIDs] = this.clusterObj.getClustersOfInterestMemberIDs();
+                disp(uniqueIDs);
             else
                 set(this.handles.axes_primary,'ygrid','off');
             end

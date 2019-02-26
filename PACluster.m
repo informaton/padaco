@@ -973,6 +973,16 @@ classdef PACluster < PAData
             end
         end
         
+        function [allIDs, uniqueIDs] = getClustersOfInterestMemberIDs(this)
+            cois = this.getClustersOfInterest();
+            numCOIs = numel(cois);
+            allIDs = [];
+            for c=1:numCOIs
+                allIDs = [cois{c}.memberIDs(:);allIDs(:)];
+            end
+            uniqueIDs = unique(allIDs);            
+        end
+        
         % ======================================================================
         %> @brief Clusters input load shapes by centroid using adaptive
         %> k-means, determines the distribution of centroids by load shape
