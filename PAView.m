@@ -711,6 +711,7 @@ classdef PAView < handle
             resultPanels = [
                 handles.panel_results;
                 handles.panel_clusterPlotControls;
+                handles.toolbar_results;
                 ];
             
                        
@@ -720,7 +721,7 @@ classdef PAView < handle
                 handles.panel_epochControls];
             
             if(strcmpi(viewMode,'timeseries'))
-
+                
                 set(timeseriesPanels,'visible','on');
                 set(resultPanels,'visible','off');
                 set(findall(resultPanels,'enable','on'),'enable','off');

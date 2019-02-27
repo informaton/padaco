@@ -26,7 +26,7 @@ function varargout = padacoFig(varargin)
 
 % Edit the above text to modify the response to help padacoFig
 
-% Last Modified by GUIDE v2.5 23-Dec-2018 11:28:56
+% Last Modified by GUIDE v2.5 26-Feb-2019 13:21:15
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -209,3 +209,12 @@ function menu_clusterMethod_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+% --- Executes on button press in togglebutton1.
+function togglebutton1_Callback(hObject, eventdata, handles)
+% hObject    handle to togglebutton1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of togglebutton1

@@ -1542,8 +1542,7 @@ classdef PAController < PABase
             else
                 % switch back to other mode?
                 % No - maybe we already were in a results view
-                % Yes - maybe we were not in a results view
-                
+                % Yes - maybe we were not in a results view                
             end
             
             catch me
@@ -2200,6 +2199,7 @@ classdef PAController < PABase
             versionNum = obj.versionNum;
         end
         
+                
         % --------------------------------------------------------------------
         %> @brief Initializes the display for accelerometer data viewing
         %> using instantiated instance
@@ -2213,7 +2213,7 @@ classdef PAController < PABase
             % passed along to the VIEW class here and used to initialize
             % many of the selected widgets.
             
-            obj.VIEW.showBusy('Initializing View','all');
+            obj.VIEW.showBusy('Initializing View','all');            
             
             obj.initSignalSelectionMenu();
             
@@ -2326,7 +2326,7 @@ classdef PAController < PABase
         % --------------------------------------------------------------------
         function success = initResultsView(this)
             success = false;
-            % this.VIEW.initWidgets('results',false);
+            % this.VIEW.initWidgets('results',false);            
             if(isdir(this.resultsPathname))
                 if(~isempty(this.statTool))
                     
