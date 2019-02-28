@@ -306,10 +306,30 @@ classdef PACluster < PAData
             end
         end
         
-        
-        function [didExport, resultMsg] = exportToDisk(this, clusterSettingsStruct, nonwearStruct, exportPath)
+        function configID = getConfigID(this)
+            durationHours= this.settings.clusterDurationHours;
+            if(durationHours == 24)
+                durID = 'D'; % day
+            elseif(durationHours == 24* 7)
+                durID = 'W'; % week
+            else
+                durID = 'O'; % other
+            end
+            if(this.settings.chunkShapes)
+                segID = sprintf('S-%d',this.settings.numChunks);
+            else
+                segID = 'U';
+            end            
+            configID = sprintf('%c-%s',durID,segID);
+        end
+        function [didExport, resultMsg] = exportToDisk(this, clusterSettingsStruct, nonwearStruct, exportPath, exportFmt)
             didExport = false;
-            
+            if(nargin>4)
+                this.setExportFormat(exportFmt);
+            else
+                exportFmt = this.getExportFormat();
+                
+            end
             if(nargin>3)
                 if(isdir(exportPath))
                     this.setExportPath(exportPath);
@@ -319,77 +339,91 @@ classdef PACluster < PAData
             else
                 exportPath = this.getExportPath();
             end
+
+            if(nargin<3)
+                nonwearStruct = [];
+            end
+            
             if(~isdir(exportPath))                
                 msg = sprintf('Export path does not exist.  Nothing done.\nExport path: %s',exportPath);
             else
-                if(nargin<4)
-                    nonwearStruct = [];
-                end
-                
-                [covHeader, covDataStr] = this.exportFrequencyCovariates();
-                [weekdayCovHeader, weekdayCovDataStr] = this.exportWeekDayCovariates(nonwearStruct);                
-                [shapesHeaderStr, shapesStr] = this.exportClusterShapes();
-                [summaryHeaderStr, summaryStr] = this.exportClusterSummary();                
-                
-                timeStamp = datestr(now,'DDmmmYYYY');
-                
-                cov2Filename = fullfile(exportPath,sprintf('cluster_by_weekday_%s.csv',timeStamp));
-                covFilename = fullfile(exportPath,sprintf('cluster_frequency_%s.csv',timeStamp));
-                shapesFilename = fullfile(exportPath,sprintf('cluster_shapes_%s.csv',timeStamp));
-                summaryFilename = fullfile(exportPath,sprintf('cluster_summary_%s.csv',timeStamp));
-                settingsFilename = fullfile(exportPath,sprintf('padaco_config_%s.txt',timeStamp));
-                
-                covFid = fopen(covFilename,'w');
-                
-                if(covFid>1)
-                    fprintf(covFid,'%s\n',covHeader);
-                    fprintf(covFid,covDataStr);
-                    msg = sprintf('Cluster frequency data saved to:\n\t%s\n',covFilename);
-                    fclose(covFid);
+                configID = this.getConfigID();
+                exportPath = fullfile(exportPath,strrep(configID,'-','_'));
+                if(~isormkdir(exportPath))
+                    msg = sprintf('Unable to create export path for current configuration.  Nothing done.\nExport path: %s',exportPath);
                 else
-                    msg = sprintf('Cluster frequency data NOT saved.  Could not open file (%s) for writing!\n ',covFilename);
-                end
-                
-                cov2Fid = fopen(cov2Filename,'w');
-                
-                if(cov2Fid>1)
-                    fprintf(cov2Fid,'%s\n',weekdayCovHeader);
-                    fprintf(cov2Fid,weekdayCovDataStr);
-                    msg = sprintf('%sCluster by weekday data saved to:\n\t%s\n',msg,cov2Filename);
-                    fclose(cov2Fid);
-                else
-                    msg = sprintf('%sCluster by weekday data NOT saved.  Could not open file (%s) for writing!\n ',msg,cov2Filename);
-                end
-                
-                shapesFid = fopen(shapesFilename,'w');
-                if(shapesFid>1)
-                    fprintf(shapesFid,'%s\n%s',shapesHeaderStr,shapesStr);
-                    msg = sprintf('%sCluster shapes saved to:\n\t%s\n',msg,shapesFilename);
-                    fclose(shapesFid);
-                else
-                    msg = sprintf('%sCluster shapes NOT saved.  Could not open file (%s) for writing!\n ',msg,shapesFilename);
-                end
-                
-                summaryFid = fopen(summaryFilename,'w');
-                if(summaryFid>1)
-                    fprintf(summaryFid,'%s\n%s',summaryHeaderStr,summaryStr);
-                    msg = sprintf('%sCluster summary saved to:\n\t%s\n',msg,summaryFilename);
-                    fclose(summaryFid);
-                else
-                    msg = sprintf('%sCluster summary NOT saved.  Could not open file (%s) for writing!\n ',msg,summaryFilename);
-                end                
-                
-                settingsFid = fopen(settingsFilename,'w');
-                
-                if(settingsFid>1)                    
-                    fprintf(settingsFid,['-Last saved: %s',newline,newline],datestr(now)); %want to include the '-' sign to prevent this line from getting loaded in the loadFromFile function (i.e. it breaks the regular expression pattern that is used to load everything else).
-                
-                    PASettings.saveStruct(settingsFid,clusterSettingsStruct);
-                    msg = sprintf('%sPadaco cluster settings saved to:\n\t%s\n',msg,settingsFilename);
-                    fclose(settingsFid);
-                    didExport = true;
-                else
-                    msg = sprintf('%sPadaco cluster settings NOT saved.  Could not open file (%s) for writing!\n ',msg,settingsFilename);
+                    
+                    [covHeader, covDataStr] = this.exportFrequencyCovariates();
+                    [weekdayCovHeader, weekdayCovDataStr] = this.exportWeekDayCovariates(nonwearStruct);
+                    [shapesHeaderStr, shapesStr] = this.exportClusterShapes();
+                    [summaryHeaderStr, summaryStr] = this.exportClusterSummary();
+                    
+                    timeStamp = datestr(now,'DDmmmYYYY');
+                    
+                    if(strcmpi(exportFmt,'xls'))
+                        
+                        % default is to export as csv files (with a txt config file)
+                    else
+                        
+                        cov2Filename = fullfile(exportPath,sprintf('cluster_by_weekday_%s.csv',timeStamp));
+                        covFilename = fullfile(exportPath,sprintf('cluster_frequency_%s.csv',timeStamp));
+                        shapesFilename = fullfile(exportPath,sprintf('cluster_shapes_%s.csv',timeStamp));
+                        summaryFilename = fullfile(exportPath,sprintf('cluster_summary_%s.csv',timeStamp));
+                        settingsFilename = fullfile(exportPath,sprintf('padaco_config_%s.txt',timeStamp));
+                        
+                        covFid = fopen(covFilename,'w');
+                        
+                        if(covFid>1)
+                            fprintf(covFid,'%s\n',covHeader);
+                            fprintf(covFid,covDataStr);
+                            msg = sprintf('Cluster frequency data saved to:\n\t%s\n',covFilename);
+                            fclose(covFid);
+                        else
+                            msg = sprintf('Cluster frequency data NOT saved.  Could not open file (%s) for writing!\n ',covFilename);
+                        end
+                        
+                        cov2Fid = fopen(cov2Filename,'w');
+                        
+                        if(cov2Fid>1)
+                            fprintf(cov2Fid,'%s\n',weekdayCovHeader);
+                            fprintf(cov2Fid,weekdayCovDataStr);
+                            msg = sprintf('%sCluster by weekday data saved to:\n\t%s\n',msg,cov2Filename);
+                            fclose(cov2Fid);
+                        else
+                            msg = sprintf('%sCluster by weekday data NOT saved.  Could not open file (%s) for writing!\n ',msg,cov2Filename);
+                        end
+                        
+                        shapesFid = fopen(shapesFilename,'w');
+                        if(shapesFid>1)
+                            fprintf(shapesFid,'%s\n%s',shapesHeaderStr,shapesStr);
+                            msg = sprintf('%sCluster shapes saved to:\n\t%s\n',msg,shapesFilename);
+                            fclose(shapesFid);
+                        else
+                            msg = sprintf('%sCluster shapes NOT saved.  Could not open file (%s) for writing!\n ',msg,shapesFilename);
+                        end
+                        
+                        summaryFid = fopen(summaryFilename,'w');
+                        if(summaryFid>1)
+                            fprintf(summaryFid,'%s\n%s',summaryHeaderStr,summaryStr);
+                            msg = sprintf('%sCluster summary saved to:\n\t%s\n',msg,summaryFilename);
+                            fclose(summaryFid);
+                        else
+                            msg = sprintf('%sCluster summary NOT saved.  Could not open file (%s) for writing!\n ',msg,summaryFilename);
+                        end
+                        
+                        settingsFid = fopen(settingsFilename,'w');
+                        
+                        if(settingsFid>1)
+                            fprintf(settingsFid,['-Last saved: %s',newline,newline],datestr(now)); %want to include the '-' sign to prevent this line from getting loaded in the loadFromFile function (i.e. it breaks the regular expression pattern that is used to load everything else).
+                            
+                            PASettings.saveStruct(settingsFid,clusterSettingsStruct);
+                            msg = sprintf('%sPadaco cluster settings saved to:\n\t%s\n',msg,settingsFilename);
+                            fclose(settingsFid);
+                            didExport = true;
+                        else
+                            msg = sprintf('%sPadaco cluster settings NOT saved.  Could not open file (%s) for writing!\n ',msg,settingsFilename);
+                        end
+                    end
                 end
             end
             resultMsg = msg;
@@ -631,7 +665,7 @@ classdef PACluster < PAData
                 case 'nonwear'
                     distribution = this.histogram.nonwear;
                 otherwise
-                    this.logError([],'Unrecognized histogram option (%s) - returning loadshapes',histogramOf);
+                    this.logWarning('Unrecognized histogram option (%s) - returning loadshapes',histogramOf);
                     distribution = this.histogram.loadshapes;
             end
         end
@@ -1289,7 +1323,7 @@ classdef PACluster < PAData
                 case 'kmedoids'
                     kstats = @kmedoids;
                 otherwise
-                    this.logError([],'Unsupported cluster method (%s), using kmeans',settings.clusterMethod);
+                    this.logWarning('Unsupported cluster method (%s), using kmeans',settings.clusterMethod);
                     kstats = @kmeans;
             end
             

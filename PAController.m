@@ -448,7 +448,7 @@ classdef PAController < PABase
                 set(viewHandles.menu_file_export_accelObj,'visible','off');
                 set(viewHandles.menu_file_export_clusterObj,'visible','off');
             end
-            set(viewHandles.menu_file_export_clusters_to_txt,'callback',{@obj.exportClustersCb,'txt'});%, 'label','Cluster results to disk');
+            set(viewHandles.menu_file_export_clusters_to_csv,'callback',{@obj.exportClustersCb,'csv'});%, 'label','Cluster results to disk');
             set(viewHandles.menu_file_export_clusters_to_xls,'callback',{@obj.exportClustersCb,'xls'});%, 'label','Cluster results to disk');
             set(viewHandles.menu_export_timeseries_to_disk,'callback',@obj.exportTimeSeriesCb);%,'label','Wear/nonwear to disk');
             
@@ -1624,7 +1624,7 @@ classdef PAController < PABase
             timeSeriesH = [curHandles.menu_file_export_accelObj
                 curHandles.menu_export_timeseries_to_disk];
             resultsH = [curHandles.menu_file_export_clusterObj;
-                curHandles.menu_file_export_clusters_to_txt];
+                curHandles.menu_file_export_clusters_to_csv];
                     
             set([timeSeriesH(:);resultsH(:)],'enable','off');
             switch lower(this.getViewMode())

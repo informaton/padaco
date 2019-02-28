@@ -3,6 +3,11 @@ classdef PAData < PABase
     properties(SetAccess=protected)
         %> @brief Folder where exported files are saved to .
         exportPathname;
+        
+        %> @brief file formats
+        exportFormat;
+        
+        EXPORT_FORMATS = {'csv','xls','mat'};
     end
     methods(Abstract)
        didExport = exportToDisk(this); 
@@ -29,12 +34,34 @@ classdef PAData < PABase
         end
         
         % --------------------------------------------------------------------
+        function exportFmt = getExportFormat(this)
+            exportFmt = this.exportFormat;
+        end
+        
+        % --------------------------------------------------------------------
         function didSet = setExportPath(this, newPath)
             try
                 oldPath = this.exportPathname;
                 this.exportPathname = newPath;
                 didSet = true;
                 this.notify('DefaultParameterChange',EventData_ParameterChange('exportPathname',newPath, oldPath));
+            catch me
+                showME(me);
+                didSet = false;
+            end
+        end
+        
+        % --------------------------------------------------------------------
+        function didSet = setExportFormat(this, newFmt)
+            try
+                oldFmt = this.exportFormat;
+                if(ismember(newFmt, this.EXPORT_FORMATS))
+                    this.exportFormat = newFmt;
+                    didSet = true;
+                    this.notify('DefaultParameterChange',EventData_ParameterChange('exportFormat',newFmt, oldFmt));
+                else
+                    didSet = false;
+                end
             catch me
                 showME(me);
                 didSet = false;

@@ -15,6 +15,7 @@ classdef PAStatTool < PABase
        COLOR_LINESELECTION = [0.8 0.1 0.1];
        COLOR_MEMBERID = [0.1 0.1 0.8];
        MAX_DAYS_PER_STUDY = 7;
+       DISTRIBUTION_TYPES = {'loadshape_membership','participant_membership','nonwear_membership','weekday_scores','weekday_membership','performance_progression'}
     end
     
     properties(SetAccess=protected)
@@ -205,17 +206,15 @@ classdef PAStatTool < PABase
             this.featuresDirectory = [];
             
             this.figureH = padaco_fig_h;
-            this.featureStruct = [];
-            
+            this.featureStruct = [];            
             
             this.initBase();
-            this.clusterDistributionType = initSettings.clusterDistributionType;  % {'performance','membership','weekday'}
+            this.clusterDistributionType = initSettings.clusterDistributionType;  % {'performance_progression','membership','weekday_membership'}
             
             this.featureInputFilePattern = ['%s',filesep,'%s',filesep,'features.%s.accel.%s.%s.txt'];
             this.featureInputFileFieldnames = {'inputPathname','displaySeletion','processType','curSignal'};       
             
             this.initScatterPlotFigure();
-
             
             if(isdir(resultsPathname))
                 this.setResultsDirectory(resultsPathname); % a lot of initialization code in side this call.
@@ -260,11 +259,9 @@ classdef PAStatTool < PABase
                     featuresPath = resultsPath;
                     % fprintf('Assuming features pathFeatures pathname (%s) does not exist!\n',featuresPath);
                 end
-                this.featuresDirectory = featuresPath;
-                this.init(this.originalWidgetSettings);  %initializes previousstate.plotType on success and calls plot selection change cb for sync.
+                this.featuresDirectory = featuresPath;                
                 
-                this.clearPlots();
-                
+                didInit = false;
                 if(exist(this.getFullClusterCacheFilename(),'file') && this.useCache)
 
                     try
@@ -293,22 +290,32 @@ classdef PAStatTool < PABase
                                     end
                                 end
                             end
-                            % updates our features and start/stop times
-                            this.setStartTimes(this.originalFeatureStruct.startTimes);
+                            
                             if(this.hasValidCluster())
+                                this.updateOriginalWidgetSettings(this.clusterObj.settings);                                
+                                didInit = true;
                                 this.clusterObj.setExportPath(this.originalWidgetSettings.exportPathname);
                                 this.clusterObj.addlistener('DefaultParameterChange',@this.clusterParameterChangeCb);
                             end
                             
+                            % updates our features and start/stop times
+                            this.setStartTimes(this.originalFeatureStruct.startTimes);
+                            
+                            
                             % Updates our scatter plot as applicable.
-                            this.refreshGlobalProfile();
+                            this.refreshGlobalProfile();                            
                         end
                     catch me
                         showME(me);
-                    end                    
+                    end
                 end
-                set(this.figureH,'visible','on');                
-
+                if(~didInit)
+                    this.init(this.originalWidgetSettings);  %initializes previousstate.plotType on success and calls plot selection change cb for sync.
+                    didInit = true;
+                end
+                
+                this.clearPlots();                
+                
                 if(this.getCanPlot())
                     if(this.isClusterMode())
                         this.switch2clustering();
@@ -320,9 +327,7 @@ classdef PAStatTool < PABase
             else
                 didSet = false; 
             end    
-        end  
-        
-
+        end
         
         function clearStatus(this)
            this.setStatus('');
@@ -369,21 +374,11 @@ classdef PAStatTool < PABase
             canPlotValue = this.canPlot;
         end
         
-        function didExport = exportClusters(this, fileExt)
+        function didExport = exportClusters(this, exportFmt)
             if(nargin<2)
-                fileExt = 'txt';
+                exportFmt = 'csv';
             end
-            if(strcmpi(fileExt,'xls'))
-                didExport = this.exportClustersAsXls();
-            else
-                didExport = this.exportClustersAsTxt();
-            end
-        end
-        function didExport = exportClustersAsXls(this)
-            didExport = false;
-            pa_msgbox('.xls export not yet supported');
-        end        
-        function didExport = exportClustersAsTxt(this)            
+            
             didExport = false;
             curCluster = this.getClusterObj();
             if(isempty(curCluster) || ~isa(curCluster,'PACluster'))
@@ -404,7 +399,15 @@ classdef PAStatTool < PABase
                     else
                         nonwearFeatures = [];
                     end
-                    [didExport, msg] = curCluster.exportToDisk(lastClusterSettings, nonwearFeatures);
+                    
+                    if(strcmpi(exportFmt,'xls'))
+                        didExport = false;
+                        msg = '.xls export not yet supported';
+                        %                         pa_msgbox();
+                    else
+                        [didExport, msg] = curCluster.exportToDisk(lastClusterSettings, nonwearFeatures);
+                    end
+                    
 
                     %                     if(~lastClusterSettings.discardNonwearFeatures)
                     %                         [didExport, msg] = curCluster.exportToDisk(exportPath, lastClusterSettings, nonwearFeatures{:});
@@ -434,6 +437,7 @@ classdef PAStatTool < PABase
                 end
             end
         end
+
         
         function clusterParameterChangeCb(this, clusterObj, paramEventData)
             if(isfield(this.originalWidgetSettings,paramEventData.fieldName))
@@ -487,6 +491,16 @@ classdef PAStatTool < PABase
             end
         end
         
+        function updateOriginalWidgetSettings(this, updatedSettings)
+            % Updating original widget settings like ensures that the
+            % cluster object is not emptied if it exists, which is helpful
+            % since this method was made when tyring to synce cahed cluster
+            % results, where a cluster exists and may have been loaded already,
+            % but the settings have not been updated in this class yet.
+            this.originalWidgetSettings = mergeStruct(this.originalWidgetSettings,updatedSettings); % keep a record of our most recent settings.
+            this.setWidgetSettings(this.originalWidgetSettings);
+        end
+        
         % ======================================================================
         %> @brief Sets the widget settings.  In particular, set the
         %> originalWidgetSettings property to the input struct.
@@ -523,7 +537,6 @@ classdef PAStatTool < PABase
             this.clusterSettings.initClusterWithPermutation = widgetSettings.initClusterWithPermutation;
             if(initializeOnSet)
                 this.initWidgets(this.originalWidgetSettings);
-%                 this.refreshPlot();
             end
         end
         
@@ -1644,8 +1657,8 @@ classdef PAStatTool < PABase
                         this.handles.contextmenu.secondaryAxes.participant_membership = uimenu(contextmenu_secondaryAxes,'Label','Participants per cluster','callback',{@this.clusterDistributionCb,'participant_membership'});
                         this.handles.contextmenu.secondaryAxes.nonwear_membership = uimenu(contextmenu_secondaryAxes,'Label','Nonwear per cluster','callback',{@this.clusterDistributionCb,'nonwear_membership'});
                         this.handles.contextmenu.secondaryAxes.weekday_scores = uimenu(contextmenu_secondaryAxes,'Label','Weekday scores by cluster','callback',{@this.clusterDistributionCb,'weekday_scores'},'separator','on');
-                        this.handles.contextmenu.secondaryAxes.weekday = uimenu(contextmenu_secondaryAxes,'Label','Current cluster''s weekday distribution','callback',{@this.clusterDistributionCb,'weekday'});
-                        this.handles.contextmenu.secondaryAxes.performance = uimenu(contextmenu_secondaryAxes,'Label','Adaptive separation performance progression','callback',{@this.clusterDistributionCb,'performance'},'separator','on');
+                        this.handles.contextmenu.secondaryAxes.weekday_membership = uimenu(contextmenu_secondaryAxes,'Label','Current cluster''s weekday distribution','callback',{@this.clusterDistributionCb,'weekday_membership'});
+                        this.handles.contextmenu.secondaryAxes.performance_progression = uimenu(contextmenu_secondaryAxes,'Label','Adaptive separation performance progression','callback',{@this.clusterDistributionCb,'performance_progression'},'separator','on');
                         set(this.handles.axes_secondary,'uicontextmenu',contextmenu_secondaryAxes);
                         
                         % add a button group that does essentially the same thing as this context menu.
@@ -1653,14 +1666,10 @@ classdef PAStatTool < PABase
                         set(this.handles.toggle_participant_membership,'tooltipstring','Participants per cluster','callback',{@this.clusterDistributionCb,'participant_membership'});
                         set(this.handles.toggle_nonwear_membership,'tooltipstring','Nonwear per cluster','callback',{@this.clusterDistributionCb,'nonwear_membership'});
                         set(this.handles.toggle_weekday_scores,'tooltipstring','Weekday scores by cluster','callback',{@this.clusterDistributionCb,'weekday_scores'});
-                        set(this.handles.toggle_weekday,'tooltipstring','Current cluster''s weekday distribution','callback',{@this.clusterDistributionCb,'weekday'});
-                        set(this.handles.toggle_performance,'tooltipstring','Adaptive separation performance progression','callback',{@this.clusterDistributionCb,'performance'});
+                        set(this.handles.toggle_weekday_membership,'tooltipstring','Current cluster''s weekday distribution','callback',{@this.clusterDistributionCb,'weekday_membership'});
+                        set(this.handles.toggle_performance_progression,'tooltipstring','Adaptive separation performance progression','callback',{@this.clusterDistributionCb,'performance_progression'});
                         
-                        toggledTag = ['toggle_',widgetSettings.clusterDistributionType];
-                        if(~isfield(this.handles,toggledTag))
-                            toggledTag = 'toggle_loadshape_membership';
-                        end
-                        set(this.handles.(toggledTag),'value',1);
+                        this.setClusterDistributionType(widgetSettings.clusterDistributionType);
                             
                     end
                 end                
@@ -1719,7 +1728,6 @@ classdef PAStatTool < PABase
             disableHandles(this.handles.panel_clusterSettings);
             this.hideClusterControls();
             
-            set(this.handles.axes_secondary,'visible','off');
             set(this.figureH,'WindowKeyPressFcn',[]);
             set(this.analysisFigureH,'visible','off');
 
@@ -1736,12 +1744,10 @@ classdef PAStatTool < PABase
             % set(this.handles.check_normalizevalues,'value',1,'enable','off');
             set(this.handles.axes_primary,'ydir','normal');  %sometimes this gets changed by the heatmap displays which have the time shown in reverse on the y-axis
             
-            set(this.handles.panel_clusterPlotControls,'visible','on');
+            this.showClusterControls();
             
             if(this.getCanPlot())
                 if(this.hasValidCluster())                    
-                    % lite version of refreshClustersAndPlot()
-                    this.showClusterControls();
                     
                     % Need this because we will skip our x tick and
                     % labels refresh otherwise.
@@ -1768,7 +1774,10 @@ classdef PAStatTool < PABase
                 
                 % This is handled in the plot cluster method, right before tick marks are down on
                 % set(this.handles.axes_primary,'color',validColor); 
-                set(this.handles.axes_secondary,'visible','on','color',validColor);
+                set(this.handles.axes_secondary,'color',validColor);
+                set([this.handles.axes_secondary
+                this.handles.btngrp_clusters],'visible','on');
+            
                 set(this.figureH,'WindowKeyPressFcn',keyPressFcn);
                 
                 if(this.shouldShowAnalysisFigure())
@@ -1791,6 +1800,14 @@ classdef PAStatTool < PABase
         end
         
         
+        function setClusterDistributionType(this, distType)
+            if(~ismember(distType,this.DISTRIBUTION_TYPES))
+                distType = 'loadshape_membership';
+            end
+            this.clusterDistributionType = distType;
+            toggledTag = ['toggle_',this.clusterDistributionType];            
+            set(this.handles.(toggledTag),'value',1);
+        end
         %> @brief Software driven callback trigger for
         %> profileFieldMnenuSelectionChangeCallback.  Used as a wrapper for
         %> handling non-menu_ySelection menu changes to the profile field
@@ -2461,8 +2478,8 @@ classdef PAStatTool < PABase
                 'toggle_participant_membership'
                 'toggle_nonwear_membership'
                 'toggle_weekday_scores'
-                'toggle_weekday'
-                'toggle_performance'
+                'toggle_weekday_membership'
+                'toggle_performance_progression'
 
 %                 'text_clusterResultsOverlay'
 %                 'table_clusterProfiles'
@@ -2892,6 +2909,8 @@ classdef PAStatTool < PABase
                 startTimes = {};
             end            
         end
+        
+        
         function bootstrapCallback(this,varargin)
 
             bootSettings = struct();
@@ -3024,9 +3043,6 @@ classdef PAStatTool < PABase
             %             if(ishandle(h))
             %                 waitbar(100,h,'Bootstrap complete');
             %             end
-            
-            
-            
             
         end
         
@@ -3191,7 +3207,8 @@ classdef PAStatTool < PABase
                 
                 this.plotClusters(pSettings); 
                 this.enableClusterControls();
-                this.originalWidgetSettings = mergeStruct(this.originalWidgetSettings,pSettings); % keep a record of our most recent settings.
+                this.updateOriginalWidgetSettings(pSettings);
+                
                 dissolve(resultsTextH,2.5);
                 
             else
@@ -3231,9 +3248,10 @@ classdef PAStatTool < PABase
         function hideClusterControls(this)
             set([this.handles.panel_clusterPlotControls
                 this.handles.panel_clusterSettings
-                this.handles.panel_clusterInfo                
+                this.handles.panel_clusterInfo
+                this.handles.axes_secondary
+                this.handles.btngrp_clusters
                 ],'visible','off'); 
-            
             
             % Also in disableClusterControls, but the whole figure changes
             % size when the toolbar's visibility changes, so decided to
@@ -3286,7 +3304,10 @@ classdef PAStatTool < PABase
             end
             
             set([this.handles.panel_clusterPlotControls
-                this.handles.panel_clusterSettings],'visible','on');
+                this.handles.panel_clusterSettings
+                this.handles.axes_secondary
+                this.handles.btngrp_clusters
+                ],'visible','on');
             
         end
         
@@ -3366,7 +3387,7 @@ classdef PAStatTool < PABase
             try
                 if(isempty(this.clusterObj)|| this.clusterObj.failedToConverge())
                     % clear everything and give a warning that the cluster is empty
-                    fprintf('Clustering results are empty\n');
+                    this.logWarning('Clustering results were empty');
                 else
                     if(nargin<2)
                         clusterAndPlotSettings = this.getPlotSettings();
@@ -3502,14 +3523,14 @@ classdef PAStatTool < PABase
                         
                         % plots the Calinski-Harabasz indices obtained during
                         % adaptve k-means filtering.
-                        case 'performance'
+                        case 'performance_progression'
                             [~, yLabelStr, titleStr]=this.clusterObj.plotPerformance(distributionAxes);
                             
                             % plots the distribution of weekdays on x-axis
                             % and the loadshape count (for the cluster of
                             % interest) on the y-axis.
                             
-                        case 'weekday'
+                        case 'weekday_membership'
                             daysofweekStr = this.base.daysOfWeekShortDescriptions;%{'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
                             daysofweekOrder = this.base.daysOfWeekOrder;  %1:7;
                             
@@ -3717,7 +3738,7 @@ classdef PAStatTool < PABase
             set(this.handles.text_clusterID,'string',clusterID);
             set(this.handles.text_clusterDescription,'string',clusterDescription);
             
-            if(this.originalWidgetSettings.showClusterSummary && isempty(intersect(this.clusterDistributionType,{'performance','weekday_scores'})))
+            if(this.originalWidgetSettings.showClusterSummary && isempty(intersect(this.clusterDistributionType,{'performance_progression','weekday_scores'})))
                 set(this.handles.panel_clusterInfo,'visible','on');                
                 % the title is cleared automatically already.
                 %title(clusterAxes,clusterTitle,'fontsize',14,'interpreter','none','visible','off');
@@ -4318,7 +4339,7 @@ classdef PAStatTool < PABase
             paramStruct.primaryAxis_nextPlot = 'replace';
             paramStruct.showAnalysisFigure = 0; % do not display the other figure at first
             paramStruct.showTimeOfDayAsBackgroundColor = 0; % do not display at first
-            paramStruct.clusterDistributionType = 'loadshape_membership';  %{'loadshape_membership','participant_membership','performance','membership','weekday'}            
+            paramStruct.clusterDistributionType = 'loadshape_membership';  %{'loadshape_membership','participant_membership','performance_progression','membership','weekday_membership'}            
             paramStruct.profileFieldSelection = 1;    
             
             paramStruct.bootstrapIterations =  100;

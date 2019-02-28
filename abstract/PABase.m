@@ -7,9 +7,11 @@ classdef PABase < handle
         statusHandle;
     end
     methods
+        
         function clearStatus(obj)
             obj.setStatus('');
         end
+        
         function setStatus(obj, fmtStr, varargin)
            str = sprintf(fmtStr, varargin{:});
            if(~isempty(obj.statusHandle) && ishandle(obj.statusHandle))
@@ -21,12 +23,19 @@ classdef PABase < handle
            end
         end
         
-        function logError(obj, me, fmtStr, varargin)
-            if(~isempty(me))
+        function logWarning(obj,fmtStr, varargin)
+            obj.logError(fmtStr, [], varargin{:});
+        end
+        
+        function logError(obj, fmtStr, me, varargin)
+            if(nargin>2 && ~isempty(me))
                 showME(me);
+                msgType = 'Error';
+            else
+                msgType = 'Warning';
             end
             errMsg = sprintf(fmtStr,varargin{:});
-            obj.logStatus('[Error] %s',errMsg);
+            obj.logStatus('[%s] %s',msgType,errMsg);
         end
         
         function logStatus(obj, fmtStr, varargin)
