@@ -448,7 +448,8 @@ classdef PAController < PABase
                 set(viewHandles.menu_file_export_accelObj,'visible','off');
                 set(viewHandles.menu_file_export_clusterObj,'visible','off');
             end
-            set(viewHandles.menu_file_export_clusters_to_disk,'callback',@obj.menu_file_export_clusters_to_disk_callback);%, 'label','Cluster results to disk');
+            set(viewHandles.menu_file_export_clusters_to_txt,'callback',{@obj.exportClustersCb,'txt'});%, 'label','Cluster results to disk');
+            set(viewHandles.menu_file_export_clusters_to_xls,'callback',{@obj.exportClustersCb,'xls'});%, 'label','Cluster results to disk');
             set(viewHandles.menu_export_timeseries_to_disk,'callback',@obj.exportTimeSeriesCb);%,'label','Wear/nonwear to disk');
             
             
@@ -1623,7 +1624,7 @@ classdef PAController < PABase
             timeSeriesH = [curHandles.menu_file_export_accelObj
                 curHandles.menu_export_timeseries_to_disk];
             resultsH = [curHandles.menu_file_export_clusterObj;
-                curHandles.menu_file_export_clusters_to_disk];
+                curHandles.menu_file_export_clusters_to_txt];
                     
             set([timeSeriesH(:);resultsH(:)],'enable','off');
             switch lower(this.getViewMode())
@@ -1699,8 +1700,8 @@ classdef PAController < PABase
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
-        function menu_file_export_clusters_to_disk_callback(obj,varargin)
-            obj.statTool.exportClusterToDisk();
+        function exportClustersCb(obj,hObject, evtData, exportAs)
+            obj.statTool.exportClusters(exportAs);
         end
         
         function exportTimeSeriesCb(obj, varargin)

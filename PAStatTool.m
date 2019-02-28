@@ -369,9 +369,21 @@ classdef PAStatTool < PABase
             canPlotValue = this.canPlot;
         end
         
-        
-        function didExport = exportClusterToDisk(this)
-            
+        function didExport = exportClusters(this, fileExt)
+            if(nargin<2)
+                fileExt = 'txt';
+            end
+            if(strcmpi(fileExt,'xls'))
+                didExport = this.exportClustersAsXls();
+            else
+                didExport = this.exportClustersAsTxt();
+            end
+        end
+        function didExport = exportClustersAsXls(this)
+            didExport = false;
+            pa_msgbox('.xls export not yet supported');
+        end        
+        function didExport = exportClustersAsTxt(this)            
             didExport = false;
             curCluster = this.getClusterObj();
             if(isempty(curCluster) || ~isa(curCluster,'PACluster'))
