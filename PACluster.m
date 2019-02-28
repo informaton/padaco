@@ -1166,7 +1166,7 @@ classdef PACluster < PAData
             end
         end
         
-        function [h, yLabelStr] = plotPerformance(this, axesH)
+        function [h, yLabelStr, titleStr] = plotPerformance(this, axesH)
             X = this.performanceProgression.X;
             Y = this.performanceProgression.Y;
 %             axesSettings.font = get(axesH,'font');
@@ -1174,14 +1174,17 @@ classdef PACluster < PAData
             fontSettings.fontsize = get(axesH,'fontsize');
             
             h=this.plot(axesH,X,Y);
+            
             yLabelStr = this.performanceProgression.criterion;
+            titleStr = this.performanceProgression.statusStr;
+            
             ylabel(axesH,yLabelStr);
             
             set(axesH,'xlim',[min(X)-0.5,max(X)+0.5],'ylimmode','auto','ygrid','on',...
                 'ytickmode','auto','xtickmode','auto',...
                 'xticklabelmode','auto','yticklabelmode','auto',...
                 fontSettings);
-            title(axesH,this.performanceProgression.statusStr,'fontsize',14);
+            title(axesH,titleStr,'fontsize',14);
         end          
 
         %> @brief Calculates within-cluster sum of squares (WCSS); a metric of cluster tightness.  
