@@ -1628,13 +1628,28 @@ classdef PAStatTool < PABase
             
                         % add a context menu now to secondary axes
                         contextmenu_secondaryAxes = uicontextmenu('callback',@this.contextmenu_secondaryAxesCallback,'parent',this.figureH);
-                        this.handles.contextmenu.secondaryAxes.loadshape_membership = uimenu(contextmenu_secondaryAxes,'Label','Loadshapes per cluster','callback',{@this.clusterDistributionCallback,'loadshape_membership'});
-                        this.handles.contextmenu.secondaryAxes.participant_membership = uimenu(contextmenu_secondaryAxes,'Label','Participants per cluster','callback',{@this.clusterDistributionCallback,'participant_membership'});
-                        this.handles.contextmenu.secondaryAxes.nonwear_membership = uimenu(contextmenu_secondaryAxes,'Label','Nonwear per cluster','callback',{@this.clusterDistributionCallback,'nonwear_membership'});
-                        this.handles.contextmenu.secondaryAxes.weekday_scores = uimenu(contextmenu_secondaryAxes,'Label','Weekday scores by cluster','callback',{@this.clusterDistributionCallback,'weekday_scores'},'separator','on');
-                        this.handles.contextmenu.secondaryAxes.weekday = uimenu(contextmenu_secondaryAxes,'Label','Current cluster''s weekday distribution','callback',{@this.clusterDistributionCallback,'weekday'});
-                        this.handles.contextmenu.secondaryAxes.performance = uimenu(contextmenu_secondaryAxes,'Label','Adaptive separation performance progression','callback',{@this.clusterDistributionCallback,'performance'},'separator','on');
+                        this.handles.contextmenu.secondaryAxes.loadshape_membership = uimenu(contextmenu_secondaryAxes,'Label','Loadshapes per cluster','callback',{@this.clusterDistributionCb,'loadshape_membership'});
+                        this.handles.contextmenu.secondaryAxes.participant_membership = uimenu(contextmenu_secondaryAxes,'Label','Participants per cluster','callback',{@this.clusterDistributionCb,'participant_membership'});
+                        this.handles.contextmenu.secondaryAxes.nonwear_membership = uimenu(contextmenu_secondaryAxes,'Label','Nonwear per cluster','callback',{@this.clusterDistributionCb,'nonwear_membership'});
+                        this.handles.contextmenu.secondaryAxes.weekday_scores = uimenu(contextmenu_secondaryAxes,'Label','Weekday scores by cluster','callback',{@this.clusterDistributionCb,'weekday_scores'},'separator','on');
+                        this.handles.contextmenu.secondaryAxes.weekday = uimenu(contextmenu_secondaryAxes,'Label','Current cluster''s weekday distribution','callback',{@this.clusterDistributionCb,'weekday'});
+                        this.handles.contextmenu.secondaryAxes.performance = uimenu(contextmenu_secondaryAxes,'Label','Adaptive separation performance progression','callback',{@this.clusterDistributionCb,'performance'},'separator','on');
                         set(this.handles.axes_secondary,'uicontextmenu',contextmenu_secondaryAxes);
+                        
+                        % add a button group that does essentially the same thing as this context menu.
+                        set(this.handles.toggle_loadshape_membership,'tooltipstring','Loadshapes per cluster','callback',{@this.clusterDistributionCb,'loadshape_membership'});
+                        set(this.handles.toggle_participant_membership,'tooltipstring','Participants per cluster','callback',{@this.clusterDistributionCb,'participant_membership'});
+                        set(this.handles.toggle_nonwear_membership,'tooltipstring','Nonwear per cluster','callback',{@this.clusterDistributionCb,'nonwear_membership'});
+                        set(this.handles.toggle_weekday_scores,'tooltipstring','Weekday scores by cluster','callback',{@this.clusterDistributionCb,'weekday_scores'});
+                        set(this.handles.toggle_weekday,'tooltipstring','Current cluster''s weekday distribution','callback',{@this.clusterDistributionCb,'weekday'});
+                        set(this.handles.toggle_performance,'tooltipstring','Adaptive separation performance progression','callback',{@this.clusterDistributionCb,'performance'});
+                        
+                        toggledTag = ['toggle_',widgetSettings.clusterDistributionType];
+                        if(~isfield(this.handles,toggledTag))
+                            toggledTag = 'toggle_loadshape_membership';
+                        end
+                        set(this.handles.(toggledTag),'value',1);
+                            
                     end
                 end                
             end
@@ -2154,7 +2169,7 @@ classdef PAStatTool < PABase
             %             set(this.handles.contextmenu.(this.clusterDistributionType),'checked','on');
         end               
         
-        function clusterDistributionCallback(this,hObject,eventdata,selection)
+        function clusterDistributionCb(this,hObject,eventdata,selection)
             this.clusterDistributionType = selection;
             this.plotClusters();
         end   
@@ -2429,6 +2444,13 @@ classdef PAStatTool < PABase
                 'text_clusterID'
                 'text_clusterDescription'                
                 'toolbar_results'
+                'btngrp_clusters'
+                'toggle_loadshape_membership'
+                'toggle_participant_membership'
+                'toggle_nonwear_membership'
+                'toggle_weekday_scores'
+                'toggle_weekday'
+                'toggle_performance'
 
 %                 'text_clusterResultsOverlay'
 %                 'table_clusterProfiles'
@@ -4394,7 +4416,6 @@ classdef PAStatTool < PABase
             indicesOfInterest = [1,4,6];  %n, mx, sem
             profileCell = profileCell(:,indicesOfInterest);
         end
-    end
-    
+    end 
 
 end
