@@ -1016,24 +1016,10 @@ classdef PAStatTool < PABase
         % Enable state should be 'on','off', or empty (defaults to 'off').
         function setEnableState(obj, enableState)
             
-            resultPanels = [
-                obj.handles.panel_results;
-                obj.handles.panel_clusterPlotControls;
-                obj.handles.panel_clusterSettings;                
-                ];
-            
-            switch( enableState )
-                case 'off'
-                    set(findall(resultPanels,'enable','on'),'enable','off');
-                case 'on'
-                    set(findall(resultPanels,'enable','off'),'enable','on');
-            end
-            
-            if(obj.isClusterMode())
-                set(resultPanels,'visible','on');
+            if(strcmpi( enableState, 'on') &&  obj.isClusterMode())
+                obj.enableClusterControls();
             else
-                set(resultPanels(1),'visible','on');
-                set(resultPanels(2:end),'visible','off');
+                obj.disableClusterControls();
             end
         end
         
@@ -1261,9 +1247,11 @@ classdef PAStatTool < PABase
                     case 'clustering'
                         this.switch2clustering();
                     otherwise
+                        
                         if(strcmpi(this.previousState.plotType,'clustering'))
                             this.switchFromClustering();
                         else
+                            set(this.handles.axes_secondary,'visible','off');
                             this.refreshPlot();
                         end
                 end
@@ -1482,8 +1470,11 @@ classdef PAStatTool < PABase
                         % clear results text
                         set(this.handles.text_clusterResultsOverlay,'string',[]);
                         
-                        % Enable everything and then shut things down as needed. 
-                        set(findall(this.handles.panels_sansClusters,'enable','off'),'enable','on');
+                        % Use to enable everything and then shut things down as needed. 
+                        % set(findall(this.handles.panels_sansClusters,'enable','off'),'enable','on');
+
+                        % now disable and then enable as eeded
+                        this.disable();
                         this.canPlot = true;
                         
                         this.featureDescriptions = this.base.featureDescriptions(ib);
@@ -3312,10 +3303,12 @@ classdef PAStatTool < PABase
         end
         
         %> @brief Enables panel_clusterSettings controls.
-        function enableClusterControls(this)
-            enableHandles(this.handles.panel_clusterPlotControls);            
-            enableHandles(this.handles.toolbar_results);
-                       
+        function enableClusterControls(this)            
+            enableHandles([
+                this.handles.panel_results
+                this.handles.panel_clusterPlotControls            
+                this.handles.toolbar_results
+                this.handles.btngrp_clusters]);                       
             
             % add a context menu now to primary axes            
             contextmenu_primaryAxes = uicontextmenu('parent',this.figureH);
@@ -3358,7 +3351,8 @@ classdef PAStatTool < PABase
         %> that they have excluded loadshapes and need to alter the settings
         %> to included them in a follow-on calculation.
         function disableClusterControls(this)
-            disableHandles(this.handles.toolbar_results);
+            disableHandles([this.handles.toolbar_results
+                this.handles.btngrp_clusters]);
             sethandles(this.handles.panel_clusterPlotControls,'enable','inactive');
             
             set(this.handles.panel_clusterInfo,'visible','off');

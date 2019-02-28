@@ -593,7 +593,7 @@ classdef PAView < handle
                 axesProps.primary.xminortick='off';
                 
                 axesProps.secondary = axesProps.primary; 
-                axesProps.secondary.visible = 'off';
+                % axesProps.secondary.visible = 'off';
             end
             
             axesProps.secondary.xgrid = 'off';
@@ -709,9 +709,9 @@ classdef PAView < handle
             handles = guidata(obj.getFigHandle());
             
             resultPanels = [
-                handles.panel_results;
-                handles.panel_clusterPlotControls;
-                handles.toolbar_results;
+                handles.panel_results
+                handles.toolbar_results
+                handles.panel_clusterPlotControls
                 ];
             
                        
@@ -734,8 +734,9 @@ classdef PAView < handle
                 end
                 
             elseif(strcmpi(viewMode,'results'))
-                set(resultPanels(1),'visible','on');
                 set(timeseriesPanels,'visible','off');
+                
+                set(resultPanels(1:2),'visible','on');
                 % Handle the enabling or disabling in the PAStatTool ->
                 % which has more control
                 % Disable everything.
