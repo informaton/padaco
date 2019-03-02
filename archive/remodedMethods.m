@@ -1,3 +1,95 @@
+% Removed from PAStattool on 3/1/2019 - replaced with toolbar icons
+% Functions affected: 
+% PAView:   disableWidgets, initWidgets
+% padaco:   initializeGUI
+% PAStatTool:  initWidgets, hideClusterControls,
+%              showClusterControls, initHandles, getPlostSettings
+%               mainFigureKeyPressFcn
+%   check_holdYAxes:  primaryAxesScalingCallback, checkHoldYAxesCallback
+%   check_holdPlots:  primaryAxesNextPlotCallback, showNextClusterCallback,
+%                   showPreviousClusterCallback, clearHistogramButtonDownFcn, clusterHistogramPatchButtonDownFcn
+%                   scatterPlotCOIButtonDownFcn, scatterplotButtonDownFcn
+%   check_showAnalysisFigure:
+%               initScatterPlotFigure, shouldShowAnalysisFigure, hideAnalysisFigure
+%               getPlotSettings      
+
+% function initWidgets(this, widgetSettings
+
+
+.... 
+    
+% bgColor = get(this.handles.panel_clusterPlotControls,'Backgroundcolor');
+RGB_MAX = 255;
+bgColor = get(this.handles.push_nextCluster,'backgroundcolor');
+imgBgColor = bgColor*RGB_MAX;
+
+%    bgColor = [nan, nan, nan];
+% bgColor = [0.94,0.94,0.94];
+originalImg = imread('arrow-right_16px.png','png','backgroundcolor',bgColor);
+
+%                         set(this.handles.push_nextCluster,'units','pixels');
+%                         pos = get(this.handles.push_nextCluster,'position');
+%                         originalImg = imresize(originalImg,pos(3:4));
+
+[nRows, nCols, nColors] = size(originalImg);
+
+transparentIndices = false(size(originalImg));  % This is for obtaining logical matrix
+for i=1:nColors
+    transparentIndices(:,:,i) = originalImg(:,:,i)==imgBgColor(i);
+end
+
+% This needs to start with NaNs, otherwise MATLAB
+% will convert nan to 0.
+transparentImg = nan(size(originalImg));
+nextImg = transparentImg;
+
+nextImg(~transparentIndices)=originalImg(~transparentIndices)/RGB_MAX; %normalize back to between 0.0 and 1.0 or NaN
+previousImg = fliplr(nextImg);
+
+%setIcon(this.handles.push_nextCluster,'arrow-right_16px.png',imgBgColor);
+fgColor = get(0,'FactoryuicontrolForegroundColor');
+defaultBackgroundColor = get(0,'FactoryuicontrolBackgroundColor');
+
+set(this.handles.push_nextCluster,'cdata',nextImg,'callback',@this.showNextClusterCallback);
+set(this.handles.push_previousCluster,'cdata',previousImg,'callback',@this.showPreviousClusterCallback);
+set([this.handles.push_nextCluster,this.handles.push_previousCluster],...
+    'string',[],'foregroundcolor',fgColor,...
+    'backgroundcolor',defaultBackgroundColor);
+
+
+set(this.handles.check_showClusterMembership,'callback',@this.checkShowClusterMembershipCallback);
+set(this.handles.check_holdYAxes,'value',strcmpi(widgetSettings.primaryAxis_yLimMode,'manual'),'callback',@this.checkHoldYAxesCallback);
+set(this.handles.check_holdPlots,'value',strcmpi(widgetSettings.primaryAxis_nextPlot,'add'),'callback',@this.checkHoldPlotsCallback);
+set(this.handles.check_showAnalysisFigure,'value',widgetSettings.showAnalysisFigure,'callback',@this.checkShowAnalysisFigureCallback);
+
+% This had been in there and commented out as well 3/1/2019
+
+%                         set(this.handles.menu_clusterStartTime,'userdata',[],'string',{'Start times'},'value',1);
+%                         set(this.handles.menu_clusterStopTime,'userdata',[],'string',{'Stop times'},'value',1);
+
+
+%                         startStopTimesInDay= 0:1/4:24;
+%                         hoursInDayStr = datestr(startStopTimesInDay/24,'HH:MM');
+%                         set(this.handles.menu_clusterStartTime,'userdata',startStopTimesInDay(1:end-1),'string',hoursInDayStr(1:end-1,:),'value',widgetSettings.startTimeSelection);
+%                         set(this.handles.menu_clusterStopTime,'userdata',startStopTimesInDay(2:end),'string',hoursInDayStr(2:end,:),'value',widgetSettings.stopTimeSelection);
+
+
+
+% Turns clustering display on or off
+%         % Though I don't think this actually does anything now so have
+%         % commented it out - @hyatt 5/11/2017
+
+%         function primaryAxesClusterSummaryContextmenuCallback(this,hObject,~)
+%             wasChecked = strcmpi(get(hObject,'checked'),'on');
+%             if(wasChecked)
+%                 set(hObject,'checked','off');
+%                 set(this.handles.text_clusterResultsOverlay,'visible','off');
+%             else
+%                 set(hObject,'checked','on');
+%                 set(this.handles.text_clusterResultsOverlay,'visible','on');
+%             end
+%         end
+
 % Removed from PACluster.m on 2/25/2019 - replaced with consolidated method
 % ======================================================================
 %> @brief Performs adaptive k-medoids clustering of input data.

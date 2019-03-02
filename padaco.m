@@ -19,15 +19,14 @@ function padaco()
             '\nChoose OK in the popup dialog to correct the settings file.\n']);
         resetDlg(hObject,fullfile(mPathname,parametersFile));
     end
-
 end
+
 function handles = initializeGUI(hFigure)
     
     % set(hObject,'visible','on');
     figColor = get(hFigure,'color');
     defaultUnits = 'pixels';
     handles = guidata(hFigure);
-    
     
        % get our panels looking nice and pretty.
             % This is taken care of in the initializeGUI call found in
@@ -36,15 +35,13 @@ function handles = initializeGUI(hFigure)
             %                     handles.panel_timeseries;
             %                     handles.panel_results
             %                 ],'backgroundcolor',[0.75,0.75,0.75]);
-    
+
     set([handles.text_status;
         handles.panel_results;
         handles.panel_timeseries],'backgroundcolor',figColor,'units',defaultUnits);
     
     set([handles.panel_results;
          handles.panel_timeseries],'bordertype','none');
-    
-
     
     set(hFigure,'closeRequestFcn','delete(gcbo)');
     
@@ -65,9 +62,9 @@ function handles = initializeGUI(hFigure)
         handles.panel_timeseries
         handles.panel_results
         handles.panel_resultsContainer
-        handles.panel_clusterPlotControls
         handles.panel_epochControls
-        handles.panel_displayButtonGroup],'units','pixels');
+        handles.panel_displayButtonGroup
+        handles.btngrp_clusters],'units','pixels');
     
     figPos = get(hFigure,'position');
     % Line our panels up to same top left position - do this here
@@ -89,23 +86,20 @@ function handles = initializeGUI(hFigure)
         %set(handles.panel_resultsContainer,'backgroundcolor',[0.94 0.94 0.94]);
         %set(handles.panel_resultsContainer,'backgroundcolor',[1 1 1]);
         
-        
         % Line up panel_clusterPlotControls with panel_epochControls
-        epochControlsPos = get(handles.panel_epochControls,'position');
-        coiControlsPos = get(handles.panel_clusterPlotControls,'position');
-        coiControlsPos(2) = sum(epochControlsPos([2,4]))-coiControlsPos(4);  % This is y_ = y^ + h^ - h_
-        set(handles.panel_clusterPlotControls,'position',coiControlsPos);
-        drawnow();
-        
+        %         epochControlsPos = get(handles.panel_epochControls,'position');
+        %         coiControlsPos = get(handles.panel_clusterPlotControls,'position');
+        %         coiControlsPos(2) = sum(epochControlsPos([2,4]))-coiControlsPos(4);  % This is y_ = y^ + h^ - h_
+        %         set(handles.panel_clusterPlotControls,'position',coiControlsPos);
+        %         drawnow();
+        %
         metaDataHandles = [handles.panel_study;get(handles.panel_study,'children')];
         set(metaDataHandles,'backgroundcolor',[0.94,0.94,0.94],'visible','off');
         
-       
         whiteHandles = [handles.panel_features_prefilter
             handles.panel_features_aggregate
             handles.panel_features_frame
-            handles.panel_features_signal   
-            handles.panel_clusterPlotControls            
+            handles.panel_features_signal         
             handles.edit_minClusters
             handles.edit_clusterConvergenceThreshold];
         sethandles(whiteHandles,'backgroundcolor',[1 1 1]);
@@ -114,12 +108,14 @@ function handles = initializeGUI(hFigure)
         
         %             set(findobj(whiteHandles,'-property','shadowcolor'),'shadowcolor',[0 0 0],'highlightcolor',[0 0 0]);
         
-        innerPanelHandles = [handles.panel_clusteringSettings
+        innerPanelHandles = [
+            handles.panel_clusteringSettings
             handles.panel_timeFrame
             handles.panel_source
             handles.panel_shapeAdjustments
             handles.panel_clusterSettings
             handles.panel_shapeSettings
+            handles.btngrp_clusters
             handles.panel_chunking];
         sethandles(innerPanelHandles,'backgroundcolor',[0.9 0.9 0.9]);
         
@@ -132,11 +128,7 @@ function handles = initializeGUI(hFigure)
         drawnow();
     end
     
-    
-    
-    
-    
-%     renderOffscreen(hObject);
+    %     renderOffscreen(hObject);
     movegui(hFigure,'northwest');
     
 end

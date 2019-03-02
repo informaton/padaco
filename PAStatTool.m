@@ -48,6 +48,7 @@ classdef PAStatTool < PABase
         %> struct of toolbar handles that PAStatTool interacts with. 
         toolbarH;
         
+        buttongroup;
         %> Struct of java component peers to some graphic handles listed
         %> under @c handles.  Currently only table_profileFields (under the
         %> analysis figure) is included.  
@@ -96,9 +97,12 @@ classdef PAStatTool < PABase
         allProfiles;
         profileTableData;
         
+        % boolean
         useCache;
         useDatabase;
         useOutcomes;
+        holdPlots;  
+
         resultsDirectory;
         featuresDirectory;
         cacheDirectory;
@@ -1047,8 +1051,7 @@ classdef PAStatTool < PABase
                 didSet = this.setIconData(icoData,icoMap);
             else
                 didSet = false;
-            end
-            
+            end            
         end
         
         function didSet = setOutcomesTable(this, outcomesController)
@@ -1135,23 +1138,36 @@ classdef PAStatTool < PABase
             end
         end
         
+
+        
         %> @brief Database functionality
         function didSet = setUseOutcomesTable(this, willSet)
             if(nargin>1)
-                this.useOutcomes = willSet && true;
-                
+                this.useOutcomes = willSet && true;                
                 if(isa(this.outcomesObj,'PAOutcomesTable'))                    
                     this.profileFields = this.outcomesObj.getColumnNames('subjects');                    
                     this.initProfileTable(this.outcomesObj.getSelectedIndex());                    
-                    set(this.handles.check_showAnalysisFigure,'visible','on');
-                end
-                
+                end                
                 didSet = true;
             else
                 didSet = false;
             end
         end
+        function doesIt = supportsAnalysisFigure(this)
+            doesIt = (this.useOutcomes && ~isempty(this.profileTableData)) || ...
+                (~isempty(this.profileFields) && this.useDatabase);         
+        end
         
+        function refreshAnalysisFigureAvailability(this)
+            if(this.supportsAnalysisFigure())
+                visibility = 'on';
+            else
+                visibility = 'off';
+            end
+            set(this.toolbarH.cluster.toggle_analysisFigure,'visible',visibility);
+        end
+        
+
         
         function hasIt = hasProfileData(this)
             hasIt = ~isempty(this.profileFields) && ~isempty(this.profileTableData);
@@ -1274,14 +1290,16 @@ classdef PAStatTool < PABase
             end
             switch(key)
                 case 'rightarrow'
-                    set(this.handles.push_nextCluster,'enable','off');
+                    set(this.toolbarH.cluster.push_right,'enable','off');
                     this.showNextCluster(toggleOn);
-                    set(this.handles.push_nextCluster,'enable','on');
+                    pause(0.1);
+                    set(this.toolbarH.cluster.push_right,'enable','on');
                     drawnow();
                 case 'leftarrow'
-                    set(this.handles.push_previousCluster,'enable','off');                    
+                    set(this.toolbarH.cluster.push_left,'enable','off');                    
                     this.showPreviousCluster(toggleOn);               
-                    set(this.handles.push_previousCluster,'enable','on'); 
+                    pause(0.1);
+                    set(this.toolbarH.cluster.push_left,'enable','on'); 
                     drawnow();
                 case 'uparrow'
                     if(figH == this.analysisFigureH)
@@ -1336,16 +1354,7 @@ classdef PAStatTool < PABase
             barWidth = 1;  % histogramH.BarWidth is 0.8 by default, but leaves 0.2 of ambiguity between adjancent bars.
             xStartStop = [histogramH.XData(:)-barWidth/2, histogramH.XData(:)+barWidth/2];
             selectedBarIndex = find( xStartStop(:,1)<xHit & xStartStop(:,2)>xHit ,1);
-            
-            
-            holdOn = get(this.handles.check_holdPlots,'value');
-
-            if(~holdOn && strcmpi(get(this.figureH,'selectiontype'),'normal'))
-                this.clusterObj.setCOISortOrder(selectedBarIndex);
-            else
-                this.clusterObj.toggleCOISortOrder(selectedBarIndex);                
-            end
-            this.plotClusters();         
+            this.toggleHistogramSelection(selectedBarIndex);                
         end
         
         % ======================================================================
@@ -1356,16 +1365,9 @@ classdef PAStatTool < PABase
         %> @param coiSortOrder - Index of the patch being clicked on.
         % ======================================================================
         function clusterHistogramPatchButtonDownFcn(this,hObject,eventData,coiSortOrder)
-            holdOn = get(this.handles.check_holdPlots,'value');
-
-            if(~holdOn && strcmpi(get(this.figureH,'selectiontype'),'normal'))
-                this.clusterObj.setCOISortOrder(coiSortOrder);
-            else
-                this.clusterObj.toggleCOISortOrder(coiSortOrder);
-            end
-            this.plotClusters();
+            this.toggleHistogramSelection(coiSortOrder);
         end
-
+        
         % ======================================================================
         %> @brief Mouse button callback when clicking on a scatter plot entry.
         %> @param this Instance of PAStatTool
@@ -1375,15 +1377,8 @@ classdef PAStatTool < PABase
         function scatterplotButtonDownFcn(this,lineH,eventData)
             xHit = eventData.IntersectionPoint(1);
             selectedSortOrder = round(xHit);
-            holdOn = get(this.handles.check_holdPlots,'value');
-
-            if(~holdOn && strcmpi(get(this.analysisFigureH,'selectiontype'),'normal'))
-                this.clusterObj.setCOISortOrder(selectedSortOrder);
-            else
-                this.clusterObj.toggleCOISortOrder(selectedSortOrder);                
-            end
-            this.plotClusters();         
-        end
+            this.toggleHistogramSelection(selectedSortOrder);        
+        end      
         
         % ======================================================================
         %> @brief Mouse button callback when clicking on a highlighted member (coi) 
@@ -1395,13 +1390,16 @@ classdef PAStatTool < PABase
         function scatterPlotCOIButtonDownFcn(this,lineH,eventData)
             xHit = eventData.IntersectionPoint(1);
             coiSortOrder = round(xHit);
-            holdOn = get(this.handles.check_holdPlots,'value');
-            if(~holdOn && strcmpi(get(this.analysisFigureH,'selectiontype'),'normal'))
-                this.clusterObj.setCOISortOrder(coiSortOrder);
+            this.toggleHistogramSelection(coiSortOrder);
+        end
+        
+        function toggleHistogramSelection(this, selectedIndex)
+            if(~this.holdPlots && strcmpi(get(this.figureH,'selectiontype'),'normal'))
+                this.clusterObj.setCOISortOrder(selectedIndex);
             else
-                this.clusterObj.toggleCOISortOrder(coiSortOrder);
+                this.clusterObj.toggleCOISortOrder(selectedIndex);                
             end
-            this.plotClusters();
+            this.plotClusters();     
         end
 
     end
@@ -1424,6 +1422,8 @@ classdef PAStatTool < PABase
             customIndex = strcmpi(this.base.weekdayTags,'custom');
             this.base.weekdayValues{customIndex} = widgetSettings.customDaysOfWeek;
             
+            this.holdPlots = strcmpi(widgetSettings.primaryAxis_nextPlot,'add'); % boolean
+            
             featuresPathname = this.featuresDirectory;
             % this.hideClusterControls();
 
@@ -1438,10 +1438,7 @@ classdef PAStatTool < PABase
                 this.handles.menu_clusterStartTime
                 this.handles.menu_clusterStopTime                
                 this.handles.menu_duration
-                this.handles.check_showClusterMembership
                 this.handles.push_refreshClusters
-                this.handles.push_nextCluster
-                this.handles.push_previousCluster
                 this.handles.check_trim
                 this.handles.edit_trimToPercent
                 this.handles.check_cull
@@ -1488,7 +1485,6 @@ classdef PAStatTool < PABase
                         set(this.handles.check_segment,'min',0,'max',1,'value',widgetSettings.chunkShapes);
                         set(this.handles.check_trim,'min',0,'max',1,'value',widgetSettings.trimResults);
                         set(this.handles.check_cull,'min',0,'max',1,'value',widgetSettings.cullResults);                        
-                        set(this.handles.check_showClusterMembership,'min',0,'max',1,'value',widgetSettings.showClusterMembers);  
                         set(this.handles.check_normalizevalues,'min',0,'max',1,'value',widgetSettings.normalizeValues);
                         
                         % This should be updated to parse the actual output feature
@@ -1510,15 +1506,6 @@ classdef PAStatTool < PABase
                         set(this.handles.menu_weekdays,'string',this.base.weekdayDescriptions,'userdata',this.base.weekdayTags,...
                             'value',widgetSettings.weekdaySelection,'callback',@this.menuWeekdaysCallback,'tooltipstring',tooltipString);
 
-                        %                         set(this.handles.menu_clusterStartTime,'userdata',[],'string',{'Start times'},'value',1);
-                        %                         set(this.handles.menu_clusterStopTime,'userdata',[],'string',{'Stop times'},'value',1);
-                        
-                        
-                        %                         startStopTimesInDay= 0:1/4:24;
-                        %                         hoursInDayStr = datestr(startStopTimesInDay/24,'HH:MM');
-                        %                         set(this.handles.menu_clusterStartTime,'userdata',startStopTimesInDay(1:end-1),'string',hoursInDayStr(1:end-1,:),'value',widgetSettings.startTimeSelection);
-                        %                         set(this.handles.menu_clusterStopTime,'userdata',startStopTimesInDay(2:end),'string',hoursInDayStr(2:end,:),'value',widgetSettings.stopTimeSelection);
-                        
                         set(this.handles.menu_duration,'string',this.base.clusterDurationDescriptions,'value',widgetSettings.clusterDurationSelection);
                         set(this.handles.edit_minClusters,'string',num2str(widgetSettings.minClusters));
                         set(this.handles.edit_clusterConvergenceThreshold,'string',num2str(widgetSettings.clusterThreshold)); 
@@ -1574,63 +1561,26 @@ classdef PAStatTool < PABase
                         
                         
                         drawnow();
-                        %
-                        % bgColor = get(this.handles.panel_clusterPlotControls,'Backgroundcolor');
-                        RGB_MAX = 255;
-                        bgColor = get(this.handles.push_nextCluster,'backgroundcolor');
-                        imgBgColor = bgColor*RGB_MAX;
-                        
-                        %    bgColor = [nan, nan, nan];
-                        % bgColor = [0.94,0.94,0.94];
-                        originalImg = imread('arrow-right_16px.png','png','backgroundcolor',bgColor);
-                        
-%                         set(this.handles.push_nextCluster,'units','pixels');
-%                         pos = get(this.handles.push_nextCluster,'position');
-%                         originalImg = imresize(originalImg,pos(3:4));
-                        
-                        [nRows, nCols, nColors] = size(originalImg);
-                        
-                        transparentIndices = false(size(originalImg));  % This is for obtaining logical matrix                        
-                        for i=1:nColors                            
-                            transparentIndices(:,:,i) = originalImg(:,:,i)==imgBgColor(i);
-                        end
-                        
-                        % This needs to start with NaNs, otherwise MATLAB
-                        % will convert nan to 0.
-                        transparentImg = nan(size(originalImg));                        
-                        nextImg = transparentImg;
-
-                        nextImg(~transparentIndices)=originalImg(~transparentIndices)/RGB_MAX; %normalize back to between 0.0 and 1.0 or NaN
-                        previousImg = fliplr(nextImg);
-                        
-                        %setIcon(this.handles.push_nextCluster,'arrow-right_16px.png',imgBgColor);
-                        fgColor = get(0,'FactoryuicontrolForegroundColor');
-                        defaultBackgroundColor = get(0,'FactoryuicontrolBackgroundColor');
-            
-                        set(this.handles.push_nextCluster,'cdata',nextImg,'callback',@this.showNextClusterCallback);
-                        set(this.handles.push_previousCluster,'cdata',previousImg,'callback',@this.showPreviousClusterCallback);
-                        set([this.handles.push_nextCluster,this.handles.push_previousCluster],...
-                            'string',[],'foregroundcolor',fgColor,...
-                            'backgroundcolor',defaultBackgroundColor);
-                                               
-                        set(this.handles.check_showClusterMembership,'callback',@this.checkShowClusterMembershipCallback);
-                        set(this.handles.check_holdYAxes,'value',strcmpi(widgetSettings.primaryAxis_yLimMode,'manual'),'callback',@this.checkHoldYAxesCallback);
-                        set(this.handles.check_holdPlots,'value',strcmpi(widgetSettings.primaryAxis_nextPlot,'add'),'callback',@this.checkHoldPlotsCallback);
-                        set(this.handles.check_showAnalysisFigure,'value',widgetSettings.showAnalysisFigure,'callback',@this.checkShowAnalysisFigureCallback);
                         
                         % Refactoring for toolbars
                         offOnState = {'off','on'}; % 0 -> 'off', 1 -> 'on'  and then +1 to get matlab 1-based so that 1-> 'off' and 2-> 'on'
                         set(this.toolbarH.cluster.toggle_membership,'state',offOnState{widgetSettings.showClusterMembers+1},...
                             'clickedcallback',@this.checkShowClusterMembershipCallback);
-                        set(this.toolbarH.cluster.toggle_holdPlots,'state',offOnState{strcmpi(widgetSettings.primaryAxis_nextPlot,'add')+1},...
+                        set(this.toolbarH.cluster.toggle_summary,'state',offOnState{widgetSettings.showClusterSummary+1},...
+                            'clickedcallback',@this.plotCb);
+                        
+                        set(this.toolbarH.cluster.toggle_holdPlots,'state',offOnState{this.holdPlots+1},...
                             'clickedcallback',@this.checkHoldPlotsCallback);
                         set(this.toolbarH.cluster.toggle_yLimit,'state',offOnState{strcmpi(widgetSettings.primaryAxis_yLimMode,'manual')+1},...
-                            'clickedcallback',@this.checkHoldYAxesCallback);                        
+                            'clickedcallback',@this.togglePrimaryAxesYCb);                        
                         set(this.toolbarH.cluster.toggle_analysisFigure,'state',offOnState{widgetSettings.showAnalysisFigure+1},...
-                            'clickedcallback',@this.checkShowAnalysisFigureCallback);
+                            'clickedcallback',@this.toggleAnalysisFigureCb);
                         set(this.toolbarH.cluster.toggle_backgroundColor,'state',offOnState{widgetSettings.showTimeOfDayAsBackgroundColor+1},...
-                            'ClickedCallback',@this.toggleBgColorCb); %'OffCallback',@this.toggleBgColorCb,'OnCallback',@this.toggleBgColorCb);
+                            'ClickedCallback',@this.plotCb); %'OffCallback',@this.toggleBgColorCb,'OnCallback',@this.toggleBgColorCb);
                         
+                        set(this.toolbarH.cluster.push_right,'clickedcallback',@this.showNextClusterCallback);
+                        set(this.toolbarH.cluster.push_left,'clickedcallback',@this.showPreviousClusterCallback);
+
                         
                         set([
                             this.handles.menu_clusterStartTime
@@ -1652,13 +1602,6 @@ classdef PAStatTool < PABase
                         this.handles.contextmenu.secondaryAxes.performance_progression = uimenu(contextmenu_secondaryAxes,'Label','Adaptive separation performance progression','callback',{@this.clusterDistributionCb,'performance_progression'},'separator','on');
                         set(this.handles.axes_secondary,'uicontextmenu',contextmenu_secondaryAxes);
                         
-                        % add a button group that does essentially the same thing as this context menu.
-                        set(this.handles.toggle_loadshape_membership,'tooltipstring','Loadshapes per cluster','callback',{@this.clusterDistributionCb,'loadshape_membership'});
-                        set(this.handles.toggle_participant_membership,'tooltipstring','Participants per cluster','callback',{@this.clusterDistributionCb,'participant_membership'});
-                        set(this.handles.toggle_nonwear_membership,'tooltipstring','Nonwear per cluster','callback',{@this.clusterDistributionCb,'nonwear_membership'});
-                        set(this.handles.toggle_weekday_scores,'tooltipstring','Weekday scores by cluster','callback',{@this.clusterDistributionCb,'weekday_scores'});
-                        set(this.handles.toggle_weekday_membership,'tooltipstring','Current cluster''s weekday distribution','callback',{@this.clusterDistributionCb,'weekday_membership'});
-                        set(this.handles.toggle_performance_progression,'tooltipstring','Adaptive separation performance progression','callback',{@this.clusterDistributionCb,'performance_progression'});
                         
                         this.setClusterDistributionType(widgetSettings.clusterDistributionType);
                             
@@ -1685,15 +1628,25 @@ classdef PAStatTool < PABase
             
             % Profile Summary and analysis figure
             if(this.useDatabase || this.useOutcomes)
-                this.initProfileTable(widgetSettings.profileFieldSelection);
-            else
-                set(this.handles.check_showAnalysisFigure,'visible','off');
-            end
+                this.initProfileTable(widgetSettings.profileFieldSelection);                
+            end            
+            % Now check and update whether we make the option available 
+            this.refreshAnalysisFigureAvailability();
 
             % disable everything
             if(~this.canPlot)
                 set(findall(this.handles.panel_results,'enable','on'),'enable','off');  
             end
+        end
+        
+        function buttondownfcn(this, hobject, evtdata)
+           this.logStatus('Button %s', get(hobject,'tag'));
+        end
+        function distributionChangeCb(this, hObject, evtData)
+            newH = evtData.NewValue;
+            cdata = get(newH,'userdata');
+            this.setClusterDistributionType(cdata.label);
+            this.plotClusters();
         end
         
         function initRefreshClusterButton(this,enableState)
@@ -1795,9 +1748,16 @@ classdef PAStatTool < PABase
             if(~ismember(distType,this.DISTRIBUTION_TYPES))
                 distType = 'loadshape_membership';
             end
-            this.clusterDistributionType = distType;
-            toggledTag = ['toggle_',this.clusterDistributionType];            
-            set(this.handles.(toggledTag),'value',1);
+            if(~strcmpi(distType,this.clusterDistributionType))
+                oldH = this.buttongroup.cluster.(this.clusterDistributionType);                
+                cdata = get(oldH,'userdata');
+                set(oldH,'cdata',cdata.Off,'value',0);
+            end
+            
+            this.clusterDistributionType = distType;            
+            newH = this.buttongroup.cluster.(this.clusterDistributionType);
+            cdata = get(newH,'userdata');           
+            set(newH,'cdata',cdata.On,'value',1);            
         end
         %> @brief Software driven callback trigger for
         %> profileFieldMnenuSelectionChangeCallback.  Used as a wrapper for
@@ -1833,7 +1793,7 @@ classdef PAStatTool < PABase
         end
         
         function shouldShow = shouldShowAnalysisFigure(this)
-            shouldShow = get(this.handles.check_showAnalysisFigure,'value') || strcmpi(get(this.toolbarH.cluster.toggle_analysisFigure,'state'),'on');
+            shouldShow = strcmpi(get(this.toolbarH.cluster.toggle_analysisFigure,'state'),'on');
         end
         
     end
@@ -1851,25 +1811,15 @@ classdef PAStatTool < PABase
         function showBg = displayBgColor(this)
             showBg = istoggled(this.toolbarH.cluster.toggle_backgroundColor);
         end
-        function toggleBgColorCb(this, hToggle, e)
-            
-%             curState = get(hToggle,'state');
-%             switch(lower(curState))
-%                 case 'off'
-%                     set(hToggle,'state','on');
-%                 case 'on'
-%                   %  set(hToggle,'state','off');                    
-%             end
-%             switch(lower(e.EventName))
-%                 case 'off'
-%                     
-%                 case 'on'
-%                     
-%             end
-% %             set(hToggle,'state',e.EventName);
-%             this.setStatus(e.EventName);
-%             this.logStatus(e.eventName);
+        
+        % Called by something that wants a refreshed plot.  If it is done
+        % the settings from the plotClusters call are pulled from the user
+        % interface, so this is a good generic call for many purposes.
+        function plotCb(this, varargin)
+            this.plotClusters();
         end
+        
+        
         
         % ======================================================================
         %> @brief Callback to enable the push_refreshClusters button.  The button's 
@@ -1932,9 +1882,7 @@ classdef PAStatTool < PABase
             else
                 this.logStatus('No cluster object exists to cancel');
             end
-            
-        end        
-        
+        end
         
         function menuWeekdaysCallback(this, hObject, eventData)
             curTag = getMenuUserData(hObject);
@@ -1968,8 +1916,6 @@ classdef PAStatTool < PABase
                 this.enableClusterRecalculation();
             end
         end
-
-        
 
         function analyzeClustersCallback(this, hObject,eventData)
            % Get my cluster Object
@@ -2029,7 +1975,6 @@ classdef PAStatTool < PABase
                    else
                        msgbox(resultStr,resultStruct.covariateName);
                    end
-                   
                end
                    
            catch me
@@ -2037,27 +1982,34 @@ classdef PAStatTool < PABase
                showME(me);
                pause(1);
            end
-           set(hObject,'enable','on','string',initString);
-            
+           set(hObject,'enable','on','string',initString);            
         end
-
         
         function exportTableResultsCallback(this, hObject,eventData)
             tableData = get(this.handles.table_clusterProfiles,'data');
             copy2workspace(tableData,'clusterProfilesTable');
         end
                 
-        % Should probably move to event listeners here pretty soon.
-        function hideAnalysisFigure(this,varargin)
-            set(this.handles.check_showAnalysisFigure,'value',0);
-            this.checkShowAnalysisFigureCallback(varargin(:));
+        function showAnalysisFigure(this)
+            this.setAnalysisFigureVisibility('on');
+        end
+        function hideAnalysisFigure(this)
+            this.setAnalysisFigureVisibility('off');
         end
         
-        function checkShowAnalysisFigureCallback(this, hObject, eventData)    
+        function setAnalysisFigureVisibility(this, onOrOff)
+            set(this.toolbarH.cluster.toggle_analysisFigure,'state',onOrOff);
+            set(this.analysisFigureH,'visible',onOrOff);
+        end
+        
+        function hideAnalysisFigureCb(this,varargin)
+            this.hideAnalysisFigure();
+        end        
+        function toggleAnalysisFigureCb(this, varargin)    
             if(this.shouldShowAnalysisFigure())
-                set(this.analysisFigureH,'visible','on');
+                this.showAnalysisFigure();
             else
-                set(this.analysisFigureH,'visible','off');                
+                this.hideAnalysisFigure();
             end
         end
         
@@ -2072,72 +2024,38 @@ classdef PAStatTool < PABase
             end
         end        
         
-         
-        % Turns clustering display on or off
-%         % Though I don't think this actually does anything now so have
-%         % commented it out - @hyatt 5/11/2017
-        
-        %         function primaryAxesClusterSummaryContextmenuCallback(this,hObject,~)
-        %             wasChecked = strcmpi(get(hObject,'checked'),'on');
-        %             if(wasChecked)
-        %                 set(hObject,'checked','off');
-        %                 set(this.handles.text_clusterResultsOverlay,'visible','off');
-        %             else
-        %                 set(hObject,'checked','on');
-        %                 set(this.handles.text_clusterResultsOverlay,'visible','on');
-        %             end
-        %         end
-        
-        
         function primaryAxesScalingContextmenuCallback(this,hObject,~)
             set(get(hObject,'children'),'checked','off');            
             set(this.handles.contextmenu.axesYLimMode.(get(this.handles.axes_primary,'ylimmode')),'checked','on');
         end
-                
-        function primaryAxesScalingCallback(this,hObject,~,yScalingMode)
-            set(this.handles.axes_primary,'ylimmode',yScalingMode,...
-            'ytickmode',yScalingMode,...
-            'yticklabelmode',yScalingMode);
-            if(strcmpi(yScalingMode,'auto'))
-                set(this.handles.check_holdYAxes,'value',0);
-                %                 this.checkHoldPlotsCallback();
-                this.plotClusters();
-            else
-                set(this.handles.check_holdYAxes,'value',1);  %manual selection means do not auto adjust
-                
-                % What is going on here?
-                %                 if(strcmpi(get(this.handles.axes_primary,'nextplot'),'replace'))
-                %                     set(this.handles.axes_primary,'nextplot','replaceChildren');
-                %                 end
-            end
-        end
-        
-        %> @brief A 'checked' "Hold y-axis" checkbox infers 'manual'
-        %> yllimmode for the primary (upper) axis.  An unchecked box
-        %> indicates auto-scaling for the y-axis.
-        function checkHoldYAxesCallback(this,hObject,eventData)
-            if(strcmpi(get(hObject,'type'),'uitoggletool'))
-                isManual = strcmpi(get(hObject,'state'),'on');
-            else
-                isManual =  get(hObject,'value');
-            end
-            % Is it checked?
-            if(isManual)
-                yScalingMode = 'manual';
-            else
-                yScalingMode = 'auto';
-            end
             
+        function setPrimaryAxesYMode(this, yScalingMode)
             set(this.handles.axes_primary,'ylimmode',yScalingMode,...
                 'ytickmode',yScalingMode,...
                 'yticklabelmode',yScalingMode);
             if(strcmpi(yScalingMode,'auto'))
                 this.plotClusters();
             else
-                if(strcmpi(get(this.handles.axes_primary,'nextplot'),'replace'))
-                    set(this.handles.axes_primary,'nextplot','replaceChildren');
-                end
+                %manual selection means do not auto adjust
             end
+        end
+        
+        function primaryAxesScalingCallback(this,hObject,~,yScalingMode)
+            this.setPrimaryAxesYMode(yScalingMode);
+        end
+        
+        %> @brief A 'checked' "Hold y-axis" checkbox infers 'manual'
+        %> yllimmode for the primary (upper) axis.  An unchecked box
+        %> indicates auto-scaling for the y-axis.
+        function togglePrimaryAxesYCb(this,hObject,~)
+            % Is it checked?
+            isManual =  istoggled(hObject);
+            if(isManual)
+                yScalingMode = 'manual';
+            else
+                yScalingMode = 'auto';
+            end
+            this.setPrimaryAxesYMode(yScalingMode);
         end        
         
         function primaryAxesNextPlotContextmenuCallback(this,hObject,~)
@@ -2145,31 +2063,23 @@ classdef PAStatTool < PABase
             set(this.handles.contextmenu.nextPlot.(get(this.handles.axes_primary,'nextplot')),'checked','on');
         end
         
-        function primaryAxesNextPlotCallback(this,hObject,~,nextPlot)
-            if(strcmpi(nextPlot,'add'))
-                set(this.handles.check_holdPlots,'value',1);
-            else
-                set(this.handles.check_holdPlots,'value',0);                
-            end
-
+        function setNextPlotBehavior(this, nextPlot)            
             set(this.handles.axes_primary,'nextplot',nextPlot);
         end
         
-        function checkHoldPlotsCallback(this,hObject,eventData)
-            if(strcmpi(get(hObject,'type'),'uitoggletool'))
-                shouldHold = strcmpi(get(hObject,'state'),'on');
-            else
-                shouldHold = get(hObject,'value');
-            end
+        function primaryAxesNextPlotCallback(this,hObject,~,nextPlot)
+            this.setNextPlotBehavior(nextPlot);
+        end
+        
+        function checkHoldPlotsCallback(this,hObject,~)            
             % Is it checked?
-            if(shouldHold)
+            if(istoggled(hObject))
                 nextPlot = 'add';
             else
                 nextPlot = 'replaceChildren';
             end
-            set(this.handles.axes_primary,'nextplot',nextPlot);
-        end
-        
+            this.setNextPlotBehavior(nextPlot);
+        end        
 
         
         function contextmenu_secondaryAxesCallback(this,varargin)
@@ -2190,7 +2100,7 @@ classdef PAStatTool < PABase
         end               
         
         function clusterDistributionCb(this,hObject,eventdata,selection)
-            this.clusterDistributionType = selection;
+            this.setClusterDistributionType(selection);
             this.plotClusters();
         end   
     end
@@ -2261,7 +2171,7 @@ classdef PAStatTool < PABase
             this.analysisFigureH = clusterAnalysisFig('visible','off',...
                 'name','Cluster Analysis',...
                 'WindowKeyPressFcn',@this.mainFigureKeyPressFcn,...
-                'CloseRequestFcn',@this.hideAnalysisFigure);
+                'CloseRequestFcn',@this.hideAnalysisFigureCb);
             
             % Create handle place holders and initialize
             this.initHandles();
@@ -2271,7 +2181,7 @@ classdef PAStatTool < PABase
             set(this.handles.push_analyzeClusters,'string','Analyze Clusters','callback',@this.analyzeClustersCallback);
             set(this.handles.push_exportTable,'string','Export Table','callback',@this.exportTableResultsCallback);
             set(this.handles.text_analysisTitle,'string','','fontsize',12);
-            set(this.handles.check_showAnalysisFigure,'visible','on');            
+            %             set(this.toolbarH.cluster.toggle_analysisFigure,'visible','on');
         end
         
         % ======================================================================
@@ -2443,34 +2353,23 @@ classdef PAStatTool < PABase
                 'check_segment'
                 'menu_precluster_reduction'
                 'menu_number_of_data_segments'
-                'check_showClusterMembership'
                 'edit_clusterConvergenceThreshold'
                 'edit_minClusters'
                 'push_refreshClusters'
                 'panel_shapeSettings'
                 'panel_clusterSettings'                
                 'panel_resultsContainer'
-                'panel_results'
-                'panel_clusterPlotControls'
-                'push_nextCluster'
-                'push_previousCluster'
+                'panel_results'                
                 'text_minClusters'
                 'text_clusterResultsOverlay'
                 'text_status'
-                'check_holdPlots'
-                'check_holdYAxes'
-                'check_showAnalysisFigure'
                 'panel_clusterInfo'
                 'text_clusterID'
                 'text_clusterDescription'                
                 'toolbar_results'
                 'btngrp_clusters'
-                'toggle_loadshape_membership'
-                'toggle_participant_membership'
-                'toggle_nonwear_membership'
-                'toggle_weekday_scores'
-                'toggle_weekday_membership'
-                'toggle_performance_progression'
+                
+                
 
 %                 'text_clusterResultsOverlay'
 %                 'table_clusterProfiles'
@@ -2487,7 +2386,10 @@ classdef PAStatTool < PABase
                 'toggle_holdPlots'
                 'toggle_yLimit'
                 'toggle_membership'
+                'toggle_summary'
                 'toggle_analysisFigure'
+                'push_right'
+                'push_left'
                 };
 
             fnames = fieldnames(toolbarHandles);
@@ -2500,13 +2402,57 @@ classdef PAStatTool < PABase
                     tH = tmpHandles.(hname);
                     this.toolbarH.(fname).(hname) = tH;
                     
-                    cdata.Off = get(tH,'cdata');
-                    cdata.On = max(cdata.Off-0.2,0);    
-                    cdata.On(isnan(cdata.Off)) = nan;
-                    set(tH,'userdata',cdata,'oncallback',@this.toggleOnOffCb,'offcallback',@this.toggleOnOffCb);      
+                    if(isa(tH,'matlab.ui.container.toolbar.ToggleTool'))
+                        cdata.Off = get(tH,'cdata');
+                        cdata.On = max(cdata.Off-0.2,0);
+                        cdata.On(isnan(cdata.Off)) = nan;
+                        set(tH,'userdata',cdata,'oncallback',@this.toggleOnOffCb,'offcallback',@this.toggleOnOffCb,'state','Off');
+                    end
                 end
             end
-           
+            
+            btnProps = {'loadshape_membership','Loadshapes per cluster'
+                'participant_membership','Participants per cluster'
+                'nonwear_membership','Nonwear per cluster'
+                'weekday_scores','Weekday scores by cluster'
+                'weekday_membership','Current cluster''s weekday distribution'
+                'performance_progression','Adaptive separation performance progression'
+                };
+            
+            %             btnTags = {'toggle_loadshape_membership'
+            %                 'toggle_participant_membership'
+            %                 'toggle_nonwear_membership'
+            %                 'toggle_weekday_scores'
+            %                 'toggle_weekday_membership'
+            %                 'toggle_performance_progression'
+            %                 }
+            
+            this.buttongroup.cluster = struct();
+            for row=1:size(btnProps,1)
+                label = btnProps{row,1};
+                tip = btnProps{row,2};
+                tag = ['toggle_',label];
+                h = tmpHandles.(tag);
+                cdata.Off = get(h,'cdata');
+                cdata.On = max(cdata.Off-0.2,0);
+                cdata.On(isnan(cdata.Off)) = nan;
+                cdata.label = label;
+                set(h,'tooltipstring',tip,'userdata',cdata);
+                this.buttongroup.cluster.(label) = h;
+            end
+            
+%             set(this.handles.toggle_loadshape_membership,'tooltipstring','Loadshapes per cluster')%,'ButtonDownFcn',@this.buttondownfcn,'enable','inactive');  % ,'callback',{@this.clusterDistributionCb,'loadshape_membership'}
+%             set(this.handles.toggle_participant_membership,'tooltipstring','Participants per cluster');%'callback',{@this.clusterDistributionCb,'participant_membership'},'enable','inactive');
+%             set(this.handles.toggle_nonwear_membership,'tooltipstring','Nonwear per cluster');%,'ButtonDownFcn',@this.buttondownfcn,'hittest','off');%,'callback',{@this.clusterDistributionCb,'nonwear_membership'});
+%             set(this.handles.toggle_weekday_scores,'tooltipstring','Weekday scores by cluster');%,'hittest','off');%,'callback',{@this.clusterDistributionCb,'weekday_scores'});
+%             set(this.handles.toggle_weekday_membership,'tooltipstring','Current cluster''s weekday distribution');%,'hittest','off','enable','inactive');%,'callback',{@this.clusterDistributionCb,'weekday_membership'});
+%             set(this.handles.toggle_performance_progression,'tooltipstring','Adaptive separation performance progression');%,'callback',{@this.clusterDistributionCb,'performance_progression'});
+            
+            
+            set(this.handles.btngrp_clusters,'SelectionChangedFcn',@this.distributionChangeCb);
+
+            set(h,'value',1);
+
 %             cdata.Off = get(this.toolbarH.cluster.toggle_membership,'cdata');
 %             cdata.On = cdata.Off;
 %             cdata.On(cdata.Off==1) = 0.7;
@@ -2520,7 +2466,6 @@ classdef PAStatTool < PABase
             
             % tmpHandles.panel_chunking;
             %                     tmpHandles.panel_timeFrame
-            %                     tmpHandles.check_showClusterMembership
             
             % add a context menu now to figureH in order to use with cluster load
             % shape line handles.
@@ -2664,7 +2609,7 @@ classdef PAStatTool < PABase
                 otherwise
                     disp Oops!;
             end
-            title(axesHandle,plotOptions.titleStr,'fontsize',14);
+            hT = title(axesHandle,plotOptions.titleStr,'fontsize',14);%,'units','normalized','visible','off');
 
             xlimits = minmax(weekdayticks);
 
@@ -2743,9 +2688,8 @@ classdef PAStatTool < PABase
         %> @param this Instance of PAStatTool
         %> @param Variable number of arguments required by MATLAB gui callbacks
         % ======================================================================
-        function showNextClusterCallback(this, varargin)
-            holdOn = get(this.handles.check_holdPlots,'value');
-            this.showNextCluster(holdOn);
+        function showNextClusterCallback(this, varargin)            
+            this.showNextCluster();
         end
                 
         % ======================================================================
@@ -2759,7 +2703,7 @@ classdef PAStatTool < PABase
         % ======================================================================
         function showNextCluster(this,toggleOn)
             if(nargin<2 || ~islogical(toggleOn))
-                toggleOn = false;
+                toggleOn = this.holdPlots; %0/1
             end
             if(~isempty(this.clusterObj))
                 if(toggleOn)
@@ -2779,8 +2723,7 @@ classdef PAStatTool < PABase
         %> @param Variable number of arguments required by MATLAB gui callbacks
         % ======================================================================
         function showPreviousClusterCallback(this,varargin)
-            holdOn = get(this.handles.check_holdPlots,'value');
-            this.showPreviousCluster(holdOn);
+            this.showPreviousCluster();
         end
         
         % ======================================================================
@@ -2794,7 +2737,7 @@ classdef PAStatTool < PABase
         % ======================================================================
         function showPreviousCluster(this,toggleOn)
             if(nargin<2 || ~islogical(toggleOn))
-                toggleOn = false;
+                toggleOn = this.holdPlots;
             end
             if(toggleOn)
                 didChange = this.clusterObj.toggleOnPreviousCOI();
@@ -2816,27 +2759,14 @@ classdef PAStatTool < PABase
         %> membership is checked, and off when it is unchecked.
         % ======================================================================
         function checkShowClusterMembershipCallback(this,hObject,varargin)
-            this.plotClusters();
-            isaToggle = strcmpi(get(hObject,'type'),'uitoggletool');
-            if(isaToggle)
-                shouldShow = strcmpi(get(hObject,'state'),'on');
-            else
-                shouldShow = get(hObject,'value');
-            end
+            this.plotClusters();            
             % Is it checked?
-            if(shouldShow)                
+            if(istoggled(hObject))
                 set(this.handles.axes_primary,'ygrid','on');
                 [~, uniqueIDs] = this.clusterObj.getClustersOfInterestMemberIDs();
                 disp(uniqueIDs);
             else
-                set(this.handles.axes_primary,'ygrid','off');
-                
-            end
-            if(isaToggle)
-                set(this.handles.check_showClusterMembership,'value',shouldShow);
-            else
-                offOnState = {'off','on'};
-                set(this.toolbarH.cluster.toggle_membership,'state',offOnState{shouldShow+1});
+                set(this.handles.axes_primary,'ygrid','off');                
             end
         end        
                 
@@ -3237,7 +3167,7 @@ classdef PAStatTool < PABase
         %> two axes.
         %> @param Instance of PAStatTool
         function hideClusterControls(this)
-            set([this.handles.panel_clusterPlotControls
+            set([
                 this.handles.panel_clusterSettings
                 this.handles.panel_clusterInfo
                 this.handles.axes_secondary
@@ -3294,7 +3224,8 @@ classdef PAStatTool < PABase
                 set(this.handles.panel_resultsContainer,'position',containerPos);
             end
             
-            set([this.handles.panel_clusterPlotControls
+            
+            set([                
                 this.handles.panel_clusterSettings
                 this.handles.axes_secondary
                 this.handles.btngrp_clusters
@@ -3305,8 +3236,7 @@ classdef PAStatTool < PABase
         %> @brief Enables panel_clusterSettings controls.
         function enableClusterControls(this)            
             enableHandles([
-                this.handles.panel_results
-                this.handles.panel_clusterPlotControls            
+                this.handles.panel_results                            
                 this.handles.toolbar_results
                 this.handles.btngrp_clusters]);                       
             
@@ -3353,7 +3283,6 @@ classdef PAStatTool < PABase
         function disableClusterControls(this)
             disableHandles([this.handles.toolbar_results
                 this.handles.btngrp_clusters]);
-            sethandles(this.handles.panel_clusterPlotControls,'enable','inactive');
             
             set(this.handles.panel_clusterInfo,'visible','off');
             set(this.handles.text_clusterResultsOverlay,'enable','on');
@@ -3651,7 +3580,9 @@ classdef PAStatTool < PABase
                     end
                     
                     ylabel(distributionAxes,yLabelStr,'fontsize',14);
-                    title(distributionAxes,titleStr,'fontsize',14);
+                    hT = title(distributionAxes,titleStr,'fontsize',14,'units','normalized','visible','off');
+                    hPos = get(hT,'position');
+                    set(hT,'position',[hPos(1) 0.9 hPos(3)],'visible','on');
                     this.refreshCOIProfile();
                 end
             catch me
@@ -3732,7 +3663,7 @@ classdef PAStatTool < PABase
             set(this.handles.text_clusterID,'string',clusterID);
             set(this.handles.text_clusterDescription,'string',clusterDescription);
             
-            if(this.originalWidgetSettings.showClusterSummary && isempty(intersect(this.clusterDistributionType,{'performance_progression','weekday_scores'})))
+            if(istoggled(this.toolbarH.cluster.toggle_summary) && isempty(intersect(this.clusterDistributionType,{'performance_progression','weekday_scores'})))
                 set(this.handles.panel_clusterInfo,'visible','on');                
                 % the title is cleared automatically already.
                 %title(clusterAxes,clusterTitle,'fontsize',14,'interpreter','none','visible','off');
@@ -3771,16 +3702,8 @@ classdef PAStatTool < PABase
         function userSettings = getPlotSettings(this)
             userSettings.discardNonwearFeatures = get(this.handles.check_discardNonwear,'value'); %this.originalWidgetSettings.discardNonwearFeatures;
             
-            userSettings.showClusterMembers = get(this.handles.check_showClusterMembership,'value');
-            
-            userSettings.showClusterSummary = this.originalWidgetSettings.showClusterSummary;
-            
-%             if(isfield(this.handles.contextmenu,'show'))
-%                 userSettings.showClusterSummary = strcmpi(get(this.handles.contextmenu.show.clusterSummary,'checked'),'on');
-%             else
-%                 userSettings.showClusterSummary = false;
-%             end
-            
+            userSettings.showClusterMembers = istoggled(this.toolbarH.cluster.toggle_membership);
+            userSettings.showClusterSummary = istoggled(this.toolbarH.cluster.toggle_summary); 
             
             userSettings.processedTypeSelection = 1;  %defaults to count!
             
@@ -3789,7 +3712,6 @@ classdef PAStatTool < PABase
             userSettings.plotTypeSelection = get(this.handles.menu_plottype,'value');
             
             userSettings.chunkShapes = get(this.handles.check_segment,'value'); % returns 0 for unchecked, 1 for checked
-            
             
             userSettings.numChunks = getMenuUserData(this.handles.menu_number_of_data_segments);   % 6;
             userSettings.numDataSegmentsSelection = get(this.handles.menu_number_of_data_segments,'value');
@@ -3816,7 +3738,7 @@ classdef PAStatTool < PABase
             % Plot settings
             userSettings.primaryAxis_yLimMode = get(this.handles.axes_primary,'ylimmode');
             userSettings.primaryAxis_nextPlot = get(this.handles.axes_primary,'nextplot');
-            userSettings.showAnalysisFigure = get(this.handles.check_showAnalysisFigure,'value');
+            userSettings.showAnalysisFigure = istoggled(this.toolbarH.cluster.toggle_analysisFigure);
             userSettings.showTimeOfDayAsBackgroundColor = strcmpi(get(this.toolbarH.cluster.toggle_backgroundColor,'state'),'on');
             userSettings.profileFieldSelection = get(this.handles.menu_ySelection,'value');
             %             userSettings.clusterStartTime = getSelectedMenuString(this.handles.menu_clusterStartTime);

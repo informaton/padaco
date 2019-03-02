@@ -647,9 +647,9 @@ classdef PAView < handle
             handles = guidata(obj.getFigHandle());            
 
             resultPanels = [
-                            handles.panel_results;
-                            handles.panel_clusterPlotControls;
-                            handles.panel_epochControls;
+                            handles.panel_results
+                            handles.btngrp_clusters
+                            handles.panel_epochControls
                            ];
 
             timeseriesPanels = [handles.panel_timeseries;
@@ -711,9 +711,8 @@ classdef PAView < handle
             resultPanels = [
                 handles.panel_results
                 handles.toolbar_results
-                handles.panel_clusterPlotControls
+                handles.btngrp_clusters
                 ];
-            
                        
             timeseriesPanels = [
                 handles.panel_timeseries;
