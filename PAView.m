@@ -1624,6 +1624,8 @@ classdef PAView < handle
             y = repmat(yLim([1 2 2 1])',1,nFaces);
             vertexColor = nan(4,nFaces,3);
             
+            % only work with a row vector so we can add correctly next
+            overlayVector = overlayVector(:);
             % each column represent a face color triplet            
             overlayColorMap = (overlayVector/maxValue)*[1,1,0.65]+ repmat(minColor,nFaces,1);
        
@@ -1640,11 +1642,12 @@ classdef PAView < handle
                 x(:,f) = startStopDatenum(f,[1 1 2 2])';
                 
             end
-            overlayPatchH = patch(x,y,vertexColor,'parent',axesH,'edgecolor','interp','facecolor','interp');
-            
+            overlayPatchH = patch(x,y,vertexColor,'parent',axesH,'edgecolor','interp','facecolor','interp');            
             normalizedOverlayVector = overlayVector/maxValue*(overlayHeight)+overlayOffset;
-            overlayLineH = line('parent',axesH,'linestyle',':','xdata',linspace(startStopDatenum(1),startStopDatenum(end),numel(overlayVector)),'ydata',normalizedOverlayVector,'color',[1 1 0]);
+            
+            overlayLineH = [];
             if(~isempty(contextmenuH))
+                overlayLineH = line('parent',axesH,'linestyle',':','xdata',linspace(startStopDatenum(1),startStopDatenum(end),numel(overlayVector)),'ydata',normalizedOverlayVector,'color',[1 1 0]);          
                 set(overlayLineH,'uicontextmenu',contextmenuH);
                 % set(contextmenuH,'userdata',overlayVector);
             end

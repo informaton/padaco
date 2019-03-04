@@ -11,7 +11,7 @@ classdef PAStatTool < PABase
     
     properties(Constant)
        RESULTS_CACHE_FILENAME = 'results.tmp';
-       COLOR_MEMBERSHAPE = [0.85 0.85 0.85];
+       COLOR_MEMBERSHAPE = [0.5 0.45 0.65];
        COLOR_LINESELECTION = [0.8 0.1 0.1];
        COLOR_MEMBERID = [0.1 0.1 0.8];
        MAX_DAYS_PER_STUDY = 7;
@@ -3305,6 +3305,7 @@ classdef PAStatTool < PABase
         function plotClusters(this,clusterAndPlotSettings)
             
             this.clearPrimaryAxes();
+            
             %  this.clearPlots();            
             % this.showMouseBusy();
             try
@@ -3312,10 +3313,8 @@ classdef PAStatTool < PABase
                     % clear everything and give a warning that the cluster is empty
                     this.logWarning('Clustering results were empty');
                 else
-                    if(nargin<2)
-                        clusterAndPlotSettings = this.getPlotSettings();
-                    end
                     
+                  
                     numClusters = this.clusterObj.numClusters();
  
                     distributionAxes = this.handles.axes_secondary;
@@ -3331,7 +3330,11 @@ classdef PAStatTool < PABase
                     % load.  Add drawClusterXTicksAndLabels() to the lite
                     % method for refreshClustersAndPlot when
                     % switching2clusters is invoked.
-                    % this.drawClusterXTicksAndLabels();
+                    % this.drawClusterXTicksAndLabels();                    
+                    
+                    if(nargin<2)
+                        clusterAndPlotSettings = this.getPlotSettings();
+                    end
                     
                     
                     %% Show clusters on primary axes                    
@@ -3419,13 +3422,38 @@ classdef PAStatTool < PABase
                     end
                     
                     set(clusterAxes,'nextplot',originalNextPlot);
-            
+                    
                     legendStrings = this.displayClusterSummary(coiMemberIDs, coiSortOrders);
                     
                     if(numCOIs>1)
                         legend(clusterAxes,clusterHandles,legendStrings,'box','on','fontsize',12);                
                     else
                         legend(clusterAxes,'off');
+                    end
+                    
+                    if(clusterAndPlotSettings.showTimeOfDayAsBackgroundColor)
+                        % Finally Add daylight to the top.
+                        maxDaylight = 1;
+                        verticalOffset = 0;
+                        height = 1;
+                        axesH = this.handles.axes_primary;
+                                           
+                        datenumVec = datenum(this.getStartTimesCell,'HH:MM');
+                        numShades = 1;
+                        daylight = getDaylightEstimate(numShades,datenumVec);
+                        
+                        xdata = linspace(1,this.featureStruct.totalCount,numel(daylight)+1);
+                        
+                        % use a proxy for the actual start stop date nums,
+                        % since we don't actually use it for display in
+                        % this case, but the indexing of the content, which
+                        % is already provided in the 'xdata' property of
+                        % our axes handle.
+                        startStopXData = [xdata(1:end-1);xdata(2:end)]';
+                      
+                        [~, overlayPatchH] = PAView.addOverlayToAxes(daylight, startStopXData, height, verticalOffset,maxDaylight,axesH);
+                        set(overlayPatchH,'hittest','off');
+                        uistack(overlayPatchH,'bottom');
                     end
                     
                     % Analysis figure and scatter plot - highlight the
