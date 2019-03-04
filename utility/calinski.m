@@ -3,7 +3,7 @@
 %> @retval The Calinzki-Harabasz index
 function calinskiIndex = calinski(clusterIDForClusterMember,clusters,sumD)
 try
-    membersPerCluster = histcounts(clusterIDForClusterMember);
+    membersPerCluster = histcounts(clusterIDForClusterMember, numel(sumD));  %or size(clusters,1)
     numObservations = sum(membersPerCluster(:));
     numClusters = size(clusters,1);
     globalMeans = mean(clusters,1);

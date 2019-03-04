@@ -24,6 +24,7 @@ Version history
 - Misc:
    - Menubar: Changed "Analysis Mode" -> "View"     
 - Enhancements:
+  - Added daylight proxy background color for time of day context (use toolbar)
   - Analysis figure source label added (#109)
   - Show number of nonwear containing loadshapes (#108)
   - Caching nonwear structure (#107)
