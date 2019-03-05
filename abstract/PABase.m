@@ -29,7 +29,6 @@ classdef PABase < handle
             end
             obj.setStatus(varargin{:});
             start(obj.statusTimerH);            
-            
         end
         
         function setStatus(obj, fmtStr, varargin)

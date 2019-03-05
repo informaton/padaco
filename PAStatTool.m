@@ -1925,11 +1925,23 @@ classdef PAStatTool < PABase
                 this.enableClusterRecalculation();
             end
         end
-
         
-                 
         function analysisFigurePlotHistogramCb(this, hObject,eventData)
-            this.setTimedStatus(5,'Plotting!');
+            %  this.setTimedStatus(5,'Plotting!');
+            cs = this.clusterObj.getCovariateStruct();
+            pData = this.getProfileData(cs.memberIDs,this.getProfileFieldSelection());
+            fname = fieldnames(pData);
+            f = figure('name','Covariate distribution','visible','off');
+            numPlots = numel(fname);
+            for p=1:numPlots()
+                subplot(numPlots,1,p);
+                field = fname{p};
+                hist(pData.(field));
+                title(strrep(field,'_',' '));
+            end
+            set(f,'visible','on');
+            
+            
         end
         
         function analyzeClustersCallback(this, hObject,eventData)
@@ -3955,6 +3967,8 @@ classdef PAStatTool < PABase
             end
         end
         
+        
+        
         function [fieldIndex, fieldName] = getProfileFieldIndex(this)
             fieldIndex = 1;
             fieldName = '';
@@ -3963,6 +3977,20 @@ classdef PAStatTool < PABase
             catch me
                 % this.logError(me);
             end
+        end
+        
+        function dataStruct = getProfileData(this,primaryKeys,fieldsOfInterest)
+            if(isempty(primaryKeys))
+               primaryKeys = 1; 
+            end
+            if(this.useOutcomes())
+                [~,~,dataStruct]=this.outcomesObj.getSubjectInfoSummary(primaryKeys,fieldsOfInterest);
+            elseif(this.useDatabase())
+                [~,~,dataStruct]=this.databaseObj.getSubjectInfoSummary(primaryKeys,fieldsOfInterest);
+            else
+                dataStruct = struct();
+            end
+            
         end
         
         % ======================================================================
@@ -3980,15 +4008,16 @@ classdef PAStatTool < PABase
         % ======================================================================
         function [coiProfile, dataSummaryStruct] = getProfileCell(this,primaryKeys,fieldsOfInterest)
             
-            if(nargin<2 || isempty(fieldsOfInterest))
-                if(~isempty(this.outcomesObj))   
-                    fieldsOfInterest = this.outcomesObj.getColumnNames('subjects');
-                elseif(~isempty(this.databaseObj))
+            if(nargin<3 || isempty(fieldsOfInterest))
+                if(this.useOutcomes())   
+                    fieldsOfInterest = this.outcomesObj.getColumnNames('subjects');                    
+                elseif(this.useDatabase())
                     fieldsOfInterest = this.databaseObj.getColumnNames('subjectInfo_t');
                 end
                 %                 fieldsOfInterest = {'bmi_zscore';
                 %                     'insulin'};
             end
+
             statOfInterest = 'AVG';
             if(~isempty(this.outcomesObj))
                 [dataSummaryStruct, ~]=this.outcomesObj.getSubjectInfoSummary(primaryKeys,fieldsOfInterest,statOfInterest);

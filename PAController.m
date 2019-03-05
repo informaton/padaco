@@ -2477,7 +2477,6 @@ classdef PAController < PABase
             else
                 ytickLabel = [ytickLabel,'Activity','Lumens','Daylight'];
             end
-
             
             numViews = numel(ytickLabel);
             startStopDatenum = [startStopDatenums(1),startStopDatenums(end)];
@@ -2486,7 +2485,6 @@ classdef PAController < PABase
             axesProps.TickDir = 'in';
             axesProps.TickDirMode = 'manual';
             axesProps.TickLength = [0.001 0];
-            
             
             axesProps.xlim = startStopDatenum;
             [~,~,d,h,mi,s] = datevec(diff(startStopDatenum));
@@ -2534,7 +2532,6 @@ classdef PAController < PABase
             
             axesProps.XTick = xTick;
             axesProps.XTickLabel = datestr(xTick,'ddd HH:MM');
-            
             
             fontReduction = min([4, floor(durationDays/4)]);
             axesProps.fontSize = 14-fontReduction;
@@ -2593,7 +2590,6 @@ classdef PAController < PABase
                 end
             end
         end
-        
         
         %% context menu callbacks for channels
         
@@ -2684,7 +2680,6 @@ classdef PAController < PABase
             off_menu_h = uimenu(menu_h,'Label','Off','tag','smoothing_off','callback',{@obj.contextmenu_featureSmoothing_callback,false});
             set(menu_h,'callback',{@obj.configure_contextmenu_smoothing_callback,on_menu_h,off_menu_h});
         end
-        
         
         % =================================================================
         %> @brief Configure Line Smoothing sub contextmenus for view's secondary axes.
@@ -2865,7 +2860,6 @@ classdef PAController < PABase
             else
                 set(contextmenu_h,'visible','on');
             end
-            
         end
         
         % --------------------------------------------------------------------
