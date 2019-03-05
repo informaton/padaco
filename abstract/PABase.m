@@ -5,6 +5,7 @@ classdef PABase < handle
     properties(SetAccess=protected)
         handles;
         statusHandle;
+        statusTimerH;
     end
     methods
         
@@ -12,15 +13,35 @@ classdef PABase < handle
             obj.setStatus('');
         end
         
+        function clearStatusCb(this, varargin)
+            this.clearStatus();
+        end
+        
+        function setTimedStatus(obj, delayToFade, varargin)            
+            if(isempty(obj.statusTimerH))
+               obj.statusTimerH = timer('timerfcn',@obj.clearStatusCb,'executionmode','singleshot','startdelay',5);
+            end
+            if(strcmpi(obj.statusTimerH.Running,'on'))
+                stop(obj.statusTimerH);
+            end
+            if(delayToFade>1)
+                set(obj.statusTimerH,'startdelay',delayToFade);              
+            end
+            obj.setStatus(varargin{:});
+            start(obj.statusTimerH);            
+            
+        end
+        
         function setStatus(obj, fmtStr, varargin)
-           str = sprintf(fmtStr, varargin{:});
-           if(~isempty(obj.statusHandle) && ishandle(obj.statusHandle))
-               set(obj.statusHandle,'string',str);
-           else
-               if(~isempty(fmtStr))
-                   fprintf(1,['%s',newline],str);
-               end
-           end
+            
+            str = sprintf(fmtStr, varargin{:});
+            if(~isempty(obj.statusHandle) && ishandle(obj.statusHandle))
+                set(obj.statusHandle,'string',str);
+            else
+                if(~isempty(fmtStr))
+                    fprintf(1,['%s',newline],str);
+                end
+            end
         end
         
         function logWarning(obj,fmtStr, varargin)

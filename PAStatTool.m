@@ -295,8 +295,17 @@ classdef PAStatTool < PABase
                                 end
                             end
                             
+                            
                             if(this.hasValidCluster())
-                                this.updateOriginalWidgetSettings(this.clusterObj.settings);                                
+                                
+                                % Corner case to separate these two items
+                                % which currently are not synced well
+                                % enough in the gui to enable easy update
+                                previousSettingsFromClusterObj = this.clusterObj.settings;
+                                previousSettingsFromClusterObj.useDatabase = this.useDatabase;
+                                previousSettingsFromClusterObj.useOutcomes = this.useOutcomes;
+                                
+                                this.updateOriginalWidgetSettings(previousSettingsFromClusterObj); 
                                 didInit = true;
                                 this.clusterObj.setExportPath(this.originalWidgetSettings.exportPathname);
                                 this.clusterObj.addlistener('DefaultParameterChange',@this.clusterParameterChangeCb);
@@ -1144,7 +1153,7 @@ classdef PAStatTool < PABase
         function didSet = setUseOutcomesTable(this, willSet)
             if(nargin>1)
                 this.useOutcomes = willSet && true;                
-                if(isa(this.outcomesObj,'PAOutcomesTable'))                    
+                if(this.useOutcomes && isa(this.outcomesObj,'PAOutcomesTable'))                    
                     this.profileFields = this.outcomesObj.getColumnNames('subjects');                    
                     this.initProfileTable(this.outcomesObj.getSelectedIndex());                    
                 end                
@@ -1917,6 +1926,12 @@ classdef PAStatTool < PABase
             end
         end
 
+        
+                 
+        function analysisFigurePlotHistogramCb(this, hObject,eventData)
+            this.setTimedStatus(5,'Plotting!');
+        end
+        
         function analyzeClustersCallback(this, hObject,eventData)
            % Get my cluster Object
            % Take in all of the clusters, or the ones selected
@@ -2177,8 +2192,9 @@ classdef PAStatTool < PABase
             this.initHandles();
             
             % Initialize the scatter plot axes
-            this.initScatterPlotAxes();
-            set(this.handles.push_analyzeClusters,'string','Analyze Clusters','callback',@this.analyzeClustersCallback);
+            this.initScatterPlotAxes();            
+            set(this.handles.push_plotHistogram,'string','Histogram','callback',@this.analysisFigurePlotHistogramCb);            
+            set(this.handles.push_analyzeClusters,'string','Analyze Selection','callback',@this.analyzeClustersCallback);
             set(this.handles.push_exportTable,'string','Export Table','callback',@this.exportTableResultsCallback);
             set(this.handles.text_analysisTitle,'string','','fontsize',12);
             %             set(this.toolbarH.cluster.toggle_analysisFigure,'visible','on');
@@ -2289,6 +2305,7 @@ classdef PAStatTool < PABase
                 'menu_ySelection'
                 'push_exportTable'
                 'push_analyzeClusters'
+                'push_plotHistogram'
                 'text_analysisTitle'
                 };
             
@@ -2311,7 +2328,7 @@ classdef PAStatTool < PABase
             jAnalysisFigPanel = get(jAnalysisFrame,'FigurePanelContainer');
 %             this.jhandles.table_clusterProfiles=jFigPanel.getComponent(0).getComponent(0).getComponent(0).getComponent(0).getComponent(0);
             
-            this.jhandles.table_clusterProfiles = jAnalysisFigPanel.getComponent(0).getComponent(4).getComponent(0).getComponent(0).getComponent(0);
+            this.jhandles.table_clusterProfiles = jAnalysisFigPanel.getComponent(0).getComponent(5).getComponent(0).getComponent(0).getComponent(0);
             %             j.getUIClassID=='TableUI';
         
             %countComponents(jFigPanel.getComponent(0))
