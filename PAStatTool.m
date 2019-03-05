@@ -1931,17 +1931,27 @@ classdef PAStatTool < PABase
             cs = this.clusterObj.getCovariateStruct();
             pData = this.getProfileData(cs.memberIDs,this.getProfileFieldSelection());
             fname = fieldnames(pData);
-            f = figure('name','Covariate distribution','visible','off');
+            figName = 'Covariate distribution';
+            f = findobj(0,'name',figName);
+            if(isempty(f))
+                f = figure('name',figName,'visible','off','numbertitle','off','menubar','none','toolbar','none');
+            else
+                f = f(1);
+            end
+            figure(f); % make it current;            
             numPlots = numel(fname);
+            numBins = 100;
             for p=1:numPlots()
                 subplot(numPlots,1,p);
-                field = fname{p};
-                hist(pData.(field));
-                title(strrep(field,'_',' '));
+                field = fname{p};                
+                hist(pData.(field), numBins);                
+                fieldLabel = strrep(field,'_',' ');
+                ylabel('Subjects (n)');                
+                title(fieldLabel);
+                xlabel(fieldLabel)
             end
+            
             set(f,'visible','on');
-            
-            
         end
         
         function analyzeClustersCallback(this, hObject,eventData)

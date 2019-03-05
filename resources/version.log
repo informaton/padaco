@@ -30,6 +30,7 @@ Version history
   - Caching nonwear structure (#107)
   - Saving export path for results (#106)
   - Improved startup loading and view switching. 
+  - Added histogram functionality to analysis figure.
 - Resolved issues 
   - Settings editor resizing glitch (#103) 
   - Transition issue (#102)
