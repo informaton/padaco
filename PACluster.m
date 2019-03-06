@@ -317,8 +317,10 @@ classdef PACluster < PAData
             end
             if(this.settings.chunkShapes)
                 segID = sprintf('S-%d',this.settings.numChunks);
-            else
+            elseif(this.settings.preclusterReductionSelection==1)
                 segID = 'U';
+            else
+                segID = 'S-1';
             end            
             configID = sprintf('%c-%s',durID,segID);
         end
