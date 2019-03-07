@@ -3093,7 +3093,8 @@ classdef PAStatTool < PABase
                 % so users can cancel.  And I chose to do that here, rather
                 % than in the constructor.
                 delayedStart = true;
-                tmpClusterObj = PACluster(this.featureStruct.features,pSettings,this.handles.axes_primary,resultsTextH,this.featureStruct.studyIDs, this.featureStruct.startDaysOfWeek, delayedStart);
+                cSettings = this.getClusterSettings(pSettings);
+                tmpClusterObj = PACluster(this.featureStruct.features,cSettings,this.handles.axes_primary,resultsTextH,this.featureStruct.studyIDs, this.featureStruct.startDaysOfWeek, delayedStart);
                 tmpClusterObj.setExportPath(this.originalWidgetSettings.exportPathname);
                 tmpClusterObj.addlistener('DefaultParameterChange',@this.clusterParameterChangeCb);
                 
@@ -3179,7 +3180,24 @@ classdef PAStatTool < PABase
             this.showReady();
         end
         
-        
+        function cSettings = getClusterSettings(this, pSettings)
+           if(nargin<2 || isempty(pSettings))
+               pSettings = this.getPlotSettings();
+           end
+           
+           plotOnlyFields = {
+               'primaryAxis_yLimMode'
+               'primaryAxis_nextPlot'
+               'showAnalysisFigure'
+               'numShades'
+               'showTimeOfDayAsBackgroundColor'
+               'showClusterSummary'
+               'plotTypeSelection'
+               };
+           allFields = fieldnames(pSettings);
+           fieldsToRemove = intersect(plotOnlyFields,allFields);
+           cSettings = rmfield(pSettings,fieldsToRemove);
+        end
         % Original widget settings from when the last cluster calculation
         % was performed.
         function widgetState = getStateAtTimeOfLastClustering(this)
