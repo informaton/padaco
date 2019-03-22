@@ -3404,9 +3404,11 @@ classdef PAStatTool < PABase
                     % coiMarkers = '+o*xv^.';
                     
                     % Clever ...
-                    coiColors =  'kbgrycm';
+                    coiColors = 'kbgrycm';
+                    coiMarkers= '+o*.xv^';
                     coiStyles = repmat('-:',size(coiColors));
                     coiColors = [coiColors, fliplr(coiColors)];
+                    coiMarkers = [coiMarkers, fliplr(coiMarkers)];
                     maxColorStyles = numel(coiColors);
                     % coiMarkers = [coiMarkers,coiMarkers];
                     
@@ -3428,14 +3430,10 @@ classdef PAStatTool < PABase
                         coi = cois{c};
                         coiSortOrders(c) = coi.sortOrder;
                         coiMemberIDs = [coi.memberIDs(:);coiMemberIDs(:)];
+                        
                         if(clusterAndPlotSettings.showClusterMembers)
                             if(numel(coi.shape)==1)
-                                markerOff = true;
-                                if(markerOff)
-                                    markerType = 'none';
-                                else
-                                    markerType = 'hexagram';
-                                end
+                                markerType = '.';
                                 midPoint = mean(get(clusterAxes,'xlim'));
                                 membersLineH = plot(clusterAxes,midPoint,coi.dayOfWeek.memberShapes,'-','linewidth',1,'color',this.COLOR_MEMBERSHAPE,'marker',markerType);
                             else
@@ -3451,20 +3449,16 @@ classdef PAStatTool < PABase
                         
                         % This changes my axes limit mode if nextplot is set to
                         % 'replace' instead of 'replacechildren'
-                        colorStyleIndex = mod(c-1,maxColorStyles)+1;  %b/c MATLAB is one based, and 'mod' is not.
+                        colorStyleIndex = mod(coi.sortOrder-1,maxColorStyles)+1;  %b/c MATLAB is one based, and 'mod' is not.
                         
-                        markerOff = true;
-                        if(markerOff)
-                            markerType = 'none';
-                        else
-                            markerType = coiMarkers(colorStyleIndex);
-                        end
+                        markerType = 'none';
                         if(numel(coi.shape)==1)
+                            markerType = coiMarkers(colorStyleIndex);
                             midPoint = mean(get(clusterAxes,'xlim'));
                             
                             clusterHandles(c) = plot(clusterAxes,midPoint,coi.shape,'linestyle','none',...
                                 'marker',markerType,'markerfacecolor','none',...
-                                'markeredgecolor',coiColors(colorStyleIndex));
+                                'markeredgecolor',coiColors(colorStyleIndex),'markersize',20);
                         else
                             clusterHandles(c) = plot(clusterAxes,coi.shape,'linewidth',2,'linestyle',coiStyles(colorStyleIndex),'color',coiColors(colorStyleIndex),'marker',markerType,'markerfacecolor','none','markeredgecolor','k'); %[0 0 0]);
                         end
