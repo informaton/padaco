@@ -24,6 +24,8 @@ Version history
 - Misc:
    - Menubar: Changed "Analysis Mode" -> "View"     
 - Enhancements:
+  - Allow feature clustering of 7 days when data is available.  
+    - Features are concatenated in according to day of the week, Sunday through Saturday.
   - Added daylight proxy background color for time of day context (use toolbar)
   - Analysis figure source label added (#109)
   - Show number of nonwear containing loadshapes (#108)
