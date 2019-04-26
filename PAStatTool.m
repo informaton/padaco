@@ -474,7 +474,7 @@ classdef PAStatTool < PABase
             paramStruct.useDatabase = this.useDatabase;
             paramStruct.useOutcomes = this.useOutcomes;     
             paramStruct.profileFieldIndex = this.getProfileFieldIndex();
-            paramStruct.minDaysAllowed = this.minNumDaysAllowed;
+            % paramStruct.minDaysAllowed =    this.minNumDaysAllowed;  % Remove after 4/26/2019 @hyatt if no bugs
             paramStruct.minNumDaysAllowed = this.minNumDaysAllowed;
             paramStruct.maxNumDaysAllowed = this.maxNumDaysAllowed;
             paramStruct.databaseClass = this.originalWidgetSettings.databaseClass;
@@ -652,14 +652,23 @@ classdef PAStatTool < PABase
                     if(isfield(this.originalFeatureStruct,'studyIDs'))
                         [this.originalFeatureStruct.uniqueIDs,iaFirst] = unique(this.originalFeatureStruct.studyIDs,'first');
                         [~,iaLast,~] = unique(this.originalFeatureStruct.studyIDs,'last');
-                        this.originalFeatureStruct.indFirstLast = [iaFirst, iaLast];
-                        this.originalFeatureStruct.indFirstLast1Week = [iaFirst, min(iaLast, iaFirst+this.MAX_DAYS_PER_STUDY-1)];
+                        this.originalFeatureStruct.indFirstLast = [iaFirst, iaLast];  % can be more than one week
+                        this.originalFeatureStruct.numDays = iaLast - iaFirst+1;  % can be more than one week
+                        
+                        this.originalFeatureStruct.indFirstLast1Week = [iaFirst, min(iaLast, iaFirst+this.MAX_DAYS_PER_STUDY-1)];  % cannot be more than one week, but can be less ...
+                        
+                        ind2keepExactly1Week = false(size(this.originalFeatureStruct.shapes,1),1);                        
                         ind2keep = false(size(this.originalFeatureStruct.shapes,1),1);
                         dayInd = this.originalFeatureStruct.indFirstLast1Week;
                         for d=1:size(dayInd,1)
-                            ind2keep(dayInd(d,1):dayInd(d,2))= true;
+                            ind2keep(dayInd(d,1):dayInd(d,2))= true;  % could be less than a week, but not more
+                            if(this.originalFeatureStruct.numDays(d)>=7) 
+                                ind2keepExactly1Week(dayInd(d,1):dayInd(d,2))= true;
+                                % exactly 1 week
+                            end
                         end
-                        this.originalFeatureStruct.ind2keep1Week = ind2keep;
+                        this.originalFeatureStruct.ind2keep1Week = ind2keep;  % logical index for subject days that are part of 1 week or less.
+                        this.originalFeatureStruct.ind2keepExactly1Week = ind2keepExactly1Week; % logical index for subject days that are part of 1 week exactly (each day is covered).
                     end
                     
                     % The call to setStartTimes here is necessary to 
@@ -737,10 +746,29 @@ classdef PAStatTool < PABase
                     this.nonwear.featureStruct = [];
                 end
                 
-                maxDaysAllowed = this.maxNumDaysAllowed;
-                if(maxDaysAllowed>0)
+                if(strcmpi(pSettings.weekdayTag,'weeklong'))
+                    maxDaysAllowed = 7;
+                    minDaysAllowed = 7;
+                else
+                    maxDaysAllowed = this.maxNumDaysAllowed;
+                    minDaysAllowed = this.minNumDaysAllowed;
+                end
+                
+                % min and max days allowed interpeted in one of three weeks
+                % 1.  both exactly 7
+                % 2.  either more than 0
+                % 3.  both exactly 0
+                if(maxDaysAllowed>0 || minDaysAllowed>0)
                     if(isempty(indicesToUse))
-                        ind2keep = this.originalFeatureStruct.ind2keep1Week;                        
+                        % Handling exactly 1 week
+                        if(maxDaysAllowed==7 && minDaysAllowed==7)
+                            ind2keep = this.originalFeatureStruct.ind2keepExactly1Week;
+                        
+                        % otherwise, universally handling the case of 1
+                        % week or less.
+                        else
+                            ind2keep = this.originalFeatureStruct.ind2keep1Week;
+                        end
                     else
                         % Otherwise, go off of what was passed in.
                         ind2keep = false(size(this.featureStruct.shapes,1),1);
@@ -758,6 +786,8 @@ classdef PAStatTool < PABase
                         this.featureStruct.(fname)(~ind2keep,:)=[];
                     end
                 end
+                
+                
                 loadFeatures = this.featureStruct.shapes;
 
                 if(pSettings.clusterDurationHours~=24)
@@ -809,7 +839,7 @@ classdef PAStatTool < PABase
                     % featuresPerHour = this.featureStruct.totalCount/24;
                     % featuresPerCluster = hoursPerCluster*featuresPerHour;
                 end
-                
+                % If there is precluster reduction
                 if(~strcmpi(pSettings.preclusterReduction,'none')) 
                     
                     if(pSettings.chunkShapes && pSettings.numChunks>1)
@@ -843,18 +873,25 @@ classdef PAStatTool < PABase
                         loadFeatures = splitLoadFeatures;
                     else
                         loadFeatures = PAStatTool.featureSetAdjustment(loadFeatures,pSettings.preclusterReduction);                            
-                        % @2/9/2017 loadFeatures = sort(loadFeatures,2,'descend');  %sort rows from high to low
+                       
                     end
                     
                     % Account for new times.
                     % if we had a precluster feature set reduction
                     if(~strcmpi(pSettings.preclusterReduction,'sort'))
-                        initialCount = this.featureStruct.totalCount;
-                        this.featureStruct.totalCount = pSettings.numChunks;
-                        indicesToUse = floor(linspace(1,initialCount,this.featureStruct.totalCount));
-                        % intervalToUse = floor(initialCount/(pSettings.numChunks+1));
-                        % indicesToUse = linspace(intervalToUse,intervalToUse*pSettings.numChunks,pSettings.numChunks);
+                        
+                        if(pSettings.chunkShapes)
+                            initialCount = this.featureStruct.totalCount;                        
+                            this.featureStruct.totalCount = pSettings.numChunks;
+                            indicesToUse = floor(linspace(1,initialCount,this.featureStruct.totalCount));
+                            % intervalToUse = floor(initialCount/(pSettings.numChunks+1));
+                            % indicesToUse = linspace(intervalToUse,intervalToUse*pSettings.numChunks,pSettings.numChunks);
+                        else
+                            this.featureStruct.totalCount = 1;
+                            indicesToUse = 1;
+                        end
                         this.featureStruct.startTimes = this.featureStruct.startTimes(indicesToUse);
+                        
                     end
                     
                 end
@@ -1509,9 +1546,12 @@ classdef PAStatTool < PABase
                         if(strcmpi(this.base.weekdayTags{widgetSettings.weekdaySelection},'custom'))
                             customIndex = widgetSettings.weekdaySelection;
                             tooltipString = cell2str(this.base.daysOfWeekDescriptions(this.base.weekdayValues{customIndex}+1));
+                        elseif(strcmpi(this.base.weekdayTags{widgetSettings.weekdaySelection},'weeklong'))
+                            tooltipString = 'Concatenates days, Sunday through Saturday, into a single week';
                         else
                             tooltipString = '';
                         end
+                        
                         set(this.handles.menu_weekdays,'string',this.base.weekdayDescriptions,'userdata',this.base.weekdayTags,...
                             'value',widgetSettings.weekdaySelection,'callback',@this.menuWeekdaysCallback,'tooltipstring',tooltipString);
 
@@ -1629,7 +1669,7 @@ classdef PAStatTool < PABase
             % in the guide figure on startup, and is dynamically when
             % switching from clustering.
             if(~isfield(this.previousState,'plotType') || isempty(this.previousState.plotType))
-                this.previousState.plotType = 'clustering';  % don't refresh here, as we may want to use a chaced result.  
+                this.previousState.plotType = 'clustering';  % don't refresh here, as we may want to use a cached result.  
             else
                 this.refreshPlotType();
             end
@@ -3074,17 +3114,42 @@ classdef PAStatTool < PABase
                     for f=1:numel(fieldsOfInterest)
                         fname = fieldsOfInterest{f};
                         this.featureStruct.(fname) = this.featureStruct.(fname)(rowsOfInterest,:);                        
+                    end
+                    if(strcmpi(pSettings.weekdayTag,'weeklong'))
+                        % CAUTION - This works because we are guaranteed to
+                        % have 7 days per study, and studies are in order
+                        % at this point, as of 25APR2019.  However, a more
+                        % complex rule and sorting approach may need to be
+                        % employed if changes are made to the code above
+                        % (@hyatt)
+                        for k=1:7:numel(this.featureStruct.studyIDs) % size(this.featureStruct.features,1)
+                            curRange = k:k+6;
+                            [~,sortInd] = sort(this.featureStruct.startDaysOfWeek(curRange),'ascend');
+                            fieldsOfInterest = {'startDaysOfWeek','features'};
+                            for f=1:numel(fieldsOfInterest)
+                                fname = fieldsOfInterest{f};
+                                this.featureStruct.(fname)(curRange,:) = this.featureStruct.(fname)(curRange(sortInd),:);
+                            end                            
+                            %this.featureStruct.startDaysOfWeek(curRange) = startDays;                            
+                        end
+                        % reshape poc: tmp = [1:2:7;2:2:8]'; 
+                        % tmp = [tmp;tmp];
+                        % reshape(tmp',8,[])'
+                        this.featureStruct.totalCount = 7*this.featureStruct.totalCount;
+                        this.featureStruct.startDaysOfWeek = this.featureStruct.startDaysOfWeek(1:7:end); % should be all 0 (sunday)
+                        this.featureStruct.studyIDs = this.featureStruct.studyIDs(1:7:end);
+                        this.featureStruct.startTimes = repmat(this.featureStruct.startTimes,1,7);
+                        
+                        this.featureStruct.features = reshape(this.featureStruct.features',this.featureStruct.totalCount,[])';% [] should result to sum(this.featureStruct.numDays==7)
                     end                    
-                end
-                
+                end                
                
                 set(this.handles.axes_primary,'color',[1 1 1],'xlimmode','auto','ylimmode',pSettings.primaryAxis_yLimMode,'xtickmode','auto',...
                     'ytickmode',pSettings.primaryAxis_yLimMode,'xticklabelmode','auto','yticklabelmode',pSettings.primaryAxis_yLimMode,'xminortick','off','yminortick','off');
                 set(resultsTextH,'visible','on','foregroundcolor',[0.1 0.1 0.1],'string','');
 
                 % % set(this.handles.text_primaryAxes,'backgroundcolor',[0 0 0],'foregroundcolor',[1 1 0],'visible','on');
-                this.showClusterControls();
-                
+                this.showClusterControls();                
                 drawnow();
                 
                 % This means we will create the cluster object, but not
@@ -3168,7 +3233,8 @@ classdef PAStatTool < PABase
                 
                 this.plotClusters(pSettings); 
                 this.enableClusterControls();
-                this.updateOriginalWidgetSettings(pSettings);
+                this.logStatus('Used to be a call to updateOriginalWidgetSettings here, but it appeared to be redundant');
+%                 this.updateOriginalWidgetSettings(pSettings);
                 
                 dissolve(resultsTextH,2.5);
                 
@@ -3215,7 +3281,18 @@ classdef PAStatTool < PABase
             %             end
             
             xTickLabels = this.featureStruct.startTimes(xTicks);
-            set(this.handles.axes_primary,'xlim',[1,this.featureStruct.totalCount],'xtick',xTicks,'xticklabel',xTickLabels);%,...
+            if(numel(xTicks)>70)
+                xLabelRot = -90;                
+                xTicks = xTicks(1:10:end);
+                xTickLabels = xTickLabels(1:10:end);
+            elseif(numel(xTicks)>10)
+                xLabelRot = -45;
+            else
+                xLabelRot = 0;
+            end
+            set(this.handles.axes_primary,'xlim',[1,this.featureStruct.totalCount],'xtick',xTicks,'xticklabel',xTickLabels,...
+                'XTickLabelRotation',xLabelRot);%,...
+            
 %                 'fontsize',11); 
         end
         
@@ -4155,7 +4232,7 @@ classdef PAStatTool < PABase
         %> - @c startDatenums
         %> - @c startDaysOfWeek
         %> - @c shapes
-        %     filename='/Volumes/SeaG 1TB/sampleData/output/features/mean/features.mean.accel.count.vecMag.txt';
+        %     filename='/Volumes/SeaG 1TB/accelerometer/sampleData/output/features/mean/features.mean.accel.count.vecMag.txt';
         % ======================================================================
         function featureStruct = loadAlignedFeatures(filename)
             featureStruct.filename = filename;
@@ -4417,9 +4494,9 @@ classdef PAStatTool < PABase
             baseSettings.processedTypes = {'count','raw'};            
             baseSettings.numShades = 1000;
             
-            baseSettings.weekdayDescriptions = {'All days','Mon-Fri','Weekend','Custom'};            
-            baseSettings.weekdayTags = {'all','weekdays','weekends','custom'};
-            baseSettings.weekdayValues = {0:6,1:5,[0,6],[]};
+            baseSettings.weekdayDescriptions = {'All days','Mon-Fri','Weekend','Custom','One week (Sunday-Saturday)'};            
+            baseSettings.weekdayTags = {'all','weekdays','weekends','custom','weeklong'};
+            baseSettings.weekdayValues = {0:6,1:5,[0,6],[],0:6};
             baseSettings.daysOfWeekShortDescriptions = {'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
             baseSettings.daysOfWeekDescriptions = {'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'};
             baseSettings.daysOfWeekOrder = 1:7;
@@ -4435,7 +4512,6 @@ classdef PAStatTool < PABase
                 3
                 2
                 1];
-
         end
         
         % ======================================================================
@@ -4461,6 +4537,5 @@ classdef PAStatTool < PABase
             indicesOfInterest = [1,4,6];  %n, mx, sem
             profileCell = profileCell(:,indicesOfInterest);
         end
-    end 
-
+    end
 end
