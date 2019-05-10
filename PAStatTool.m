@@ -298,13 +298,13 @@ classdef PAStatTool < PABase
                             
                             if(this.hasValidCluster())
                                 
-                                % Corner case to separate these two items
+                                % Corner case to separate these items
                                 % which currently are not synced well
                                 % enough in the gui to enable easy update
                                 previousSettingsFromClusterObj = this.clusterObj.settings;
                                 previousSettingsFromClusterObj.useDatabase = this.useDatabase;
                                 previousSettingsFromClusterObj.useOutcomes = this.useOutcomes;
-                                
+                                previousSettingsFromClusterObj.exportPathname = this.originalWidgetSettings.exportPathname;
                                 this.updateOriginalWidgetSettings(previousSettingsFromClusterObj); 
                                 didInit = true;
                                 this.clusterObj.setExportPath(this.originalWidgetSettings.exportPathname);
