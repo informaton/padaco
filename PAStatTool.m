@@ -2390,15 +2390,25 @@ classdef PAStatTool < PABase
             jAnalysisFigPanel = get(jAnalysisFrame,'FigurePanelContainer');
 %             this.jhandles.table_clusterProfiles=jFigPanel.getComponent(0).getComponent(0).getComponent(0).getComponent(0).getComponent(0);
             
-            this.jhandles.table_clusterProfiles = jAnalysisFigPanel.getComponent(0).getComponent(5).getComponent(0).getComponent(0).getComponent(0);
+            this.jhandles.table_clusterProfiles = javaObjectEDT(jAnalysisFigPanel.getComponent(0).getComponent(5).getComponent(0).getComponent(0).getComponent(0));
+            scrollPane =        javaObjectEDT(jAnalysisFigPanel.getComponent(0).getComponent(5).getComponent(0));
+            scrollPane.setVerticalScrollBarPolicy(scrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+            vPort =              jAnalysisFigPanel.getComponent(0).getComponent(5).getComponent(0).getComponent(0);
+            jTable =             jAnalysisFigPanel.getComponent(0).getComponent(5).getComponent(0).getComponent(0).getComponent(0);
+            verticalScrollPane = jAnalysisFigPanel.getComponent(0).getComponent(5).getComponent(0).getComponent(1);
+            
+            this.jhandles.scrollPane = scrollPane;
+            this.jhandles.vPort = vPort;
+            this.jhandles.verticalScrollPane = verticalScrollPane;
+            this.jhandles.table = jTable;
             %             j.getUIClassID=='TableUI';
         
             %countComponents(jFigPanel.getComponent(0))
             %getName(this.jhandles.table_clusterProfiles)) -->
             %table_clusterProfiles
             
-            jStatToolFrame = get(this.figureH,'JavaFrame');
-            jStatToolFigPanel = get(jStatToolFrame,'FigurePanelContainer');            
+            %jStatToolFrame = get(this.figureH,'JavaFrame');
+            %jStatToolFigPanel = get(jStatToolFrame,'FigurePanelContainer');            
             
             % allocate line handle names here for organizational consistency
             this.handles.line_allScatterPlot = [];
@@ -3937,20 +3947,32 @@ classdef PAStatTool < PABase
                 
                 jViewPort = this.jhandles.table_clusterProfiles.getParent();
                 initViewPos = jViewPort.getViewPosition();
-                set(this.handles.table_clusterProfiles,'data',this.profileTableData);
+                %colNames = get(this.handles.table_clusterProfiles,'columnname');
+                %jTable = this.jhandles.table_clusterProfiles;
+                %this.jhandles.table_clusterProfiles.setModel(javax.swing.table.DefaultTableModel(this.profileTableData,colNames));
+                %set(this.handles.table_clusterProfiles,'data',this.profileTableData);
                 
+                strData= cellfun(@num2str,this.profileTableData,'uniformoutput',false);
+                [R,C] = size(this.profileTableData);
+                for r=1:R
+                    for c=1:C
+                        
+                        this.jhandles.table.setValueAt(strData{r,c},r-1,c-1);
+                    end
+                end
                 %
                 %             colNames = get(this.handles.table_clusterProfiles,'columnname');
                 %             this.jhandles.table_clusterProfiles.getModel.setDataVector(this.profileTableData, colNames); % data = java.util.Vector
                 %             %             data = this.jhandles.table_clusterProfiles.getModel.getDataVector;
                 
-                drawnow();
-                this.jhandles.table_clusterProfiles.changeSelection(sRow,sCol,false,false);
-                jViewPort.setViewPosition(initViewPos);
-                drawnow();
+                %drawnow();
+                %this.jhandles.table_clusterProfiles.changeSelection(sRow,sCol,false,false);
+                %jViewPort.setViewPosition(initViewPos);
+                %drawnow();
+                
                 %             jViewPort.repaint();
                 
-                this.jhandles.table_clusterProfiles.repaint();
+                %this.jhandles.table_clusterProfiles.repaint();
                 
                 %             this.jhandles.table_clusterProfiles.clearSelection();
                 %              this.jhandles.table_clusterProfiles.setRowSelectionInterval(sRow,sRow);
