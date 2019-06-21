@@ -5,7 +5,8 @@ function mPathname = pathsetup(mPathname)
     if(~isdeployed)
         addpath(mPathname);
         %       ,'stats/stats'};  % Added stats, a symbolically linked folder to something else
-        subPaths = {'abstract','widgets','figures','utility','events','resources','resources/html','resources/icons','model','tools'};  
+        subPaths = {'abstract','widgets','figures','utility','events','resources/ver','resources/html','resources/icons','model','tools'};  
+        
         for s=1:numel(subPaths)
             addpath(fullfile(mPathname,subPaths{s}));
         end
