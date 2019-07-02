@@ -6,7 +6,7 @@ which includes tri-axial accelerometry (X,Y,Z axis and their vector magnitude), 
 derived measures (e.g. step count and inclination).
 
 Version history
-1.85
+1.85 (6/6/2019)
 - Export menu options added
   - Save activity states from single study to disk (#97)
   - Export clusters to disk for external processing.
@@ -34,6 +34,7 @@ Version history
   - Improved startup loading and view switching. 
   - Added histogram functionality to analysis figure.
 - Resolved issues 
+  - Table refresh issue (#115)
   - Settings editor resizing glitch (#103) 
   - Transition issue (#102)
   - Analysis mode startup sync (#101)

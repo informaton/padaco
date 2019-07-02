@@ -536,14 +536,14 @@ classdef PAController < PABase
         % --------------------------------------------------------------------
         function menuFileAboutCallback(obj,varargin)
             
-            msg = sprintf(['\nPadaco version %s\n',...
+            msg = sprintf(['\nPadaco %s\n',...
                 '\nA collaborative effort between:',...
                 '\n\t1. Stanford''s Pediatric''s Solution Science Lab',...
                 '\n\t2. Stanford''s Civil Engineering''s Sustainable Energy Lab',...
                 '\n\t3. Stanford''s Quantitative Science Unit',...
                 '\n\nSoftware license: TBD',...
-                '\nCopyright 2014-2018\n'
-                ],obj.getVersionNum());
+                '\nCopyright 2014-%s\n'
+                ],obj.getVersionNum(),datestr(max(now,datenum([2019,0,1,0,0,0])),'YYYY'));
             h=pa_msgbox(msg,'About');
             
             mbox_h=findobj(h,'tag','MessageBox');
@@ -3167,10 +3167,10 @@ classdef PAController < PABase
                     versionInfo = load(PAController.versionMatFilename,'-mat');
                 catch me
                     showME(me);
-                    versionInfo.num = '1.NA';
+                    versionInfo.num = '1.85x';
                 end
             else
-                versionInfo.num = '1.NA';
+                versionInfo.num = '1.85a';
             end
             
             if(nargin > 0 && isfield(versionInfo,tagRequest))

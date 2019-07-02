@@ -195,6 +195,9 @@ classdef PAOutcomesTable < PABase
                 elseif(exist(filename,'file'))
                     msg = sprintf('Loading %s table data',category);
                     this.logStatus(msg);
+                    
+                    % This can show up when dealing with table data.
+                    warning('off','MATLAB:table:ModifiedAndSavedVarnames');
                     this.(category) = readtable(filename);                    
                     didImport = true;
                     msg = sprintf('Loaded %s',filename);

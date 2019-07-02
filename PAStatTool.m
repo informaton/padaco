@@ -167,7 +167,7 @@ classdef PAStatTool < PABase
             if(nargin<3 || isempty(initSettings))
                 initSettings = PAStatTool.getDefaultParameters();
             end
-                
+            
             % This call ensures that we have at a minimum, the default parameter field-values in widgetSettings.
             % And eliminates later calls to determine if a field exists
             % or not in the input widgetSettings parameter
@@ -3952,12 +3952,22 @@ classdef PAStatTool < PABase
                 %this.jhandles.table_clusterProfiles.setModel(javax.swing.table.DefaultTableModel(this.profileTableData,colNames));
                 %set(this.handles.table_clusterProfiles,'data',this.profileTableData);
                 
-                strData= cellfun(@num2str,this.profileTableData,'uniformoutput',false);
-                [R,C] = size(this.profileTableData);
-                for r=1:R
-                    for c=1:C
-                        
-                        this.jhandles.table.setValueAt(strData{r,c},r-1,c-1);
+                if ~isequal(size(this.handles.table_clusterProfiles.Data),size(this.profileTableData))
+                    set(this.handles.table_clusterProfiles,'data',this.profileTableData);                   
+                else
+                    
+                    strData= cellfun(@num2str,this.profileTableData,'uniformoutput',false);
+                    
+                    [R,C] = size(this.profileTableData);
+                    for r=1:R
+                        for c=1:C
+                            datum = strData{r,c};
+                            if(isempty(datum))
+                                datum = java.lang.String('');
+                            end
+                            %javaMethodEDT('setValueAt',this.jhandles.table,datum,r-1,c-1);
+                            this.jhandles.table.setValueAt(datum,r-1,c-1);                            
+                        end
                     end
                 end
                 %
@@ -3965,7 +3975,7 @@ classdef PAStatTool < PABase
                 %             this.jhandles.table_clusterProfiles.getModel.setDataVector(this.profileTableData, colNames); % data = java.util.Vector
                 %             %             data = this.jhandles.table_clusterProfiles.getModel.getDataVector;
                 
-                %drawnow();
+                drawnow();
                 %this.jhandles.table_clusterProfiles.changeSelection(sRow,sCol,false,false);
                 %jViewPort.setViewPosition(initViewPos);
                 %drawnow();
