@@ -8,6 +8,8 @@ derived measures (e.g. step count and inclination).
 Version history
 1.86 (?
 - Updates to feature vector results file loading and incorrect header error handling.
+- Refactoring path layout.  
+- Turn axis clipping on for primary axis (prevents lines from drawing outside the clipping area).
 
 1.85 (6/6/2019)
 - Export menu options added
