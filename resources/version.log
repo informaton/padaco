@@ -6,6 +6,9 @@ which includes tri-axial accelerometry (X,Y,Z axis and their vector magnitude), 
 derived measures (e.g. step count and inclination).
 
 Version history
+1.86 (?
+- Updates to feature vector results file loading and incorrect header error handling.
+
 1.85 (6/6/2019)
 - Export menu options added
   - Save activity states from single study to disk (#97)

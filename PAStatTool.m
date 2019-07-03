@@ -579,8 +579,14 @@ classdef PAStatTool < PABase
             end
             
             stopTimeCellStr = circshift(startTimeCellStr(:),-1);
-            set(this.handles.menu_clusterStartTime,'string',startTimeCellStr,'value',startTimeSelection);
-            set(this.handles.menu_clusterStopTime,'string',stopTimeCellStr,'value',stopTimeSelection);
+            if(isempty(startTimeCellStr))
+                set(this.handles.menu_clusterStartTime,'string','N/A','value',1);
+                set(this.handles.menu_clusterStopTime,'string','N/A','value',1);  
+            else
+                set(this.handles.menu_clusterStartTime,'string',startTimeCellStr,'value',startTimeSelection);
+                set(this.handles.menu_clusterStopTime,'string',stopTimeCellStr,'value',stopTimeSelection);                
+            end
+            
         end
         
         % ======================================================================
@@ -648,7 +654,15 @@ classdef PAStatTool < PABase
                 
                 loadFileRequired = isempty(this.originalFeatureStruct) || ~strcmpi(inputFilename,this.originalFeatureStruct.filename);
                 if(loadFileRequired)
-                    this.originalFeatureStruct = this.loadAlignedFeatures(inputFilename);    
+                    % it is possible we just loaded that the usage state
+                    % struct is the desired feature struct, in which case
+                    % no sense in loading it again.
+                    if(isequal(inputFilename, usageFilename))
+                        this.originalFeatureStruct = this.usageStateStruct;
+                    else
+                        this.originalFeatureStruct = this.loadAlignedFeatures(inputFilename);
+                    end
+                    
                     if(isfield(this.originalFeatureStruct,'studyIDs'))
                         [this.originalFeatureStruct.uniqueIDs,iaFirst] = unique(this.originalFeatureStruct.studyIDs,'first');
                         [~,iaLast,~] = unique(this.originalFeatureStruct.studyIDs,'last');
@@ -3072,10 +3086,12 @@ classdef PAStatTool < PABase
         %> failed.
         % ======================================================================
         function didConverge = refreshClustersAndPlot(this,enableUserCancel,varargin)
+            
             didConverge = false;
             if(nargin<2)
                 enableUserCancel = true;
             end
+            
             this.clearPrimaryAxes();
             this.showBusy();
             set(this.handles.panel_clusterInfo,'visible','off');
@@ -3086,118 +3102,121 @@ classdef PAStatTool < PABase
             %this.disableClusterControls();  % disable further interaction with our cluster panel
             
             resultsTextH = this.handles.text_clusterResultsOverlay; % an alias
-            % clear the analysis figure
             
-            if(this.calcFeatureStruct(varargin{:}))            
-                % does not converge well if not normalized as we are no longer looking at the shape alone
+            try
                 
-                % @b weekdayTag String to identify how/if data should be
-                % filtered according to when it was recorded during the week.
-                % Values include
-                % - @c all (default) Returns all recorded data (Sunday to
-                % Saturday)
-                % - @c weekdays Returns only data recorded on the weekdays (Monday
-                % to Friday)
-                % - @c weekends Returns data recored on the weekend
-                % (Saturday-Sunday)
-                weekdayIndex = strcmpi(this.base.weekdayTags,pSettings.weekdayTag);
-                daysOfInterest = this.base.weekdayValues{weekdayIndex};
+                % clear the analysis figure
                 
-                %                 switch(pSettings.weekdayTag)
-                %                     case 'weekdays'
-                %                         daysOfInterest = 1:5;
-                %                     case 'weekends'
-                %                         daysOfInterest = [0,6];
-                %                     case 'all'
-                %                         daysOfInterest = [];
-                %                     case 'custom'
-                %                         daysOfInterest = getMenuUserData(this.handles.menu_weekdays);
-                %                     otherwise
-                %                         daysOfInterest = [];
-                %                         %this is the default case with 'all'
-                %                 end
-                
-                if(~isempty(daysOfInterest))
-                    rowsOfInterest = ismember(this.featureStruct.startDaysOfWeek,daysOfInterest); 
-                    % fieldsOfInterest = {'startDatenums','startDaysOfWeek','shapes','features'};
-                    fieldsOfInterest = {'startDaysOfWeek','features','studyIDs'};
-                    for f=1:numel(fieldsOfInterest)
-                        fname = fieldsOfInterest{f};
-                        this.featureStruct.(fname) = this.featureStruct.(fname)(rowsOfInterest,:);                        
-                    end
-                    if(strcmpi(pSettings.weekdayTag,'weeklong'))
-                        % CAUTION - This works because we are guaranteed to
-                        % have 7 days per study, and studies are in order
-                        % at this point, as of 25APR2019.  However, a more
-                        % complex rule and sorting approach may need to be
-                        % employed if changes are made to the code above
-                        % (@hyatt)
-                        for k=1:7:numel(this.featureStruct.studyIDs) % size(this.featureStruct.features,1)
-                            curRange = k:k+6;
-                            [~,sortInd] = sort(this.featureStruct.startDaysOfWeek(curRange),'ascend');
-                            fieldsOfInterest = {'startDaysOfWeek','features'};
-                            for f=1:numel(fieldsOfInterest)
-                                fname = fieldsOfInterest{f};
-                                this.featureStruct.(fname)(curRange,:) = this.featureStruct.(fname)(curRange(sortInd),:);
-                            end                            
-                            %this.featureStruct.startDaysOfWeek(curRange) = startDays;                            
+                if(this.calcFeatureStruct(varargin{:}))
+                    % does not converge well if not normalized as we are no longer looking at the shape alone
+                    
+                    % @b weekdayTag String to identify how/if data should be
+                    % filtered according to when it was recorded during the week.
+                    % Values include
+                    % - @c all (default) Returns all recorded data (Sunday to
+                    % Saturday)
+                    % - @c weekdays Returns only data recorded on the weekdays (Monday
+                    % to Friday)
+                    % - @c weekends Returns data recored on the weekend
+                    % (Saturday-Sunday)
+                    weekdayIndex = strcmpi(this.base.weekdayTags,pSettings.weekdayTag);
+                    daysOfInterest = this.base.weekdayValues{weekdayIndex};
+                    
+                    %                 switch(pSettings.weekdayTag)
+                    %                     case 'weekdays'
+                    %                         daysOfInterest = 1:5;
+                    %                     case 'weekends'
+                    %                         daysOfInterest = [0,6];
+                    %                     case 'all'
+                    %                         daysOfInterest = [];
+                    %                     case 'custom'
+                    %                         daysOfInterest = getMenuUserData(this.handles.menu_weekdays);
+                    %                     otherwise
+                    %                         daysOfInterest = [];
+                    %                         %this is the default case with 'all'
+                    %                 end
+                    
+                    if(~isempty(daysOfInterest))
+                        rowsOfInterest = ismember(this.featureStruct.startDaysOfWeek,daysOfInterest);
+                        % fieldsOfInterest = {'startDatenums','startDaysOfWeek','shapes','features'};
+                        fieldsOfInterest = {'startDaysOfWeek','features','studyIDs'};
+                        for f=1:numel(fieldsOfInterest)
+                            fname = fieldsOfInterest{f};
+                            this.featureStruct.(fname) = this.featureStruct.(fname)(rowsOfInterest,:);
                         end
-                        % reshape poc: tmp = [1:2:7;2:2:8]'; 
-                        % tmp = [tmp;tmp];
-                        % reshape(tmp',8,[])'
-                        this.featureStruct.totalCount = 7*this.featureStruct.totalCount;
-                        this.featureStruct.startDaysOfWeek = this.featureStruct.startDaysOfWeek(1:7:end); % should be all 0 (sunday)
-                        this.featureStruct.studyIDs = this.featureStruct.studyIDs(1:7:end);
-                        this.featureStruct.startTimes = repmat(this.featureStruct.startTimes,1,7);
-                        
-                        this.featureStruct.features = reshape(this.featureStruct.features',this.featureStruct.totalCount,[])';% [] should result to sum(this.featureStruct.numDays==7)
-                    end                    
-                end                
-               
-                set(this.handles.axes_primary,'color',[1 1 1],'xlimmode','auto','ylimmode',pSettings.primaryAxis_yLimMode,'xtickmode','auto',...
-                    'ytickmode',pSettings.primaryAxis_yLimMode,'xticklabelmode','auto','yticklabelmode',pSettings.primaryAxis_yLimMode,'xminortick','off','yminortick','off');
-                set(resultsTextH,'visible','on','foregroundcolor',[0.1 0.1 0.1],'string','');
-
-                % % set(this.handles.text_primaryAxes,'backgroundcolor',[0 0 0],'foregroundcolor',[1 1 0],'visible','on');
-                this.showClusterControls();                
-                drawnow();
-                
-                % This means we will create the cluster object, but not
-                % calculate the clusters in the constructor.  The reason
-                % for this is because I want to register a mouse listener
-                % so users can cancel.  And I chose to do that here, rather
-                % than in the constructor.
-                delayedStart = true;
-                cSettings = this.getClusterSettings(pSettings);
-                tmpClusterObj = PACluster(this.featureStruct.features,cSettings,this.handles.axes_primary,resultsTextH,this.featureStruct.studyIDs, this.featureStruct.startDaysOfWeek, delayedStart);
-                tmpClusterObj.setExportPath(this.originalWidgetSettings.exportPathname);
-                tmpClusterObj.addlistener('DefaultParameterChange',@this.clusterParameterChangeCb);
-                
-                % This creates multiple, unused listeners unless we
-                % specifically track and delete them use the event.listener
-                % constructor.  Let's forgo that and just call
-                % this.clusterObj.cancelCalculation when we do our
-                % notification.
-                %                 this.addlistener('UserCancel_Event',@tmpClusterObj.cancelCalculations);
-                if(~tmpClusterObj.setShapeTimes(this.featureStruct.startTimes))
-                    this.setStatus('Shape times not set!');
-                else
-                    this.setStatus('');
-                end
-                
-                tmpClusterObj.setNonwearRows(this.nonwear.rows);
-                this.clusterObj = tmpClusterObj;
-                
-                if(enableUserCancel)
-                    this.enableClusterCancellation();
-                end
-                
-                this.clusterObj.calculateClusters();
-                
-                if(this.clusterObj.failedToConverge())
-                    warnMsg = {'Failed to converge',[]};
-                    if(isempty(this.featureStruct.features))
-                        warnMsg = {[warnMsg{1}, 'No features found.'];
+                        if(strcmpi(pSettings.weekdayTag,'weeklong'))
+                            % CAUTION - This works because we are guaranteed to
+                            % have 7 days per study, and studies are in order
+                            % at this point, as of 25APR2019.  However, a more
+                            % complex rule and sorting approach may need to be
+                            % employed if changes are made to the code above
+                            % (@hyatt)
+                            for k=1:7:numel(this.featureStruct.studyIDs) % size(this.featureStruct.features,1)
+                                curRange = k:k+6;
+                                [~,sortInd] = sort(this.featureStruct.startDaysOfWeek(curRange),'ascend');
+                                fieldsOfInterest = {'startDaysOfWeek','features'};
+                                for f=1:numel(fieldsOfInterest)
+                                    fname = fieldsOfInterest{f};
+                                    this.featureStruct.(fname)(curRange,:) = this.featureStruct.(fname)(curRange(sortInd),:);
+                                end
+                                %this.featureStruct.startDaysOfWeek(curRange) = startDays;
+                            end
+                            % reshape poc: tmp = [1:2:7;2:2:8]';
+                            % tmp = [tmp;tmp];
+                            % reshape(tmp',8,[])'
+                            this.featureStruct.totalCount = 7*this.featureStruct.totalCount;
+                            this.featureStruct.startDaysOfWeek = this.featureStruct.startDaysOfWeek(1:7:end); % should be all 0 (sunday)
+                            this.featureStruct.studyIDs = this.featureStruct.studyIDs(1:7:end);
+                            this.featureStruct.startTimes = repmat(this.featureStruct.startTimes,1,7);
+                            
+                            this.featureStruct.features = reshape(this.featureStruct.features',this.featureStruct.totalCount,[])';% [] should result to sum(this.featureStruct.numDays==7)
+                        end
+                    end
+                    
+                    set(this.handles.axes_primary,'color',[1 1 1],'xlimmode','auto','ylimmode',pSettings.primaryAxis_yLimMode,'xtickmode','auto',...
+                        'ytickmode',pSettings.primaryAxis_yLimMode,'xticklabelmode','auto','yticklabelmode',pSettings.primaryAxis_yLimMode,'xminortick','off','yminortick','off');
+                    set(resultsTextH,'visible','on','foregroundcolor',[0.1 0.1 0.1],'string','');
+                    
+                    % % set(this.handles.text_primaryAxes,'backgroundcolor',[0 0 0],'foregroundcolor',[1 1 0],'visible','on');
+                    this.showClusterControls();
+                    drawnow();
+                    
+                    % This means we will create the cluster object, but not
+                    % calculate the clusters in the constructor.  The reason
+                    % for this is because I want to register a mouse listener
+                    % so users can cancel.  And I chose to do that here, rather
+                    % than in the constructor.
+                    delayedStart = true;
+                    cSettings = this.getClusterSettings(pSettings);
+                    tmpClusterObj = PACluster(this.featureStruct.features,cSettings,this.handles.axes_primary,resultsTextH,this.featureStruct.studyIDs, this.featureStruct.startDaysOfWeek, delayedStart);
+                    tmpClusterObj.setExportPath(this.originalWidgetSettings.exportPathname);
+                    tmpClusterObj.addlistener('DefaultParameterChange',@this.clusterParameterChangeCb);
+                    
+                    % This creates multiple, unused listeners unless we
+                    % specifically track and delete them use the event.listener
+                    % constructor.  Let's forgo that and just call
+                    % this.clusterObj.cancelCalculation when we do our
+                    % notification.
+                    %                 this.addlistener('UserCancel_Event',@tmpClusterObj.cancelCalculations);
+                    if(~tmpClusterObj.setShapeTimes(this.featureStruct.startTimes))
+                        this.setStatus('Shape times not set!');
+                    else
+                        this.setStatus('');
+                    end
+                    
+                    tmpClusterObj.setNonwearRows(this.nonwear.rows);
+                    this.clusterObj = tmpClusterObj;
+                    
+                    if(enableUserCancel)
+                        this.enableClusterCancellation();
+                    end
+                    
+                    this.clusterObj.calculateClusters();
+                    
+                    if(this.clusterObj.failedToConverge())
+                        warnMsg = {'Failed to converge',[]};
+                        if(isempty(this.featureStruct.features))
+                            warnMsg = {[warnMsg{1}, 'No features found.'];
                                 '';
                                 '  Hint: Try altering input settings:';
                                 '';
@@ -3205,52 +3224,57 @@ classdef PAStatTool < PABase
                                 '  - Reduce minimum number of clusters';
                                 '  - Include non-wear sections instead of discarding them';
                                 ''};
+                        else
+                            warnMsg{end} = 'See console for possible explanations';
+                        end
+                        warndlg(warnMsg,'Warning','modal');
+                        
+                        
+                        this.clusterObj = [];
                     else
-                        warnMsg{end} = 'See console for possible explanations';
+                        this.refreshGlobalProfile();
+                        this.cacheCluster();
                     end
-                    warndlg(warnMsg,'Warning','modal');
-
+                else
+                    inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
+                    wrnMsg = sprintf('Could not find the input file required (%s)!',inputFilename);
+                    fprintf(1,'%s\n',wrnMsg);
+                    if(this.hasIcon)
+                        CreateStruct.WindowStyle='modal';
+                        CreateStruct.Interpreter='tex';
+                        warndlg(wrnMsg,'Warning',CreateStruct); %'custom',this.iconData,this.iconCMap,
+                    else
+                        warndlg(wrnMsg,'Warning','modal');
+                    end
+                end
+                
+                if(this.hasValidCluster()) % ~isempty(this.clusterObj))
+                    didConverge = true;
+                    % Prep the x-axis here since it will not change when going from one cluster to the
+                    % next, but only (though not necessarily) when refreshing clusters.
+                    this.drawClusterXTicksAndLabels();
                     
-                    this.clusterObj = [];
+                    if(this.clusterObj.getUserCancelled())
+                        this.initRefreshClusterButton('on');
+                    else
+                        this.initRefreshClusterButton('off');
+                    end
+                    
+                    this.plotClusters(pSettings);
+                    this.enableClusterControls();
+                    
+                    this.logStatus('There used to be a call to updateOriginalWidgetSettings here, but it appeared to be redundant');
+                    %                 this.updateOriginalWidgetSettings(pSettings);
+                    
+                    dissolve(resultsTextH,2.5);
+                    
                 else
-                    this.refreshGlobalProfile();
-                    this.cacheCluster();
+                    set(resultsTextH,'visible','off');
+                    this.initRefreshClusterButton('on');  % want to initialize the button again so they can try again perhaps.
                 end
-            else
-                inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);                
-                wrnMsg = sprintf('Could not find the input file required (%s)!',inputFilename);
-                fprintf(1,'%s\n',wrnMsg);
-                if(this.hasIcon)
-                    CreateStruct.WindowStyle='modal';
-                    CreateStruct.Interpreter='tex';
-                    warndlg(wrnMsg,'Warning',CreateStruct); %'custom',this.iconData,this.iconCMap,
-                else
-                    warndlg(wrnMsg,'Warning','modal');
-                end
-            end
-            
-            if(this.hasValidCluster()) % ~isempty(this.clusterObj))
-                didConverge = true;
-                % Prep the x-axis here since it will not change when going from one cluster to the
-                % next, but only (though not necessarily) when refreshing clusters.
-                this.drawClusterXTicksAndLabels();
-                
-                if(this.clusterObj.getUserCancelled())
-                    this.initRefreshClusterButton('on');
-                else
-                    this.initRefreshClusterButton('off');                    
-                end
-                
-                this.plotClusters(pSettings); 
-                this.enableClusterControls();
-                this.logStatus('Used to be a call to updateOriginalWidgetSettings here, but it appeared to be redundant');
-%                 this.updateOriginalWidgetSettings(pSettings);
-                
-                dissolve(resultsTextH,2.5);
-                
-            else
-                set(resultsTextH,'visible','off');
-                this.initRefreshClusterButton('on');  % want to initialize the button again so they can try again perhaps.
+            catch me
+               showME(me); 
+               pa_msgbox('An error occurred while loading or calculating feature vectors.  Double check file format(s) is/are correct.','Warning',true);
             end
             this.enable();
             this.showReady();
@@ -4284,10 +4308,27 @@ classdef PAStatTool < PABase
             featureStruct.signal.source = signalSource;
             featureStruct.signal.name = signalName;            
             
+                        
             fid = fopen(filename,'r');
+            % expect three line header
+            % # Feature:<tab><Description string>
+            % # Length:<tab><Count numeric>
+            % # Column name (1)<tab> Column name (2)<tab> ...
             
-            featureStruct.methodDescription = strrep(strrep(fgetl(fid),'# Feature:',''),char(9),'');
-            featureStruct.totalCount = str2double(strrep(strrep(fgetl(fid),'# Length:',''),char(9),''));
+            line1 = fgetl(fid);
+            line2 = fgetl(fid);
+            hasHeader = line1(1) == '#' && line2(1)=='#';
+            frewind(fid);
+            
+            if(hasHeader)
+                featureStruct.methodDescription = strrep(strrep(fgetl(fid),'# Feature:',''),char(9),'');
+                featureStruct.totalCount = str2double(strrep(strrep(fgetl(fid),'# Length:',''),char(9),''));
+            else
+                fprintf(1,'[WARNING] Unrecognized or missing header for features file.  Data may be corrupted.\n\t%s\n',filename);
+                featureStruct.methodDescription = featureStruct.method;
+                featureStruct.totalCount = 0;  % to be replaced shortly...                
+            end
+            
             startTimes = fgetl(fid);  
             % Not necessary to remove the other headers here.
             % startTimes = strrep(fgetl(fid),sprintf('# Study_ID\tStart_Datenum\tStart_Day'),'');
@@ -4298,6 +4339,9 @@ classdef PAStatTool < PABase
             startTimes = cell(size(result));
             numCols = numel(startTimes);
             
+            if(hasHeader)
+                featureStruct.totalCount = numCols;
+            end
             if(numCols~=featureStruct.totalCount)
                 fprintf('Warning!  The number of columns listed and the number of columns found in %s do not match.\n',filename);
             end
