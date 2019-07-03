@@ -2953,11 +2953,16 @@ classdef PAController < PABase
             default_scale_handle = child_menu_handles(find(contains(get(child_menu_handles,'tag'),'defaultScale'),1));
             
             allScale = obj.accelObj.getScale();
-            
-            
-            curScale = allScale.(lineTag);%curScale = eval(['allScale.',lineTag]);
             pStruct = PASensorData.getDefaultParameters();
-            defaultScale = pStruct.scale.(lineTag);  %eval(strcat('pStruct.scale.',lineTag));
+            
+            if verLessThan('matlab','9.3')
+                curScale = eval(['allScale.',lineTag]);
+                defaultScale = eval(strcat('pStruct.scale.',lineTag));
+            else
+                curScale = allScale.(lineTag);
+                defaultScale = pStruct.scale.(lineTag);
+            end
+            
             
             
             if(curScale==defaultScale)
