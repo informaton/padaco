@@ -102,10 +102,6 @@ classdef PAController < PABase
                 rootPathname,...
                 parameters_filename)
             
-%             obj.addlistener('statToolCreationSuccess',{@obj.statToolCreationCallback,true});
-%             obj.addlistener('statToolCreationFailure',{@obj.statToolCreationCallback,false});
-
-
             if(nargin<1)
                 Padaco_fig_h = [];
             end
@@ -118,78 +114,24 @@ classdef PAController < PABase
                 parameters_filename = '_padaco.parameters.txt';
             end
             
-         
+            obj.iconFilename = fullfile(rootPathname,'resources','icons','logo','icon_32.png');
+            obj.setVersionNum();
+            obj.accelTypeShown = [];
             obj.statTool = [];
             
             obj.addlistener('StatToolCreationSuccess',@obj.statToolCreationCallback);
             obj.addlistener('StatToolCreationFailure',@obj.statToolCreationCallback);
             
-            
             %create/intilize the settings object
             obj.settingsObj = PAAppSettings(rootPathname,parameters_filename);
-            obj.outcomesTable = PAOutcomesTable(obj.settingsObj.outcomesTable);
-      
-            
+            obj.outcomesTable = PAOutcomesTable(obj.settingsObj.outcomesTable);            
             obj.outcomesTable.addlistener('LoadSuccess',@obj.outcomesLoadCb);
             obj.outcomesTable.addlistener('LoadFail',@obj.outcomesLoadCb);
-
-            
             obj.screenshotPathname = obj.settingsObj.CONTROLLER.screenshotPathname;
             obj.resultsPathname = obj.settingsObj.CONTROLLER.resultsPathname;
             
-            obj.iconFilename = fullfile(rootPathname,'resources','icons','logo','icon_32.png');
-            obj.setVersionNum();
-            obj.accelTypeShown = [];
-            obj.figureH = Padaco_fig_h;
-            if(ishandle(obj.figureH))
-                obj.featureHandles = [];
-                obj.handles = guidata(obj.figureH);
-                obj.setStatusHandle(obj.handles.text_status);
-                % Create a VIEW class
-                % 1. make context menu handles for the lines
-                % 2. make context menu handles for the primary axes
-                uiLinecontextmenu_handle = obj.getLineContextmenuHandle();
-                uiPrimaryAxescontextmenu_handle = obj.getPrimaryAxesContextmenuHandle();
-                uiSecondaryAxescontextmenu_handle = obj.getSecondaryAxesContextmenuHandle();
-                featureLineContextMenuHandle = obj.getFeatureLineContextmenuHandle();
-                
-                % initialize the view here ...?
-                obj.VIEW = PAView(obj.figureH,uiLinecontextmenu_handle,uiPrimaryAxescontextmenu_handle,featureLineContextMenuHandle,uiSecondaryAxescontextmenu_handle);
-                
-                
-                set(obj.figureH,'visible','on');
-                
-                obj.VIEW.showBusy([],'all');
-                
-                %  Apply this so that later we can retrieve useSmoothing
-                %  and highlighting nonwear
-                %  from obj.VIEW when it comes time to save parameters.
-                % obj.VIEW.setUseSmoothing(obj.settingsObj.CONTROLLER.useSmoothing);
-                obj.setSmoothingState(obj.settingsObj.CONTROLLER.useSmoothing);
-                
-                %  Apply this so that later we can retrieve useSmoothing
-                %  from obj.VIEW when it comes time to save parameters.
-                % obj.VIEW.setUseSmoothing(obj.settingsObj.CONTROLLER.useSmoothing);
-                obj.setNonwearHighlighting(obj.settingsObj.CONTROLLER.highlightNonwear);
-                
-                
-                obj.initTimeSeriesWidgets();
-                
-                set(obj.figureH,'CloseRequestFcn',{@obj.figureCloseCallback,guidata(obj.figureH)});
-                
-                %configure the menu bar callbacks.
-                obj.initMenubarCallbacks();
-                
-                % attempt to load the last set of results
-                lastViewMode = obj.settingsObj.CONTROLLER.viewMode;
-                try
-                    obj.setViewMode(lastViewMode);
-                catch me
-                    showME(me);
-                end
-            end
+            this.setFigureHandle(Padaco_fig_h);
             
-
         end
         
         %% Shutdown functions
@@ -2200,6 +2142,61 @@ classdef PAController < PABase
             versionNum = obj.versionNum;
         end
         
+        function didSet = setFigureHandle(this, figHandle)
+            didSet = false;
+            
+            if(nargin<2 || isempty(figHandle) || ~ishandle(figHandle))
+                this.logWarning('Could not set figure handle');
+            else
+                obj.figureH = Padaco_fig_h;
+                if(ishandle(obj.figureH))
+                    obj.featureHandles = [];
+                    obj.handles = guidata(obj.figureH);
+                    obj.setStatusHandle(obj.handles.text_status);
+                    % Create a VIEW class
+                    % 1. make context menu handles for the lines
+                    % 2. make context menu handles for the primary axes
+                    uiLinecontextmenu_handle = obj.getLineContextmenuHandle();
+                    uiPrimaryAxescontextmenu_handle = obj.getPrimaryAxesContextmenuHandle();
+                    uiSecondaryAxescontextmenu_handle = obj.getSecondaryAxesContextmenuHandle();
+                    featureLineContextMenuHandle = obj.getFeatureLineContextmenuHandle();
+                    
+                    % initialize the view here ...?
+                    obj.VIEW = PAView(obj.figureH,uiLinecontextmenu_handle,uiPrimaryAxescontextmenu_handle,featureLineContextMenuHandle,uiSecondaryAxescontextmenu_handle);
+                    
+                    set(obj.figureH,'visible','on');
+                    
+                    obj.VIEW.showBusy([],'all');
+                    
+                    %  Apply this so that later we can retrieve useSmoothing
+                    %  and highlighting nonwear
+                    %  from obj.VIEW when it comes time to save parameters.
+                    % obj.VIEW.setUseSmoothing(obj.settingsObj.CONTROLLER.useSmoothing);
+                    obj.setSmoothingState(obj.settingsObj.CONTROLLER.useSmoothing);
+                    
+                    %  Apply this so that later we can retrieve useSmoothing
+                    %  from obj.VIEW when it comes time to save parameters.
+                    % obj.VIEW.setUseSmoothing(obj.settingsObj.CONTROLLER.useSmoothing);
+                    obj.setNonwearHighlighting(obj.settingsObj.CONTROLLER.highlightNonwear);
+                    
+                    obj.initTimeSeriesWidgets();
+                    
+                    set(obj.figureH,'CloseRequestFcn',{@obj.figureCloseCallback,guidata(obj.figureH)});
+                    
+                    %configure the menu bar callbacks.
+                    obj.initMenubarCallbacks();
+                    
+                    % attempt to load the last set of results
+                    lastViewMode = obj.settingsObj.CONTROLLER.viewMode;
+                    try
+                        obj.setViewMode(lastViewMode);
+                        didSet = true;
+                    catch me
+                        showME(me);
+                    end
+                end
+            end
+        end
                 
         % --------------------------------------------------------------------
         %> @brief Initializes the display for accelerometer data viewing
