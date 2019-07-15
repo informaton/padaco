@@ -170,7 +170,6 @@ classdef PAView < handle
                 
                 %                 set(obj.getFigHandle(),'visible','on');
 
-                
             else
                 obj = [];
             end
@@ -1816,7 +1815,6 @@ classdef PAView < handle
                 numTicks = numel(cellOfLabels);
             end
              ticks = 1/numTicks/2:1/numTicks:1;
-            
         end
         
     end

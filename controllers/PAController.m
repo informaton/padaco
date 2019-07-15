@@ -17,6 +17,7 @@ classdef PAController < PABase
         versionMatFilename = 'version.chk';
     end
     properties(Access=private)
+        resizeValues; % for handling resize functions
         versionNum;
         
         %> @brief Vector for keeping track of the feature handles that are
@@ -130,7 +131,7 @@ classdef PAController < PABase
             obj.screenshotPathname = obj.settingsObj.CONTROLLER.screenshotPathname;
             obj.resultsPathname = obj.settingsObj.CONTROLLER.resultsPathname;
             
-            this.setFigureHandle(Padaco_fig_h);
+            obj.setFigureHandle(Padaco_fig_h);
             
         end
         
@@ -142,7 +143,6 @@ classdef PAController < PABase
             if(~isempty(obj.statTool))
                 obj.statTool.delete();
             end
-            
         end
         
         function saveParameters(obj)
@@ -2142,13 +2142,48 @@ classdef PAController < PABase
             versionNum = obj.versionNum;
         end
         
-        function didSet = setFigureHandle(this, figHandle)
+        function resizeFigCb(obj, figH, szEvtData)
+            %obj.logStatus('Resizing');     
+            hPos = figH.Position;
+            hPos(3) = max(min(hPos(3),obj.resizeValues.figure.max.w),obj.resizeValues.figure.min.w);
+            hPos(4) = max(min(hPos(4),obj.resizeValues.figure.max.h),obj.resizeValues.figure.min.h);
+            figH.Position = hPos;
+            drawnow();
+        end
+        
+        function initResize(obj)
+            set(obj.figureH,'Resize','on',...
+                'SizeChangedFcn',@obj.resizeFigCb);
+            figPos = obj.figureH.Position;
+            minScale = 0.8;
+            maxScale = 1.2;
+            obj.resizeValues.figure.init.w = figPos(3);
+            obj.resizeValues.figure.init.h = figPos(4);
+            
+            obj.resizeValues.figure.min.w = figPos(3)*minScale;
+            obj.resizeValues.figure.min.h = figPos(4)*minScale;
+
+            obj.resizeValues.figure.max.w = figPos(3)*maxScale;
+            obj.resizeValues.figure.max.h = figPos(4)*maxScale;
+            
+            hoi = {'figure_padaco';'text_status';'panel_timeseries';'axes_primary';'text_clusterResultsOverlay';
+                'btngrp_clusters';'axes_secondary';'panel_clusterInfo';'panel_results'};
+            
+            initPos = struct;
+            for n = 1:numel(hoi)
+                tag = hoi{n};
+                h = obj.handles.(tag);
+                initPos.(tag) = struct('handle',h,'position',h.Position);
+            end
+        end
+        
+        function didSet = setFigureHandle(obj, figHandle)
             didSet = false;
             
             if(nargin<2 || isempty(figHandle) || ~ishandle(figHandle))
-                this.logWarning('Could not set figure handle');
+                obj.logWarning('Could not set figure handle');
             else
-                obj.figureH = Padaco_fig_h;
+                obj.figureH = figHandle;
                 if(ishandle(obj.figureH))
                     obj.featureHandles = [];
                     obj.handles = guidata(obj.figureH);
@@ -2180,9 +2215,12 @@ classdef PAController < PABase
                     obj.setNonwearHighlighting(obj.settingsObj.CONTROLLER.highlightNonwear);
                     
                     obj.initTimeSeriesWidgets();
-                    
                     set(obj.figureH,'CloseRequestFcn',{@obj.figureCloseCallback,guidata(obj.figureH)});
                     
+                    
+                    
+                    % set(obj.figureH,'scrollable','on'); - not supported
+                    % for guide figures (figure)
                     %configure the menu bar callbacks.
                     obj.initMenubarCallbacks();
                     
@@ -2190,6 +2228,7 @@ classdef PAController < PABase
                     lastViewMode = obj.settingsObj.CONTROLLER.viewMode;
                     try
                         obj.setViewMode(lastViewMode);
+%                         obj.initResize();
                         didSet = true;
                     catch me
                         showME(me);
@@ -3248,7 +3287,6 @@ classdef PAController < PABase
             batchSettings = PABatchTool.getDefaultParameters();
             pStruct.resultsPathname = batchSettings.outputDirectory;
         end
-
     end
     
     
