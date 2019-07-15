@@ -96,15 +96,14 @@ classdef PAController < PABase
         Padaco_mainaxes_xlim;
     end
     
-    
     methods
         
-        function obj = PAController(Padaco_fig_h,...
+        function obj = PAController(hFigure,...
                 rootPathname,...
                 parameters_filename)
             
             if(nargin<1)
-                Padaco_fig_h = [];
+                hFigure = [];
             end
             if(nargin<2)
                 rootPathname = fileparts(mfilename('fullpath'));
@@ -131,8 +130,55 @@ classdef PAController < PABase
             obj.screenshotPathname = obj.settingsObj.CONTROLLER.screenshotPathname;
             obj.resultsPathname = obj.settingsObj.CONTROLLER.resultsPathname;
             
-            obj.setFigureHandle(Padaco_fig_h);
-            
+            if(obj.setFigureHandle(hFigure))
+                if(obj.initFigure())
+                    obj.setStatusHandle(obj.handles.text_status);                    
+                    obj.featureHandles = [];
+                    
+                    % Create a VIEW class
+                    % 1. make context menu handles for the lines
+                    % 2. make context menu handles for the primary axes
+                    uiLinecontextmenu_handle = obj.createLineContextmenuHandle();
+                    uiPrimaryAxescontextmenu_handle = obj.createPrimaryAxesContextmenuHandle();
+                    uiSecondaryAxescontextmenu_handle = obj.createSecondaryAxesContextmenuHandle();
+                    featureLineContextMenuHandle = obj.createFeatureLineContextmenuHandle();
+                    
+                    % initialize the view here ...?
+                    obj.VIEW = PAView(obj.figureH,uiLinecontextmenu_handle,uiPrimaryAxescontextmenu_handle,featureLineContextMenuHandle,uiSecondaryAxescontextmenu_handle);
+                    
+                    set(obj.figureH,'visible','on');
+                    
+                    obj.VIEW.showBusy([],'all');
+                    
+                    %  Apply this so that later we can retrieve useSmoothing
+                    %  and highlighting nonwear
+                    %  from obj.VIEW when it comes time to save parameters.
+                    % obj.VIEW.setUseSmoothing(obj.settingsObj.CONTROLLER.useSmoothing);
+                    obj.setSmoothingState(obj.settingsObj.CONTROLLER.useSmoothing);
+                    
+                    %  Apply this so that later we can retrieve useSmoothing
+                    %  from obj.VIEW when it comes time to save parameters.
+                    % obj.VIEW.setUseSmoothing(obj.settingsObj.CONTROLLER.useSmoothing);
+                    obj.setNonwearHighlighting(obj.settingsObj.CONTROLLER.highlightNonwear);
+                    
+                    obj.initTimeSeriesWidgets();
+                    set(obj.figureH,'CloseRequestFcn',{@obj.figureCloseCallback,guidata(obj.figureH)});
+                    
+                    % set(obj.figureH,'scrollable','on'); - not supported
+                    % for guide figures (figure)
+                    %configure the menu bar callbacks.
+                    obj.initMenubarCallbacks();
+                    
+                    % attempt to load the last set of results
+                    lastViewMode = obj.settingsObj.CONTROLLER.viewMode;
+                    try
+                        obj.setViewMode(lastViewMode);
+                        obj.initResize();
+                    catch me
+                        showME(me);
+                    end
+                end
+            end
         end
         
         %% Shutdown functions
@@ -2177,63 +2223,99 @@ classdef PAController < PABase
             end
         end
         
+        function didInit = initFigure(obj)
+            didInit = false;
+            hFigure = obj.figureH;
+            if(obj.setFigureHandle(hFigure))
+                % Place this sooner so that we can go ahead and crush the
+                % figure if something breaks down and we get get stuck
+                % before reaching the closerequestfcn we want to use later
+                % on (Which requires certain initializations to complete).
+                set(hFigure,'closeRequestFcn','delete(gcbo)');
+
+                figColor = get(hFigure,'color');
+                defaultUnits = 'pixels';
+                handles = guidata(hFigure);
+                
+                set([handles.text_status;
+                    handles.panel_results;
+                    handles.panel_timeseries],'backgroundcolor',figColor,'units',defaultUnits);
+                
+                set([handles.panel_results;
+                    handles.panel_timeseries],'bordertype','none');
+                
+                set([hFigure
+                    handles.panel_timeseries
+                    handles.panel_results
+                    handles.panel_resultsContainer
+                    handles.panel_epochControls
+                    handles.panel_displayButtonGroup
+                    handles.btngrp_clusters],'units','pixels');
+                
+                screenSize = get(0,'screensize');
+                figPos = get(hFigure,'position');
+                timeSeriesPanelPos = get(handles.panel_timeseries,'position');
+                resultsPanelPos = get(handles.panel_results,'position');
+                
+                % Line our panels up to same top left position - do this here
+                % so I can edit them easy in GUIDE and avoid to continually
+                % updating the position property each time i need to drag the
+                % panel(s) around to make edits.  Position is given as
+                % 'x','y','w','h' with 'x' starting from left (and increasing right)
+                % and 'y' starting from bottom (and increasing up)
+                
+                if(resultsPanelPos(1)>sum(timeSeriesPanelPos([1,3])))
+                    figPos(3) = resultsPanelPos(1);  % The start of the results panel (x-value) indicates the point that the figure should be clipped
+                    set(hFigure,'position',figPos);
+                    newResultsPanelY = sum(timeSeriesPanelPos([2,4]))-resultsPanelPos(4);
+                    set(handles.panel_results,'position',[timeSeriesPanelPos(1),newResultsPanelY,resultsPanelPos(3:4)]);
+                   
+                    metaDataHandles = [handles.panel_study;get(handles.panel_study,'children')];
+                    set(metaDataHandles,'backgroundcolor',[0.94,0.94,0.94],'visible','off');
+                    
+                    whiteHandles = [handles.panel_features_prefilter
+                        handles.panel_features_aggregate
+                        handles.panel_features_frame
+                        handles.panel_features_signal
+                        handles.edit_minClusters
+                        handles.edit_clusterConvergenceThreshold];
+                    sethandles(whiteHandles,'backgroundcolor',[1 1 1]);
+                    
+                    innerPanelHandles = [
+                        handles.panel_clusteringSettings
+                        handles.panel_timeFrame
+                        handles.panel_source
+                        handles.panel_shapeAdjustments
+                        handles.panel_clusterSettings
+                        handles.panel_shapeSettings
+                        handles.btngrp_clusters
+                        handles.panel_chunking];
+                    sethandles(innerPanelHandles,'backgroundcolor',[0.9 0.9 0.9]);
+                    
+                    % Make the inner edit boxes appear white
+                    set([handles.edit_minClusters
+                        handles.edit_clusterConvergenceThreshold],'backgroundcolor',[1 1 1]);
+                    
+                    set(handles.text_threshold,'tooltipstring','Smaller thresholds result in more stringent conversion requirements and often produce more clusters than when using higher threshold values.');
+                    % Flush our drawing queue
+                    drawnow();
+                end
+                
+                %     renderOffscreen(hObject);
+                movegui(hFigure,'northwest');
+                obj.handles = handles;
+                
+                didInit = true;
+            end
+        end
+
         function didSet = setFigureHandle(obj, figHandle)
             didSet = false;
-            
             if(nargin<2 || isempty(figHandle) || ~ishandle(figHandle))
                 obj.logWarning('Could not set figure handle');
             else
                 obj.figureH = figHandle;
-                if(ishandle(obj.figureH))
-                    obj.featureHandles = [];
-                    obj.handles = guidata(obj.figureH);
-                    obj.setStatusHandle(obj.handles.text_status);
-                    % Create a VIEW class
-                    % 1. make context menu handles for the lines
-                    % 2. make context menu handles for the primary axes
-                    uiLinecontextmenu_handle = obj.getLineContextmenuHandle();
-                    uiPrimaryAxescontextmenu_handle = obj.getPrimaryAxesContextmenuHandle();
-                    uiSecondaryAxescontextmenu_handle = obj.getSecondaryAxesContextmenuHandle();
-                    featureLineContextMenuHandle = obj.getFeatureLineContextmenuHandle();
-                    
-                    % initialize the view here ...?
-                    obj.VIEW = PAView(obj.figureH,uiLinecontextmenu_handle,uiPrimaryAxescontextmenu_handle,featureLineContextMenuHandle,uiSecondaryAxescontextmenu_handle);
-                    
-                    set(obj.figureH,'visible','on');
-                    
-                    obj.VIEW.showBusy([],'all');
-                    
-                    %  Apply this so that later we can retrieve useSmoothing
-                    %  and highlighting nonwear
-                    %  from obj.VIEW when it comes time to save parameters.
-                    % obj.VIEW.setUseSmoothing(obj.settingsObj.CONTROLLER.useSmoothing);
-                    obj.setSmoothingState(obj.settingsObj.CONTROLLER.useSmoothing);
-                    
-                    %  Apply this so that later we can retrieve useSmoothing
-                    %  from obj.VIEW when it comes time to save parameters.
-                    % obj.VIEW.setUseSmoothing(obj.settingsObj.CONTROLLER.useSmoothing);
-                    obj.setNonwearHighlighting(obj.settingsObj.CONTROLLER.highlightNonwear);
-                    
-                    obj.initTimeSeriesWidgets();
-                    set(obj.figureH,'CloseRequestFcn',{@obj.figureCloseCallback,guidata(obj.figureH)});
-                    
-                    
-                    
-                    % set(obj.figureH,'scrollable','on'); - not supported
-                    % for guide figures (figure)
-                    %configure the menu bar callbacks.
-                    obj.initMenubarCallbacks();
-                    
-                    % attempt to load the last set of results
-                    lastViewMode = obj.settingsObj.CONTROLLER.viewMode;
-                    try
-                        obj.setViewMode(lastViewMode);
-%                         obj.initResize();
-                        didSet = true;
-                    catch me
-                        showME(me);
-                    end
-                end
+                didSet = true;
             end
         end
                 
@@ -2635,7 +2717,7 @@ classdef PAController < PABase
         %> @param hObject Handle of callback object (unused).
         %> @param eventdata Unused.
         % =================================================================
-        function contextmenu_line_hide_callback(obj,varargin)
+        function cmenuLineHideCb(obj,varargin)
             tagLine = get(gco,'tag');
             parentH = get(gco,'parent');
             obj.accelObj.setVisible(tagLine,'off');
@@ -2655,23 +2737,23 @@ classdef PAController < PABase
         %> @retval contextmenu_mainaxes_h A contextmenu handle.  This should
         %> be assigned to the primary axes handle of PAView.
         % =================================================================
-        function contextmenu_mainaxes_h = getPrimaryAxesContextmenuHandle(obj)
+        function contextmenu_mainaxes_h = createPrimaryAxesContextmenuHandle(obj)
             %%% reference line contextmenu
             contextmenu_mainaxes_h = uicontextmenu('parent',obj.figureH);
             uimenu(contextmenu_mainaxes_h,'Label','Display settings','tag','singleStudy_displaySettings','callback',...
-                @obj.singleStudy_displaySettings_callback);
+                @obj.singleStudyDisplaySettingsCb);
             hideH =uimenu(contextmenu_mainaxes_h,'Label','Hide','tag','hide','separator','on');
             unhideH = uimenu(contextmenu_mainaxes_h,'Label','Unhide','tag','unhide');
             uimenu(contextmenu_mainaxes_h,'Label','Evenly distribute lines','tag','redistribute',...
-                'separator','on','callback',@obj.contextmenu_redistributeLines_callback);
-            set(contextmenu_mainaxes_h,'callback',{@obj.contextmenu_primaryAxes_callback,hideH,unhideH});      
+                'separator','on','callback',@obj.cmenuRedistributeLinesCb);
+            set(contextmenu_mainaxes_h,'callback',{@obj.cmenuPrimaryAxesCb,hideH,unhideH});      
         end
         
         % --------------------------------------------------------------------
-        function contextmenu_primaryAxes_callback(obj,~,~, hide_uimenu_h, unhide_uimenu_h)
+        function cmenuPrimaryAxesCb(obj,~,~, hide_uimenu_h, unhide_uimenu_h)
             %configure sub contextmenus
-            obj.configure_contextmenu_unhideSignals(unhide_uimenu_h);
-            obj.configure_contextmenu_hideSignals(hide_uimenu_h);
+            obj.cmenuConfigureUnhideSignals(unhide_uimenu_h);
+            obj.cmenuConfigureHideSignals(hide_uimenu_h);
             if(isempty(get(hide_uimenu_h,'children')))
                 set(unhide_uimenu_h,'separator','on');
             else
@@ -2681,7 +2763,7 @@ classdef PAController < PABase
         
         %> @brief Want to redistribute or evenly distribute the lines displayed in
         %> this axis.
-        function contextmenu_redistributeLines_callback(obj, varargin)
+        function cmenuRedistributeLinesCb(obj, varargin)
             obj.VIEW.redistributePrimaryAxesLineHandles();
         end
         
@@ -2692,7 +2774,7 @@ classdef PAController < PABase
         %> @param hMenu instance of handle class.  The contextmenu's menu.
         
         % =================================================================
-        function singleStudy_displaySettings_callback(obj, varargin)
+        function singleStudyDisplaySettingsCb(obj, varargin)
             PASensorDataLineSettings(obj.accelObj,obj.getDisplayType(), obj.getDisplayableLineHandles());
         end
         
@@ -2702,19 +2784,19 @@ classdef PAController < PABase
         %> @retval contextmenu_secondary_h A contextmenu handle.  This should
         %> be assigned to the primary axes handle of PAView.
         % =================================================================
-        function contextmenu_secondaryAxes_h = getSecondaryAxesContextmenuHandle(obj)
+        function contextmenu_secondaryAxes_h = createSecondaryAxesContextmenuHandle(obj)
             %%% reference line contextmenu
             contextmenu_secondaryAxes_h = uicontextmenu('parent',obj.figureH);
             
             menu_h = uimenu(contextmenu_secondaryAxes_h,'Label','Nonwear highlighting','tag','nonwear');
-            nonwearHighlighting_on_menu_h =uimenu(menu_h,'Label','On','tag','nonwear_on','callback',{@obj.contextmenu_nonwearHighlighting_callback,true});
-            nonwearHighlighting_off_menu_h = uimenu(menu_h,'Label','Off','tag','nonwear_off','callback',{@obj.contextmenu_nonwearHighlighting_callback,false});
-            set(menu_h,'callback',{@obj.configure_contextmenu_nonwearHighlighting_callback,nonwearHighlighting_on_menu_h,nonwearHighlighting_off_menu_h});
+            nonwearHighlighting_on_menu_h =uimenu(menu_h,'Label','On','tag','nonwear_on','callback',{@obj.cmenuNonwearHighlightingCb,true});
+            nonwearHighlighting_off_menu_h = uimenu(menu_h,'Label','Off','tag','nonwear_off','callback',{@obj.cmenuNonwearHighlightingCb,false});
+            set(menu_h,'callback',{@obj.cmenuConfigureNonwearHighlightingCb,nonwearHighlighting_on_menu_h,nonwearHighlighting_off_menu_h});
 
             menu_h = uimenu(contextmenu_secondaryAxes_h,'Label','Line Smoothing','tag','smoothing');
-            on_menu_h =uimenu(menu_h,'Label','On','tag','smoothing_on','callback',{@obj.contextmenu_featureSmoothing_callback,true});
-            off_menu_h = uimenu(menu_h,'Label','Off','tag','smoothing_off','callback',{@obj.contextmenu_featureSmoothing_callback,false});
-            set(menu_h,'callback',{@obj.configure_contextmenu_smoothing_callback,on_menu_h,off_menu_h});
+            on_menu_h =uimenu(menu_h,'Label','On','tag','smoothing_on','callback',{@obj.cmenuFeatureSmoothingCb,true});
+            off_menu_h = uimenu(menu_h,'Label','Off','tag','smoothing_off','callback',{@obj.cmenuFeatureSmoothingCb,false});
+            set(menu_h,'callback',{@obj.cmenuConfigureSmoothingCb,on_menu_h,off_menu_h});
         end
         
         % =================================================================
@@ -2726,7 +2808,7 @@ classdef PAController < PABase
         %> @param off_uimenu_h Handle to smoothing off menu option
         % =================================================================
         % --------------------------------------------------------------------
-        function configure_contextmenu_smoothing_callback(obj,~,~, on_uimenu_h, off_uimenu_h)
+        function cmenuConfigureSmoothingCb(obj,~,~, on_uimenu_h, off_uimenu_h)
             %configure sub contextmenus
             if(obj.VIEW.getUseSmoothing())
                 set(on_uimenu_h,'checked','on');
@@ -2748,7 +2830,7 @@ classdef PAController < PABase
         %> - @c true  : Turn smoothing on (default)
         %> - @c false : Turn smoothing off
         % =================================================================
-        function contextmenu_featureSmoothing_callback(obj,~,~,useSmoothing)
+        function cmenuFeatureSmoothingCb(obj,~,~,useSmoothing)
             % --------------------------------------------------------------------
             if(nargin<4)
                 useSmoothing = true;
@@ -2772,7 +2854,7 @@ classdef PAController < PABase
         %> @param on_uimenu_h Handle to Smoothing on menu option
         %> @param off_uimenu_h Handle to smoothing off menu option
         % =================================================================
-        function configure_contextmenu_nonwearHighlighting_callback(obj,~,~, on_uimenu_h, off_uimenu_h)
+        function cmenuConfigureNonwearHighlightingCb(obj,~,~, on_uimenu_h, off_uimenu_h)
             %configure sub contextmenus
             if(obj.VIEW.getNonwearHighlighting())
                 set(on_uimenu_h,'checked','on');
@@ -2794,7 +2876,7 @@ classdef PAController < PABase
         %> - @c true  : Turn smoothing on (default)
         %> - @c false : Turn smoothing off
         % =================================================================
-        function contextmenu_nonwearHighlighting_callback(obj,~,~,highlightNonwear)
+        function cmenuNonwearHighlightingCb(obj,~,~,highlightNonwear)
             if(nargin<4)
                 highlightNonwear = true;
             end
@@ -2840,7 +2922,7 @@ classdef PAController < PABase
         %> channels.
         %> @param eventdata Unused.
         % =================================================================
-        function configure_contextmenu_hideSignals(obj,contextmenu_h,~)
+        function cmenuConfigureHideSignals(obj,contextmenu_h)
             % --------------------------------------------------------------------
             % start with a clean slate
             delete(get(contextmenu_h,'children'));
@@ -2852,7 +2934,7 @@ classdef PAController < PABase
                 if(~strcmpi(get(lineH,'visible'),'off'))
                     tagLine = get(lineH,'tag');
                     set(contextmenu_h,'enable','on');
-                    uimenu(contextmenu_h,'Label',tagLine,'separator','off','callback',{@obj.hideLineHandle_callback,lineH});
+                    uimenu(contextmenu_h,'Label',tagLine,'separator','off','callback',{@obj.hideLineHandleCb,lineH});
                     hasVisibleSignals = true;
                 end
             end
@@ -2874,7 +2956,7 @@ classdef PAController < PABase
         %> channels.
         %> @param eventdata Unused.
         % =================================================================
-        function configure_contextmenu_unhideSignals(obj,contextmenu_h,~)
+        function cmenuConfigureUnhideSignals(obj,contextmenu_h)
             % --------------------------------------------------------------------
             % start with a clean slate
             delete(get(contextmenu_h,'children'));
@@ -2886,7 +2968,7 @@ classdef PAController < PABase
                 if(strcmpi(get(lineH,'visible'),'off'))
                     tagLine = get(lineH,'tag');
                     set(contextmenu_h,'enable','on');
-                    uimenu(contextmenu_h,'Label',tagLine,'separator','off','callback',{@obj.showLineHandle_callback,lineH});
+                    uimenu(contextmenu_h,'Label',tagLine,'separator','off','callback',{@obj.showLineHandleCb,lineH});
                     hasHiddenSignals = true;
                 end
             end
@@ -2906,7 +2988,7 @@ classdef PAController < PABase
         %> @param eventdata Unused.
         %> @param lineHandle Line handle to be shown.
         % --------------------------------------------------------------------
-        function showLineHandle_callback(obj,~,~,lineHandle)
+        function showLineHandleCb(obj,~,~,lineHandle)
             % --------------------------------------------------------------------
             lineTag = get(lineHandle,'tag');
             tagHandles = findobj(get(lineHandle,'parent'),'tag',lineTag);
@@ -2923,7 +3005,7 @@ classdef PAController < PABase
         %> @param eventdata Unused.
         %> @param lineHandle Line handle to be shown.
         % --------------------------------------------------------------------
-        function hideLineHandle_callback(obj,~,~,lineHandle)
+        function hideLineHandleCb(obj,~,~,lineHandle)
             % --------------------------------------------------------------------
             lineTag = get(lineHandle,'tag');
             tagHandles = findobj(get(lineHandle,'parent'),'tag',lineTag);
@@ -2939,17 +3021,17 @@ classdef PAController < PABase
         %> be assigned to the line handles drawn by the PAController and
         %> PAView classes.
         % =================================================================
-        function uicontextmenu_handle = getLineContextmenuHandle(obj)
+        function uicontextmenu_handle = createLineContextmenuHandle(obj)
             % --------------------------------------------------------------------
-            uicontextmenu_handle = uicontextmenu('callback',@obj.contextmenu_line_callback,'parent',obj.figureH);%,get(parentAxes,'parent'));
-            uimenu(uicontextmenu_handle,'Label','Resize','separator','off','callback',@obj.contextmenu_line_resize_callback);
-            uimenu(uicontextmenu_handle,'Label','Use Default Scale','separator','off','callback',@obj.contextmenu_line_defaultScale_callback,'tag','defaultScale');
-            uimenu(uicontextmenu_handle,'Label','Move','separator','off','callback',@obj.contextmenu_line_move_callback);
-            uimenu(uicontextmenu_handle,'Label','Change Color','separator','off','callback',@obj.contextmenu_line_color_callback);
+            uicontextmenu_handle = uicontextmenu('callback',@obj.contextmenuLineCb,'parent',obj.figureH);%,get(parentAxes,'parent'));
+            uimenu(uicontextmenu_handle,'Label','Resize','separator','off','callback',@obj.contextmenuLineResizeCb);
+            uimenu(uicontextmenu_handle,'Label','Use Default Scale','separator','off','callback',@obj.contextmenuLineDefaultScaleCb,'tag','defaultScale');
+            uimenu(uicontextmenu_handle,'Label','Move','separator','off','callback',@obj.contextmenuLineMoveCb);
+            uimenu(uicontextmenu_handle,'Label','Change Color','separator','off','callback',@obj.contextmenuLineColorCb);
             %            uimenu(uicontextmenu_handle,'Label','Add Reference Line','separator','on','callback',@obj.contextmenu_line_referenceline_callback);
             %            uimenu(uicontextmenu_handle,'Label','Align Channel','separator','off','callback',@obj.align_channels_on_axes);
-            uimenu(uicontextmenu_handle,'Label','Hide','separator','on','callback',@obj.contextmenu_line_hide_callback);
-            uimenu(uicontextmenu_handle,'Label','Copy window to clipboard','separator','off','callback',@obj.contextmenu_window2clipboard_callback,'tag','copy_window2clipboard');
+            uimenu(uicontextmenu_handle,'Label','Hide','separator','on','callback',@obj.cmenuLineHideCb);
+            uimenu(uicontextmenu_handle,'Label','Copy window to clipboard','separator','off','callback',@obj.contextmenuWindow2ClipboardCb,'tag','copy_window2clipboard');
         end
         
         % =================================================================
@@ -2959,9 +3041,9 @@ classdef PAController < PABase
         %> be assigned to the line handles drawn by the PAController and
         %> PAView classes.
         % =================================================================
-        function uicontextmenu_handle = getFeatureLineContextmenuHandle(obj)
+        function uicontextmenu_handle = createFeatureLineContextmenuHandle(obj)
             uicontextmenu_handle = uicontextmenu('parent',obj.figureH);%,get(parentAxes,'parent'));
-            uimenu(uicontextmenu_handle,'Label','Copy to clipboard','separator','off','callback',@obj.contextmenu_line2clipboard_callback,'tag','copy_window2clipboard');
+            uimenu(uicontextmenu_handle,'Label','Copy to clipboard','separator','off','callback',@obj.contextmenuLine2ClipboardCb,'tag','copy_window2clipboard');
         end
         
         
@@ -2971,7 +3053,7 @@ classdef PAController < PABase
         %> @param hObject Handle of callback object (unused).
         %> @param eventdata Unused.
         % =================================================================
-        function contextmenu_line_callback(obj,hObject,~)
+        function contextmenuLineCb(obj,hObject,~)
             %parent context menu that pops up before any of the children contexts are
             %drawn...
             %             handles = guidata(hObject);
@@ -2999,8 +3081,6 @@ classdef PAController < PABase
                 defaultScale = pStruct.scale.(lineTag);
             end
             
-            
-            
             if(curScale==defaultScale)
                 set(default_scale_handle,'Label',sprintf('Default Scale (%0.2f)',defaultScale))
                 set(default_scale_handle,'checked','on');
@@ -3008,7 +3088,6 @@ classdef PAController < PABase
                 set(default_scale_handle,'Label',sprintf('Use Default Scale (%0.2f)',defaultScale))
                 set(default_scale_handle,'checked','off');
             end
-            
             
             %
             %             %show/hide the show filter handle
@@ -3033,13 +3112,13 @@ classdef PAController < PABase
         %> @param hObject gui handle object
         %> @param eventdata unused
         % =================================================================
-        function contextmenu_line_move_callback(obj,varargin)
+        function contextmenuLineMoveCb(obj,varargin)
             y_lim = get(obj.VIEW.axeshandle.primary,'ylim');
             
             tagLine = get(gco,'tag');
             set(obj.VIEW.figurehandle,'pointer','hand',...
                 'windowbuttonmotionfcn',...
-                {@obj.move_line_mouseFcnCallback,tagLine,y_lim}...
+                {@obj.moveLineMouseFcnCb,tagLine,y_lim}...
                 );
         end
         
@@ -3056,8 +3135,8 @@ classdef PAController < PABase
         %> these bounds.
         %> @retval obj instance of CLASS_channels_container.
         % =================================================================
-        function move_line_mouseFcnCallback(obj,~,~,lineTag,y_lim)
-            %windowbuttonmotionfcn set by contextmenu_line_move_callback
+        function moveLineMouseFcnCb(obj,~,~,lineTag,y_lim)
+            %windowbuttonmotionfcn set by contextmenuLineMoveCb
             %axes_h is the axes that the current object (channel_object) is in
             pos = get(obj.VIEW.axeshandle.primary,'currentpoint');
             curOffset = max(min(pos(1,2),y_lim(2)),y_lim(1));
@@ -3072,11 +3151,11 @@ classdef PAController < PABase
         %> @param eventdata Unused.
         %> @retval obj instance of CLASS_channels_container.
         % =================================================================
-        function contextmenu_line_resize_callback(obj,varargin)
+        function contextmenuLineResizeCb(obj,varargin)
             
             lineTag = get(gco,'tag');
             set(obj.VIEW.figurehandle,'pointer','crosshair','WindowScrollWheelFcn',...
-                {@obj.resize_WindowScrollWheelFcn,...
+                {@obj.resizeWindowScrollWheelFcnCb,...
                 lineTag,obj.VIEW.texthandle.status});
             
             allScale = obj.accelObj.getScale();
@@ -3096,7 +3175,7 @@ classdef PAController < PABase
         %> @param hObject gui handle object
         %> @param eventdata unused
         % =================================================================
-        function contextmenu_line_defaultScale_callback(obj,hObject,~)
+        function contextmenuLineDefaultScaleCb(obj,hObject,~)
             
             if(strcmp(get(hObject,'checked'),'off'))
                 set(hObject,'checked','on');
@@ -3120,7 +3199,7 @@ classdef PAController < PABase
         %> @param hObject gui handle object
         %> @param eventdata unused
         % =================================================================
-        function contextmenu_line_color_callback(obj, varargin)
+        function contextmenuLineColorCb(obj, varargin)
             lineTag = get(gco,'tag');
             c = get(gco,'color');
             c = uisetcolor(c,lineTag);
@@ -3154,8 +3233,8 @@ classdef PAController < PABase
         %> This is used for dynamic indexing into the accelObj's datastructs.
         %> @param text_h Text handle for outputing the channel's size/scale.
         % =================================================================
-        function resize_WindowScrollWheelFcn(obj,~,eventdata,lineTag,text_h)
-            %the windowwheelscrollfcn set by contextmenu_line_resize_callback
+        function resizeWindowScrollWheelFcnCb(obj,~,eventdata,lineTag,text_h)
+            %the windowwheelscrollfcn set by contextmenuLineResizeCb
             %it is used to adjust the size of the selected channel object (channelObj)
             scroll_step = 0.05;
             lowerbound = 0.01;
@@ -3181,7 +3260,7 @@ classdef PAController < PABase
         %> @param hObject Handle of callback object (unused).
         %> @param eventdata Unused.
         % =================================================================
-        function contextmenu_window2clipboard_callback(obj,varargin)
+        function contextmenuWindow2ClipboardCb(obj,varargin)
             data =get(obj.current_linehandle,'ydata');
             clipboard('copy',data);
             disp([num2str(numel(data)),' items copied to the clipboard.  Press Control-V to access data items, or type "str=clipboard(''paste'')"']);
@@ -3228,7 +3307,7 @@ classdef PAController < PABase
         %> @param hObject Handle of callback object (unused).
         %> @param eventdata Unused.
         % =================================================================
-        function contextmenu_line2clipboard_callback(hObject,~)
+        function contextmenuLine2ClipboardCb(hObject,~)
             data = get(get(hObject,'parent'),'userdata');
             clipboard('copy',data);
             disp([num2str(numel(data)),' items copied to the clipboard.  Press Control-V to access data items, or type "str=clipboard(''paste'')"']);
