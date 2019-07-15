@@ -788,7 +788,7 @@ classdef PAView < handle
                 ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Lumens','Daylight'};
             end
 
-            axesProps.secondary.ytick = obj.getTicksForLabels(ytickLabel);
+            axesProps.secondary.ytick = getTicksForLabels(ytickLabel);
             axesProps.secondary.yticklabel = ytickLabel;
             
             
@@ -975,24 +975,6 @@ classdef PAView < handle
             set(obj.patchhandle.wear,'xdata',xdata,'ydata',ydata,'visible','on');
             obj.draw();
             
-            
-            
-            
-%             feature_patchH = patch(x,y,vertexColor,'parent',axesH,'edgecolor','interp','facecolor','interp','hittest','off');
-                        
-            
-            
-            %             if(ishandle(obj.patchhandle.feature))
-            %                 delete(obj.patchhandle.feature);
-            %             end
-            %             if(ishandle(obj.linehandle.feature))
-            %                 delete(obj.linehandle.feature);
-            %             end
-            %             if(ishandle(obj.linehandle.featureCumsum))
-            %                 delete(obj.linehandle.featureCumsum);
-            %             end
-            %             [feature_patchH, feature_lineH, feature_cumsumLineH] = obj.addFeaturesVecAndOverlayToAxes( featureVector, startStopDatenum, overlayHeight, overlayOffset, obj.axeshandle.secondary, obj.getUseSmoothing(), obj.contextmenuhandle.featureLine);
-            %             [obj.patchhandle.feature, obj.linehandle.feature, obj.linehandle.featureCumsum] = deal(feature_patchH, feature_lineH, feature_cumsumLineH);
         end
         
         % --------------------------------------------------------------------
@@ -1018,7 +1000,7 @@ classdef PAView < handle
             if(ishandle(obj.linehandle.featureCumsum))
                 delete(obj.linehandle.featureCumsum);
             end
-            [feature_patchH, feature_lineH, feature_cumsumLineH] = obj.addFeaturesVecAndOverlayToAxes( featureVector, startStopDatenum, overlayHeight, overlayOffset, obj.axeshandle.secondary, obj.getUseSmoothing(), obj.contextmenuhandle.featureLine);
+            [feature_patchH, feature_lineH, feature_cumsumLineH] = obj.addFeaturesVecAndOverlayToAxes(obj.axeshandle.secondary, featureVector, startStopDatenum, overlayHeight, overlayOffset, obj.getUseSmoothing(), obj.contextmenuhandle.featureLine);
             [obj.patchhandle.feature, obj.linehandle.feature, obj.linehandle.featureCumsum] = deal(feature_patchH, feature_lineH, feature_cumsumLineH);
         end
         
@@ -1055,8 +1037,7 @@ classdef PAView < handle
         %> with so that the normalized overlayVector's maximum value is 1.
         % --------------------------------------------------------------------
         function [overlayLineH, overlayPatchH] = addOverlayToSecondaryAxes(obj, overlayVector, startStopDatenum, overlayHeight, overlayOffset,maxValue)
-            [overlayLineH,overlayPatchH] = obj.addOverlayToAxes(overlayVector, startStopDatenum, overlayHeight, overlayOffset,maxValue,obj.axeshandle.secondary,obj.contextmenuhandle.featureLine);
-            %             obj.linehandle.overlay = overlayLineH;
+            [overlayLineH,overlayPatchH] = addOverlayToAxes(obj.axeshandle.secondary, overlayVector, startStopDatenum, overlayHeight, overlayOffset,maxValue,obj.contextmenuhandle.featureLine);
         end
 
         
@@ -1470,7 +1451,7 @@ classdef PAView < handle
         %> @retval feature_lineH Line handle of feature
         %> @retval feature_cumsumLineH Line handle of cumulative sum of feature        
         % --------------------------------------------------------------------
-        function [feature_patchH, feature_lineH, feature_cumsumLineH] = addFeaturesVecAndOverlayToAxes(featureVector, startStopDatenum, overlayHeight, overlayOffset, axesH, useSmoothing,contextmenuH)
+        function [feature_patchH, feature_lineH, feature_cumsumLineH] = addFeaturesVecAndOverlayToAxes(axesH, featureVector, startStopDatenum, overlayHeight, overlayOffset, useSmoothing,contextmenuH)
             if(nargin<7)
                 contextmenuH = [];
                 if(nargin<6 || isempty(useSmoothing))
@@ -1593,65 +1574,7 @@ classdef PAView < handle
             end
         end
         
-        % --------------------------------------------------------------------
-        %> @brief Adds a magnitude vector as a heatmap to the specified axes.
-        %> @param overlayVector A magnitude vector to be displayed in the
-        %> axes as a heat map.
-        %> @param startStopDatenum An Nx2 matrix start and stop datenums which
-        %> correspond to the start and stop times of the same row in overlayVector.
-        %> @param overlayHeight - The proportion (fraction) of vertical space that the
-        %> overlay will take up in the secondary axes.
-        %> @param overlayOffset The normalized y offset that is applied to
-        %> the overlayVector when displayed on the secondary axes.
-        %> @param maxValue The maximum value to normalize the overlayVector
-        %> with so that the normalized overlayVector's maximum value is 1.
-        %> @param axesH The graphic handle to the axes.
-        %> @param contextmenuH Optional contextmenu handle.  Is assigned to the overlayLineH lines
-        %> contextmenu callback when included.    
-        % --------------------------------------------------------------------
-        function [overlayLineH, overlayPatchH] = addOverlayToAxes(overlayVector, startStopDatenum, overlayHeight, overlayOffset,maxValue,axesH,contextmenuH)
-            if(nargin<7)
-                contextmenuH = [];
-            end
-            
-            yLim = get(axesH,'ylim');
-            yLim = yLim*overlayHeight+overlayOffset;
-            minColor = [0.0 0.0 0.0];
-            
-            nFaces = numel(overlayVector);
-            x = nan(4,nFaces);
-            y = repmat(yLim([1 2 2 1])',1,nFaces);
-            vertexColor = nan(4,nFaces,3);
-            
-            % only work with a row vector so we can add correctly next
-            overlayVector = overlayVector(:);
-            % each column represent a face color triplet            
-            overlayColorMap = (overlayVector/maxValue)*[1,1,0.65]+ repmat(minColor,nFaces,1);
-       
-            % patches are drawn clock wise in matlab
-            
-            for f=1:nFaces
-                if(f==nFaces)
-                    vertexColor(:,f,:) = overlayColorMap([f,f,f,f],:);
-                    
-                else
-                    vertexColor(:,f,:) = overlayColorMap([f,f,f+1,f+1],:);
-                    
-                end
-                x(:,f) = startStopDatenum(f,[1 1 2 2])';
-                
-            end
-            overlayPatchH = patch(x,y,vertexColor,'parent',axesH,'edgecolor','interp','facecolor','interp');            
-            normalizedOverlayVector = overlayVector/maxValue*(overlayHeight)+overlayOffset;
-            
-            overlayLineH = [];
-            if(~isempty(contextmenuH))
-                overlayLineH = line('parent',axesH,'linestyle',':','xdata',linspace(startStopDatenum(1),startStopDatenum(end),numel(overlayVector)),'ydata',normalizedOverlayVector,'color',[1 1 0]);          
-                set(overlayLineH,'uicontextmenu',contextmenuH);
-                % set(contextmenuH,'userdata',overlayVector);
-            end
-
-        end        
+     
         
         %==================================================================
         %> @brief Recursively fills in the template structure dummyStruct
@@ -1801,22 +1724,6 @@ classdef PAView < handle
                 end
             end
         end
-        
-        %> @brief Returns evenly spaced tick marks for an input cell of
-        %> labels.  This is a utility method for placing nicely spaced labels
-        %> along an x or y axes.
-        %> @param cellOfLabels For example {'X','Y','Z','VecMag'}
-        %> @retval ticks Vector of evenly spaced values between 1/(number
-        %> of labels)/2 and 1
-        function ticks = getTicksForLabels(cellOfLabels)
-            if(~iscell(cellOfLabels))
-                numTicks = 1;
-            else
-                numTicks = numel(cellOfLabels);
-            end
-             ticks = 1/numTicks/2:1/numTicks:1;
-        end
-        
     end
 end
 

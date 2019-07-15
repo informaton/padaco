@@ -55,7 +55,7 @@ classdef PAController < PABase
         
         %> Instance of PAAppSettings - keeps track of application wide settings.
         settingsObj;
-        %> Instance of PAView - Padaco's view component.
+        %> Instance of PASingleStudyController - Padaco's view component.
         VIEW;
         %> Instance of PAModel - Padaco's model component.  See accelObj.
         MODEL;
@@ -144,7 +144,7 @@ classdef PAController < PABase
                     featureLineContextMenuHandle = obj.createFeatureLineContextmenuHandle();
                     
                     % initialize the view here ...?
-                    obj.VIEW = PAView(obj.figureH,uiLinecontextmenu_handle,uiPrimaryAxescontextmenu_handle,featureLineContextMenuHandle,uiSecondaryAxescontextmenu_handle);
+                    obj.VIEW = PASingleStudyController(obj.figureH,uiLinecontextmenu_handle,uiPrimaryAxescontextmenu_handle,featureLineContextMenuHandle,uiSecondaryAxescontextmenu_handle);
                     
                     set(obj.figureH,'visible','on');
                     
@@ -318,11 +318,11 @@ classdef PAController < PABase
                     obj.figureScreenshot();
                     %take screen capture of main axes
                 elseif(strcmp(eventdata.Key,'s'))
-                    if(isa(obj.VIEW,'PAView') &&ishandle(obj.VIEW.axeshandle.secondary))
+                    if(isa(obj.VIEW,'PASingleStudyController') &&ishandle(obj.VIEW.axeshandle.secondary))
                         obj.screenshotPathname = screencap(obj.VIEW.axeshandle.secondary,[],obj.screenshotPathname);
                     end
                 elseif(strcmp(eventdata.Key,'p'))
-                    if(isa(obj.VIEW,'PAView') &&ishandle(obj.VIEW.axeshandle.primary))
+                    if(isa(obj.VIEW,'PASingleStudyController') &&ishandle(obj.VIEW.axeshandle.primary))
                         obj.screenshotPathname = screencap(obj.VIEW.axeshandle.primary,[],obj.screenshotPathname);
                     end
                 end
@@ -744,7 +744,7 @@ classdef PAController < PABase
         
         % --------------------------------------------------------------------
         %> @brief Sets display type instance variable for the view.
-        %> @param obj Instance of PAView.
+        %> @param obj Instance of PASingleStudyController.
         %> @param displayType A string representing the display type structure.  Can be
         %> @li @c timeSeries
         %> @li @c bins
@@ -860,7 +860,7 @@ classdef PAController < PABase
                 tickField = 'ytick';
                 labelField = 'yticklabel';
             end
-            axesProps.secondary.(tickField) = PAView.getTicksForLabels(labels);
+            axesProps.secondary.(tickField) = getTicksForLabels(labels);
             axesProps.secondary.(labelField) = labels;
             obj.VIEW.initAxesHandles(axesProps);
         end
@@ -995,7 +995,7 @@ classdef PAController < PABase
         %> the current feature extraction method displayed in the VIEW's displayFeature drop down menu.
         %> @note Results of applying the extractor method to the current
         %> signal (selected from its dropdown menu) are displayed in the
-        %> secondary axes of PAView.
+        %> secondary axes of PASingleStudyController.
         % --------------------------------------------------------------------
         function extractorMethodName = getExtractorMethod(obj)
             extractorFcns = get(obj.VIEW.menuhandle.displayFeature,'userdata');
@@ -2115,7 +2115,7 @@ classdef PAController < PABase
         
         % --------------------------------------------------------------------
         %> @brief Returns the display type instance variable.
-        %> @param obj Instance of PAView.
+        %> @param obj Instance of PASingleStudyController.
         %> @retval structName Name of the field that matches the description of the current display type used.
         %> - @c timeSeries
         %> - @c bins
@@ -2128,7 +2128,7 @@ classdef PAController < PABase
         
         % ======================================================================
         %> @brief Returns a structure of PAControllers saveable parameters as a struct.
-        %> @param obj Instance of PAView.
+        %> @param obj Instance of PASingleStudyController.
         %> @retval pStruct A structure of save parameters which include the following
         %> fields
         %> - @c featureFcn
@@ -2155,8 +2155,8 @@ classdef PAController < PABase
         end
         
         % ======================================================================
-        %> @brief Returns a structure of PAView's primary axes currently displayable line handles.
-        %> @param obj Instance of PAView.
+        %> @brief Returns a structure of PASingleStudyController's primary axes currently displayable line handles.
+        %> @param obj Instance of PASingleStudyController.
         %> @retval lineHandles A structure of line handles of the current display type are
         %> showable in the primary axes (i.e. they are only not seen if the
         %user has set the line handle's 'visible' property to 'off'
@@ -2322,7 +2322,7 @@ classdef PAController < PABase
         % --------------------------------------------------------------------
         %> @brief Initializes the display for accelerometer data viewing
         %> using instantiated instance
-        %> variables VIEW (PAView) and accelObj (PASensorData)
+        %> variables VIEW (PASingleStudyController) and accelObj (PASensorData)
         %> @param obj Instance of PAController
         % --------------------------------------------------------------------
         function initAccelDataView(obj)
@@ -2555,14 +2555,14 @@ classdef PAController < PABase
             [meanLumens,startStopDatenums] = obj.getMeanLumenPatches(numFrames,paDataObject);
             
             % Modified - by adding axesH as second argument
-            obj.VIEW.addOverlayToAxes(meanLumens,startStopDatenums,1/7,5/7,maxLumens,axesH);
+            addOverlayToAxes(axesH,meanLumens,startStopDatenums,1/7,5/7,maxLumens);
             
             maxDaylight = 1;
             % Modified get daylight somehow - perhaps to include accelObj as second argument.
             [daylight,startStopDatenums] = obj.getDaylight(numFrames,paDataObject);
             
             % Modified - by adding axesH as last argument
-            obj.VIEW.addOverlayToAxes(daylight,startStopDatenums,1/7-0.005,6/7,maxDaylight,axesH);
+            addOverlayToAxes(axesH,daylight,startStopDatenums,1/7-0.005,6/7,maxDaylight);
             
             % updateSecondaryFeaturesDisplay
             signalTagLines = strcat('accel.',paDataObject.accelType,'.',{'x','y','z','vecMag'})';
@@ -2735,7 +2735,7 @@ classdef PAController < PABase
         %> @brief Configure contextmenu for view's primary axes.
         %> @param obj instance of PAController.
         %> @retval contextmenu_mainaxes_h A contextmenu handle.  This should
-        %> be assigned to the primary axes handle of PAView.
+        %> be assigned to the primary axes handle of PASingleStudyController.
         % =================================================================
         function contextmenu_mainaxes_h = createPrimaryAxesContextmenuHandle(obj)
             %%% reference line contextmenu
@@ -2782,7 +2782,7 @@ classdef PAController < PABase
         %> @brief Configure contextmenu for view's secondary axes.
         %> @param obj instance of PAController.
         %> @retval contextmenu_secondary_h A contextmenu handle.  This should
-        %> be assigned to the primary axes handle of PAView.
+        %> be assigned to the primary axes handle of PASingleStudyController.
         % =================================================================
         function contextmenu_secondaryAxes_h = createSecondaryAxesContextmenuHandle(obj)
             %%% reference line contextmenu
@@ -3019,7 +3019,7 @@ classdef PAController < PABase
         %> @param obj instance of PAController.
         %> @retval uicontextmenu_handle A contextmenu handle.  This should
         %> be assigned to the line handles drawn by the PAController and
-        %> PAView classes.
+        %> PASingleStudyController classes.
         % =================================================================
         function uicontextmenu_handle = createLineContextmenuHandle(obj)
             % --------------------------------------------------------------------
@@ -3039,7 +3039,7 @@ classdef PAController < PABase
         %> @param obj instance of PAController.
         %> @retval uicontextmenu_handle A contextmenu handle.  This should
         %> be assigned to the line handles drawn by the PAController and
-        %> PAView classes.
+        %> PASingleStudyController classes.
         % =================================================================
         function uicontextmenu_handle = createFeatureLineContextmenuHandle(obj)
             uicontextmenu_handle = uicontextmenu('parent',obj.figureH);%,get(parentAxes,'parent'));

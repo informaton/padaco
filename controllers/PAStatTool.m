@@ -3613,7 +3613,7 @@ classdef PAStatTool < PABase
                         % our axes handle.
                         startStopXData = [xdata(1:end-1);xdata(2:end)]';
                       
-                        [~, overlayPatchH] = PAView.addOverlayToAxes(daylight, startStopXData, height, verticalOffset,maxDaylight,axesH);
+                        [~, overlayPatchH] = addOverlayToAxes(axeH, daylight, startStopXData, height, verticalOffset,maxDaylight);
                         set(overlayPatchH,'hittest','off');
                         uistack(overlayPatchH,'bottom');
                     end
