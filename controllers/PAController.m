@@ -2575,7 +2575,7 @@ classdef PAController < PABase
                 % Modified to pass in the PASensorDataObj as last parameter
                 [featureVec, startStopDatenums] = obj.getFeatureVec(featureFcn,signalName,numFrames,paDataObject);
                 if(s<numel(signalTagLines))
-                    vecHandles = obj.VIEW.addFeaturesVecToAxes(featureVec,startStopDatenums,height,heightOffset,axesH);                    
+                    vecHandles = addFeaturesVecToAxes(axesH, featureVec,startStopDatenums,height,heightOffset);
                 else
                     % This requires twice the height because it will have a
                     % feature line and heat map
