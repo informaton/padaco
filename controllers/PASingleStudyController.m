@@ -1,8 +1,8 @@
-%> @file PAView.cpp
-%> @brief PAView serves as Padaco's time series view controller
+%> @file PASingleStudyController.cpp
+%> @brief PASingleStudyController serves as Padaco's time series view controller
 % ======================================================================
-%> @brief PAView serves as Padaco's time series view controller.
-classdef PAView < handle
+%> @brief PASingleStudyController serves as Padaco's time series view controller.
+classdef PASingleStudyController < handle
     
     properties (SetAccess = protected)
         
@@ -117,17 +117,17 @@ classdef PAView < handle
     methods
         
         % --------------------------------------------------------------------
-        %> PAView class constructor.
-        %> @param Padaco_fig_h Figure handle to assign PAView instance to.
+        %> PASingleStudyController class constructor.
+        %> @param Padaco_fig_h Figure handle to assign PASingleStudyController instance to.
         %> @param lineContextmenuHandle Contextmenu handle to assign to
         %> VIEW's line handles
         %> @param primaryAxesContextmenuHandle Contextmenu to assign to
         %> VIEW's primary axes.
         %> @param featureLineContextmenuHandle Contextmenu to assign to
         %> VIEW's feature line handles.
-        %> @retval obj Instance of PAView
+        %> @retval obj Instance of PASingleStudyController
         % --------------------------------------------------------------------
-        function obj = PAView(Padaco_fig_h,lineContextmenuHandle,primaryAxesContextmenuHandle,featureLineContextmenuHandle,secondaryAxesContextmenuHandle)
+        function obj = PASingleStudyController(Padaco_fig_h,lineContextmenuHandle,primaryAxesContextmenuHandle,featureLineContextmenuHandle,secondaryAxesContextmenuHandle)
             if(ishandle(Padaco_fig_h))
                 if(nargin<4)
                     secondaryAxesContextmenuHandle = [];
@@ -177,8 +177,8 @@ classdef PAView < handle
         
                 
         % --------------------------------------------------------------------
-        %> @brief Creates line handles and maps figure tags to PAView instance variables.
-        %> @param obj Instance of PAView.
+        %> @brief Creates line handles and maps figure tags to PASingleStudyController instance variables.
+        %> @param obj Instance of PASingleStudyController.
         %> @note This method does not set the view mode.  Call
         %> setViewMode(.) to configure the axes and widgets accordingly.
         % --------------------------------------------------------------------
@@ -232,7 +232,7 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> @brief Sets padaco's view mode to either time series or results viewing.
-        %> @param obj Instance of PAView
+        %> @param obj Instance of PASingleStudyController
         %> @param viewModeView A string with one of two values
         %> - @c timeseries
         %> - @c results
@@ -282,7 +282,7 @@ classdef PAView < handle
 
         % --------------------------------------------------------------------
         %> @brief Retrieves the window duration drop down menu's current value as a number.
-        %> @param obj Instance of PAView.
+        %> @param obj Instance of PASingleStudyController.
         %> @retval windowDurSec Duration of the current view's window as seconds.
         % --------------------------------------------------------------------
         function windowDurSec = getWindowDurSec(obj)
@@ -296,7 +296,7 @@ classdef PAView < handle
         %> based on the input parameter (as seconds).  If the duration in
         %> seconds is not found, then the value is appended to the drop down
         %> menu prior to being set.
-        %> @param obj Instance of PAView.
+        %> @param obj Instance of PASingleStudyController.
         %> @param windowDurSec Duration in seconds to set the drop downmenu's selection to
         % --------------------------------------------------------------------
         function windowDurSec = setWindowDurSecMenu(obj, windowDurSec)
@@ -318,7 +318,7 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         %> @brief Retrieves the current window's edit box string value as a
         %> number
-        %> @param obj Instance of PAView.
+        %> @param obj Instance of PASingleStudyController.
         %> @retval curWindow Numeric value of the current window displayed in the edit box.
         % --------------------------------------------------------------------
         function curWindow = getCurWindow(obj)
@@ -327,7 +327,7 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> @brief Sets current window edit box string value
-        %> @param obj Instance of PAView.
+        %> @param obj Instance of PASingleStudyController.
         %> @param windowStr A string to display in the current window edit
         %> box.
         %> @param xposStart The position on the x-axis of where the window starts.
@@ -344,7 +344,7 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> @brief Sets aggregate duration edit box string value
-        %> @param obj Instance of PAView.
+        %> @param obj Instance of PASingleStudyController.
         %> @param aggregateDurationStr A string representing the aggregate duration as minutes.
         % --------------------------------------------------------------------
         function setAggregateDurationMinutes(obj,aggregateDurationStr)
@@ -354,7 +354,7 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         %> @brief Retrieves the aggregate duration edit box value as a
         %> number.
-        %> @param obj Instance of PAView.
+        %> @param obj Instance of PASingleStudyController.
         %> @retval aggregateDurMin The aggregate duration (in minutes) currently set in the text edit box
         %> as a numeric value.
         % --------------------------------------------------------------------
@@ -364,7 +364,7 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> @brief Sets frame duration edit box (minutes) string value
-        %> @param obj Instance of PAView.
+        %> @param obj Instance of PASingleStudyController.
         %> @param frameDurationMinutesStr A string representing the frame duration as minutes.
         % --------------------------------------------------------------------
         function setFrameDurationMinutes(obj,frameDurationMinutesStr)
@@ -373,7 +373,7 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> @brief Sets frame duration edit box (hours) string value
-        %> @param obj Instance of PAView.
+        %> @param obj Instance of PASingleStudyController.
         %> @param frameDurationHoursStr A string representing the frame duration as minutes.
         % --------------------------------------------------------------------
         function setFrameDurationHours(obj,frameDurationHoursStr)
@@ -382,7 +382,7 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> @brief Sets line smoothing state for feature vectors displayed on the secondary axes.
-        %> @param obj Instance of PAView.
+        %> @param obj Instance of PASingleStudyController.
         %> @param smoothingState  Possible values include:
         %> - @c true Smoothing is on.
         %> - @c false Smoothing is off.
@@ -402,7 +402,7 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         %> @brief Sets nonwear highlighting flag for secondary axis
         % display.
-        %> @param obj Instance of PAView.
+        %> @param obj Instance of PASingleStudyController.
         %> @param smoothingState  Possible values include:
         %> - @c true Nonwear highlighting is on.
         %> - @c false Nonwear highlighting is off.
@@ -423,7 +423,7 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> @brief Sets display type instance variable.    
-        %> @param obj Instance of PAView.
+        %> @param obj Instance of PASingleStudyController.
         %> @param displayTypeStr A string representing the display type.  Can be 
         %> @li @c timeSeries
         %> @li @c bins
@@ -439,18 +439,18 @@ classdef PAView < handle
                 fnames = fieldnames(allStructTypes);
                 for f=1:numel(fnames)
                     curStructName = fnames{f};
-                    obj.recurseHandleInit(obj.labelhandle.(curStructName), allProps);
-                    obj.recurseHandleInit(obj.referencelinehandle.(curStructName), allProps);
-                    obj.recurseHandleInit(obj.linehandle.(curStructName), allProps);
+                    recurseHandleInit(obj.labelhandle.(curStructName), allProps);
+                    recurseHandleInit(obj.referencelinehandle.(curStructName), allProps);
+                    recurseHandleInit(obj.linehandle.(curStructName), allProps);
                 end
                 
                 obj.displayType = displayTypeStr;
                 
                 displayStruct = obj.displayType;
                 
-                obj.recurseHandleSetter(obj.referencelinehandle.(displayStruct), visibleProps);
-                obj.recurseHandleSetter(obj.linehandle.(displayStruct), visibleProps);
-                obj.recurseHandleSetter(obj.labelhandle.(displayStruct), visibleProps);
+                recurseHandleSetter(obj.referencelinehandle.(displayStruct), visibleProps);
+                recurseHandleSetter(obj.linehandle.(displayStruct), visibleProps);
+                recurseHandleSetter(obj.labelhandle.(displayStruct), visibleProps);
             else
                 fprintf('Warning, this string (%s) is not an acceptable option.\n',displayTypeStr);
             end
@@ -458,7 +458,7 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> @brief Returns the display type instance variable.    
-        %> @param obj Instance of PAView.
+        %> @param obj Instance of PASingleStudyController.
         %> @retval displayTypeStr A string representing the display type.
         %> Will be one of:
         %> @li @c Time Series
@@ -472,7 +472,7 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         %> @brief Retrieves the frame duration edit box value (minutes) as a
         %> number.
-        %> @param obj Instance of PAView.
+        %> @param obj Instance of PASingleStudyController.
         %> @retval frameDurMinutes The frame duration (in minutes) currently set in the text edit box
         %> as a numeric value.
         % --------------------------------------------------------------------
@@ -482,7 +482,7 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         %> @brief Retrieves the frame duration hours edit box value ) as a
         %> number.
-        %> @param obj Instance of PAView.
+        %> @param obj Instance of PASingleStudyController.
         %> @retval frameDurHours The frame duration (hours) currently set in the text edit box
         %> as a numeric value.
         % --------------------------------------------------------------------
@@ -502,7 +502,7 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         %> @brief Clears the main figure's handles (deletes all children
         %> handles).
-        %> @param obj Instance of PAView.
+        %> @param obj Instance of PASingleStudyController.
         % --------------------------------------------------------------------
         function clearFigure(obj)
             
@@ -524,19 +524,19 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         %> @brief Initialize text handles that will be used in the view.
         %> resets the currentWindow to 1.
-        %> @param obj Instance of PAView
+        %> @param obj Instance of PASingleStudyController
         % --------------------------------------------------------------------
         function clearTextHandles(obj)
             textProps.visible = 'on';
             textProps.string = '';
-            obj.recurseHandleInit(obj.texthandle,textProps);
+            recurseHandleInit(obj.texthandle,textProps);
         end
 
  
         % --------------------------------------------------------------------
         %> @brief Clears axes handles of any children and sets default properties.
         %> Called when first creating a view.  See also initAxesHandles.
-        %> @param obj Instance of PAView
+        %> @param obj Instance of PASingleStudyController
         %> @param viewMode A string with one of two values
         %> - @c timeseries
         %> - @c results        
@@ -606,7 +606,7 @@ classdef PAView < handle
         % --------------------------------------------------------------------
         %> @brief Clears axes handles of any children and sets default properties.
         %> Called when first creating a view.  See also initAxesHandles.
-        %> @param obj Instance of PAView
+        %> @param obj Instance of PASingleStudyController
         % --------------------------------------------------------------------
         function clearAxesHandles(obj)    
             axesH = struct2array(obj.axeshandle);  %place in utility folder
@@ -622,7 +622,7 @@ classdef PAView < handle
 
         % --------------------------------------------------------------------
         %> @brief Clear text ('string') of view's user interface widgets
-        %> @param obj Instance of PAView
+        %> @param obj Instance of PASingleStudyController
          % --------------------------------------------------------------------
         function clearWidgets(obj)            
             handles = guidata(obj.getFigHandle());            
@@ -640,7 +640,7 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> @brief Disable user interface widgets 
-        %> @param obj Instance of PAView
+        %> @param obj Instance of PASingleStudyController
          % --------------------------------------------------------------------
         function disableWidgets(obj)            
             handles = guidata(obj.getFigHandle());            
@@ -667,7 +667,7 @@ classdef PAView < handle
         %> @brief Initialize data specific properties of the axes handles.
         %> Set the x and y limits of the axes based on limits found in
         %> dataStruct struct.
-        %> @param obj Instance of PAView
+        %> @param obj Instance of PASingleStudyController
         %> @param axesProps Structure of axes property structures.  First fields
         %> are:
         %> - @c primary (for the primary axes);
@@ -683,7 +683,7 @@ classdef PAView < handle
 
         % --------------------------------------------------------------------
         %> @brief Initialize user interface widgets on start up.
-        %> @param obj Instance of PAView 
+        %> @param obj Instance of PASingleStudyController 
         %> @param viewMode A string with one of two values
         %> - @c timeseries [default]
         %> - @c results
@@ -763,11 +763,11 @@ classdef PAView < handle
 
         % --------------------------------------------------------------------
         %> @brief Initializes the graphic handles (label and line handles) and maps figure tag names
-        %> to PAView instance variables.  Initializes the menubar and various widgets.  Also set the acceleration data instance variable and assigns
+        %> to PASingleStudyController instance variables.  Initializes the menubar and various widgets.  Also set the acceleration data instance variable and assigns
         %> line handle y values to those found with corresponding field
         %> names in PASensorDataObject.        
         %> @note Resets the currentWindow to 1.
-        %> @param obj Instance of PAView
+        %> @param obj Instance of PASingleStudyController
         %> @param PASensorDataObject (Optional) PASensorData display struct that matches the linehandle struct of
         %> obj and whose values will be assigned to the 'ydata','xdata', and 'color' fields of the
         %> line handles.  A label property struct will be created
@@ -847,10 +847,10 @@ classdef PAView < handle
                 lineProps = PASensorDataObject.getStruct('dummydisplay',curStructType);
                 lineProps = mergeStruct(lineProps,allStruct);
                 
-                obj.recurseHandleSetter(obj.linehandle.(curStructType),lineProps);
-                obj.recurseHandleSetter(obj.referencelinehandle.(curStructType),lineProps);
+                recurseHandleSetter(obj.linehandle.(curStructType),lineProps);
+                recurseHandleSetter(obj.referencelinehandle.(curStructType),lineProps);
                 
-                obj.recurseHandleSetter(obj.labelhandle.(curStructType),labelProps);                
+                recurseHandleSetter(obj.labelhandle.(curStructType),labelProps);                
             end
             
             obj.setFilename(obj.accelObj.getFilename());  
@@ -901,7 +901,7 @@ classdef PAView < handle
          
         % --------------------------------------------------------------------
         %> @brief Updates the secondary axes x and y axes limits.
-        %> @param obj Instance of PAView
+        %> @param obj Instance of PASingleStudyController
         %> @param axesRange A 1x2 vector of the starting and stoping
         %> date numbers for the primary axes' x-axis.
         % --------------------------------------------------------------------
@@ -978,7 +978,7 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> @brief Adds a feature vector as a heatmap and as a line plot to the secondary axes.
-        %> @param obj Instance of PAView.
+        %> @param obj Instance of PASingleStudyController.
         %> @param featureVector A vector of features to be displayed on the
         %> secondary axes.
         %> @param startStopDatenum A vector of start and stop date nums that
@@ -1005,7 +1005,7 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> @brief Plots a feature vector on the secondary axes.
-        %> @param obj Instance of PAView.
+        %> @param obj Instance of PASingleStudyController.
         %> @param featureVector A vector of features to be displayed on the
         %> secondary axes.
         %> @param startStopDatenum A vector of start and stop date nums that
@@ -1023,7 +1023,7 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> @brief Adds a magnitude vector as a heatmap to the secondary axes.
-        %> @param obj Instance of PAView.
+        %> @param obj Instance of PASingleStudyController.
         %> @param overlayVector A magnitude vector to be displayed in the
         %> secondary axes as a heat map.
         %> @param startStopDatenum An Nx2 matrix start and stop datenums which
@@ -1042,7 +1042,7 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> @brief Updates the secondary axes x and y axes limits.
-        %> @param obj Instance of PAView
+        %> @param obj Instance of PASingleStudyController
         %> @param startStopDatenum A 1x2 vector of the starting and stoping
         %> date numbers.
         % --------------------------------------------------------------------
@@ -1112,7 +1112,7 @@ classdef PAView < handle
         %> This is based on the structure template generated by member
         %> function getStruct('dummydisplay').
         %> @param PASensorDataObject Instance of PASensorData.
-        %> @param obj Instance of PAView
+        %> @param obj Instance of PASingleStudyController
         % --------------------------------------------------------------------
         function createLineAndLabelHandles(obj,PASensorDataObject)
             % Kill off anything else still in the primary and secondary
@@ -1142,12 +1142,12 @@ classdef PAView < handle
                 handleType = 'line';
                 handleProps.tag = curName;
 
-                obj.linehandle.(curName) = obj.recurseHandleGenerator(dataStruct,handleType,handleProps);
+                obj.linehandle.(curName) = recurseHandleGenerator(dataStruct,handleType,handleProps);
             
-                obj.referencelinehandle.(curName) = obj.recurseHandleGenerator(dataStruct,handleType,handleProps);
+                obj.referencelinehandle.(curName) = recurseHandleGenerator(dataStruct,handleType,handleProps);
             
                 handleType = 'text';
-                obj.labelhandle.(curName) = obj.recurseHandleGenerator(dataStruct,handleType,handleProps);
+                obj.labelhandle.(curName) = recurseHandleGenerator(dataStruct,handleType,handleProps);
             end
             
             %secondary axes
@@ -1171,7 +1171,7 @@ classdef PAView < handle
         %> @brief Enables the aggregate radio button.  
         %> @note Requires aggregate data exists in the associated
         %> PASensorData object instance variable 
-        %> @param obj Instance of PAView
+        %> @param obj Instance of PASingleStudyController
         %> @param enableState Optional tag for specifying the 'enable' state. 
         %> - @c 'on' [default]
         %> - @c 'off'
@@ -1186,7 +1186,7 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> @brief Enables the Feature radio button
-        %> @param obj Instance of PAView
+        %> @param obj Instance of PASingleStudyController
         %> @param enableState Optional tag for specifying the 'enable' state. 
         %> - @c 'on' [default]
         %> - @c 'off'
@@ -1203,7 +1203,7 @@ classdef PAView < handle
         %> @brief Enables the time series radio button.  
         %> @note Requires feature data exist in the associated
         %> PASensorData object instance variable 
-        %> @param obj Instance of PAView
+        %> @param obj Instance of PASingleStudyController
         %> @param enableState Optional tag for specifying the 'enable' state. 
         %> - @c 'on' [default]
         %> - @c 'off'
@@ -1220,7 +1220,7 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> @brief Appends the new feature to the drop down feature menu.
-        %> @param obj Instance of PAView
+        %> @param obj Instance of PASingleStudyController
         %> @param newFeature String label to append to the drop down feature menu.
         %> @param newUserData Mixed entry to append to the drop down
         %> feature menu's user data field.
@@ -1279,14 +1279,14 @@ classdef PAView < handle
             
             structFieldName =obj.displayType;
             lineProps   = obj.accelObj.getStruct('currentdisplay',structFieldName);
-            obj.recurseHandleSetter(obj.linehandle.(structFieldName),lineProps);
+            recurseHandleSetter(obj.linehandle.(structFieldName),lineProps);
                         
             offsetProps = obj.accelObj.getStruct('displayoffset',structFieldName);
             offsetStyle.LineStyle = '--';
             offsetStyle.color = [0.6 0.6 0.6];
             offsetProps = appendStruct(offsetProps,offsetStyle);
            
-            obj.recurseHandleSetter(obj.referencelinehandle.(structFieldName),offsetProps);
+            recurseHandleSetter(obj.referencelinehandle.(structFieldName),offsetProps);
                         
             % update label text positions based on the axes position.
             % So the axes range must be set above this!
@@ -1294,26 +1294,18 @@ classdef PAView < handle
             labelProps = obj.accelObj.getLabel(structFieldName);
             labelPosStruct = obj.getLabelhandlePosition();            
             labelProps = mergeStruct(labelProps,labelPosStruct);             
-            obj.recurseHandleSetter(obj.labelhandle.(structFieldName),labelProps);
+            recurseHandleSetter(obj.labelhandle.(structFieldName),labelProps);
             
         end
+        
 
-        % --------------------------------------------------------------------
-        %> @brief Sets the color of the line handles.
-        %> @param obj Instance of PAView
-        %> @param lineHandleStruct Struct of line handles to set the color of.        
-        %> @param colorStruct Struct with field organization corresponding to that of
-        %> input line handles.  The values are the colors to set
-        %> the matching line handle to.
-        % --------------------------------------------------------------------
-        function setLinehandleColor(obj,lineHandleStruct,colorStruct)
-            obj.setStructWithStruct(lineHandleStruct,colorStruct);
-        end
+
+
         
         % --------------------------------------------------------------------
         %> @brief Calculates the 'position' property of the labelhandle
         %> instance variable.
-        %> @param obj Instance of PAView.      
+        %> @param obj Instance of PASingleStudyController.      
         %> @param displayTypeStr String representing the current display
         %> type.  This can be
         %> @li @c time series
@@ -1337,7 +1329,7 @@ classdef PAView < handle
 
         % --------------------------------------------------------------------
         %> @brief Get the view's figure handle.
-        %> @param obj Instance of PAView
+        %> @param obj Instance of PASingleStudyController
         %> @retval figHandle View's figure handle.
         % --------------------------------------------------------------------
         function figHandle = getFigHandle(obj)
@@ -1346,7 +1338,7 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> @brief Get the view's line handles as a struct.
-        %> @param obj Instance of PAView
+        %> @param obj Instance of PASingleStudyController
         %> @param structType String of a subfieldname to access the line
         %> handle of.  (e.g. 'timeSeries')
         %> @retval linehandle View's line handles as a struct.        
@@ -1362,7 +1354,7 @@ classdef PAView < handle
         
         % --------------------------------------------------------------------
         %> @brief Shows busy status (mouse becomes a watch).
-        %> @param obj Instance of PAView  
+        %> @param obj Instance of PASingleStudyController  
         %> @param status_label Optional string which, if included, is displayed
         %> in the figure's status text field (currently at the top right of
         %> the view).
@@ -1384,7 +1376,7 @@ classdef PAView < handle
         %> @brief Shows ready status (mouse becomes the default pointer).
         %> @param axesTag Optional tag, that if set will set the axes tag's
         %> state to 'ready'.  See setAxesState method.
-        %> @param obj Instance of PAView        
+        %> @param obj Instance of PASingleStudyController        
         % --------------------------------------------------------------------
         function showReady(obj,axesTag)
             set(obj.getFigHandle(),'pointer','arrow');
@@ -1397,7 +1389,7 @@ classdef PAView < handle
         
         %> @brief Adjusts the color of the specified axes according to the
         %> specified state.
-        %> @param obj Instance of PAView
+        %> @param obj Instance of PASingleStudyController
         %> @param axesTag tag of the axes to set as ready or busy. Can be:
         %> - @c primary
         %> - @c secondary
@@ -1420,7 +1412,7 @@ classdef PAView < handle
                
         % --------------------------------------------------------------------
         %> @brief An alias for showReady()
-        %> @param obj Instance of PAView        
+        %> @param obj Instance of PASingleStudyController        
         % --------------------------------------------------------------------
         function obj = clear_handles(obj)
             obj.showReady();
@@ -1520,155 +1512,6 @@ classdef PAView < handle
             feature_cumsumLineH = [];
         end
        
-        
-        %==================================================================
-        %> @brief Recursively fills in the template structure dummyStruct
-        %> with matlab lines and returns as a new struct.  If dummyStruct
-        %> has numeric values in its deepest nodes, then these values are
-        %> assigned as the y-values of the corresponding line handle, and the
-        %> x-value is a vector from 1 to the number of elements in y.
-        %> @param dummyStruct Structure with arbitrarily deep number fields.
-        %> @param handleType String name of the type of handle to be created:
-        %> - @c line
-        %> - @c text
-        %> @param handleProperties Struct of line handle properties to initialize line handles with.  
-        %> @param destStruct Optional struct; see note.
-        %> @retval destStruct The filled in struct, with the same field
-        %> layout as dummyStruct but with line handles filled in at the
-        %> deepest nodes.
-        %> @note If destStruct is included, then lineproperties must also be included, even if only as an empty place holder.
-        %> For example as <br>
-        %> destStruct = PAView.recurseHandleGenerator(dummyStruct,handleType,[],destStruct)
-        %> @param destStruct The initial struct to grow to (optional and can be different than the output node).
-        %> For example<br> desStruct = PAView.recurseLineGenerator(dummyStruct,'line',proplines,diffStruct)
-        %> <br>Or<br> recurseHandleGenerator(dummyStruct,'line',[],diffStruct)
-        %==================================================================
-        function destStruct = recurseHandleGenerator(dummyStruct,handleType,handleProperties,destStruct)
-            if(nargin < 4 || isempty(destStruct))
-                destStruct = struct();
-                if(nargin<3)
-                    handleProperties = [];
-                end
-            
-            end
-            
-            fnames = fieldnames(dummyStruct);
-            for f=1:numel(fnames)
-                fname = fnames{f};
-                
-                curHandleProperties = handleProperties;
-                if(isfield(handleProperties,'tag'))
-                    curHandleProperties.tag = [handleProperties.tag,'.',fname];
-                end
-                        
-
-                if(isstruct(dummyStruct.(fname)))
-                    destStruct.(fname) = [];
-                    
-                    %recurse down
-                    destStruct.(fname) = PAView.recurseHandleGenerator(dummyStruct.(fname),handleType,curHandleProperties,destStruct.(fname));
-                else
-                    
-                    if(strcmpi(handleType,'line') || strcmpi(handleType,'text'))
-                        if(nargin>1 && ~isempty(curHandleProperties)) %aka  if(hasProperties)
-                            destStruct.(fname) = feval(handleType,curHandleProperties);
-                        else                            
-                            destStruct.(fname) = feval(handleType);
-                        end
-                    else
-                        destStruct.(fname) = [];
-                        fprintf('Warning!  Handle type %s unknown!',handleType);
-                    end
-                    
-                end
-            end
-        end
-
-        %==================================================================
-        %> @brief Recursively sets struct of graphic handles with a matching struct
-        %> of handle properties.
-        %> @param handleStruct The struct of matlab graphic handles.  This
-        %> is searched recursively until a handle is found (i.e. ishandle())
-        %> @param propertyStruct Structure of property/value pairings to set the graphic
-        %> handles found in handleStruct to.
-        %==================================================================
-        function recurseHandleSetter(handleStruct, propertyStruct)
-            fnames = fieldnames(handleStruct);
-            % Add some checking to make sure we match properties correctly.
-            % Experience showed that 'raw' accelTypes do not contain all
-            % fields that exist for display which leads to exception throws.
-            matchingFields = isfield(propertyStruct,fnames);
-            fnames = fnames(matchingFields);
-            for f=1:numel(fnames)
-                fname = fnames{f};
-                curField = handleStruct.(fname);
-                curPropertyStruct = propertyStruct.(fname);
-                try
-                    if(isstruct(curField))
-                        PAView.recurseHandleSetter(curField,curPropertyStruct);
-                    else
-                        if(ishandle(curField))
-                            set(curField,curPropertyStruct);
-                        end
-                    end
-                catch me
-                    showME(me);
-                end
-            end
-        end
-        
-        %==================================================================
-        %> @brief Recursively initializes the graphic handles found in the
-        %> provided structure with the properties found at corresponding locations
-        %> in the propStruct argument.
-        %> @param handleStruct The struct of line handles to set the
-        %> properties of.  
-        %> @param propertyStruct Structure of property structs (i.e. property/value pairings) to set the graphic
-        %> handles found in handleStruct to.
-        %==================================================================
-        function setStructWithStruct(handleStruct,propertyStruct)
-            fnames = fieldnames(handleStruct);
-            for f=1:numel(fnames)
-                fname = fnames{f};
-                curHandleField = handleStruct.(fname);
-                curPropertyField = propertyStruct.(fname);
-                if(isstruct(curHandleField))
-                    PAView.setStructWithStruct(curHandleField,curPropertyField);
-                else
-                    if(ishandle(curHandleField))
-                        try
-                            set(curHandleField,curPropertyField);
-                        catch me
-                            showME(me);
-                        end
-                    end
-                end
-            end
-        end
-        
-        
-        %==================================================================
-        %> @brief Recursively initializes the graphic handles found in the
-        %> provided structure with the handle properties provided.
-        %> @param handleStruct The struct of line handles to set the
-        %> properties of.  
-        %> @param properties Structure of property/value pairings to set the graphic
-        %> handles found in handleStruct to.
-        %==================================================================
-        function recurseHandleInit(handleStruct,properties)
-            fnames = fieldnames(handleStruct);
-            for f=1:numel(fnames)
-                fname = fnames{f};
-                curField = handleStruct.(fname);
-                if(isstruct(curField))
-                    PAView.recurseHandleInit(curField,properties);
-                else
-                    if(ishandle(curField))
-                        set(curField,properties);
-                    end
-                end
-            end
-        end
     end
 end
 
@@ -1680,7 +1523,7 @@ end
 
 % --------------------------------------------------------------------
 %> @brief Adds an overlay of the lumens signal to the secondary axes.
-%> @param obj Instance of PAView.
+%> @param obj Instance of PASingleStudyController.
 %> @param lumenVector An Nx1 vector of lumen values to be displayed in the
 %> secondary axes.
 %> @param startStopDatenum An Nx2 matrix start and stop datenums which
