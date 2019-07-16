@@ -6,7 +6,7 @@ function mPathname = pathsetup(mPathname)
         addpath(mPathname);
         %       ,'stats/stats'};  % Added stats, a symbolically linked folder to something else
         % subPaths = {'abstract','widgets','figures','utility','events','resources/ver','resources/html','resources/icons','model','tools'};  
-        subPaths = {'abstract','controllers', 'models', 'views','events','utility','events','resources'};
+        subPaths = {'abstract','controllers', 'models', 'views','events','utility','events','_resources'};
         
         for s=1:numel(subPaths)
             addpath(genpath(fullfile(mPathname,subPaths{s})));

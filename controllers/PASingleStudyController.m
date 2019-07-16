@@ -242,32 +242,6 @@ classdef PASingleStudyController < PAFigureController
         end
         
         % --------------------------------------------------------------------
-        %> @brief Sets current window edit box string value
-        %> @param obj Instance of PASingleStudyController.
-        %> @param windowStr A string to display in the current window edit
-        %> box.
-        %> @param xposStart The position on the x-axis of where the window starts.
-        %> This will be a datenum for padaco.
-        %> @param xposEnd The position on the x-axis of where the window in the 
-        %> ends. This will be a datenum for padaco.        
-        % --------------------------------------------------------------------
-        function setCurWindow(obj,windowStr,xposStart,xposEnd)
-            set(obj.texthandle.curWindow,'string',windowStr);
-            set(obj.positionBarHandle,'xdata',[repmat(xposStart,1,2),repmat(xposEnd,1,2),xposStart]);
-            set(obj.patchhandle.positionBar,'xdata',[repmat(xposStart,1,2),repmat(xposEnd,1,2)]);
-            obj.draw();
-        end
-        
-        % --------------------------------------------------------------------
-        %> @brief Sets aggregate duration edit box string value
-        %> @param obj Instance of PASingleStudyController.
-        %> @param aggregateDurationStr A string representing the aggregate duration as minutes.
-        % --------------------------------------------------------------------
-        function setAggregateDurationMinutes(obj,aggregateDurationStr)
-           set(obj.texthandle.aggregateDuration,'string',aggregateDurationStr);            
-        end
-        
-        % --------------------------------------------------------------------
         %> @brief Retrieves the aggregate duration edit box value as a
         %> number.
         %> @param obj Instance of PASingleStudyController.
@@ -278,75 +252,20 @@ classdef PASingleStudyController < PAFigureController
             aggregateDurMin = str2double(get(obj.texthandle.aggregateDuration,'string'));
         end
         
-        % --------------------------------------------------------------------
-        %> @brief Sets frame duration edit box (minutes) string value
-        %> @param obj Instance of PASingleStudyController.
-        %> @param frameDurationMinutesStr A string representing the frame duration as minutes.
-        % --------------------------------------------------------------------
-        function setFrameDurationMinutes(obj,frameDurationMinutesStr)
-           set(obj.texthandle.frameDurationMinutes,'string',frameDurationMinutesStr);
-        end   
         
         % --------------------------------------------------------------------
+        %> @brief Set the frame size hour's units and 
         %> @brief Sets frame duration edit box (hours) string value
-        %> @param obj Instance of PASingleStudyController.
-        %> @param frameDurationHoursStr A string representing the frame duration as minutes.
-        % --------------------------------------------------------------------
-        function setFrameDurationHours(obj,frameDurationHoursStr)
-           set(obj.texthandle.frameDurationHours,'string',frameDurationHoursStr);            
-        end
-        
-        % --------------------------------------------------------------------
-        %> @brief Set the aggregate duration in minutes.
-        %> @param obj Instance of PAController
-        %> @param new_aggregateDuration Aggregate duration in minutes.
-        %> @retval success True if the aggregate duration is changed, and false otherwise.
-        % --------------------------------------------------------------------
-        function success = setAggregateDurationMinutes(obj,new_aggregateDuration)
-            success = false;
-            if(~isempty(obj.accelObj))
-                cur_aggregateDuration = obj.accelObj.setAggregateDurationMinutes(new_aggregateDuration);
-                obj.VIEW.setAggregateDurationMinutes(num2str(cur_aggregateDuration));
-                if(new_aggregateDuration==cur_aggregateDuration)
-                    success=true;
-                end
-            end
-        end
-        
-        % --------------------------------------------------------------------
-        %> @brief Set the frame size minute's units.
-        %> @param obj Instance of PAController
-        %> @param new_frameDurationMinutes Frame duration minutes measure.
-        %> @retval success True if the frame duration is changed, and false otherwise.
-        % --------------------------------------------------------------------
-        function success = setFrameDurationMinutes(obj,new_frameDurationMinutes)
-            success = false;
-            if(~isempty(obj.accelObj))
-                cur_frameDurationMinutes = obj.accelObj.setFrameDurationMinutes(new_frameDurationMinutes);
-                obj.VIEW.setFrameDurationMinutes(num2str(cur_frameDurationMinutes));
-                if(new_frameDurationMinutes==cur_frameDurationMinutes)
-                    success=true;
-                    % update the aggregate duration if new frame duration is
-                    % smaller.
-                    frameDurationTotalMinutes = obj.getFrameDurationAsMinutes();
-                    if(frameDurationTotalMinutes<obj.getAggregateDurationAsMinutes())
-                        obj.setAggregateDurationMinutes(frameDurationTotalMinutes);
-                    end
-                    
-                end
-            end
-        end
-        % --------------------------------------------------------------------
-        %> @brief Set the frame size hour's units
-        %> @param obj Instance of PAController
+        %> @param obj Controller instance.
         %> @param new_frameDurationHours Hours for frame duration.
         %> @retval success True if the frame duration is changed, and false otherwise.
         % --------------------------------------------------------------------
         function success = setFrameDurationHours(obj,new_frameDurationHours)
             success = false;
             if(~isempty(obj.accelObj))
-                cur_frameDurationHours = obj.accelObj.setFrameDurationHours(new_frameDurationHours);
-                obj.VIEW.setFrameDurationHours(num2str(cur_frameDurationHours));
+                cur_frameDurationHours = obj.accelObj.setFrameDurationHours(frameDurationHours);
+                set(obj.texthandle.frameDurationHours,'string',num2str(cur_frameDurationHours));
+                
                 if(new_frameDurationHours==cur_frameDurationHours)
                     success=true;
                     
@@ -359,11 +278,57 @@ classdef PASingleStudyController < PAFigureController
                 end
             end
         end
+           
+        % --------------------------------------------------------------------
+        %> @brief Set the aggregate duration in minutes and sets aggregate duration edit box string value
+        %> @param obj Instance of controller
+        %> @param new_aggregateDuration Aggregate duration in minutes.
+        %> @retval success True if the aggregate duration is changed, and false otherwise.
+        % --------------------------------------------------------------------
+        function success = setAggregateDurationMinutes(obj,new_aggregateDuration)
+            success = false;
+            if(~isempty(obj.accelObj))
+                cur_aggregateDuration = obj.accelObj.setAggregateDurationMinutes(new_aggregateDuration);
+                aggregateDurationStr = num2str(cur_aggregateDuration);
+                set(obj.texthandle.aggregateDuration,'string',aggregateDurationStr);
+                if(new_aggregateDuration==cur_aggregateDuration)
+                    success=true;
+                end
+            end
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Set the frame size minute's units and Sets frame duration
+        %> edit box (minutes) string value.
+        %> @param obj Controller instance.
+        %> @param new_frameDurationMinutes Frame duration minutes measure.
+        %> @retval success True if the frame duration is changed, and false otherwise.
+        % --------------------------------------------------------------------
+        function success = setFrameDurationMinutes(obj,new_frameDurationMinutes)
+            success = false;
+            if(~isempty(obj.accelObj))
+                cur_frameDurationMinutes = obj.accelObj.setFrameDurationMinutes(new_frameDurationMinutes);
+                
+                frameDurationMinutesStr = num2str(cur_frameDurationMinutes);
+                set(obj.texthandle.frameDurationMinutes,'string',frameDurationMinutesStr);
+        
+                if(new_frameDurationMinutes==cur_frameDurationMinutes)
+                    success=true;
+                    % update the aggregate duration if new frame duration is
+                    % smaller.
+                    frameDurationTotalMinutes = obj.getFrameDurationAsMinutes();
+                    if(frameDurationTotalMinutes<obj.getAggregateDurationAsMinutes())
+                        obj.setAggregateDurationMinutes(frameDurationTotalMinutes);
+                    end
+                end
+            end
+        end
+        
         
         % --------------------------------------------------------------------
         %> @brief Set the current window for the instance variable accelObj
-        %> (PASensorData)
-        %> @param obj Instance of PAController
+        %> (PASensorData) and the current window edit box string value
+        %> @param obj Instance of PASingleStudyController.
         %> @param new_window Value of the new window to set.
         %> @retval success True if the window is set successfully, and false otherwise.
         %> @note Reason for failure include window values that are outside
@@ -376,12 +341,19 @@ classdef PASingleStudyController < PAFigureController
                 curWindow = obj.accelObj.setCurWindow(new_window);
                 windowStartDateNum = obj.accelObj.window2datenum(new_window);
                 windowEndDateNum = obj.accelObj.window2datenum(new_window+1);
-                if(new_window==curWindow)
-                    obj.VIEW.setCurWindow(num2str(curWindow),windowStartDateNum,windowEndDateNum);
+                if(new_window==curWindow)                    
+                    windowStr = num2str(curWindow);
+                    set(obj.texthandle.curWindow,'string',windowStr);
+                    xposStart=windowStartDateNum;
+                    xposEnd=windowEndDateNum;
+                    set(obj.positionBarHandle,'xdata',[repmat(xposStart,1,2),repmat(xposEnd,1,2),xposStart]);
+                    set(obj.patchhandle.positionBar,'xdata',[repmat(xposStart,1,2),repmat(xposEnd,1,2)]);
+                    obj.draw();                    
                     success=true;
                 end
             end
-        end        
+        end  
+      
         
         % --------------------------------------------------------------------
         %> @brief Sets line smoothing state for feature vectors displayed on the secondary axes.
@@ -444,7 +416,7 @@ classdef PASingleStudyController < PAFigureController
             %         % --------------------------------------------------------------------
             %         function setDisplayType(obj,displayType)
             %             visibleProps = obj.accelObj.getVisible(displayType);
-            %             obj.VIEW.setDisplayType(displayType,visibleProps);
+            %             obj.setDisplayType(displayType,visibleProps);
             %         end
         
             
@@ -504,6 +476,281 @@ classdef PASingleStudyController < PAFigureController
         function frameDurHours = getFrameDurationHours(obj)
             frameDurHours = str2double(get(obj.texthandle.frameDurationHours,'string'));
         end        
+        
+        % --------------------------------------------------------------------
+        %> @brief Returns the total frame duration (i.e. hours and minutes) in aggregated minutes.
+        %> @param obj Instance of PASensorData
+        %> @retval curFrameDurationMin The current frame duration as total
+        %> minutes.
+        % --------------------------------------------------------------------
+        function curFrameDurationTotalMin = getFrameDurationAsMinutes(obj)
+            [curFrameDurationMin, curFrameDurationHour] = obj.accelObj.getFrameDuration();
+            curFrameDurationTotalMin = [curFrameDurationMin, curFrameDurationHour]*[1;60];
+        end
+        
+        
+        % --------------------------------------------------------------------
+        %> @brief Returns the total frame duration (i.e. hours and minutes) in aggregated minutes.
+        %> @param obj Instance of PASensorData
+        %> @retval curFrameDurationMin The current frame duration as total
+        %> minutes.
+        % --------------------------------------------------------------------
+        function aggregateDurationTotalMin = getAggregateDurationAsMinutes(obj)
+            aggregateDurationTotalMin = obj.accelObj.getAggregateDurationInMinutes();
+            
+        end
+        
+        
+        % --------------------------------------------------------------------
+        %> @brief Returns the current study's duration as seconds.
+        %> @param obj Instance of PASensorData
+        %> @retval curStudyDurationSec The duration of the current study in seconds.
+        % --------------------------------------------------------------------
+        function curStudyDurationSec = getStudyDurationSec(obj)
+            curStudyDurationSec = obj.accelObj.durationSec;
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Returns the number of frames the study can be broken into based
+        %> on the frame duration set in the GUI.
+        %> @param obj Instance of PAController.
+        %> @note The accelObj property must be set (i.e. a file must be
+        %> loaded for this function to work).
+        % --------------------------------------------------------------------
+        function frameCount = getFrameCount(obj)
+            frameCount = obj.accelObj.getFrameCount();
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Calculates the mean lux value for a given number of sections.
+        %> @param obj Instance of PAController
+        %> @param numSections (optional) Number of patches to break the
+        %> accelObj lux time series data into and calculate the mean
+        %> lumens over.
+        %> @param paDataObj Optional instance of PASensorData.  Mean lumens will
+        %> be calculated from this when included, otherwise the instance
+        %> variable accelObj is used.
+        %> @retval meanLumens Vector of mean lumen values calculated
+        %> from the lux field of the accelObj PASensorData object instance
+        %> variable.  Vector values are in consecutive order of the section they are calculated from.
+        %> @retval startStopDatenums Nx2 matrix of datenum values whose
+        %> rows correspond to the start/stop range that the meanLumens
+        %> value (at the same row position) was derived from.
+        %> @note  Sections will not be calculated on equally lenghted
+        %> sections when numSections does not evenly divide the total number
+        %> of samples.  In this case, the last section may be shorter or
+        %> longer than the others.
+        % --------------------------------------------------------------------
+        function [meanLumens,startStopDatenums] = getMeanLumenPatches(obj,numSections,paDataObj)
+            if(nargin<2 || isempty(numSections))
+                numSections = 100;
+            end
+            if(nargin<3) ||isempty(paDataObj)
+                paDataObj = obj.accelObj;
+            end
+            luxData = paDataObj.lux;
+            indices = ceil(linspace(1,numel(luxData),numSections+1));
+            meanLumens = zeros(numSections,1);
+            startStopDatenums = zeros(numSections,2);
+            for i=1:numSections
+                meanLumens(i) = mean(luxData(indices(i):indices(i+1)));
+                startStopDatenums(i,:) = [paDataObj.dateTimeNum(indices(i)),paDataObj.dateTimeNum(indices(i+1))];
+            end
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Estimates daylight intensity across the study.
+        %> @param obj Instance of PAController
+        %> @param numSections (optional) Number of chunks to estimate
+        %> daylight at across the study.  Default is 100.
+        %> @param paDataObj Optional instance of PASensorData.  Date time will
+        %> be calculated from this when included, otherwise date time from the
+        %> instance variable accelObj is used.
+        %> @retval daylightVector Vector of estimated daylight from the time of day at startStopDatenums.
+        %> @retval startStopDatenums Nx2 matrix of datenum values whose
+        %> rows correspond to the start/stop range that the meanLumens
+        %> value (at the same row position) was derived from.
+        % --------------------------------------------------------------------
+        function [daylightVector,startStopDatenums] = getDaylight(obj,numSections,paDataObj)
+            if(nargin<2 || isempty(numSections) || numSections <=1)
+                numSections = 100;
+            end
+            if(nargin<3) ||isempty(paDataObj)
+                paDataObj = obj.accelObj;
+            end
+            
+            indices = ceil(linspace(1,numel(paDataObj.dateTimeNum),numSections+1));
+            startStopDatenums = [paDataObj.dateTimeNum(indices(1:end-1)),paDataObj.dateTimeNum(indices(2:end))];
+            [y,mo,d,H,MI,S] = datevec(mean(startStopDatenums,2));
+            dayTime = [H,MI,S]*[1; 1/60; 1/3600];
+            %             dayTime = [[H(:,1),MI(:,1),S(:,1)]*[1;1/60;1/3600], [H(:,2),MI(:,2),S(:,2)]*[1;1/60;1/3600]];
+            
+            % obtain the middle spot of the daytime chunk. --> this does
+            % not work because the hours flip over at 24:00.
+            %             dayTime = [H,MI,S]*[1;1;1/60;1/60;1/3600;1/3600]/2;
+            
+            
+            % linear model for daylight
+            %             daylightVector = (-abs(dayTime-12)+12)/12;
+            
+            % sinusoidal models for daylight
+            T = 24;
+            %             daylightVector = cos(2*pi/T*(dayTime-12));
+            %             daylightVector = sin(pi/T*dayTime);  %just take half of a cycle here ...
+            
+            daylightVector= (cos(2*pi*(dayTime-12)/T)+1)/2;  %this is spread between 0 and 1; with 1 being brightest at noon.
+            
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Calculates a desired feature for a particular acceleration object's field value.
+        %> @note This is the general form of getMeanLuxPatches
+        %> @param obj Instance of PAController
+        %> @param featureFcn Function name or handle to use to obtain
+        %> features.
+        %> @param fieldName String name of the accelObj field to obtain data from.
+        %> @note Data is obtained using dynamic indexing of
+        %> accelObj instance variable (ie.. data = obj.accelObj.(fildName))
+        %> @param numSections (optional) Number of patches to break the
+        %> accelObj time series data into and calculate the features from.
+        %> @param paDataObj Optional instance of PASensorData.  Date time will
+        %> be calculated from this when included, otherwise date time from the
+        %> instance variable accelObj is used.
+        %> @retval featureVec Vector of specified feature values calculated
+        %> from the specified (fieldName) field of the accelObj PASensorData object instance
+        %> variable.  Vector values are in consecutive order of the section they are calculated from.
+        %> @retval startStopDatenums Nx2 matrix of datenum values whose
+        %> rows correspond to the start/stop range that the feature vector
+        %> value (at the same row position) was derived from.
+        %> @note  Sections will not be calculated on equally lenghted
+        %> sections when numSections does not evenly divide the total number
+        %> of samples.  In this case, the last section may be shorter or
+        %> longer than the others.
+        % --------------------------------------------------------------------
+        function [featureVec,varargout] = getFeatureVec(obj,featureFcnName,fieldName,numSections,paDataObj)
+            if(nargin<2 || isempty(numSections) || numSections <=1)
+                numSections = 100;
+            end
+            
+            if(nargin<5) ||isempty(paDataObj)
+                paDataObj = obj.accelObj;
+            end
+            
+            % Here we deal with features, which *should* already have the
+            % correct number of sections needed.
+            featureStruct = paDataObj.getStruct('all','features');
+            if(strcmpi(featureFcnName,'psd'))
+                psdBand = strcat('psd_band_',fieldName(end));
+                if(isfield(featureStruct,psdBand))
+                    featureVec = featureStruct.(psdBand);
+                else
+                    switch fieldName(end)
+                        case 'g'  % accel.count.vecMag
+                            featureVec = featureStruct.psd_band_1;
+                        case 'x'
+                            featureVec = featureStruct.psd_band_2;
+                        case 'y'
+                            featureVec = featureStruct.psd_band_3;
+                        case 'z'
+                            featureVec = featureStruct.psd_band_4;
+                        otherwise
+                            featureVec = featureStruct.psd_band_1;
+                    end
+                end
+            else
+                %featureVec = zeros(numSections,1);            
+                featureVec = featureStruct.(featureFcnName);
+                featureFcn = PASensorData.getFeatureFcn(featureFcnName);
+
+                
+                timeSeriesStruct = paDataObj.getStruct('all','timeSeries');
+                
+                % Can't get nested fields directly with
+                % timeSeriesStruct.(fieldName) where fieldName =
+                % 'accel.count.x', for example.
+                fieldData = eval(['timeSeriesStruct.',fieldName]);
+                
+                indices = ceil(linspace(1,numel(fieldData),numSections+1));
+                try
+                    for i=1:numSections
+                        featureVec(i) = feval(featureFcn,fieldData(indices(i):indices(i+1)));
+                    end
+                catch me
+                    showME(me);
+                end
+            end
+            
+            if(nargout>1)
+                varargout{1} = obj.getFeatureStartStopDatenums(featureFcnName,fieldName,numSections,paDataObj);
+            end
+        end
+        
+        
+        % Retrieves the start stop datenum pairs for the provided feature function and fieldName.
+        % Originally this function was implemented inside getFeatureFcn
+        % with the thinking that it would degrade performance to call a
+        % second for loop to calculate the startStopDatenums.  This was not
+        % the case in practice, however, because the features would be
+        % retrieved for different signals which all had the same number of
+        % samples and startStopDatenums (so it was redundant to keep
+        % calculating the same values.
+        function startStopDatenums = getFeatureStartStopDatenums(obj,featureFcnName,fieldName,numSections,paDataObj)
+            if(nargin<2 || isempty(numSections) || numSections <=1)
+                numSections = 100;
+            end
+            
+            if(nargin<5) ||isempty(paDataObj)
+                paDataObj = obj.accelObj;
+            end
+            
+            startStopDatenums = zeros(numSections,2);
+            
+            if(strcmpi(featureFcnName,'psd'))
+                indices = ceil(linspace(1,numel(paDataObj.dateTimeNum),numSections+1));
+                for i=1:numSections
+                    startStopDatenums(i,:) = [paDataObj.dateTimeNum(indices(i)),paDataObj.dateTimeNum(indices(i+1))];
+                end
+            else
+                timeSeriesStruct = paDataObj.getStruct('all','timeSeries');
+                fieldData = eval(['timeSeriesStruct.',fieldName]);
+                
+                indices = ceil(linspace(1,numel(fieldData),numSections+1));
+                for i=1:numSections
+                    startStopDatenums(i,:) = [paDataObj.dateTimeNum(indices(i)),paDataObj.dateTimeNum(indices(i+1))];
+                end
+            end
+            
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Calculates a desired feature for a particular acceleration object's field value.
+        %> @note This is the general form of getMeanLuxPatches
+        %> @param obj Instance of PAController
+        %> @param featureFcn Function name or handle to use to obtain
+        %> features.
+        %> @param fieldName String name of the accelObj field to obtain data from.
+        %> @note Data is obtained using dynamic indexing of
+        %> accelObj instance variable (ie.. data = obj.accelObj.(fildName))
+        %> @param numSections (optional) Number of patches to break the
+        %> accelObj time series data into and calculate the features from.
+        %> @param paDataObj Optional instance of PASensorData.  Date time will
+        %> be calculated from this when included, otherwise date time from the
+        %> instance variable accelObj is used.
+        %> @retval featureVec Vector of specified feature values calculated
+        %> from the specified (fieldName) field of the accelObj PASensorData object instance
+        %> variable.  Vector values are in consecutive order of the section they are calculated from.
+        %> @retval startStopDatenums Nx2 matrix of datenum values whose
+        %> rows correspond to the start/stop range that the feature vector
+        %> value (at the same row position) was derived from.
+        %> @note  Sections will not be calculated on equally lenghted
+        %> sections when numSections does not evenly divide the total number
+        %> of samples.  In this case, the last section may be shorter or
+        %> longer than the others.
+        % --------------------------------------------------------------------
+        function [usageVec, usageStates,startStopDatenums] = getUsageState(obj)
+            paDataObj = obj.accelObj;
+            [usageVec, usageStates, startStopDatenums] = paDataObj.classifyUsageState();
+        end
         
         % --------------------------------------------------------------------
         % --------------------------------------------------------------------
@@ -1448,10 +1695,10 @@ classdef PASingleStudyController < PAFigureController
                 featureLineContextmenuHandle = obj.createFeatureLineContextmenuHandle();
                     
 
-                set(lineContextmenuHandle,'parent',this.figureH);
-                set(primaryAxesContextmenuHandle,'parent',this.figureH);
-                set(secondaryAxesContextmenuHandle,'parent',this.figureH);
-                set(featureLineContextmenuHandle,'parent',this.figureH)
+                set(lineContextmenuHandle,'parent',obj.figureH);
+                set(primaryAxesContextmenuHandle,'parent',obj.figureH);
+                set(secondaryAxesContextmenuHandle,'parent',obj.figureH);
+                set(featureLineContextmenuHandle,'parent',obj.figureH)
                 
                 obj.contextmenuhandle.primaryAxes = primaryAxesContextmenuHandle;
                 obj.contextmenuhandle.secondaryAxes = secondaryAxesContextmenuHandle;
@@ -1464,25 +1711,26 @@ classdef PASingleStudyController < PAFigureController
             end
         end
         function didInit = initFigure(obj)
-            if(ishandle(this.figureH))
-                                    
+            if(ishandle(obj.figureH))
+                
+                obj.designateHandles();               
+                
                 %  Apply this so that later we can retrieve useSmoothing
                 %  and highlighting nonwear
                 %  from obj.VIEW when it comes time to save parameters.
-                % obj.VIEW.setUseSmoothing(obj.settingsObj.CONTROLLER.useSmoothing);
-                obj.setSmoothingState(obj.settingsObj.useSmoothing);
+                % obj.setUseSmoothing(obj.settingsObj.CONTROLLER.useSmoothing);
+                obj.setSmoothingState(obj.settings.useSmoothing);
                 
                 %  Apply this so that later we can retrieve useSmoothing
                 %  from obj.VIEW when it comes time to save parameters.
-                % obj.VIEW.setUseSmoothing(obj.settingsObj.CONTROLLER.useSmoothing);
-                obj.setNonwearHighlighting(obj.settingsObj.highlightNonwear);
+                % obj.setUseSmoothing(obj.settingsObj.CONTROLLER.useSmoothing);
+                obj.setNonwearHighlighting(obj.settings.highlightNonwear);
 
                 
                 %obj.useSmoothing = true;
                 %obj.nonwearHighlighting = true;
                 set(obj.figureH,'renderer','zbuffer'); %  set(obj.figureH,'renderer','OpenGL');
                 
-                obj.designateHandles();
                 didInit = obj.initWidgets();
                 
             else
@@ -1517,7 +1765,7 @@ classdef PASingleStudyController < PAFigureController
             
             set(obj.menuhandle.displayFeature,'string',extractorMethodDescriptions,'userdata',extractorMethodFcns,'value',1);
             
-            %             obj.VIEW.appendFeatureMenu('PSD','getPSD');
+            %             obj.appendFeatureMenu('PSD','getPSD');
             % set(obj.menuhandle.signalSelection,'string',extractorMethods,'value',1);
             
             % Window display resolution
@@ -1549,19 +1797,19 @@ classdef PASingleStudyController < PAFigureController
             
             set(obj.menuhandle.windowDurSec,'userdata',cell2mat(windowMinSelection(:,1)), 'string',windowMinSelection(:,2),'value',5);
         
-            viewHandles = guidata(this.figureH);
+            viewHandles = guidata(obj.figureH);
             set(viewHandles.edit_curWindow,'callback',@obj.edit_curWindowCallback);
             set(viewHandles.edit_aggregate,'callback',@obj.edit_aggregateCallback);
             set(viewHandles.edit_frameSizeMinutes,'callback',@obj.edit_frameSizeMinutesCallback);
             set(viewHandles.edit_frameSizeHours,'callback',@obj.edit_frameSizeHoursCallback);
             
             %initialize dropdown menu callbacks
-            set(obj.VIEW.menuhandle.displayFeature,'callback',@obj.updateSecondaryFeaturesDisplayCallback);
+            set(obj.menuhandle.displayFeature,'callback',@obj.updateSecondaryFeaturesDisplayCallback);
             set(viewHandles.menu_windowDurSec,'callback',@obj.menu_windowDurSecCallback);
             
-            %             set(obj.VIEW.menuhandle.prefilterMethod,'callback',[]);
-            %             set(obj.VIEW.menuhandle.signalSelection,'callback',[]);
-            %             set(obj.VIEW.menuhandle.signalSelection,'callback',@obj.updateSecondaryFeaturesDisplayCallback);
+            %             set(obj.menuhandle.prefilterMethod,'callback',[]);
+            %             set(obj.menuhandle.signalSelection,'callback',[]);
+            %             set(obj.menuhandle.signalSelection,'callback',@obj.updateSecondaryFeaturesDisplayCallback);
             
             set(viewHandles.panel_displayButtonGroup,'selectionChangeFcn',@obj.displayChangeCallback);
             
@@ -1649,7 +1897,7 @@ classdef PASingleStudyController < PAFigureController
         %> @li @c bins
         %> @li @c features
         function setRadioButton(obj,displayType)
-            handles = guidata(obj.VIEW.getFigHandle());
+            handles = guidata(obj.getFigHandle());
             eventStruct.EventName = 'SelectionChanged';
             eventStruct.OldValue = get(handles.panel_displayButtonGroup,'selectedObject');
             
@@ -1684,21 +1932,21 @@ classdef PASingleStudyController < PAFigureController
                 prefilterMethod = obj.getPrefilterMethod();
                 
                 %                 set(hObject,'enable','off');
-                obj.VIEW.showBusy('Calculating Features','all');
+                obj.showBusy('Calculating Features','all');
                 % get the prefilter duration in minutes.
-                % aggregateDurMin = obj.VIEW.getAggregateDuration();
+                % aggregateDurMin = obj.getAggregateDuration();
                 
                 %Tell the model to prefilter and extract
                 if(~strcmpi(prefilterMethod,'none'))
                     obj.accelObj.prefilter(prefilterMethod);
-                    obj.VIEW.enableAggregateRadioButton();
+                    obj.enableAggregateRadioButton();
                     
                     % No point of changing to the bin state right now as we
                     % will be selecting features anyway...
                     %                 displayType = 'bins';
                     %                 obj.setRadioButton(displayType);
                 else
-                    obj.VIEW.enableAggregateRadioButton('off');
+                    obj.enableAggregateRadioButton('off');
                 end
                 
                 %extractorMethod = obj.getExtractorMethod();
@@ -1706,25 +1954,25 @@ classdef PASingleStudyController < PAFigureController
                 selectedSignalTagLine = obj.getSignalSelection();
                 
                 obj.accelObj.extractFeature(selectedSignalTagLine,extractorMethod);
-                obj.VIEW.enableFeatureRadioButton();
+                obj.enableFeatureRadioButton();
                 
                 obj.updateSecondaryFeaturesDisplay();
-                % obj.VIEW.appendFeatureMenu(extractorMethod);
+                % obj.appendFeatureMenu(extractorMethod);
                 displayType = 'features';
                 obj.setRadioButton(displayType);
                 
                 
                 % This is disabled until the first time features are
                 % calculated.
-                obj.VIEW.enableTimeSeriesRadioButton();
+                obj.enableTimeSeriesRadioButton();
                 
-                obj.VIEW.draw();
-                obj.VIEW.showReady('all');
+                obj.draw();
+                obj.showReady('all');
                 set(hObject,'enable','on');
                 
             catch me
                 showME(me);
-                obj.VIEW.showReady('all');
+                obj.showReady('all');
                 set(hObject,'enable','on');
                 
             end
@@ -1747,7 +1995,7 @@ classdef PASingleStudyController < PAFigureController
             end
             axesProps.secondary.(tickField) = getTicksForLabels(labels);
             axesProps.secondary.(labelField) = labels;
-            obj.VIEW.initAxesHandles(axesProps);
+            obj.initAxesHandles(axesProps);
         end
         
         % --------------------------------------------------------------------
@@ -1819,14 +2067,14 @@ classdef PASingleStudyController < PAFigureController
                 
                 % x, y, z
                 if(s<numel(signalTagLines) || (s==numel(signalTagLines)&&strcmpi(featureFcnName,'psd')))
-                    vecHandles = obj.VIEW.addFeaturesVecToSecondaryAxes(featureVec,startStopDatenums,deltaHeight,heightOffset);                    
+                    vecHandles = obj.addFeaturesVecToSecondaryAxes(featureVec,startStopDatenums,deltaHeight,heightOffset);                    
                     heightOffset = heightOffset+deltaHeight;
                     
                     % vecMag
                 else
                     % This requires twice the height because it will have a
                     % feature line and heat map
-                    [patchH, lineH, cumsumH] = obj.VIEW.addFeaturesVecAndOverlayToSecondaryAxes(featureVec,startStopDatenums,deltaHeight*2,heightOffset);
+                    [patchH, lineH, cumsumH] = obj.addFeaturesVecAndOverlayToSecondaryAxes(featureVec,startStopDatenums,deltaHeight*2,heightOffset);
                     
                     uistack(patchH,'bottom');
 
@@ -1837,26 +2085,17 @@ classdef PASingleStudyController < PAFigureController
             end
         end
         
-        % --------------------------------------------------------------------
-        %> @brief Callback from signal selection widget that triggers
-        %> the update to the secondary axes with the GUI selected feature
-        %> and signal.
-        %> @param obj Instance of PAController
-        %> @param hObject handle to the callback object.
-        %> @param eventdata Not used.  Required by MATLAB.
-        % --------------------------------------------------------------------
-        function updateSecondaryFeaturesDisplayCallback(obj,hObject,~)
-            set(hObject,'enable','off');
-            handles = guidata(hObject);
-            initColor = get(handles.axes_secondary,'color');
-            obj.VIEW.showBusy('(Updating secondary display)','secondary');
-            numFrames = obj.getFrameCount();
-            obj.updateSecondaryFeaturesDisplay(numFrames);
-            set(handles.axes_secondary,'color',initColor);
-            
-            obj.VIEW.showReady('secondary');
-            set(hObject,'enable','on');
-        end
+       
+        % ======================================================================
+        %> @brief Returns a structure of PASingleStudyController's primary axes currently displayable line handles.
+        %> @param obj Instance of PASingleStudyController.
+        %> @retval lineHandles A structure of line handles of the current display type are
+        %> showable in the primary axes (i.e. they are only not seen if the
+        %user has set the line handle's 'visible' property to 'off'
+        function lineHandles = getDisplayableLineHandles(obj)
+            lineHandleStruct = obj.getLinehandle(obj.getDisplayType());
+            lineHandles = struct2vec(lineHandleStruct);
+        end  
         
         % --------------------------------------------------------------------
         %> @brief Retrieves current prefilter method from the GUI
@@ -1864,8 +2103,8 @@ classdef PASingleStudyController < PAFigureController
         %> @retval prefilterMethod value of the current prefilter method.
         % --------------------------------------------------------------------
         function prefilterMethod = getPrefilterMethod(obj)
-            prefilterMethods = get(obj.VIEW.menuhandle.prefilterMethod,'string');
-            prefilterIndex =  get(obj.VIEW.menuhandle.prefilterMethod,'value');
+            prefilterMethods = get(obj.menuhandle.prefilterMethod,'string');
+            prefilterIndex =  get(obj.menuhandle.prefilterMethod,'value');
             if(~iscell(prefilterMethods))
                 prefilterMethod = prefilterMethods;
             else
@@ -1883,8 +2122,8 @@ classdef PASingleStudyController < PAFigureController
         %> secondary axes of PASingleStudyController.
         % --------------------------------------------------------------------
         function extractorMethodName = getExtractorMethod(obj)
-            extractorFcns = get(obj.VIEW.menuhandle.displayFeature,'userdata');
-            extractorIndex =  get(obj.VIEW.menuhandle.displayFeature,'value');
+            extractorFcns = get(obj.menuhandle.displayFeature,'userdata');
+            extractorIndex =  get(obj.menuhandle.displayFeature,'value');
             if(~iscell(extractorFcns))
                 extractorMethodName = extractorFcns;
             else
@@ -1901,10 +2140,10 @@ classdef PASingleStudyController < PAFigureController
         %> menu handle's userdata.
         % --------------------------------------------------------------------
         function setExtractorMethod(obj,featureFcn)
-            extractorFcns = get(obj.VIEW.menuhandle.displayFeature,'userdata');
+            extractorFcns = get(obj.menuhandle.displayFeature,'userdata');
             extractorInd = find(strcmpi(extractorFcns,featureFcn));
             if(~isempty(extractorInd))
-                set(obj.VIEW.menuhandle.displayFeature,'value',extractorInd);
+                set(obj.menuhandle.displayFeature,'value',extractorInd);
             end
         end
         
@@ -1932,14 +2171,15 @@ classdef PASingleStudyController < PAFigureController
         %> @retval signalSelection The tag line of the selected signal.
         % --------------------------------------------------------------------
         function signalSelection = getSignalSelection(obj)
-            signalSelections = get(obj.VIEW.menuhandle.signalSelection,'userdata');
-            selectionIndex =  get(obj.VIEW.menuhandle.signalSelection,'value');
+            signalSelections = get(obj.menuhandle.signalSelection,'userdata');
+            selectionIndex =  get(obj.menuhandle.signalSelection,'value');
             if(~iscell(signalSelections))
                 signalSelection= signalSelections;
             else
                 signalSelection = signalSelections{selectionIndex};
             end
         end
+        
         
         % --------------------------------------------------------------------
         %> @brief Sets the Signal Selection's drop down menu's value based on
@@ -1951,14 +2191,14 @@ classdef PASingleStudyController < PAFigureController
         %> menu handle's userdata.
         % --------------------------------------------------------------------
         function signalTagLine = setSignalSelection(obj, signalTagLine)
-            signalTagLines = get(obj.VIEW.menuhandle.signalSelection,'userdata');
+            signalTagLines = get(obj.menuhandle.signalSelection,'userdata');
             selectionIndex = find(strcmpi(signalTagLines,signalTagLine)) ;
             if(isempty(selectionIndex))
                 selectionIndex = 1;
                 signalTagLine = signalTagLines{selectionIndex};
             end
             
-            set(obj.VIEW.menuhandle.signalSelection,'value',selectionIndex);
+            set(obj.menuhandle.signalSelection,'value',selectionIndex);
             if(isempty(obj.accelTypeShown))
                 obj.accelTypeShown = 'count';
             end
@@ -1993,7 +2233,7 @@ classdef PASingleStudyController < PAFigureController
                 labels(pruneIndices) = [];
                 tagLines(pruneIndices) = [];
             end
-            set(obj.VIEW.menuhandle.signalSelection,'string',labels,'userdata',tagLines,'value',1);
+            set(obj.menuhandle.signalSelection,'string',labels,'userdata',tagLines,'value',1);
         end
         
         % --------------------------------------------------------------------
@@ -2062,6 +2302,27 @@ classdef PASingleStudyController < PAFigureController
         end
         
         
+ % --------------------------------------------------------------------
+        %> @brief Callback from signal selection widget that triggers
+        %> the update to the secondary axes with the GUI selected feature
+        %> and signal.
+        %> @param obj Instance of PAController
+        %> @param hObject handle to the callback object.
+        %> @param eventdata Not used.  Required by MATLAB.
+        % --------------------------------------------------------------------
+        function updateSecondaryFeaturesDisplayCallback(obj,hObject,~)
+            set(hObject,'enable','off');
+            handles = guidata(hObject);
+            initColor = get(handles.axes_secondary,'color');
+            obj.showBusy('(Updating secondary display)','secondary');
+            numFrames = obj.getFrameCount();
+            obj.updateSecondaryFeaturesDisplay(numFrames);
+            set(handles.axes_secondary,'color',initColor);
+            
+            obj.showReady('secondary');
+            set(hObject,'enable','on');
+        end
+                
    
         
         %% context menus for the view
@@ -2153,7 +2414,7 @@ classdef PASingleStudyController < PAFigureController
             set(gco,'selected','on');
             
             lineTag = get(gco,'tag');
-            set(obj.VIEW.texthandle.status,'string',lineTag);
+            set(obj.texthandle.status,'string',lineTag);
             
             child_menu_handles = get(hObject,'children');  %this is all of the handles of the children menu options
             
@@ -2188,10 +2449,10 @@ classdef PASingleStudyController < PAFigureController
         %> @param eventdata unused
         % =================================================================
         function contextmenuLineMoveCb(obj,varargin)
-            y_lim = get(obj.VIEW.axeshandle.primary,'ylim');
+            y_lim = get(obj.axeshandle.primary,'ylim');
             
             tagLine = get(gco,'tag');
-            set(obj.VIEW.figurehandle,'pointer','hand',...
+            set(obj.figurehandle,'pointer','hand',...
                 'windowbuttonmotionfcn',...
                 {@obj.moveLineMouseFcnCb,tagLine,y_lim}...
                 );
@@ -2213,10 +2474,10 @@ classdef PASingleStudyController < PAFigureController
         function moveLineMouseFcnCb(obj,~,~,lineTag,y_lim)
             %windowbuttonmotionfcn set by contextmenuLineMoveCb
             %axes_h is the axes that the current object (channel_object) is in
-            pos = get(obj.VIEW.axeshandle.primary,'currentpoint');
+            pos = get(obj.axeshandle.primary,'currentpoint');
             curOffset = max(min(pos(1,2),y_lim(2)),y_lim(1));
             obj.accelObj.setOffset(lineTag,curOffset);            
-            obj.VIEW.draw();
+            obj.draw();
         end
         
         % =================================================================
@@ -2229,16 +2490,16 @@ classdef PASingleStudyController < PAFigureController
         function contextmenuLineResizeCb(obj,varargin)
             
             lineTag = get(gco,'tag');
-            set(obj.VIEW.figurehandle,'pointer','crosshair','WindowScrollWheelFcn',...
+            set(obj.figurehandle,'pointer','crosshair','WindowScrollWheelFcn',...
                 {@obj.resizeWindowScrollWheelFcnCb,...
-                lineTag,obj.VIEW.texthandle.status});
+                lineTag,obj.texthandle.status});
             
             allScale = obj.accelObj.getScale();
             curScale = eval(['allScale.',lineTag]);
             
             %show the current scale
             click_str = sprintf('Scale: %0.2f',curScale);
-            set(obj.VIEW.texthandle.status,'string',click_str);
+            set(obj.texthandle.status,'string',click_str);
             
             %flush the draw queue
             drawnow();
@@ -2260,7 +2521,7 @@ classdef PASingleStudyController < PAFigureController
                 defaultScale = pStruct.scale.(lineTag); % eval(strcat('pStruct.scale.',lineTag));
                 
                 obj.accelObj.setScale(lineTag,defaultScale);
-                %obj.VIEW.draw();
+                %obj.draw();
             end
             set(gco,'selected','off');
         end
@@ -2289,7 +2550,7 @@ classdef PASingleStudyController < PAFigureController
         function linePropertyChangeCallback(obj, accelObj, evtData)
             
             if(strcmpi(evtData.name,'scale'))
-                obj.VIEW.draw();
+                obj.draw();
             elseif(strcmpi(evtData.name,'label'))
                 textHandle = findobj(obj.figureH,'tag',evtData.lineTag,'type','text');
                 set(textHandle,'string',evtData.value);
@@ -2320,7 +2581,7 @@ classdef PASingleStudyController < PAFigureController
             
             
             newScale = max(lowerbound,curScale-eventdata.VerticalScrollCount*scroll_step);
-            obj.accelObj.setScale(lineTag,newScale);  % setScale results in an VIEW.draw call already.  %obj.VIEW.draw();
+            obj.accelObj.setScale(lineTag,newScale);  % setScale results in an VIEW.draw call already.  %obj.draw();
             
             %update this text scale...
             click_str = sprintf('Scale: %0.2f',newScale);
@@ -2477,7 +2738,7 @@ classdef PASingleStudyController < PAFigureController
         %> @brief Want to redistribute or evenly distribute the lines displayed in
         %> this axis.
         function cmenuRedistributeLinesCb(obj, varargin)
-            obj.VIEW.redistributePrimaryAxesLineHandles();
+            obj.redistributePrimaryAxesLineHandles();
         end
         
         % =================================================================
@@ -2504,7 +2765,7 @@ classdef PASingleStudyController < PAFigureController
         % --------------------------------------------------------------------
         function cmenuConfigureSmoothingCb(obj,~,~, on_uimenu_h, off_uimenu_h)
             %configure sub contextmenus
-            if(obj.VIEW.getUseSmoothing())
+            if(obj.getUseSmoothing())
                 set(on_uimenu_h,'checked','on');
                 set(off_uimenu_h,'checked','off');
             else
@@ -2534,11 +2795,11 @@ classdef PASingleStudyController < PAFigureController
         
         function setSmoothingState(obj,smoothingState)
             if(nargin>1 && ~isempty(smoothingState))  
-                obj.VIEW.setUseSmoothing(smoothingState); 
-                if(obj.isViewable('timeseries'))
-                    obj.VIEW.showBusy('Setting smoothing state','secondary');
+                obj.setUseSmoothing(smoothingState); 
+                if(~isempty(obj.accelObj))
+                    obj.showBusy('Setting smoothing state','secondary');
                     obj.updateSecondaryFeaturesDisplay();
-                    obj.VIEW.showReady('secondary');
+                    obj.showReady('secondary');
                 end
             end
         end
@@ -2550,7 +2811,7 @@ classdef PASingleStudyController < PAFigureController
         % =================================================================
         function cmenuConfigureNonwearHighlightingCb(obj,~,~, on_uimenu_h, off_uimenu_h)
             %configure sub contextmenus
-            if(obj.VIEW.getNonwearHighlighting())
+            if(obj.getNonwearHighlighting())
                 set(on_uimenu_h,'checked','on');
                 set(off_uimenu_h,'checked','off');
             else
@@ -2580,7 +2841,7 @@ classdef PASingleStudyController < PAFigureController
         function setNonwearHighlightingCb(obj,highlightNonwear)
             if(nargin>1 && ~isempty(highlightNonwear))  
                 obj.setNonwearHighlighting(highlightNonwear); 
-                if(obj.isViewable('timeseries'))
+                if(~isempty(obj.accelObj))
                     obj.showBusy('Highlighting nonwear','secondary');
                     obj.showReady('secondary');
                 end
@@ -2680,6 +2941,19 @@ classdef PASingleStudyController < PAFigureController
             % feature_cumsumLineH =line('parent',axesH,'ydata',vectorSum+overlayOffset,'xdata',startStopDatenum(:,1),'color','g','hittest','off');
             feature_cumsumLineH = [];
         end
+        
+        % =================================================================
+        %> @brief Copy the selected (feature) linehandle's ydata to the system
+        %> clipboard.
+        %> @param obj Instance of PAController
+        %> @param hObject Handle of callback object (unused).
+        %> @param eventdata Unused.
+        % =================================================================
+        function contextmenuLine2ClipboardCb(hObject,~)
+            data = get(get(hObject,'parent'),'userdata');
+            clipboard('copy',data);
+            disp([num2str(numel(data)),' items copied to the clipboard.  Press Control-V to access data items, or type "str=clipboard(''paste'')"']);
+        end        
         
         % ======================================================================
         %> @brief Returns a structure of the controller's default, saveable parameters as a struct.
