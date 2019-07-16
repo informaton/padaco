@@ -1,12 +1,12 @@
-%> @file PAController.cpp
-%> @brief PAController serves as Padaco's controller component (i.e. in the model, view, controller paradigm).
+%> @file PAAppController.cpp
+%> @brief PAAppController serves as Padaco's controller component (i.e. in the model, view, controller paradigm).
 % ======================================================================
-%> @brief PAController serves as the UI component of event marking in
+%> @brief PAAppController serves as the UI component of event marking in
 %> the Padaco.
 %
 %> In the model, view, controller paradigm, this is the
 %> controller.
-classdef PAController < PAFigureController
+classdef PAAppController < PAFigureController
     
     events
        StatToolCreationSuccess;
@@ -88,7 +88,7 @@ classdef PAController < PAFigureController
     
     methods
         
-        function obj = PAController(hFigure,...
+        function obj = PAAppController(hFigure,...
                 rootPathname,...
                 parameters_filename)
             
@@ -168,7 +168,7 @@ classdef PAController < PAFigureController
 
         %> @brief Sync the controller's settings with the SETTINGS object
         %> member variable.
-        %> @param Instance of PAController;
+        %> @param Instance of PAAppController;
         %> @retval Boolean Did refresh = true, false otherwise (e.g. an
         %> error occurred)
         function didRefresh = refreshSettings(obj)
@@ -204,7 +204,7 @@ classdef PAController < PAFigureController
         % --------------------------------------------------------------------
         %> @brief Configure callbacks for the figure, menubar, and widets.
         %> Called internally during class construction.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         % --------------------------------------------------------------------
         function initCallbacks(obj)
             figH = obj.VIEW.getFigHandle();
@@ -229,7 +229,7 @@ classdef PAController < PAFigureController
         
         % --------------------------------------------------------------------
         %> @brief Executes when user attempts to close figure_padaco.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         %> @param hObject    handle to menu_file_quit (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
@@ -247,7 +247,7 @@ classdef PAController < PAFigureController
         
         % --------------------------------------------------------------------
         %> @brief  Executes on key press with focus on figure and no controls selected.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         %> @param hObject    handle to figure (gcf)
         %> @param eventdata Structure of key press information.
         % --------------------------------------------------------------------
@@ -300,7 +300,7 @@ classdef PAController < PAFigureController
         
         % --------------------------------------------------------------------
         %> @brief  Executes on key press with focus on figure and no controls selected.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         %> @param hObject    handle to figure (gcf), unused
         %> @param eventdata Structure of key press information.
         % --------------------------------------------------------------------
@@ -316,7 +316,7 @@ classdef PAController < PAFigureController
         %> If the currentObject selected is the secondary axes, then
         %> the current window is set to the closest window corresponding to
         %> the mouse's x-position.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         %> @param hObject    handle to figure (gcf), unused
         %> @param eventData Structure of mouse press information; unused
         % --------------------------------------------------------------------
@@ -334,7 +334,7 @@ classdef PAController < PAFigureController
         
         % --------------------------------------------------------------------
         %> @brief  Executes when user first clicks the mouse.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         %> @param hObject    handle to figure (gcf), unused
         %> @param eventData Structure of mouse press information; unused
         %> @param Note - this turns off all other mouse movement and mouse
@@ -359,7 +359,7 @@ classdef PAController < PAFigureController
         % --------------------------------------------------------------------
         %> @brief Assign figure's menubar callbacks.
         %> Called internally during class construction.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         % --------------------------------------------------------------------
         function initMenubarCallbacks(obj)
             figH = obj.VIEW.getFigHandle();
@@ -450,7 +450,7 @@ classdef PAController < PAFigureController
         
         % --------------------------------------------------------------------
         %> @brief Callback to display help FAQ from the menubar help->faq menu.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         %> @param hObject
         %> @param eventdata
         % --------------------------------------------------------------------
@@ -487,7 +487,7 @@ classdef PAController < PAFigureController
         
         % --------------------------------------------------------------------
         %> @brief Assign figure's file->about menubar callback.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         %> @param hObject
         %> @param eventdata
         % --------------------------------------------------------------------
@@ -524,7 +524,7 @@ classdef PAController < PAFigureController
         % --------------------------------------------------------------------
         %> @brief Assign figure's menubar callbacks.
         %> Called internally during class construction.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         %> @param hObject
         %> @param eventdata
         %> @param optionalSettingsName String specifying the settings to
@@ -557,7 +557,7 @@ classdef PAController < PAFigureController
         % --------------------------------------------------------------------
         %> @brief Assign values for usage state classifier rules.
         %> Called internally during class construction.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         %> @param hObject
         %> @param eventdata
         %> @param optionalSettingsName String specifying the settings to
@@ -603,7 +603,7 @@ classdef PAController < PAFigureController
         
         % --------------------------------------------------------------------
         %> @brief Menubar callback for opening a file.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         %> @param hObject  handle to menu_file_open (see GCBO)
         %> @param eventdata Required by MATLAB, but not used.
         % --------------------------------------------------------------------
@@ -655,7 +655,7 @@ classdef PAController < PAFigureController
         
         % --------------------------------------------------------------------
         %> @brief Menubar callback for opening a text file
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         function menuFileOpenGeneralCallback(obj, ~, ~)
             importObj = PASensorDataImport(obj.settingsObj.IMPORT);
             if(~importObj.cancelled)
@@ -665,7 +665,7 @@ classdef PAController < PAFigureController
         
         % --------------------------------------------------------------------
         %> @brief Menubar callback for opening a .csv file
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         function menuFileOpenCsvFileCallback(obj, ~, ~)
             f=uigetfullfile({'*.csv','Comma separated values (.csv)';'*.*','All files'},...
                 'Select a file',fullfile(obj.settingsObj.DATA.pathname,obj.settingsObj.DATA.filename));
@@ -717,7 +717,7 @@ classdef PAController < PAFigureController
         
         % --------------------------------------------------------------------
         %> @brief Menubar callback for opening a VasTrack CSV file
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         %> @param hObject  handle to menu_file_open (see GCBO)
         %> @param eventdata Required by MATLAB, but not used.
         %> @note First three lines of .csv file:
@@ -776,7 +776,7 @@ classdef PAController < PAFigureController
                 
         % --------------------------------------------------------------------
         %> @brief Menubar callback for opening a fitbit file.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         %> @param hObject  handle to menu_file_open (see GCBO)
         %> @param eventdata Required by MATLAB, but not used.
         % --------------------------------------------------------------------
@@ -824,7 +824,7 @@ classdef PAController < PAFigureController
         % --------------------------------------------------------------------
         %> @brief Menubar callback for opening a results path for use with
         %> the results view mode.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         %> @param hObject  handle to menu_file_open (see GCBO)
         %> @param eventdata Required by MATLAB, but not used.
         % --------------------------------------------------------------------
@@ -870,7 +870,7 @@ classdef PAController < PAFigureController
         
         % --------------------------------------------------------------------
         %> @brief Menubar file->screenshot callback.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         %> @param hObject  handle to menu_file_open (see GCBO)
         %> @param eventdata Required by MATLAB, but not used.
         %> @param screenshotDescription String label for which part of the
@@ -904,7 +904,7 @@ classdef PAController < PAFigureController
         % --------------------------------------------------------------------
         %> @brief Menubar callback for quitting the program.
         %> Executes when user attempts to close padaco fig.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         %> @param hObject    handle to menu_file_quit (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @note See startBatchProcessCallback for actual batch processing
@@ -917,7 +917,7 @@ classdef PAController < PAFigureController
         %         % --------------------------------------------------------------------
         %         %> @brief Menubar callback for restarting the program.
         %         %> Executes when user clicks restart from the menubar's file->restart item.
-        %         %> @param obj Instance of PAController
+        %         %> @param obj Instance of PAAppController
         %         %> @param hObject    handle to menu_file_quit (see GCBO)
         %         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %         %> @note See startBatchProcessCallback for actual batch processing
@@ -958,10 +958,10 @@ classdef PAController < PAFigureController
         end
         
         % --------------------------------------------------------------------
-        %> @brief Menubar callback for exporting PAController's data object to the
+        %> @brief Menubar callback for exporting PAAppController's data object to the
         %> workspace.  This is useful for debugging and developing methods
         %> ad hoc.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         %> @param hObject    handle to menu_tools_batch (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
@@ -982,10 +982,10 @@ classdef PAController < PAFigureController
         end
         
         % --------------------------------------------------------------------
-        %> @brief Menubar callback for exporting PAController's data object to the
+        %> @brief Menubar callback for exporting PAAppController's data object to the
         %> workspace.  This is useful for debugging and developing methods
         %> ad hoc.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         %> @param hObject    handle to menu_tools_batch (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
@@ -1006,9 +1006,9 @@ classdef PAController < PAFigureController
 
         
         % --------------------------------------------------------------------
-        %> @brief Menubar callback for exporting PAController's data object
+        %> @brief Menubar callback for exporting PAAppController's data object
         %> to disk, in two separate .csv files.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         %> @param hObject    handle to menu_tools_batch (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
@@ -1040,7 +1040,7 @@ classdef PAController < PAFigureController
         % --------------------------------------------------------------------
         %% Settings menubar callbacks
         %> @brief Sets padaco's view mode to either time series or results viewing.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         %> @param viewMode A string with one of two values
         %> - @c timeseries
         %> - @c results
@@ -1088,7 +1088,7 @@ classdef PAController < PAFigureController
         
         % --------------------------------------------------------------------
         %> @brief Menubar callback for running the batch tool.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         %> @param hObject    handle to menu_tools_batch (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
@@ -1112,7 +1112,7 @@ classdef PAController < PAFigureController
         % --------------------------------------------------------------------
         %> @brief Menubar callback for starting the raw .csv to .bin file
         %> converter.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         %> @param hObject    handle to the menu item (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         % --------------------------------------------------------------------
@@ -1124,7 +1124,7 @@ classdef PAController < PAFigureController
         
         % --------------------------------------------------------------------
         %> @brief Menubar callback for starting the COPTR data to actigraph file conversion.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         %> @param hObject    handle to the menu item (see GCBO)
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         % --------------------------------------------------------------------
@@ -1150,7 +1150,7 @@ classdef PAController < PAFigureController
         %> @brief Creates a temporary figure and axes, draws an overlay
         %> image on it using curData, saves the image to disk, and then
         %> removes the figure from view.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         %> @param curData Instance of PASensorData
         %> @param featureFcn Extractor method for obtaining features from
         %> curData.
@@ -1179,7 +1179,7 @@ classdef PAController < PAFigureController
         end
         
         % ======================================================================
-        %> @brief Returns a structure of PAControllers saveable parameters as a struct.
+        %> @brief Returns a structure of PAAppControllers saveable parameters as a struct.
         %> @param obj Instance of PASingleStudyController.
         %> @retval pStruct A structure of save parameters which include the following
         %> fields
@@ -1213,7 +1213,7 @@ classdef PAController < PAFigureController
         % --------------------------------------------------------------------
         %> @brief Initializes the version number based on internal file
         %> specified by variable @c versionMatFilename.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         % --------------------------------------------------------------------
         function setVersionNum(obj)
             versionStruct = obj.getVersionInfo();
@@ -1223,7 +1223,7 @@ classdef PAController < PAFigureController
         
         % --------------------------------------------------------------------
         %> @brief Returns the current version number as a string.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         %> @retval versionNum String value of Padaco's current version.
         % --------------------------------------------------------------------
         function versionNum = getVersionNum(obj)
@@ -1272,7 +1272,7 @@ classdef PAController < PAFigureController
         %> @brief Initializes the display for accelerometer data viewing
         %> using instantiated instance
         %> variables VIEW (PASingleStudyController) and accelObj (PASensorData)
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         % --------------------------------------------------------------------
         function initAccelDataView(obj)
             
@@ -1389,7 +1389,7 @@ classdef PAController < PAFigureController
         %> @brief Initializes widgets for results view mode.  Widgets are
         %> disabled if the resultsPathname does not exist or cannot be
         %> found.
-        %> @param this Instance of PAController
+        %> @param this Instance of PAAppController
         %> @retval success A boolean value (true on successful initialization of the resultsPathname into padaco's view
         % --------------------------------------------------------------------
         function success = initResultsView(this)
@@ -1457,7 +1457,7 @@ classdef PAController < PAFigureController
         % --------------------------------------------------------------------
         %> @brief Creates a temporary overlay from paDataObject's values
         %> and takes a screenshot of it which is saved as img_filename.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         %> @param paDataObject Instance of PASensorData
         %> @param featureFcn Extractor method for obtaining features from
         %> curData.
@@ -1608,7 +1608,7 @@ classdef PAController < PAFigureController
         
         % --------------------------------------------------------------------
         %> @brief Takes a screenshot of the padaco figure.
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         % --------------------------------------------------------------------
         function figureScreenshot(obj)
             
@@ -1660,7 +1660,7 @@ classdef PAController < PAFigureController
 
         %> @brief Check if I the viewing mode passed in is current, and if it is
         %> displayable (i.e. has an accel or stat tool object)
-        %> @param obj Instance of PAController
+        %> @param obj Instance of PAAppController
         %> @param viewingMode View mode to check.  Valid strings include:
         %> - @c timeseries
         %> - @c results
@@ -1779,9 +1779,9 @@ classdef PAController < PAFigureController
         %> - @c num The version number (string)
         % --------------------------------------------------------------------
         function versionInfo = getVersionInfo(tagRequest)
-            if(exist(PAController.versionMatFilename,'file'))
+            if(exist(PAAppController.versionMatFilename,'file'))
                 try
-                    versionInfo = load(PAController.versionMatFilename,'-mat');
+                    versionInfo = load(PAAppController.versionMatFilename,'-mat');
                 catch me
                     showME(me);
                     versionInfo.num = '1.85x';
@@ -1827,7 +1827,7 @@ classdef PAController < PAFigureController
         end
         
         % ======================================================================
-        %> @brief Returns a structure of PAControllers default, saveable parameters as a struct.
+        %> @brief Returns a structure of PAAppControllers default, saveable parameters as a struct.
         %> @retval pStruct A structure of saveable parameters
         function pStruct = getDefaults()
             mPath = fileparts(mfilename('fullpath'));

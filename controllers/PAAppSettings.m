@@ -34,7 +34,7 @@ classdef  PAAppSettings < PASettings
     properties
 
         
-        %> struct of PAController preferences.
+        %> struct of PAAppController preferences.
         CONTROLLER;
         %> struct of PASensorData preferences.
         DATA;
@@ -352,7 +352,7 @@ classdef  PAAppSettings < PASettings
                     case 'DATA'
                         obj.DATA = PASensorData.getDefaults();
                     case 'CONTROLLER'
-                        obj.CONTROLLER = PAController.getDefaults();
+                        obj.CONTROLLER = PAAppController.getDefaults();
                     case 'VIEW'
                         obj.VIEW.yDir = 'normal';  %or can be 'reverse'
                         obj.VIEW.screenshot_path = obj.rootpathname; %initial directory to look in for EDF files to load

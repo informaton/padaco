@@ -3,7 +3,7 @@ function padaco()
     hObject = padacoFig('visible','off');    
     try
         parametersFile = '_padaco.parameters.txt';
-        PAController(hObject,mPathname,parametersFile);
+        PAAppController(hObject,mPathname,parametersFile);
     catch me
         showME(me);
         fprintf(1,['The default settings file may be corrupted or inaccessible.',...
