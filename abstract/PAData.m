@@ -98,7 +98,7 @@ classdef PAData < PABase
         end
     end
     methods(Static)
-        function settings = getDefaultParameters()
+        function settings = getDefaults()
             settings = struct();
             if(ispc)
                 homePath = getenv('USERPROFILE');                

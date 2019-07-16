@@ -92,14 +92,14 @@ classdef PABatchTool < handle
         
         %> @brief Class constructor.
         %> @param batchSettings Struct containing settings to use for the batch process (optional).  if
-        %> it is not inclded then the getDefaultParameters() method will be called to obtain default
+        %> it is not inclded then the getDefaults() method will be called to obtain default
         %> values.
         %> @retval  PABatchTool Instance of PABatchTool.
         function this = PABatchTool(batchSettings)
             if(nargin>0 && ~isempty(batchSettings))
                 this.settings = batchSettings;
             else
-                this.settings = this.getDefaultParameters();
+                this.settings = this.getDefaults();
             end
                         
             batchFig = batchTool('visible','off','name','','sizechangedfcn',[]);
@@ -1062,7 +1062,7 @@ classdef PABatchTool < handle
         %> - @c isOutputPathLinked
         %> - @c signalTagLine
         % ======================================================================
-        function pStruct = getDefaultParameters()
+        function pStruct = getDefaults()
             try
                 docPath = findpath('docs');
             catch

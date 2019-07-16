@@ -47,7 +47,7 @@ classdef PASensorDataImport < handle
                 importSettings = [];
             end
             
-            this.settings = mergeStruct(this.getDefaultParameters(), importSettings);
+            this.settings = mergeStruct(this.getDefaults(), importSettings);
             
             this.initWidgets();            
             this.initCallbacks();
@@ -361,7 +361,7 @@ classdef PASensorDataImport < handle
         %> @retval Struct of default paramters.  Fields include
         %> - @c trimResults
         % ======================================================================
-        function paramStruct = getDefaultParameters()
+        function paramStruct = getDefaults()
             paramStruct.headerLineNum = 1;
             paramStruct.separator = ',';
             paramStruct.filename ='';

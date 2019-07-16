@@ -165,13 +165,13 @@ classdef PAStatTool < PABase
         % ======================================================================
         function this = PAStatTool(padaco_fig_h, resultsPathname, initSettings)
             if(nargin<3 || isempty(initSettings))
-                initSettings = PAStatTool.getDefaultParameters();
+                initSettings = this.getDefaults();
             end
             
             % This call ensures that we have at a minimum, the default parameter field-values in widgetSettings.
             % And eliminates later calls to determine if a field exists
             % or not in the input widgetSettings parameter
-            initSettings = mergeStruct(this.getDefaultParameters(),initSettings);
+            initSettings = mergeStruct(this.getDefaults(),initSettings);
             
             if(~isfield(initSettings,'useDatabase'))
                 initSettings.useDatabase = false;
@@ -495,7 +495,7 @@ classdef PAStatTool < PABase
                 try
                     if(~isempty(filename))
                         initSettings = PASettings.loadParametersFromFile(filename);
-                        initSettings = mergeStruct(obj.getDefaultParameters(),initSettings);
+                        initSettings = mergeStruct(obj.getDefaults(),initSettings);
                         obj.setWidgetSettings(initSettings);
                     end
                 catch me
@@ -519,7 +519,7 @@ classdef PAStatTool < PABase
         %> originalWidgetSettings property to the input struct.
         %> @param this Instance of PAStatTool
         %> @param Struct of settings for the Stat tool.  Should conform to
-        %> getDefaultParameters
+        %> getDefaults
         %> @param initializeOnSet Optional flag that defaults to {True}.
         %> When true, initWidgets() is called using the input widgetSettings.
         %> When false, initWidgets is not called (helpful on construction)
@@ -1472,11 +1472,11 @@ classdef PAStatTool < PABase
         %> @param this Instance of PAStatTool
         %> @param widgetSettings GUI setting parameters (optional).  If
         %> this is not included or is empty, then the default parameters are
-        %> used to initialize the gui (See getDefaultParameters).
+        %> used to initialize the gui (See getDefaults).
         % ======================================================================        
         function initWidgets(this, widgetSettings)
             if(nargin<2 || isempty(widgetSettings))
-                widgetSettings = this.getDefaultParameters();                
+                widgetSettings = this.getDefaults();                
             end
 
             customIndex = strcmpi(this.base.weekdayTags,'custom');
@@ -4442,7 +4442,7 @@ classdef PAStatTool < PABase
         %> - @c stopTimeSelection
         %> - @c clusterDurationSelection
         % ======================================================================
-        function paramStruct = getDefaultParameters()
+        function paramStruct = getDefaults()
             % Cache directory is for storing the cluster object to 
             % so it does not have to be reloaded each time when the
             % PAStatTool is instantiated.
@@ -4454,7 +4454,7 @@ classdef PAStatTool < PABase
             
             baseSettings = PAStatTool.getBaseSettings();  
             % Prime with cluster parameters.
-            paramStruct = PACluster.getDefaultParameters();
+            paramStruct = PACluster.getDefaults();
             
             paramStruct.exportShowNonwear = true;
             paramStruct.cacheDirectory = fullfile(workingPath,'cache');

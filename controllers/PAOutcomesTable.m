@@ -37,7 +37,7 @@ classdef PAOutcomesTable < PABase
         function this = PAOutcomesTable(settingsStruct)
             this = this@PABase();
             this.tables = mkstruct(this.categories);
-            pStruct = this.getDefaultParameters();
+            pStruct = this.getDefaults();
             this.filenames = pStruct.filenames; %mkstruct(this.categories);            
             this.importOnStartup= pStruct.importOnStartup;            
             try
@@ -332,7 +332,7 @@ classdef PAOutcomesTable < PABase
     
     methods(Static)
         
-       function pStruct = getDefaultParameters()
+       function pStruct = getDefaults()
             pStruct.filenames = mkstruct(PAOutcomesTable.categories);
             pStruct.importOnStartup = true;
             pStruct.selectedField = '';

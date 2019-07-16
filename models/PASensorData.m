@@ -159,7 +159,7 @@ classdef PASensorData < PAData
         usageFrames;
 
         %> @brief Struct of rules for classifying usage state.
-        %> See getDefaultParameters for initial values.
+        %> See getDefaults for initial values.
         usageStateRules;
 
         %> @brief Number of frames that the time series data can be aggregated
@@ -189,7 +189,7 @@ classdef PASensorData < PAData
         %> - or (2) the path that contains raw accelerometer data stored in
         %> binary file(s) - Firmware versions 2.5 or 3.1 only.
         %> @param pStruct Optional struct of parameters to use.  If it is not
-        %> included then parameters from getDefaultParameters method are used.
+        %> included then parameters from getDefaults method are used.
         %> @retval Instance of PASensorData.
         % fullFile = '~/Google Drive/work/Stanford - Pediatrics/sampledata/female child 1 second epoch.csv'
         % =================================================================
@@ -198,7 +198,7 @@ classdef PASensorData < PAData
             obj.filename = [];
 
             if(nargin<2 || isempty(pStruct))
-                pStruct = obj.getDefaultParameters();
+                pStruct = obj.getDefaults();
             end
 
             obj.hasCounts = false;
@@ -2819,7 +2819,7 @@ classdef PASensorData < PAData
                 'visible'
                 'usageStateRules'
                 };
-            %            fields = fieldnames(obj.getDefaultParameters());
+            %            fields = fieldnames(obj.getDefaults());
             pStruct = struct();
             for f=1:numel(fields)
                 pStruct.(fields{f}) = obj.(fields{f});
@@ -3458,8 +3458,8 @@ classdef PASensorData < PAData
         %> @note When adding default parameters, be sure to match saveable
         %> parameters in getSaveParameters()
         %======================================================================
-        function pStruct = getDefaultParameters()
-            pStruct = PAData.getDefaultParameters();
+        function pStruct = getDefaults()
+            pStruct = PAData.getDefaults();
             
             pStruct.pathname = '.'; %directory of accelerometer data.
             pStruct.filename = ''; %last accelerometer data opened.

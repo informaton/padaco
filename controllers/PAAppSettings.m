@@ -344,15 +344,15 @@ classdef  PAAppSettings < PASettings
             for f = 1:numel(fieldNames)
                 switch fieldNames{f}
                     case 'IMPORT'
-                        obj.IMPORT = PASensorDataImport.getDefaultParameters();
+                        obj.IMPORT = PASensorDataImport.getDefaults();
                     case 'statTool'
-                        obj.statTool = PAStatTool.getDefaultParameters();                    
+                        obj.statTool = PAStatTool.getDefaults();                    
                     case 'outcomesTable'
-                        obj.outcomesTable = PAOutcomesTable.getDefaultParameters();
+                        obj.outcomesTable = PAOutcomesTable.getDefaults();
                     case 'DATA'
-                        obj.DATA = PASensorData.getDefaultParameters();
+                        obj.DATA = PASensorData.getDefaults();
                     case 'CONTROLLER'
-                        obj.CONTROLLER = PAController.getDefaultParameters();
+                        obj.CONTROLLER = PAController.getDefaults();
                     case 'VIEW'
                         obj.VIEW.yDir = 'normal';  %or can be 'reverse'
                         obj.VIEW.screenshot_path = obj.rootpathname; %initial directory to look in for EDF files to load
@@ -368,7 +368,7 @@ classdef  PAAppSettings < PASettings
                         obj.VIEW.filter_inf_file = 'filter.inf';
                         obj.VIEW.database_inf_file = 'database.inf';
                     case 'BATCH'
-                        obj.BATCH = PABatchTool.getDefaultParameters();
+                        obj.BATCH = PABatchTool.getDefaults();
                     otherwise
                         fprintf(1,'Unsupported fieldname: %s\n',fieldNames{f});
                 end
