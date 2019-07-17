@@ -22,6 +22,15 @@ classdef(Abstract) PAFigureController < PABase
             
             nargin && this.setFigureHandle(figureH) && this.initFigure(); %#ok<VUNUS>
         end
+        
+        function settings = getSettings(this)            
+            settings = this.settings;
+        end
+        
+        % Overload as necessary.
+        function saveParams = getSaveParameters(this)
+            saveParams = this.getSettings();
+        end
     end
     
     methods(Access=protected)
