@@ -2431,9 +2431,6 @@ classdef PAStatTool < PABase
             this.handles.line_upper95PctScatterPlot = [];
             this.handles.line_lower95PctScatterPlot = [];
             
-
-                
-            
             % get handles of interest from the main/primary figure.
             tmpHandles = guidata(this.figureH);
             handlesOfInterest = {   
@@ -2471,11 +2468,6 @@ classdef PAStatTool < PABase
                 'text_clusterDescription'                
                 'toolbar_results'
                 'btngrp_clusters'
-                
-                
-
-%                 'text_clusterResultsOverlay'
-%                 'table_clusterProfiles'
                 };
             
 
@@ -3325,10 +3317,13 @@ classdef PAStatTool < PABase
                 xLabelRot = 0;
             end
             set(this.handles.axes_primary,'xlim',[1,this.featureStruct.totalCount],'xtick',xTicks,'xticklabel',xTickLabels,...
-                'XTickLabelRotation',xLabelRot);%,...
-            
-%                 'fontsize',11); 
+                'XTickLabelRotation',xLabelRot);%,...           
+            %                 'fontsize',11);
         end
+        
+        function toggleLegendCallback(this, hObject,eventData, axesHandle)
+            legend(axesHandle,'toggle');
+        end        
         
         %> @brief Hides the panel of cluster interaction controls.  For
         %> example, the forward and back buttons that appear in between the
@@ -3368,12 +3363,7 @@ classdef PAStatTool < PABase
             set(this.handles.axes_primary,'uicontextmenu',[]);
         end
         
-        function toggleLegendCallback(this, hObject,eventData, axesHandle)
-            legend(axesHandle,'toggle');
-        end
-        
         function showClusterControls(this)
-
             
             containerPos = get(this.handles.panel_resultsContainer,'position');
             shapePos = get(this.handles.panel_shapeSettings,'position');
@@ -3382,16 +3372,14 @@ classdef PAStatTool < PABase
             hDelta = sum(clusterPos([2,4]));
             
             % only resize if necessary...
-            if(containerPos(4)<hDelta+shapePos(4))
-                
+            if(containerPos(4)<hDelta+shapePos(4))                
                 shapePos(2) = shapePos(2)+hDelta;
                 set(this.handles.panel_shapeSettings,'position',shapePos);                
                 
                 containerPos(2) = containerPos(2)-hDelta;
                 containerPos(4) = containerPos(4)+hDelta;
                 set(this.handles.panel_resultsContainer,'position',containerPos);
-            end
-            
+            end            
             
             set([                
                 this.handles.panel_clusterSettings
@@ -3419,7 +3407,6 @@ classdef PAStatTool < PABase
             this.handles.contextmenu.axesYLimMode.auto = uimenu(axesScalingMenu,'Label','Auto','callback',{@this.primaryAxesScalingCallback,'auto'});
             this.handles.contextmenu.axesYLimMode.manual = uimenu(axesScalingMenu,'Label','Manual','callback',{@this.primaryAxesScalingCallback,'manual'});
             
-
             nextPlotmenu = uimenu(contextmenu_primaryAxes,'Label','Next plot','callback',@this.primaryAxesNextPlotContextmenuCallback);
             this.handles.contextmenu.nextPlot.add = uimenu(nextPlotmenu,'Label','Add','callback',{@this.primaryAxesNextPlotCallback,'add'});
             this.handles.contextmenu.nextPlot.replace = uimenu(nextPlotmenu,'Label','Replace','callback',{@this.primaryAxesNextPlotCallback,'replace'});

@@ -1232,41 +1232,123 @@ classdef PAAppController < PAFigureController
         
         function resizeFigCb(obj, figH, szEvtData)
             %obj.logStatus('Resizing');     
-            hPos = figH.Position;
-            hPos(3) = max(min(hPos(3),obj.resizeValues.figure.max.w),obj.resizeValues.figure.min.w);
-            hPos(4) = max(min(hPos(4),obj.resizeValues.figure.max.h),obj.resizeValues.figure.min.h);
-            figH.Position = hPos;
+            figPos = figH.Position;
+            
+            figPos(3) = max(min(figPos(3),obj.resizeValues.figure.max.w),obj.resizeValues.figure.min.w);
+            figPos(4) = max(min(figPos(4),obj.resizeValues.figure.max.h),obj.resizeValues.figure.min.h);
+            
+            %dW = (figPos(3) - obj.resizeValues.figure.init.w)/obj.resizeValues.figure.init.w;
+            %dH = (figPos(4) - obj.resizeValues.figure.init.h)/obj.resizeValues.figure.init.h;
+            
+            dW = figPos(3)/obj.resizeValues.figure.init.w;
+            dH = figPos(4)/obj.resizeValues.figure.init.h;
+            
+            figH.Position = figPos;
+            
+            hoi = {
+                'text_status';
+                'panel_timeseries';'panel_results';'axes_primary';'text_clusterResultsOverlay';
+                'panel_displayButtonGroup';'panel_epochControls';
+                'btngrp_clusters';
+                'panel_study';'axes_secondary';'panel_clusterInfo';
+                };
+            
+            statusPos = get(obj.handles.text_status,'position');
+            initPosX = obj.resizeValues.text_status.init.pos(1);
+            statusPos(1) = initPosX*dW;
+            statusPos(2) = figPos(4)-statusPos(4);
+            set(obj.handles.text_status,'position',statusPos);
+            
+            panelPos = get(obj.handles.panel_timeseries,'position');
+            initPosX = obj.resizeValues.panel_timeseries.init.pos(1);
+            panelPos(1) = initPosX*dW;            
+            panelPos(2) = statusPos(2)-panelPos(4);
+            set(obj.handles.panel_timeseries,'position',panelPos);
+            
+            resultsPos = get(obj.handles.panel_results,'position');
+            initPosX = obj.resizeValues.panel_results.init.pos(1);
+            resultsPos(1) = initPosX*dW;            
+            resultsPos(2) = statusPos(2)-resultsPos(4);
+            set(obj.handles.panel_results,'position',resultsPos);
+            
+            axes1Pos = get(obj.handles.axes_primary,'position');
+            initPosX = obj.resizeValues.axes_primary.init.pos(1);
+            initPosW = obj.resizeValues.axes_primary.init.pos(3);
+            axes1Pos(1) = initPosX*dW;            
+            axes1Pos(2) = statusPos(2)-axes1Pos(4);
+            axes1Pos(3) = initPosW*dW;
+            set(obj.handles.axes_primary,'position',axes1Pos);
+            
+            21axes2Pos = get(obj.handles.axes_secondary,'position');            
+            axes2Pos(1) = axes1Pos(1);
+            axes2Pos(3) = axes1Pos(3);
+            set(obj.handles.axes_secondary,'position',axes2Pos);
+            
+            axes2CeilingY = sum(axes2Pos([2,4]));
+            btngrpPos = obj.resizeValues.btngrp_clusters.init.pos;
+            btngrpPos(1) = axes2Pos(1);
+            btngrpPos(2) = axes2CeilingY+1;      
+            set(obj.handles.btngrp_clusters, 'position', btngrpPos);
+            
+            betweenAxes = 0.5*(axes1Pos(2)+axes2CeilingY);
+            h = obj.handles.panel_displayButtonGroup;
+            controlPos = get(h,'position');
+            initPos = obj.resizeValues.panel_displayButtonGroup.init.pos;
+            controlPos(1) = axes2Pos(1);
+            controlPos(2) = betweenAxes-0.5*controlPos(4);
+            controlPos(3) = initPos(3)*dW;
+            set(h,'position',controlPos);
+            
+            h = obj.handles.panel_epochControls;
+            control2Pos = get(h,'position');
+            initPos = obj.resizeValues.panel_epochControls.init.pos;
+            control2Pos(1) = initPos(1)*dW;
+            control2Pos(2) = betweenAxes-0.5*control2Pos(4);
+            control2Pos(3) = initPos(3)*dW;
+            set(h,'position',control2Pos);
+            
             drawnow();
         end
         
         function initResize(obj)
             set(obj.figureH,'Resize','on',...
                 'SizeChangedFcn',@obj.resizeFigCb);
-            figPos = obj.figureH.Position;
-            minScale = 0.8;
-            maxScale = 1.2;
-            obj.resizeValues.figure.init.w = figPos(3);
-            obj.resizeValues.figure.init.h = figPos(4);
-            
-            obj.resizeValues.figure.min.w = figPos(3)*minScale;
-            obj.resizeValues.figure.min.h = figPos(4)*minScale;
-
-            obj.resizeValues.figure.max.w = figPos(3)*maxScale;
-            obj.resizeValues.figure.max.h = figPos(4)*maxScale;
-            
-            hoi = {'figure_padaco';'text_status';'panel_timeseries';'axes_primary';'text_clusterResultsOverlay';
-                'btngrp_clusters';'axes_secondary';'panel_clusterInfo';'panel_results'};
+                     
+            hoi = {'figure_padaco';
+                'text_status';
+                'panel_timeseries';'panel_results';'axes_primary';'text_clusterResultsOverlay';
+                'panel_displayButtonGroup';'panel_epochControls';
+                'btngrp_clusters';
+                'panel_study';'axes_secondary';'panel_clusterInfo';
+                };
             
             initPos = struct;
             for n = 1:numel(hoi)
                 tag = hoi{n};
                 h = obj.handles.(tag);
-                initPos.(tag) = struct('handle',h,'position',h.Position);
+                % set(h,'units','normalized');
+                set(h,'units','pixels');
+                initPos.(tag) = struct('handle',h,'position',h.Position); 
+                obj.resizeValues.(tag).init.pos = initPos.(tag).position;                
             end
+            
+            figPos = obj.figureH.Position;
+            minScale.w = 0.8;
+            minScale.h = 0.9;
+            
+            maxScale.w = 1.1;
+            maxScale.h = 1.2;
+            
+            obj.resizeValues.figure.init.w = figPos(3);
+            obj.resizeValues.figure.init.h = figPos(4);
+            
+            obj.resizeValues.figure.min.w = figPos(3)*minScale.w;
+            obj.resizeValues.figure.min.h = figPos(4)*minScale.h;
+            
+            obj.resizeValues.figure.max.w = figPos(3)*maxScale.w;
+            obj.resizeValues.figure.max.h = figPos(4)*maxScale.h;
         end
         
-
-
                 
         % --------------------------------------------------------------------
         %> @brief Initializes the display for accelerometer data viewing
@@ -1443,9 +1525,12 @@ classdef PAAppController < PAFigureController
                 
                 this.statTool = [];
                 this.notify('StatToolCreationFailure');
-                responseButton = questdlg('Results output pathname is either not set or was not found.  Would you like to choose one now?','Find results output path?');
-                if(strcmpi(responseButton,'yes'))
-                    this.menuFileOpenResultsPathCallback();
+                checkToOpenResultsPath = false; % can be a user setting.
+                if(checkToOpenResultsPath)                    
+                    responseButton = questdlg('Results output pathname is either not set or was not found.  Would you like to choose one now?','Find results output path?');
+                    if(strcmpi(responseButton,'yes'))
+                        this.menuFileOpenResultsPathCallback();
+                    end
                 end
             else
                 this.VIEW.showReady();

@@ -971,7 +971,7 @@ classdef PASingleStudyController < PAFigureController
             
             resultPanels = [
                 handles.panel_results
-                handles.toolbar_results
+                %  handles.toolbar_results
                 handles.btngrp_clusters
                 ];
                        
@@ -984,8 +984,8 @@ classdef PASingleStudyController < PAFigureController
                 
                 set(timeseriesPanels,'visible','on');
                 set(resultPanels,'visible','off');
-                set(findall(resultPanels,'enable','on'),'enable','off');
-                
+                %set(findall(resultPanels,'enable','on'),'enable','off');
+                set(findall(handles.toolbar_results,'enable','on'),'enable','off');
                 set(handles.menu_viewmode_timeseries,'checked','on');
                 set(handles.menu_viewmode_results,'checked','off');
                 
