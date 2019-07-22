@@ -1279,7 +1279,7 @@ classdef PAAppController < PAFigureController
             axes1Pos(3) = initPosW*dW;
             set(obj.handles.axes_primary,'position',axes1Pos);
             
-            21axes2Pos = get(obj.handles.axes_secondary,'position');            
+            axes2Pos = get(obj.handles.axes_secondary,'position');            
             axes2Pos(1) = axes1Pos(1);
             axes2Pos(3) = axes1Pos(3);
             set(obj.handles.axes_secondary,'position',axes2Pos);

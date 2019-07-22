@@ -384,14 +384,15 @@ classdef PASingleStudyController < PAFigureController
         % --------------------------------------------------------------------
         function setNonwearHighlighting(obj,showNonwearHighlighting)
             if(nargin<2 || isempty(showNonwearHighlighting))
-                obj.nonwearHighlighting = true;
+                obj.settings.nonwearHighlighting = true;
             else
-                obj.nonwearHighlighting = showNonwearHighlighting==true;
-            end           
+                obj.settings.nonwearHighlighting = showNonwearHighlighting==true;
+            end
+            
         end
         
         function smoothing = getNonwearHighlighting(obj)
-            smoothing = obj.nonwearHighlighting;
+            smoothing = obj.settings.nonwearHighlighting;
         end
         
         % --------------------------------------------------------------------
