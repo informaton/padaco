@@ -65,9 +65,6 @@ classdef  PASettings < handle
             end
         end
         
-        
-        
-        
         % -----------------------------------------------------------------
         % =================================================================
         %> @brief saves all of the fields in saveStruct to the file filename
@@ -84,7 +81,7 @@ classdef  PASettings < handle
         %> instance variables rootpathname and parameters_filename
         % =================================================================
         % -----------------------------------------------------------------
-        function saveParametersToFile(obj,dataStruct2Save,filename)
+        function saveToFile(obj,dataStruct2Save,filename)
             if(nargin<3)
                 filename = fullfile(obj.rootpathname,obj.parameters_filename);
                 if(nargin<2)

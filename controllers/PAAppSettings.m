@@ -307,7 +307,6 @@ classdef  PAAppSettings < PASettings
             %             tmp_obj.StatTool = rmfield(tmp_obj.StatTool,'customDaysOfWeek');  % get rid of fields that contain arrays of values, since I don't actually know how to handle this
             tmp_obj = pair_value_dlg(tmp_obj);
             
-            
             if(~isempty(tmp_obj))
                 for f=1:numel(lite_fieldNames)
                     fname = lite_fieldNames{f};
@@ -320,7 +319,6 @@ classdef  PAAppSettings < PASettings
                 wasModified = false;
             end
         end
-        
 
         % --------------------------------------------------------------------
         %> @brief sets default values for the class parameters listed in
@@ -387,7 +385,6 @@ classdef  PAAppSettings < PASettings
         % -----------------------------------------------------------------
         function copyObj = copy(obj)
             copyObj = PAAppSettings();
-            
             props = properties(obj);
             if(~iscell(props))
                 props = {props};

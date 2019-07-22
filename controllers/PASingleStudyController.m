@@ -779,7 +779,7 @@ classdef PASingleStudyController < PAFigureController
                 else
                     delete(cf(k)); %removes other children aside from this one
                 end
-            end;
+            end
             
             set(0,'showhiddenhandles','off');
         end
@@ -795,7 +795,6 @@ classdef PASingleStudyController < PAFigureController
             recurseHandleInit(obj.texthandle,textProps);
         end
 
- 
         % --------------------------------------------------------------------
         %> @brief Clears axes handles of any children and sets default properties.
         %> Called when first creating a view.  See also initAxesHandles.
@@ -1024,6 +1023,14 @@ classdef PASingleStudyController < PAFigureController
             
         end        
 
+        function didSet = setSensorData(obj, sensorDataObj)
+            didSet = false;
+            if(nargin>1 && isa(sensorDataObj,'PASensorData'))
+                obj.accelObj = sensorDataObj;
+                didSet = true;
+            end
+        end
+        
         % --------------------------------------------------------------------
         %> @brief Initializes the graphic handles (label and line handles) and maps figure tag names
         %> to PASingleStudyController instance variables.  Initializes the menubar and various widgets.  Also set the acceleration data instance variable and assigns
@@ -1038,19 +1045,127 @@ classdef PASingleStudyController < PAFigureController
         %> props to initialize the 'string' and 'position' properties of 
         %> obj's corresponding label handles.          
         % --------------------------------------------------------------------
-        function obj = initWithAccelData(obj, PASensorDataObject)
-            
-            obj.accelObj = PASensorDataObject;
-
-            axesProps.primary.xlim = PASensorDataObject.getCurWindowRange();
-            axesProps.primary.ylim = PASensorDataObject.getDisplayMinMax();
+        function obj = initWithAccelData(obj, sensorDataObject)
+            if(~obj.setSensorData(sensorDataObject))
+            else
+                % SensorData has already been initialized with default/saved
+                % settings (i.e. obj.AppSettings.SensorData) and these are in turn
+                % passed along to the SingleStudy class here and used to initialize
+                % many of the selected widgets.
+                
+                obj.showBusy('Initializing View','all');
+                
+                obj.initSignalSelectionMenu();
+                
+                curAccelType = obj.getAccelType();
+                if(any(strcmpi(curAccelType, {'all','raw'})))
+                    obj.accelTypeShown = 'raw';
+                else
+                    obj.accelTypeShown = 'count';
+                end
+                
+                
+                obj.initView();
+                
+                
+                %set signal choice
+                signalSelection = obj.setSignalSelection(obj.AppSettings.Main.signalTagLine); %internally sets to 1st in list if not found..
+                obj.setExtractorMethod(obj.AppSettings.Main.featureFcnName);
+                
+                % Go ahead and extract features using current settings.  This
+                % is good because then we can use
+                obj.showBusy('Calculating features','all');
+                tic
+                obj.SensorData.extractFeature(signalSelection,'all');
+                toc
+                
+                % This was disabled until the first time features are
+                % calculated.
+                obj.enableTimeSeriesRadioButton();
+                obj.enableFeatureRadioButton();
+                
+                % set the display to show time series data initially.
+                displayType = 'Time Series';
+                displayStructName = PASensorData.getStructNameFromDescription(displayType);
+                obj.setRadioButton(displayStructName);
+                
+                % Now I am showing labels
+                obj.setDisplayType(displayStructName);
+                
+                %but not everything is shown...
+                
+                obj.setCurWindow(obj.SensorData.getCurWindow());
+                
+                % Update the secondary axes
+                % Items to display = 8 when count or all views exist.
+                if(strcmpi(obj.getAccelType(),'raw'))
+                    obj.numViewsInSecondaryDisplay = 7;
+                else
+                    obj.numViewsInSecondaryDisplay = 8;                    
+                end
+                
+                % Items 1-5
+                % Starting from the bottom of the axes - display the features
+                % for x, y, z, vec magnitude, and 1-d values
+                heightOffset = obj.updateSecondaryFeaturesDisplay();
+                
+                itemsToDisplay = obj.numViewsInSecondaryDisplay-5; % usage state, mean lumens, daylight approx
+                remainingHeight = 1-heightOffset;
+                height = remainingHeight/itemsToDisplay;
+                if(obj.SensorData.getSampleRate()<=1)
+                    
+                    usageVec = obj.getUsageState();
+                    obj.addWeartimeToSecondaryAxes(usageVec,obj.SensorData.dateTimeNum,height,heightOffset);
+                    % Old
+                    % vecHandles = obj.addFeaturesVecToSecondaryAxes(usageVec,obj.SensorData.dateTimeNum,height,heightOffset);
+                    
+                    % Older
+                    %[usageVec,usageState, startStopDatenums] = obj.getUsageState();
+                    
+                    %obj.addOverlayToSecondaryAxes(usageState,startStopDatenums,1/numRegions,curRegion/numRegions);
+                else
+                    % Old
+                    %                 vecHandles = [];
+                end
+                
+                numFrames = obj.getFrameCount();
+                
+                if(~strcmpi(obj.getAccelType(),'raw'))
+                    % Next, add lumens intensity to secondary axes
+                    heightOffset = heightOffset+height;
+                    maxLumens = 250;
+                    
+                    [meanLumens,startStopDatenums] = obj.getMeanLumenPatches(numFrames);
+                    [overlayLineH, overlayPatchH] = obj.addOverlayToSecondaryAxes(meanLumens,startStopDatenums,height,heightOffset,maxLumens); %#ok<ASGLU>
+                    uistack(overlayPatchH,'bottom');
+                    %             [medianLumens,startStopDatenums] = obj.getMedianLumenPatches(1000);
+                    %             obj.addLumensOverlayToSecondaryAxes(meanLumens,startStopDatenums);
+                end
+                
+                % Finally Add daylight to the top.
+                maxDaylight = 1;
+                [daylight,startStopDatenums] = obj.getDaylight(numFrames);
+                heightOffset = heightOffset+height;
+                
+                [overlayLineH, overlayPatchH] = obj.addOverlayToSecondaryAxes(daylight,startStopDatenums,height-0.005,heightOffset,maxDaylight); %#ok<ASGLU>
+                uistack(overlayPatchH,'bottom');
+                
+                obj.initCallbacks(); %initialize callbacks now that we have some data we can interact with.
+                
+                obj.showReady('all');
+                
+            end
+        end
+        function initView(obj)
+            axesProps.primary.xlim = obj.accelObj.getCurWindowRange();
+            axesProps.primary.ylim = obj.accelObj.getDisplayMinMax();
             
             if(strcmpi(obj.accelObj.getAccelType(),'raw'))
                 ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Daylight'};
             else
                 ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Lumens','Daylight'};
             end
-
+            
             axesProps.secondary.ytick = getTicksForLabels(ytickLabel);
             axesProps.secondary.yticklabel = ytickLabel;
             
@@ -1061,83 +1176,80 @@ classdef PASingleStudyController < PAFigureController
             
             obj.initAxesHandles(axesProps);
             
-%             axesChildren = allchild(obj.axeshandle.secondary);
-%             for h=1:numel(axesChildren)
-%                 if(strcmpi(get(axesChildren(h),'type'),'text') && isfield(get(axesChildren(h)),'Rotation'))
-%                     set(axesChildren(h),'rotation',90,'string','blahs');
-%                 end
-%             end
+            %             axesChildren = allchild(obj.axeshandle.secondary);
+            %             for h=1:numel(axesChildren)
+            %                 if(strcmpi(get(axesChildren(h),'type'),'text') && isfield(get(axesChildren(h)),'Rotation'))
+            %                     set(axesChildren(h),'rotation',90,'string','blahs');
+            %                 end
+            %             end
             
             
             %creates and initializes line handles (obj.linehandle fields)
             % lineContextMenuHandle Contextmenu handle to assign to
             %VIEW's line handles
-
+            
             % However, all lines are invisible.
-            obj.createLineAndLabelHandles(PASensorDataObject);
+            obj.createLineAndLabelHandles(obj.accelObj);
             
             %resize the secondary axes according to the new window
             %resolution
-            obj.updateSecondaryAxes(PASensorDataObject.getStartStopDatenum());
-                        
+            obj.updateSecondaryAxes(obj.accelObj.getStartStopDatenum());
+            
             %initialize the various line handles and label content and
             %color.  Struct types consist of
             %> 1. timeSeries
             %> 2. features
-            structType = PASensorDataObject.getStructTypes();
+            structType = obj.accelObj.getStructTypes();
             fnames = fieldnames(structType);
             for f=1:numel(fnames)
                 curStructType = fnames{f};
                 
-                labelProps = PASensorDataObject.getLabel(curStructType);
-                labelPosStruct = obj.getLabelhandlePosition(curStructType);                
+                labelProps = obj.accelObj.getLabel(curStructType);
+                labelPosStruct = obj.getLabelhandlePosition(curStructType);
                 labelProps = mergeStruct(labelProps,labelPosStruct);
                 
-                colorStruct = PASensorDataObject.getColor(curStructType);
+                colorStruct = obj.accelObj.getColor(curStructType);
                 
-                visibleStruct = PASensorDataObject.getVisible(curStructType);
+                visibleStruct = obj.accelObj.getVisible(curStructType);
                 
                 % Keep everything invisible at this point - so ovewrite the
                 % visibility property before we merge it together.
                 visibleStruct = structEval('overwrite',visibleStruct,visibleStruct,'off');
                 
-                
                 allStruct = mergeStruct(colorStruct,visibleStruct);
                 
                 labelProps = mergeStruct(labelProps,allStruct);
                 
-                
-                lineProps = PASensorDataObject.getStruct('dummydisplay',curStructType);
+                lineProps = obj.accelObj.getStruct('dummydisplay',curStructType);
                 lineProps = mergeStruct(lineProps,allStruct);
                 
                 recurseHandleSetter(obj.linehandle.(curStructType),lineProps);
                 recurseHandleSetter(obj.referencelinehandle.(curStructType),lineProps);
                 
-                recurseHandleSetter(obj.labelhandle.(curStructType),labelProps);                
+                recurseHandleSetter(obj.labelhandle.(curStructType),labelProps);
             end
             
-            obj.setFilename(obj.accelObj.getFilename());  
+            obj.setFilename(obj.accelObj.getFilename());
             
-            obj.setStudyPanelContents(PASensorDataObject.getHeaderAsString());
+            obj.setStudyPanelContents(obj.accelObj.getHeaderAsString());
             
             % initialize and enable widgets (drop down menus, edit boxes, etc.)
             obj.updateWidgets('timeseries');
-
             
-            obj.setAggregateDurationMinutes(num2str(PASensorDataObject.aggregateDurMin));
-            [frameDurationMinutes, frameDurationHours] = PASensorDataObject.getFrameDuration();
+            obj.setAggregateDurationMinutes(num2str(obj.accelObj.aggregateDurMin));
+            [frameDurationMinutes, frameDurationHours] = obj.accelObj.getFrameDuration();
             obj.setFrameDurationMinutes(num2str(frameDurationMinutes));
             obj.setFrameDurationHours(num2str(frameDurationHours));
             
-            windowDurationSec = PASensorDataObject.getWindowDurSec();
+            windowDurationSec = obj.accelObj.getWindowDurSec();
             obj.setWindowDurSecMenu(windowDurationSec);
             
-            set(obj.positionBarHandle,'visible','on','xdata',nan(1,5),'ydata',[0 1 1 0 0],'linestyle',':'); 
-            set(obj.patchhandle.positionBar,'visible','on','xdata',nan(1,4),'ydata',[0 1 1 0]); 
+            set(obj.positionBarHandle,'visible','on','xdata',nan(1,5),'ydata',[0 1 1 0 0],'linestyle',':');
+            set(obj.patchhandle.positionBar,'visible','on','xdata',nan(1,4),'ydata',[0 1 1 0]);
             
-            % Enable and some panels 
+            % Enable and some panels
             handles = guidata(obj.getFigHandle());
-            timeseriesPanels = [handles.panel_timeseries;                
+            timeseriesPanels = [handles.panel_timeseries;
                 handles.panel_epochControls];
             set(findall(timeseriesPanels,'enable','off'),'enable','on');
             
@@ -1153,14 +1265,14 @@ classdef PASingleStudyController < PAFigureController
             % actually part of it and should be moved to another place
             % soon.
             set(handles.menu_displayFeature,'enable','on');
-
+            
             
             % Turn on the meta data handles - panel that shows information
             % about the current file/study.
             metaDataHandles = [obj.patchhandle.metaData;get(obj.patchhandle.metaData,'children')];
             set(metaDataHandles,'visible','on');
-            
-        end       
+        end
+    
          
         % --------------------------------------------------------------------
         %> @brief Updates the secondary axes x and y axes limits.
