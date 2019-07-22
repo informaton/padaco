@@ -16,11 +16,11 @@ classdef  PAAppSettings < PASettings
     properties(SetAccess=protected)
 
         %> @brief cell of string names corresponding to the struct properties that
-        %> contain settings  <b><i> {'SensorData','SingleStudy', 'App','BatchMode','StatTool','Importing'}</i></b>
-        fieldNames = {'SensorData','App','SingleStudy','BatchMode','StatTool','Importing','OutcomesTable'};  
+        %> contain settings  <b><i> {'SensorData','SingleStudy', 'Main','BatchMode','StatTool','Importing'}</i></b>
+        fieldNames = {'Main','Importing','SingleStudy','SensorData','BatchMode','StatTool','OutcomesTable'}; 
         
         %> @brief Fieldnmaes whose structures are only one level deep.
-        liteFieldNames={'StatTool','SingleStudy','App','Importing'};
+        liteFieldNames={'StatTool','SingleStudy','Main','Importing'};
 
         % Inherited: 
         %> pathname of Padaco working directory - determined at run time.
@@ -35,7 +35,7 @@ classdef  PAAppSettings < PASettings
 
         
         %> struct of PAAppController preferences.
-        App;
+        Main;
         %> struct of PASensorData preferences.
         SensorData;
         %> struct of viewer related settings.
@@ -285,7 +285,7 @@ classdef  PAAppSettings < PASettings
         %> - @c StatTool
         %> - @c SingleStudy
         %> - @c BatchMode
-        %> - @c App
+        %> - @c Main
         %> - @c Importing        
         %> @retval wasModified a boolean value; true if any changes were
         %> made to the settings in the GUI and false otherwise.
@@ -351,8 +351,8 @@ classdef  PAAppSettings < PASettings
                         obj.OutcomesTable = PAOutcomesTable.getDefaults();
                     case 'SensorData'
                         obj.SensorData = PASensorData.getDefaults();
-                    case 'App'
-                        obj.App = PAAppController.getDefaults();
+                    case 'Main'
+                        obj.Main = PAAppController.getDefaults();
                     case 'SingleStudy'
                         obj.SingleStudy.yDir = 'normal';  %or can be 'reverse'
                         obj.SingleStudy.screenshot_path = obj.rootpathname; %initial directory to look in for EDF files to load

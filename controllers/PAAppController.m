@@ -24,7 +24,6 @@ classdef PAAppController < PAFigureController
         %> displayed on the secondary axes field.
         featureHandles;
         
-        
         %> String identifying Padaco's current view mode.  Values include
         %> - @c timeseries
         %> - @c results
@@ -43,14 +42,12 @@ classdef PAAppController < PAFigureController
         
         %> Instance of PAOutcomesTable - for importing outcomes data to be
         %> used with cluster analysis.
-        outcomesTable;
+        OutcomesTable;
         
         %> Instance of PAAppSettings - keeps track of application wide settings.
         AppSettings;
         %> Instance of PASingleStudyController - Padaco's view component.
         SingleStudy;
-       
-        
         
         %> Linehandle in Padaco that is currently selected by the user.
         current_linehandle;
@@ -112,11 +109,11 @@ classdef PAAppController < PAFigureController
             
             %create/intilize the settings object
             obj.AppSettings = PAAppSettings(rootPathname,parameters_filename);
-            obj.outcomesTable = PAOutcomesTable(obj.AppSettings.outcomesTable);            
-            obj.outcomesTable.addlistener('LoadSuccess',@obj.outcomesLoadCb);
-            obj.outcomesTable.addlistener('LoadFail',@obj.outcomesLoadCb);
-            obj.screenshotPathname = obj.AppSettings.CONTROLLER.screenshotPathname;
-            obj.resultsPathname = obj.AppSettings.CONTROLLER.resultsPathname;
+            obj.OutcomesTable = PAOutcomesTable(obj.AppSettings.OutcomesTable);            
+            obj.OutcomesTable.addlistener('LoadSuccess',@obj.outcomesLoadCb);
+            obj.OutcomesTable.addlistener('LoadFail',@obj.outcomesLoadCb);
+            obj.screenshotPathname = obj.AppSettings.Main.screenshotPathname;
+            obj.resultsPathname = obj.AppSettings.Main.resultsPathname;
             
             if(obj.setFigureHandle(hFigure))
                 if(obj.initFigure())
@@ -124,7 +121,7 @@ classdef PAAppController < PAFigureController
                     obj.featureHandles = [];
                     
                     % Create a SingleStudy class
-                    singleStudySettings = obj.AppSettings.CONTROLLER;
+                    singleStudySettings = obj.AppSettings.Main;
                     obj.SingleStudy = PASingleStudyController(obj.figureH, singleStudySettings);
                     
                     set(obj.figureH,'visible','on');
@@ -138,7 +135,7 @@ classdef PAAppController < PAFigureController
                     obj.initMenubarCallbacks();
                     
                     % attempt to load the last set of results
-                    lastViewMode = obj.AppSettings.CONTROLLER.viewMode;
+                    lastViewMode = obj.AppSettings.Main.viewMode;
                     try
                         obj.setViewMode(lastViewMode);
                         obj.initResize();
@@ -183,21 +180,16 @@ classdef PAAppController < PAFigureController
                     obj.AppSettings.StatTool = obj.StatTool.getSaveParameters();
                 end
                 
-                if(~isempty(obj.outcomesTable))
-                    obj.AppSettings.outcomesTable = obj.outcomesTable.getSaveParameters();
+                if(~isempty(obj.OutcomesTable))
+                    obj.AppSettings.OutcomesTable = obj.OutcomesTable.getSaveParameters();
                 end
-                obj.AppSettings.CONTROLLER = obj.getSaveParameters();
+                obj.AppSettings.Main = obj.getSaveParameters();
                 didRefresh = true;
             catch me
                 showME(me);
                 didRefresh = false;
             end
         end
-        
-        %         function paramStruct = getSaveParametersStruct(obj)
-        %             paramStruct = obj.AppSettings.SingleStudy;
-        %         end
-        
         
         %% Startup configuration functions and callbacks
         % --------------------------------------------------------------------
@@ -467,7 +459,7 @@ classdef PAAppController < PAFigureController
         
         function importOutcomesFileCb(this, varargin)
             %f=getOutcomeFiles();
-            this.outcomesTable.importFilesFromDlg();
+            this.OutcomesTable.importFilesFromDlg();
             %             
         end
         
@@ -1094,15 +1086,12 @@ classdef PAAppController < PAFigureController
             
             batchTool = PABatchTool(obj.AppSettings.BatchMode);
             batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
-            
             batchTool.addlistener('SwitchToResults',@obj.setResultsViewModeCallback);
-            
             batchTool.addlistener('BatchToolClosing',@obj.updateBatchToolSettingsCallback);
-            
+
         end
         
         function menuToolsBootstrapCallback(this, varargin)
-            
             this.StatTool.bootstrapCallback(varargin{:});
         end
         
@@ -1181,7 +1170,7 @@ classdef PAAppController < PAFigureController
         %> - @c signalTagLine
         %> - @
         function pStruct = getSaveParameters(obj)
-            pStruct = obj.AppSettings.CONTROLLER;
+            pStruct = obj.AppSettings.Main;
             
             pStruct.featureFcnName = obj.getExtractorMethod();
             pStruct.signalTagLine = obj.getSignalSelection();
@@ -1190,7 +1179,7 @@ classdef PAAppController < PAFigureController
             % empty (don't know if were going to use count or raw data,
             % etc.  So, just stick with whatever we began with at time of construction.
             if(isempty(pStruct.signalTagLine))
-                pStruct.signalTagLine = obj.AppSettings.CONTROLLER.signalTagLine;
+                pStruct.signalTagLine = obj.AppSettings.Main.signalTagLine;
             end
             
             pStruct.highlightNonwear = obj.SingleStudy.getNonwearHighlighting();
@@ -1374,8 +1363,8 @@ classdef PAAppController < PAFigureController
             
             
             %set signal choice
-            signalSelection = obj.setSignalSelection(obj.AppSettings.CONTROLLER.signalTagLine); %internally sets to 1st in list if not found..
-            obj.setExtractorMethod(obj.AppSettings.CONTROLLER.featureFcnName);
+            signalSelection = obj.setSignalSelection(obj.AppSettings.Main.signalTagLine); %internally sets to 1st in list if not found..
+            obj.setExtractorMethod(obj.AppSettings.Main.featureFcnName);
             
             % Go ahead and extract features using current settings.  This
             % is good because then we can use
@@ -1505,8 +1494,8 @@ classdef PAAppController < PAFigureController
                 else
                     this.StatTool = PAStatTool(this.SingleStudy.figurehandle,this.resultsPathname,this.AppSettings.StatTool);
                     this.StatTool.setIcon(this.iconFilename);
-                    if(~isempty(this.outcomesTable) && this.outcomesTable.importOnStartup && this.StatTool.useOutcomes)
-                        this.StatTool.setOutcomesTable(this.outcomesTable);
+                    if(~isempty(this.OutcomesTable) && this.OutcomesTable.importOnStartup && this.StatTool.useOutcomes)
+                        this.StatTool.setOutcomesTable(this.OutcomesTable);
                     end
                 end
                 success = this.StatTool.getCanPlot();

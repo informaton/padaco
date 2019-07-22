@@ -250,7 +250,7 @@ classdef PACluster < PAData
                 end
             end
 
-            defaultSettings = PAStatTool.getDefaultParameters();
+            defaultSettings = PAStatTool.getDefaults();
             if(isempty(settings))
                 this.settings = defaultSettings;
             else
@@ -1316,7 +1316,7 @@ classdef PACluster < PAData
                 if(nargin<4)
                     performanceAxesH = -1;
                     if(nargin<3)
-                        settings = this.getDefaultParameters();
+                        settings = this.getDefaults();
                         settings.maxClusters = size(loadShapes,1)/2;
                     end
                 end
@@ -1663,8 +1663,8 @@ classdef PACluster < PAData
         %> - @c useDefaultRandomizer = false;
         %> - @c initClusterWithPermutation = false;            
         %> @note Higher thresholds result in fewer clusters (and vice versa).
-        function settings = getDefaultParameters()
-            settings = PAData.getDefaultParameters();
+        function settings = getDefaults()
+            settings = PAData.getDefaults();
             settings.minClusters = 10;
             settings.clusterThreshold = 1.0;    %higher threshold equates to fewer clusters.
             
