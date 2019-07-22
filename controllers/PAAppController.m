@@ -35,22 +35,21 @@ classdef PAAppController < PAFigureController
     end
     properties(SetAccess=protected)
         %> acceleration activity object - instance of PASensorData
-        accelObj;
+        SensorData;
         
         %> Instance of PAStatTool - results controller when in results view
         %> mode.
-        statTool;
+        StatTool;
         
         %> Instance of PAOutcomesTable - for importing outcomes data to be
         %> used with cluster analysis.
         outcomesTable;
         
         %> Instance of PAAppSettings - keeps track of application wide settings.
-        settingsObj;
+        AppSettings;
         %> Instance of PASingleStudyController - Padaco's view component.
-        VIEW;
-        %> Instance of PAModel - Padaco's model component.  See accelObj.
-        MODEL;
+        SingleStudy;
+       
         
         
         %> Linehandle in Padaco that is currently selected by the user.
@@ -72,7 +71,7 @@ classdef PAAppController < PAFigureController
         
         %> Struct of batch settings with fields as described by
         %PABatchTool's getDefault
-        batch;
+        % batch;
         
         %> Foldername of most recent screenshot.
         screenshotPathname;
@@ -106,31 +105,31 @@ classdef PAAppController < PAFigureController
             
             obj.iconFilename = fullfile(rootPathname,'resources','icons','logo','icon_32.png');
             obj.setVersionNum();            
-            obj.statTool = [];
+            obj.StatTool = [];
             
-            obj.addlistener('StatToolCreationSuccess',@obj.statToolCreationCallback);
-            obj.addlistener('StatToolCreationFailure',@obj.statToolCreationCallback);
+            obj.addlistener('StatToolCreationSuccess',@obj.StatToolCreationCallback);
+            obj.addlistener('StatToolCreationFailure',@obj.StatToolCreationCallback);
             
             %create/intilize the settings object
-            obj.settingsObj = PAAppSettings(rootPathname,parameters_filename);
-            obj.outcomesTable = PAOutcomesTable(obj.settingsObj.outcomesTable);            
+            obj.AppSettings = PAAppSettings(rootPathname,parameters_filename);
+            obj.outcomesTable = PAOutcomesTable(obj.AppSettings.outcomesTable);            
             obj.outcomesTable.addlistener('LoadSuccess',@obj.outcomesLoadCb);
             obj.outcomesTable.addlistener('LoadFail',@obj.outcomesLoadCb);
-            obj.screenshotPathname = obj.settingsObj.CONTROLLER.screenshotPathname;
-            obj.resultsPathname = obj.settingsObj.CONTROLLER.resultsPathname;
+            obj.screenshotPathname = obj.AppSettings.CONTROLLER.screenshotPathname;
+            obj.resultsPathname = obj.AppSettings.CONTROLLER.resultsPathname;
             
             if(obj.setFigureHandle(hFigure))
                 if(obj.initFigure())
                     obj.setStatusHandle(obj.handles.text_status);                    
                     obj.featureHandles = [];
                     
-                    % Create a VIEW class
-                    singleStudySettings = obj.settingsObj.CONTROLLER;
-                    obj.VIEW = PASingleStudyController(obj.figureH, singleStudySettings);
+                    % Create a SingleStudy class
+                    singleStudySettings = obj.AppSettings.CONTROLLER;
+                    obj.SingleStudy = PASingleStudyController(obj.figureH, singleStudySettings);
                     
                     set(obj.figureH,'visible','on');
                     
-                    obj.VIEW.showBusy([],'all');                    
+                    obj.SingleStudy.showBusy([],'all');                    
                     set(obj.figureH,'CloseRequestFcn',{@obj.figureCloseCallback,guidata(obj.figureH)});
                     
                     % set(obj.figureH,'scrollable','on'); - not supported
@@ -139,7 +138,7 @@ classdef PAAppController < PAFigureController
                     obj.initMenubarCallbacks();
                     
                     % attempt to load the last set of results
-                    lastViewMode = obj.settingsObj.CONTROLLER.viewMode;
+                    lastViewMode = obj.AppSettings.CONTROLLER.viewMode;
                     try
                         obj.setViewMode(lastViewMode);
                         obj.initResize();
@@ -153,16 +152,16 @@ classdef PAAppController < PAFigureController
         %% Shutdown functions
         %> Destructor
         function close(obj)
-            obj.saveParameters(); %requires settingsObj variable
-            obj.settingsObj = [];
-            if(~isempty(obj.statTool))
-                obj.statTool.delete();
+            obj.saveParameters(); %requires AppSettings variable
+            obj.AppSettings = [];
+            if(~isempty(obj.StatTool))
+                obj.StatTool.delete();
             end
         end
         
         function saveParameters(obj)
             obj.refreshSettings(); % updates the parameters based on current state of the gui.
-            obj.settingsObj.saveParametersToFile();
+            obj.AppSettings.saveParametersToFile();
             fprintf(1,'Settings saved to disk.\n');
         end
 
@@ -173,21 +172,21 @@ classdef PAAppController < PAFigureController
         %> error occurred)
         function didRefresh = refreshSettings(obj)
             try
-                % Overwrite the current settingsObj.DATA if we have an accelObj
+                % Overwrite the current AppSettings.DATA if we have an SensorData
                 % instantiated.
-                if(~isempty(obj.accelObj))
-                    obj.settingsObj.DATA = obj.accelObj.getSaveParameters();
+                if(~isempty(obj.SensorData))
+                    obj.AppSettings.DATA = obj.SensorData.getSaveParameters();
                 end
                 
                 % update the stat tool settings if it was used successfully.
-                if(~isempty(obj.statTool) && obj.statTool.getCanPlot())
-                    obj.settingsObj.statTool = obj.statTool.getSaveParameters();
+                if(~isempty(obj.StatTool) && obj.StatTool.getCanPlot())
+                    obj.AppSettings.StatTool = obj.StatTool.getSaveParameters();
                 end
                 
                 if(~isempty(obj.outcomesTable))
-                    obj.settingsObj.outcomesTable = obj.outcomesTable.getSaveParameters();
+                    obj.AppSettings.outcomesTable = obj.outcomesTable.getSaveParameters();
                 end
-                obj.settingsObj.CONTROLLER = obj.getSaveParameters();
+                obj.AppSettings.CONTROLLER = obj.getSaveParameters();
                 didRefresh = true;
             catch me
                 showME(me);
@@ -196,7 +195,7 @@ classdef PAAppController < PAFigureController
         end
         
         %         function paramStruct = getSaveParametersStruct(obj)
-        %             paramStruct = obj.settingsObj.VIEW;
+        %             paramStruct = obj.AppSettings.SingleStudy;
         %         end
         
         
@@ -207,7 +206,7 @@ classdef PAAppController < PAFigureController
         %> @param obj Instance of PAAppController
         % --------------------------------------------------------------------
         function initCallbacks(obj)
-            figH = obj.VIEW.getFigHandle();
+            figH = obj.SingleStudy.getFigHandle();
             
             % mouse and keyboard callbacks
             set(figH,'KeyPressFcn',@obj.keyPressCallback);
@@ -276,7 +275,7 @@ classdef PAAppController < PAFigureController
             end
             
             if(strcmp(eventdata.Key,'shift'))
-                set(obj.VIEW.getFigHandle(),'pointer','ibeam');
+                set(obj.SingleStudy.getFigHandle(),'pointer','ibeam');
             end
             if(strcmp(eventdata.Modifier,'control'))
                 %kill the program
@@ -287,12 +286,12 @@ classdef PAAppController < PAFigureController
                     obj.figureScreenshot();
                     %take screen capture of main axes
                 elseif(strcmp(eventdata.Key,'s'))
-                    if(isa(obj.VIEW,'PASingleStudyController') &&ishandle(obj.VIEW.axeshandle.secondary))
-                        obj.screenshotPathname = screencap(obj.VIEW.axeshandle.secondary,[],obj.screenshotPathname);
+                    if(isa(obj.SingleStudy,'PASingleStudyController') &&ishandle(obj.SingleStudy.axeshandle.secondary))
+                        obj.screenshotPathname = screencap(obj.SingleStudy.axeshandle.secondary,[],obj.screenshotPathname);
                     end
                 elseif(strcmp(eventdata.Key,'p'))
-                    if(isa(obj.VIEW,'PASingleStudyController') &&ishandle(obj.VIEW.axeshandle.primary))
-                        obj.screenshotPathname = screencap(obj.VIEW.axeshandle.primary,[],obj.screenshotPathname);
+                    if(isa(obj.SingleStudy,'PASingleStudyController') &&ishandle(obj.SingleStudy.axeshandle.primary))
+                        obj.screenshotPathname = screencap(obj.SingleStudy.axeshandle.primary,[],obj.screenshotPathname);
                     end
                 end
             end
@@ -307,7 +306,7 @@ classdef PAAppController < PAFigureController
         function keyReleaseCallback(obj,~, eventdata)            
             key=eventdata.Key;
             if(strcmp(key,'shift'))
-                set(obj.VIEW.getFigHandle(),'pointer','arrow');
+                set(obj.SingleStudy.getFigHandle(),'pointer','arrow');
             end
         end
         
@@ -323,10 +322,10 @@ classdef PAAppController < PAFigureController
         function windowButtonUpCallback(obj,hObject,~)
             selected_obj = get(hObject,'CurrentObject');
             if(~isempty(selected_obj) && ~strcmpi(get(hObject,'SelectionType'),'alt'))   % Dont get confused with mouse button up due to contextmenu call
-                if(selected_obj==obj.VIEW.axeshandle.secondary)
+                if(selected_obj==obj.SingleStudy.axeshandle.secondary)
                     pos = get(selected_obj,'currentpoint');
                     clicked_datenum = pos(1);
-                    cur_window = obj.accelObj.datenum2window(clicked_datenum,obj.VIEW.getDisplayType());
+                    cur_window = obj.SensorData.datenum2window(clicked_datenum,obj.SingleStudy.getDisplayType());
                     obj.setCurWindow(cur_window);
                 end
             end
@@ -342,7 +341,7 @@ classdef PAAppController < PAFigureController
         % --------------------------------------------------------------------
         function windowButtonDownCallback(obj,varargin)
             if(ishandle(obj.current_linehandle))
-                set(obj.VIEW.figurehandle,'windowbuttonmotionfcn',[]);
+                set(obj.SingleStudy.figurehandle,'windowbuttonmotionfcn',[]);
                 
                 obj.deactivateLineHandle();
             end
@@ -351,8 +350,8 @@ classdef PAAppController < PAFigureController
         function deactivateLineHandle(obj)
             set(obj.current_linehandle,'selected','off');
             obj.current_linehandle = [];
-            obj.VIEW.showReady();
-            set(obj.VIEW.figurehandle,'windowbuttonmotionfcn',[],'WindowScrollWheelFcn',[]);
+            obj.SingleStudy.showReady();
+            set(obj.SingleStudy.figurehandle,'windowbuttonmotionfcn',[],'WindowScrollWheelFcn',[]);
         end
         
         %-- Menubar configuration --
@@ -362,7 +361,7 @@ classdef PAAppController < PAFigureController
         %> @param obj Instance of PAAppController
         % --------------------------------------------------------------------
         function initMenubarCallbacks(obj)
-            figH = obj.VIEW.getFigHandle();
+            figH = obj.SingleStudy.getFigHandle();
             viewHandles = guidata(figH);
             
             %% file
@@ -397,12 +396,12 @@ classdef PAAppController < PAFigureController
             % export
             set(viewHandles.menu_file_export,'callback',@obj.menu_file_exportMenu_callback);
             if(~isdeployed)
-                set(viewHandles.menu_file_export_accelObj,'callback',@obj.menu_file_export_accelObj_callback);%,'label','Sensor object to MATLAB');
+                set(viewHandles.menu_file_export_SensorData,'callback',@obj.menu_file_export_SensorData_callback);%,'label','Sensor object to MATLAB');
                 set(viewHandles.menu_file_export_clusterObj,'callback',@obj.menu_file_export_clusterObj_callback); %,'label','Cluster object to MATLAB');
             % No point in sending data to the workspace on deployed
             % version.  There is no 'workspace'.
             else
-                set(viewHandles.menu_file_export_accelObj,'visible','off');
+                set(viewHandles.menu_file_export_SensorData,'visible','off');
                 set(viewHandles.menu_file_export_clusterObj,'visible','off');
             end
             set(viewHandles.menu_file_export_clusters_to_csv,'callback',{@obj.exportClustersCb,'csv'});%, 'label','Cluster results to disk');
@@ -438,8 +437,8 @@ classdef PAAppController < PAFigureController
         end
         
         % Activate the tool when it makes sense to do so.
-        function statToolCreationCallback(this,varargin)            
-            if(isa(this.statTool,'PAStatTool'))
+        function StatToolCreationCallback(this,varargin)            
+            if(isa(this.StatTool,'PAStatTool'))
                 set(this.handles.menu_tools_bootstrap,'enable','on');
             else
                 set(this.handles.menu_tools_bootstrap,'enable','off');
@@ -456,13 +455,13 @@ classdef PAAppController < PAFigureController
         % --------------------------------------------------------------------
         function menuHelpFAQCallback(this,varargin)
             %msg = sprintf('Help FAQ');
-            this.VIEW.showBusy('Initializing help');
-            filename = fullfile(this.settingsObj.rootpathname,'resources/html','PadacoFAQ.html');
+            this.SingleStudy.showBusy('Initializing help');
+            filename = fullfile(this.AppSettings.rootpathname,'resources/html','PadacoFAQ.html');
             url = sprintf('file://%s',filename);
             %             web(url,'-notoolbar','-noaddressbox');
             htmldlg('url',url);
             
-            this.VIEW.showReady();
+            this.SingleStudy.showReady();
             %             web(url);
         end
         
@@ -475,8 +474,8 @@ classdef PAAppController < PAFigureController
         function outcomesLoadCb(this, outcomesController, evtData)
             switch(evtData.EventName)
                 case 'LoadSuccess'
-                    if(~isempty(this.statTool))
-                        this.statTool.setOutcomesTable(outcomesController);
+                    if(~isempty(this.StatTool))
+                        this.StatTool.setOutcomesTable(outcomesController);
                     end
                     this.logStatus('Outcome data loaded successfully');
                 case 'LoadFail'
@@ -537,11 +536,11 @@ classdef PAAppController < PAFigureController
             
             % Need to refresh the current settings
             obj.refreshSettings();
-            wasModified = obj.settingsObj.defaultsEditor(optionalSettingsName);
+            wasModified = obj.AppSettings.defaultsEditor(optionalSettingsName);
             if(wasModified)
-                if(isa(obj.statTool,'PAStatTool'))
+                if(isa(obj.StatTool,'PAStatTool'))
                     initializeOnSet = true;  % This is necessary to update widgets, which are used in follow on call to saveParameters
-                    obj.statTool.setWidgetSettings(obj.settingsObj.statTool, initializeOnSet);
+                    obj.StatTool.setWidgetSettings(obj.AppSettings.StatTool, initializeOnSet);
                 end
                 obj.setStatus('Settings have been updated.');
                 
@@ -565,24 +564,24 @@ classdef PAAppController < PAFigureController
         % --------------------------------------------------------------------
         function menuFileSettingsUsageRulesCallback(obj,varargin)
             
-            if(~isempty(obj.accelObj))
-                usageRules= obj.accelObj.usageStateRules;
+            if(~isempty(obj.SensorData))
+                usageRules= obj.SensorData.usageStateRules;
             else
-                usageRules = obj.settingsObj.DATA.usageStateRules;
+                usageRules = obj.AppSettings.DATA.usageStateRules;
             end
             defaultRules = PASensorData.getDefaults();
             defaultRules = defaultRules.usageStateRules;
             updatedRules = simpleEdit(usageRules,defaultRules);
             
             if(~isempty(updatedRules))
-                if(~isempty(obj.accelObj))
-                    obj.accelObj.setUsageClassificationRules(updatedRules);
+                if(~isempty(obj.SensorData))
+                    obj.SensorData.setUsageClassificationRules(updatedRules);
                 else
-                    obj.settingsObj.DATA.usageStateRules = updatedRules;
+                    obj.AppSettings.DATA.usageStateRules = updatedRules;
                 end
                 
-                %                 if(isa(obj.statTool,'PAStatTool'))
-                %                     obj.statTool.setWidgetSettings(obj.settingsObj.statTool);
+                %                 if(isa(obj.StatTool,'PAStatTool'))
+                %                     obj.StatTool.setWidgetSettings(obj.AppSettings.StatTool);
                 %                 end
                 fprintf('Settings have been updated.\n');
                 
@@ -596,7 +595,7 @@ classdef PAAppController < PAFigureController
         end 
         
         function loadSettingsCb(obj, varargin)
-            obj.statTool.loadSettings();
+            obj.StatTool.loadSettings();
         end
 
  
@@ -615,28 +614,28 @@ classdef PAAppController < PAFigureController
                 '*.bin','Raw Acceleration (binary format: firmwares 2.2.1, 2.5.0, and 3.1.0)';
                 '*.raw','Raw Acceleration (comma separated values)';
                 '*.gt3x','Raw GT3X binary'},...
-                'Select a file',fullfile(obj.settingsObj.DATA.pathname,obj.settingsObj.DATA.filename));
+                'Select a file',fullfile(obj.AppSettings.DATA.pathname,obj.AppSettings.DATA.filename));
             try
                 if(~isempty(f))
                     %                     if(~strcmpi(obj.getViewMode(),'timeseries'))
-                    %                         obj.VIEW.setViewMode('timeseries'); % bypass the this.setViewMode() for now to avoid follow-up query that a file has not been loaded yet.
+                    %                         obj.SingleStudy.setViewMode('timeseries'); % bypass the this.setViewMode() for now to avoid follow-up query that a file has not been loaded yet.
                     %                     end
                     
-                    obj.VIEW.showBusy('Loading','all');
-                    obj.VIEW.disableWidgets();
+                    obj.SingleStudy.showBusy('Loading','all');
+                    obj.SingleStudy.disableWidgets();
                     [pathname,basename, baseext] = fileparts(f);
-                    obj.settingsObj.DATA.pathname = pathname;
-                    obj.settingsObj.DATA.filename = strcat(basename,baseext);
+                    obj.AppSettings.DATA.pathname = pathname;
+                    obj.AppSettings.DATA.filename = strcat(basename,baseext);
                     
-                    obj.accelObj = PASensorData(f,obj.settingsObj.DATA);
+                    obj.SensorData = PASensorData(f,obj.AppSettings.DATA);
                     
-                    obj.accelObj.addlistener('LinePropertyChanged',@obj.linePropertyChangeCallback);
+                    obj.SensorData.addlistener('LinePropertyChanged',@obj.linePropertyChangeCallback);
                     
                     if(~strcmpi(obj.getViewMode(),'timeseries'))
                         obj.setViewMode('timeseries');  % Call initAccelDataView as well 
                     else
                         %initialize the PASensorData object's visual properties
-                        obj.initAccelDataView(); %calls show obj.VIEW.showReady() Ready...
+                        obj.initAccelDataView(); %calls show obj.SingleStudy.showReady() Ready...
                         
                     end
                     
@@ -645,11 +644,11 @@ classdef PAAppController < PAFigureController
                     %                     elapsedStartHour = 0;
                     %                     intervalDurationHours = 24;
                     %                     signalTagLine = obj.getSignalSelection(); %'accel.count.x';
-                    %                     obj.accelObj.getAlignedFeatureVecs(featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours);
+                    %                     obj.SensorData.getAlignedFeatureVecs(featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours);
                 end
             catch me
                 showME(me);
-                obj.VIEW.showReady('all');
+                obj.SingleStudy.showReady('all');
             end
         end
         
@@ -657,9 +656,9 @@ classdef PAAppController < PAFigureController
         %> @brief Menubar callback for opening a text file
         %> @param obj Instance of PAAppController
         function menuFileOpenGeneralCallback(obj, ~, ~)
-            importObj = PASensorDataImport(obj.settingsObj.IMPORT);
+            importObj = PASensorDataImport(obj.AppSettings.IMPORT);
             if(~importObj.cancelled)
-                obj.settingsObj.IMPORT = importObj.getSettings();
+                obj.AppSettings.IMPORT = importObj.getSettings();
             end
         end
         
@@ -668,15 +667,15 @@ classdef PAAppController < PAFigureController
         %> @param obj Instance of PAAppController
         function menuFileOpenCsvFileCallback(obj, ~, ~)
             f=uigetfullfile({'*.csv','Comma separated values (.csv)';'*.*','All files'},...
-                'Select a file',fullfile(obj.settingsObj.DATA.pathname,obj.settingsObj.DATA.filename));
+                'Select a file',fullfile(obj.AppSettings.DATA.pathname,obj.AppSettings.DATA.filename));
             try
                 if(~isempty(f))
-                    obj.VIEW.showBusy('Loading','all');
+                    obj.SingleStudy.showBusy('Loading','all');
                     [pathname,basename, baseext] = fileparts(f);
-                    obj.settingsObj.DATA.pathname = pathname;
-                    obj.settingsObj.DATA.filename = strcat(basename,baseext);
+                    obj.AppSettings.DATA.pathname = pathname;
+                    obj.AppSettings.DATA.filename = strcat(basename,baseext);
                     
-                    obj.accelObj = PASensorData([],obj.settingsObj.DATA);
+                    obj.SensorData = PASensorData([],obj.AppSettings.DATA);
                     fmtStruct.datetime = 1;
                     fmtStruct.datetimeType = 'elapsed'; %datetime
                     fmtStruct.datetimeFmtStr = '%f';
@@ -687,7 +686,7 @@ classdef PAAppController < PAFigureController
                     fmtStruct.headerLines = 2;
                     
                     
-                    obj.accelObj.loadCustomRawCSVFile(f,fmtStruct); % two header lines %elapsed time stamp, x, y, z
+                    obj.SensorData.loadCustomRawCSVFile(f,fmtStruct); % two header lines %elapsed time stamp, x, y, z
                     
                     
                     if(~strcmpi(obj.getViewMode(),'timeseries'))
@@ -695,23 +694,21 @@ classdef PAAppController < PAFigureController
                     end
                     
                     %initialize the PASensorData object's visual properties
-                    obj.initAccelDataView(); %calls show obj.VIEW.showReady() Ready...
+                    obj.initAccelDataView(); %calls show obj.SingleStudy.showReady() Ready...
                     
                     % For testing/debugging
                     %                     featureFcn = 'mean';
                     %                     elapsedStartHour = 0;
                     %                     intervalDurationHours = 24;
                     %                     signalTagLine = obj.getSignalSelection(); %'accel.count.x';
-                    %                     obj.accelObj.getAlignedFeatureVecs(featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours);
+                    %                     obj.SensorData.getAlignedFeatureVecs(featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours);
                     
                     
                 end
             catch me
                 showME(me);
-                obj.VIEW.showReady('all');
+                obj.SingleStudy.showReady('all');
             end
-            
-            
             
         end
         
@@ -727,15 +724,15 @@ classdef PAAppController < PAFigureController
         % --------------------------------------------------------------------
         function menuFileOpenVasTracCSVCallback(obj, varargin)
             f=uigetfullfile({'*.csv','VasTrac (.csv)'},...
-                'Select a file',fullfile(obj.settingsObj.DATA.pathname,obj.settingsObj.DATA.filename));
+                'Select a file',fullfile(obj.AppSettings.DATA.pathname,obj.AppSettings.DATA.filename));
             try
                 if(~isempty(f))
-                    obj.VIEW.showBusy('Loading','all');
+                    obj.SingleStudy.showBusy('Loading','all');
                     [pathname,basename, baseext] = fileparts(f);
-                    obj.settingsObj.DATA.pathname = pathname;
-                    obj.settingsObj.DATA.filename = strcat(basename,baseext);
+                    obj.AppSettings.DATA.pathname = pathname;
+                    obj.AppSettings.DATA.filename = strcat(basename,baseext);
                     
-                    obj.accelObj = PASensorData([],obj.settingsObj.DATA);
+                    obj.SensorData = PASensorData([],obj.AppSettings.DATA);
                     fmtStruct.datetime = 1;
                     fmtStruct.datetimeType = 'elapsed'; %datetime
                     fmtStruct.datetimeFmtStr = '%f';
@@ -746,7 +743,7 @@ classdef PAAppController < PAFigureController
                     fmtStruct.headerLines = 2;
                     
                     
-                    obj.accelObj.loadCustomRawCSVFile(f,fmtStruct); % two header lines %elapsed time stamp, x, y, z 
+                    obj.SensorData.loadCustomRawCSVFile(f,fmtStruct); % two header lines %elapsed time stamp, x, y, z 
                     
                     
                     if(~strcmpi(obj.getViewMode(),'timeseries'))
@@ -754,20 +751,20 @@ classdef PAAppController < PAFigureController
                     end
                     
                     %initialize the PASensorData object's visual properties
-                    obj.initAccelDataView(); %calls show obj.VIEW.showReady() Ready...
+                    obj.initAccelDataView(); %calls show obj.SingleStudy.showReady() Ready...
                     
                     % For testing/debugging
                     %                     featureFcn = 'mean';
                     %                     elapsedStartHour = 0;
                     %                     intervalDurationHours = 24;
                     %                     signalTagLine = obj.getSignalSelection(); %'accel.count.x';
-                    %                     obj.accelObj.getAlignedFeatureVecs(featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours);
+                    %                     obj.SensorData.getAlignedFeatureVecs(featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours);
                     
                     
                 end
             catch me
                 showME(me);
-                obj.VIEW.showReady('all');
+                obj.SingleStudy.showReady('all');
             end
             
         
@@ -784,18 +781,18 @@ classdef PAAppController < PAFigureController
             
             f=uigetfullfile({'*.txt;*.fbit','Fitbit';
                 '*.csv','Comma Separated Values'},...
-                'Select a file',fullfile(obj.settingsObj.DATA.pathname,obj.settingsObj.DATA.filename));
+                'Select a file',fullfile(obj.AppSettings.DATA.pathname,obj.AppSettings.DATA.filename));
             try
                 if(~isempty(f))
 
                     
                     
-                    obj.VIEW.showBusy('Loading','all');
+                    obj.SingleStudy.showBusy('Loading','all');
                     [pathname,basename, baseext] = fileparts(f);
-                    obj.settingsObj.DATA.pathname = pathname;
-                    obj.settingsObj.DATA.filename = strcat(basename,baseext);
+                    obj.AppSettings.DATA.pathname = pathname;
+                    obj.AppSettings.DATA.filename = strcat(basename,baseext);
                     
-                    obj.accelObj = PASensorData(f,obj.settingsObj.DATA);
+                    obj.SensorData = PASensorData(f,obj.AppSettings.DATA);
                     
                     
                     if(~strcmpi(obj.getViewMode(),'timeseries'))
@@ -803,20 +800,20 @@ classdef PAAppController < PAFigureController
                     end
                     
                     %initialize the PASensorData object's visual properties
-                    obj.initAccelDataView(); %calls show obj.VIEW.showReady() Ready...
+                    obj.initAccelDataView(); %calls show obj.SingleStudy.showReady() Ready...
                     
                     % For testing/debugging
                     %                     featureFcn = 'mean';
                     %                     elapsedStartHour = 0;
                     %                     intervalDurationHours = 24;
                     %                     signalTagLine = obj.getSignalSelection(); %'accel.count.x';
-                    %                     obj.accelObj.getAlignedFeatureVecs(featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours);
+                    %                     obj.SensorData.getAlignedFeatureVecs(featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours);
                     
                     
                 end
             catch me
                 showME(me);
-                obj.VIEW.showReady('all');
+                obj.SingleStudy.showReady('all');
             end
             
         end
@@ -835,23 +832,23 @@ classdef PAAppController < PAFigureController
             if(~isempty(resultsPath))
                 % Say good bye to your old stat tool if you selected a
                 % directory.  This ensures that if a breakdown occurs in
-                % the following steps, we do not have a previous statTool
+                % the following steps, we do not have a previous StatTool
                 % hanging around showing results and the user unaware that
                 % a problem occurred (i.e. no change took place).
-                % obj.statTool = [];
+                % obj.StatTool = [];
                 obj.resultsPathname = resultsPath;
                 if(~strcmpi(obj.getViewMode(),'results'))
-                    obj.VIEW.showBusy('Switching to results view');
+                    obj.SingleStudy.showBusy('Switching to results view');
                     obj.setViewMode('results');
                 end
                 
-                obj.VIEW.showBusy('Initializing results view','all');
+                obj.SingleStudy.showBusy('Initializing results view','all');
                 if(obj.initResultsView())
-                    obj.VIEW.showReady('all');
+                    obj.SingleStudy.showReady('all');
                 else
                     f=warndlg('I could not find any feature files in the directory you selected.  Check the editor window for further information','Load error','modal');
                     waitfor(f);
-                    obj.VIEW.showReady();
+                    obj.SingleStudy.showReady();
                 end
             else
                 % switch back to other mode?
@@ -863,7 +860,7 @@ classdef PAAppController < PAFigureController
                 showME(me);
                 f=warndlg('An error occurred while trying to load the feature set.  See the console log for details.');
                 waitfor(f);
-                obj.VIEW.showReady();
+                obj.SingleStudy.showReady();
                 
             end
         end
@@ -883,11 +880,11 @@ classdef PAAppController < PAFigureController
             
             switch(lower(screenshotDescription))
                 case 'figure'
-                    handle = obj.VIEW.figurehandle;
+                    handle = obj.SingleStudy.figurehandle;
                 case 'primaryaxes'
-                    handle = obj.VIEW.axeshandle.primary;
+                    handle = obj.SingleStudy.axeshandle.primary;
                 case 'secondaryaxes'
-                    handle = obj.VIEW.axeshandle.secondary;
+                    handle = obj.SingleStudy.axeshandle.secondary;
                 otherwise
                     handle = [];
                     fprintf('%s is not a recognized description.  No screenshot will be taken',screenshotDescription);
@@ -933,8 +930,8 @@ classdef PAAppController < PAFigureController
         %> option.
         % --------------------------------------------------------------------
         function menu_file_exportMenu_callback(this,hObject, ~)
-            curHandles = guidata(hObject); %this.VIEW.getFigHandle());
-            timeSeriesH = [curHandles.menu_file_export_accelObj
+            curHandles = guidata(hObject); %this.SingleStudy.getFigHandle());
+            timeSeriesH = [curHandles.menu_file_export_SensorData
                 curHandles.menu_export_timeseries_to_disk];
             resultsH = [curHandles.menu_file_export_clusterObj;
                 curHandles.menu_file_export_clusters_to_csv];
@@ -942,13 +939,13 @@ classdef PAAppController < PAFigureController
             set([timeSeriesH(:);resultsH(:)],'enable','off');
             switch lower(this.getViewMode())
                 case 'timeseries'
-                    if(isempty(this.accelObj))
+                    if(isempty(this.SensorData))
                         set(timeSeriesH,'enable','off');
                     else
                         set(timeSeriesH,'enable','on');
                     end                    
                 case 'results'
-                    if(isempty(this.statTool) || ~this.statTool.hasCluster())
+                    if(isempty(this.StatTool) || ~this.StatTool.hasCluster())
                         set(resultsH,'enable','off');
                     else
                         set(resultsH,'enable','on');
@@ -966,13 +963,13 @@ classdef PAAppController < PAFigureController
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
-        function menu_file_export_accelObj_callback(obj,varargin)
-            accelObj = obj.accelObj; %#ok<PROPLC>
-            varName = 'accelObject';
+        function menu_file_export_SensorData_callback(obj,varargin)
+            SensorData = obj.SensorData; %#ok<PROPLC>
+            varName = 'SensorDataect';
             makeModal = true;
             titleStr = 'Data Export';
             try
-                assignin('base',varName,accelObj);                 %#ok<PROPLC>
+                assignin('base',varName,SensorData);                 %#ok<PROPLC>
                 pa_msgbox(sprintf('Data object was assigned to workspace variable %s',varName),titleStr,makeModal);
                 
             catch me
@@ -991,7 +988,7 @@ classdef PAAppController < PAFigureController
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
         function menu_file_export_clusterObj_callback(obj,varargin)
-            centroidObj = obj.statTool.getClusterObj();
+            centroidObj = obj.StatTool.getClusterObj();
             varName = 'centroidObj';
             makeModal = true;
             titleStr = 'Data Export';
@@ -1014,17 +1011,17 @@ classdef PAAppController < PAFigureController
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
         function exportClustersCb(obj,hObject, evtData, exportAs)
-            obj.statTool.exportClusters(exportAs);
+            obj.StatTool.exportClusters(exportAs);
         end
         
         function exportTimeSeriesCb(obj, varargin)
             
-            dataObj = obj.accelObj;
+            dataObj = obj.SensorData;
             if(isempty(dataObj) || ~isa(dataObj,'PASensorData'))
                 msg = 'No time series data found.  Nothing to export.';
                 pa_msgbox(msg,'Warning');
             else
-                obj.accelObj.exportRequestCb();
+                obj.SensorData.exportRequestCb();
             end
             
         end
@@ -1055,9 +1052,9 @@ classdef PAAppController < PAFigureController
             if(strcmpi(obj.viewMode,viewMode))
                 obj.setStatus('Refreshing %s view',viewMode);
             else
-                obj.VIEW.showBusy(['Switching to ',viewMode,' view'],'all');        
+                obj.SingleStudy.showBusy(['Switching to ',viewMode,' view'],'all');        
                 obj.viewMode = viewMode;
-                obj.VIEW.setViewMode(viewMode);
+                obj.SingleStudy.setViewMode(viewMode);
 
             end
             figure(obj.figureH);  %redraw and place it on top
@@ -1066,7 +1063,7 @@ classdef PAAppController < PAFigureController
             
             switch lower(viewMode)
                 case 'timeseries'
-                    if(isempty(obj.accelObj))
+                    if(isempty(obj.SensorData))
                         checkToOpenFile = false; % can be a user setting.
                         if(checkToOpenFile)
                             responseButton = questdlg('A time series file is not currently loaded.  Would you like to open one now?','Find a time series file to load?');
@@ -1083,7 +1080,7 @@ classdef PAAppController < PAFigureController
             % Show ready when everything has been initialized to avoid
             % flickering (i.e. don't place this above the switch
             % statement).
-            obj.VIEW.showReady();
+            obj.SingleStudy.showReady();
         end
         
         % --------------------------------------------------------------------
@@ -1095,7 +1092,7 @@ classdef PAAppController < PAFigureController
         % --------------------------------------------------------------------
         function menuToolsBatchCallback(obj,varargin)
             
-            batchTool = PABatchTool(obj.settingsObj.BATCH);
+            batchTool = PABatchTool(obj.AppSettings.BatchMode);
             batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
             
             batchTool.addlistener('SwitchToResults',@obj.setResultsViewModeCallback);
@@ -1106,7 +1103,7 @@ classdef PAAppController < PAFigureController
         
         function menuToolsBootstrapCallback(this, varargin)
             
-            this.statTool.bootstrapCallback(varargin{:});
+            this.StatTool.bootstrapCallback(varargin{:});
         end
         
         % --------------------------------------------------------------------
@@ -1117,7 +1114,7 @@ classdef PAAppController < PAFigureController
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         % --------------------------------------------------------------------
         function menuToolsRaw2BinCallback(varargin)
-            %batchTool = PABatchTool(obj.settingsObj.BATCH);
+            %batchTool = PABatchTool(obj.AppSettings.BatchMode);
             %batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
             %batchTool.addlistener('SwitchToResults',@obj.setResultsViewModeCallback);
         end        
@@ -1132,7 +1129,6 @@ classdef PAAppController < PAFigureController
             coptr2actigraph();
         end        
         
-        
         % Pass through callback for setViewModeCallback method with
         % 'results' argument.
         function setResultsViewModeCallback(obj, hObject, eventData)
@@ -1140,9 +1136,9 @@ classdef PAAppController < PAFigureController
         end
         
         function updateBatchToolSettingsCallback(obj,batchToolObj,eventData)
-            obj.settingsObj.BATCH = eventData.settings;
-            if(isdir(obj.settingsObj.BATCH.outputDirectory))
-                obj.resultsPathname = obj.settingsObj.BATCH.outputDirectory;
+            obj.AppSettings.BatchMode = eventData.settings;
+            if(isdir(obj.AppSettings.BatchMode.outputDirectory))
+                obj.resultsPathname = obj.AppSettings.BatchMode.outputDirectory;
             end
         end
         
@@ -1163,8 +1159,6 @@ classdef PAAppController < PAFigureController
             obj.overlayScreenshot(curData,featureFcn,img_filename);
         end
         
-        
-        
         % --------------------------------------------------------------------
         %> @brief Returns the display type instance variable.
         %> @param obj Instance of PASingleStudyController.
@@ -1175,7 +1169,7 @@ classdef PAAppController < PAFigureController
         %> @note See PASensorData.getStructTypes()
         % --------------------------------------------------------------------
         function structName = getDisplayType(obj)
-            structName = obj.VIEW.getDisplayType();
+            structName = obj.SingleStudy.getDisplayType();
         end
         
         % ======================================================================
@@ -1187,7 +1181,7 @@ classdef PAAppController < PAFigureController
         %> - @c signalTagLine
         %> - @
         function pStruct = getSaveParameters(obj)
-            pStruct = obj.settingsObj.CONTROLLER;
+            pStruct = obj.AppSettings.CONTROLLER;
             
             pStruct.featureFcnName = obj.getExtractorMethod();
             pStruct.signalTagLine = obj.getSignalSelection();
@@ -1196,11 +1190,11 @@ classdef PAAppController < PAFigureController
             % empty (don't know if were going to use count or raw data,
             % etc.  So, just stick with whatever we began with at time of construction.
             if(isempty(pStruct.signalTagLine))
-                pStruct.signalTagLine = obj.settingsObj.CONTROLLER.signalTagLine;
+                pStruct.signalTagLine = obj.AppSettings.CONTROLLER.signalTagLine;
             end
             
-            pStruct.highlightNonwear = obj.VIEW.getNonwearHighlighting();
-            pStruct.useSmoothing = obj.VIEW.getUseSmoothing();
+            pStruct.highlightNonwear = obj.SingleStudy.getNonwearHighlighting();
+            pStruct.useSmoothing = obj.SingleStudy.getUseSmoothing();
             pStruct.screenshotPathname = obj.screenshotPathname;
             pStruct.viewMode = obj.viewMode;
             pStruct.resultsPathname = obj.resultsPathname;
@@ -1353,17 +1347,17 @@ classdef PAAppController < PAFigureController
         % --------------------------------------------------------------------
         %> @brief Initializes the display for accelerometer data viewing
         %> using instantiated instance
-        %> variables VIEW (PASingleStudyController) and accelObj (PASensorData)
+        %> variables SingleStudy (PASingleStudyController) and SensorData (PASensorData)
         %> @param obj Instance of PAAppController
         % --------------------------------------------------------------------
         function initAccelDataView(obj)
             
-            % accelObj has already been initialized with default/saved
-            % settings (i.e. obj.settingsObj.DATA) and these are in turn
-            % passed along to the VIEW class here and used to initialize
+            % SensorData has already been initialized with default/saved
+            % settings (i.e. obj.AppSettings.DATA) and these are in turn
+            % passed along to the SingleStudy class here and used to initialize
             % many of the selected widgets.
             
-            obj.VIEW.showBusy('Initializing View','all');            
+            obj.SingleStudy.showBusy('Initializing View','all');            
             
             obj.initSignalSelectionMenu();
             
@@ -1376,24 +1370,24 @@ classdef PAAppController < PAFigureController
             
             
             % Shows line labels after initWithAccelData
-            obj.VIEW.initWithAccelData(obj.accelObj);
+            obj.SingleStudy.initWithAccelData(obj.SensorData);
             
             
             %set signal choice
-            signalSelection = obj.setSignalSelection(obj.settingsObj.CONTROLLER.signalTagLine); %internally sets to 1st in list if not found..
-            obj.setExtractorMethod(obj.settingsObj.CONTROLLER.featureFcnName);
+            signalSelection = obj.setSignalSelection(obj.AppSettings.CONTROLLER.signalTagLine); %internally sets to 1st in list if not found..
+            obj.setExtractorMethod(obj.AppSettings.CONTROLLER.featureFcnName);
             
             % Go ahead and extract features using current settings.  This
             % is good because then we can use
-            obj.VIEW.showBusy('Calculating features','all');
+            obj.SingleStudy.showBusy('Calculating features','all');
             tic
-            obj.accelObj.extractFeature(signalSelection,'all');
+            obj.SensorData.extractFeature(signalSelection,'all');
             toc
             
             % This was disabled until the first time features are
             % calculated.
-            obj.VIEW.enableTimeSeriesRadioButton();
-            obj.VIEW.enableFeatureRadioButton();
+            obj.SingleStudy.enableTimeSeriesRadioButton();
+            obj.SingleStudy.enableFeatureRadioButton();
             
             % set the display to show time series data initially.
             displayType = 'Time Series';
@@ -1405,7 +1399,7 @@ classdef PAAppController < PAFigureController
             
             %but not everything is shown...
             
-            obj.setCurWindow(obj.accelObj.getCurWindow());
+            obj.setCurWindow(obj.SensorData.getCurWindow());
             
             % Update the secondary axes
             % Items to display = 8 when count or all views exist.  
@@ -1423,17 +1417,17 @@ classdef PAAppController < PAFigureController
             itemsToDisplay = obj.numViewsInSecondaryDisplay-5; % usage state, mean lumens, daylight approx
             remainingHeight = 1-heightOffset;
             height = remainingHeight/itemsToDisplay;
-            if(obj.accelObj.getSampleRate()<=1)
+            if(obj.SensorData.getSampleRate()<=1)
                 
                 usageVec = obj.getUsageState();
-                obj.VIEW.addWeartimeToSecondaryAxes(usageVec,obj.accelObj.dateTimeNum,height,heightOffset);
+                obj.SingleStudy.addWeartimeToSecondaryAxes(usageVec,obj.SensorData.dateTimeNum,height,heightOffset);
                 % Old
-                % vecHandles = obj.VIEW.addFeaturesVecToSecondaryAxes(usageVec,obj.accelObj.dateTimeNum,height,heightOffset);
+                % vecHandles = obj.SingleStudy.addFeaturesVecToSecondaryAxes(usageVec,obj.SensorData.dateTimeNum,height,heightOffset);
                 
                 % Older
                 %[usageVec,usageState, startStopDatenums] = obj.getUsageState();
 
-                %obj.VIEW.addOverlayToSecondaryAxes(usageState,startStopDatenums,1/numRegions,curRegion/numRegions);
+                %obj.SingleStudy.addOverlayToSecondaryAxes(usageState,startStopDatenums,1/numRegions,curRegion/numRegions);
             else
                 % Old
                 %                 vecHandles = [];
@@ -1447,10 +1441,10 @@ classdef PAAppController < PAFigureController
                 maxLumens = 250;
 
                 [meanLumens,startStopDatenums] = obj.getMeanLumenPatches(numFrames);
-                [overlayLineH, overlayPatchH] = obj.VIEW.addOverlayToSecondaryAxes(meanLumens,startStopDatenums,height,heightOffset,maxLumens); %#ok<ASGLU>
+                [overlayLineH, overlayPatchH] = obj.SingleStudy.addOverlayToSecondaryAxes(meanLumens,startStopDatenums,height,heightOffset,maxLumens); %#ok<ASGLU>
                 uistack(overlayPatchH,'bottom');
                 %             [medianLumens,startStopDatenums] = obj.getMedianLumenPatches(1000);
-                %             obj.VIEW.addLumensOverlayToSecondaryAxes(meanLumens,startStopDatenums);
+                %             obj.SingleStudy.addLumensOverlayToSecondaryAxes(meanLumens,startStopDatenums);
             end
             
             % Finally Add daylight to the top.
@@ -1458,12 +1452,12 @@ classdef PAAppController < PAFigureController
             [daylight,startStopDatenums] = obj.getDaylight(numFrames);
             heightOffset = heightOffset+height;
 
-            [overlayLineH, overlayPatchH] = obj.VIEW.addOverlayToSecondaryAxes(daylight,startStopDatenums,height-0.005,heightOffset,maxDaylight); %#ok<ASGLU>
+            [overlayLineH, overlayPatchH] = obj.SingleStudy.addOverlayToSecondaryAxes(daylight,startStopDatenums,height-0.005,heightOffset,maxDaylight); %#ok<ASGLU>
             uistack(overlayPatchH,'bottom');
             
             obj.initCallbacks(); %initialize callbacks now that we have some data we can interact with.
             
-            obj.VIEW.showReady('all');
+            obj.SingleStudy.showReady('all');
             
         end
         
@@ -1477,12 +1471,12 @@ classdef PAAppController < PAFigureController
         function success = initResultsView(this)
             success = false;
             if(isdir(this.resultsPathname))
-                if(~isempty(this.statTool))
+                if(~isempty(this.StatTool))
                     
-                    statToolResultsPath = this.statTool.getResultsDirectory();
+                    StatToolResultsPath = this.StatTool.getResultsDirectory();
                     
                     refreshPath = false;
-                    if(~strcmpi(statToolResultsPath,this.resultsPathname))
+                    if(~strcmpi(StatToolResultsPath,this.resultsPathname))
                         msgStr = sprintf('There has been a change to the results path.\nWould you like to load features from the updated path?\n%s',this.resultsPathname);
                         titleStr = 'Refresh results path?';
                         buttonName = questdlg(msgStr,titleStr,'Yes','No','Yes');
@@ -1494,36 +1488,36 @@ classdef PAAppController < PAFigureController
                                 %make it so we do not ask the quesiton
                                 %again by matching the pathname to the one
                                 %the user wants to use.
-                                this.resultsPathname = statToolResultsPath;  
+                                this.resultsPathname = StatToolResultsPath;  
                             otherwise
                                 refreshPath = false;
                         end                                
                     end
 
                     if(refreshPath)
-                        this.statTool.setResultsDirectory(this.resultsPathname);
+                        this.StatTool.setResultsDirectory(this.resultsPathname);
                     else
                         % Make sure the resultsPath is up to date (e.g. when
                         % switching back from a batch mode.
-                        this.statTool.init();  %calls a plot refresh
+                        this.StatTool.init();  %calls a plot refresh
                         
                     end
                 else
-                    this.statTool = PAStatTool(this.VIEW.figurehandle,this.resultsPathname,this.settingsObj.statTool);
-                    this.statTool.setIcon(this.iconFilename);
-                    if(~isempty(this.outcomesTable) && this.outcomesTable.importOnStartup && this.statTool.useOutcomes)
-                        this.statTool.setOutcomesTable(this.outcomesTable);
+                    this.StatTool = PAStatTool(this.SingleStudy.figurehandle,this.resultsPathname,this.AppSettings.StatTool);
+                    this.StatTool.setIcon(this.iconFilename);
+                    if(~isempty(this.outcomesTable) && this.outcomesTable.importOnStartup && this.StatTool.useOutcomes)
+                        this.StatTool.setOutcomesTable(this.outcomesTable);
                     end
                 end
-                success = this.statTool.getCanPlot();
+                success = this.StatTool.getCanPlot();
             end
             
             if(~success)
-                if(isfield(this,'StatTool') && isa(this.statTool,'PAStatTool'))
-                    this.statTool.disable();
+                if(isfield(this,'StatTool') && isa(this.StatTool,'PAStatTool'))
+                    this.StatTool.disable();
                 end
                 
-                this.statTool = [];
+                this.StatTool = [];
                 this.notify('StatToolCreationFailure');
                 checkToOpenResultsPath = false; % can be a user setting.
                 if(checkToOpenResultsPath)                    
@@ -1533,7 +1527,7 @@ classdef PAAppController < PAFigureController
                     end
                 end
             else
-                this.VIEW.showReady();
+                this.SingleStudy.showReady();
                 this.notify('StatToolCreationSuccess');
             end
         end
@@ -1559,8 +1553,8 @@ classdef PAAppController < PAFigureController
                 imgFmt = strcat('-d',lower(ext));
             end
             
-            fig_h = obj.VIEW.figurehandle;
-            axes_copy = copyobj(obj.VIEW.axeshandle.secondary,fig_h);
+            fig_h = obj.SingleStudy.figurehandle;
+            axes_copy = copyobj(obj.SingleStudy.axeshandle.secondary,fig_h);
             
             f = figure('visible','off','paperpositionmode','auto','inverthardcopy','on',...
                 'units',get(fig_h,'units'),'position',get(fig_h,'position'),...
@@ -1591,7 +1585,7 @@ classdef PAAppController < PAFigureController
             addOverlayToAxes(axesH,meanLumens,startStopDatenums,1/7,5/7,maxLumens);
             
             maxDaylight = 1;
-            % Modified get daylight somehow - perhaps to include accelObj as second argument.
+            % Modified get daylight somehow - perhaps to include SensorData as second argument.
             [daylight,startStopDatenums] = obj.getDaylight(numFrames,paDataObject);
             
             % Modified - by adding axesH as last argument
@@ -1612,7 +1606,7 @@ classdef PAAppController < PAFigureController
                 else
                     % This requires twice the height because it will have a
                     % feature line and heat map
-                    vecHandles = obj.VIEW.addFeaturesVecAndOverlayToAxes(featureVec,startStopDatenums,height*2,heightOffset,axesH);
+                    vecHandles = obj.SingleStudy.addFeaturesVecAndOverlayToAxes(featureVec,startStopDatenums,height*2,heightOffset,axesH);
                     
                 end
                 heightOffset = heightOffset+height;
@@ -1699,8 +1693,8 @@ classdef PAAppController < PAFigureController
             
             filterspec = {'png','PNG';'jpeg','JPEG'};
             save_format = {'-dpng','-djpeg'};
-            if(isa(obj.accelObj,'PASensorData'))
-                img_filename = [obj.accelObj.filename,'_window ',num2str(obj.getCurWindow),'.png'];
+            if(isa(obj.SensorData,'PASensorData'))
+                img_filename = [obj.SensorData.filename,'_window ',num2str(obj.getCurWindow),'.png'];
             else
                 img_filename = ['padaco_window ',num2str(obj.getCurWindow),'.png'];
             end
@@ -1712,8 +1706,8 @@ classdef PAAppController < PAFigureController
                     if(filterindex>2)
                         filterindex = 1; %default to .png
                     end
-                    fig_h = obj.VIEW.figurehandle;
-                    axes_copy = copyobj(obj.VIEW.axeshandle.secondary,fig_h);
+                    fig_h = obj.SingleStudy.figurehandle;
+                    axes_copy = copyobj(obj.SingleStudy.axeshandle.secondary,fig_h);
                     
                     f = figure('visible','off','paperpositionmode','auto','inverthardcopy','on',...
                         'units',get(fig_h,'units'),'position',get(fig_h,'position'),...
@@ -1752,9 +1746,9 @@ classdef PAAppController < PAFigureController
         %> @retval viewable True/False
         function viewable = isViewable(obj, viewingMode)
             if(strcmpi(obj.getViewMode(),viewingMode))
-                if(strcmpi(viewingMode,'timeseries') && ~isempty(obj.accelObj))
+                if(strcmpi(viewingMode,'timeseries') && ~isempty(obj.SensorData))
                     viewable = true;
-                elseif(strcmpi(viewingMode,'results') && ~isempty(obj.statTool))
+                elseif(strcmpi(viewingMode,'results') && ~isempty(obj.StatTool))
                     viewable = true;
                 else
                     viewable = false;

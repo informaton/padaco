@@ -16,11 +16,11 @@ classdef  PAAppSettings < PASettings
     properties(SetAccess=protected)
 
         %> @brief cell of string names corresponding to the struct properties that
-        %> contain settings  <b><i> {'DATA','VIEW', 'CONTROLLER','BATCH','statTool','IMPORT'}</i></b>
-        fieldNames = {'DATA','CONTROLLER','VIEW','BATCH','statTool','IMPORT','outcomesTable'};  
+        %> contain settings  <b><i> {'SensorData','SingleStudy', 'App','BatchMode','StatTool','Importing'}</i></b>
+        fieldNames = {'SensorData','App','SingleStudy','BatchMode','StatTool','Importing','OutcomesTable'};  
         
         %> @brief Fieldnmaes whose structures are only one level deep.
-        liteFieldNames={'statTool','VIEW','CONTROLLER','IMPORT'};
+        liteFieldNames={'StatTool','SingleStudy','App','Importing'};
 
         % Inherited: 
         %> pathname of Padaco working directory - determined at run time.
@@ -35,24 +35,24 @@ classdef  PAAppSettings < PASettings
 
         
         %> struct of PAAppController preferences.
-        CONTROLLER;
+        App;
         %> struct of PASensorData preferences.
-        DATA;
+        SensorData;
         %> struct of viewer related settings.
-        VIEW;
+        SingleStudy;
         %> struct of batch processing settings.
-        BATCH;
+        BatchMode;
         %> struct of settings for data import
-        IMPORT;
+        Importing;
         
         % struct of settings for data/cluster export
         % EXPORT;
         
-        %> struct of statTool plot/analysis settings.
-        statTool;
+        %> struct of StatTool plot/analysis settings.
+        StatTool;
         
         %> struct for PAOutcomesTable settings
-        outcomesTable;
+        OutcomesTable;
     end
     
     methods
@@ -135,8 +135,8 @@ classdef  PAAppSettings < PASettings
                         % changed or is not found correctly in the parameter
                         % file.  Unfortunately, it only checks one or two
                         % levels deep into the struct and can miss small
-                        % changes like obj.DATA.color.features.psd vs
-                        % obj.DATA.color.features.psd_band_1.
+                        % changes like obj.SensorData.color.features.psd vs
+                        % obj.SensorData.color.features.psd_band_1.
                         %                         for f=1:numel(obj.fieldNames)
                         %                             cur_field = obj.fieldNames{f};
                         %                             if(~isfield(paramStruct,cur_field) || ~isstruct(paramStruct.(cur_field)))
@@ -207,7 +207,7 @@ classdef  PAAppSettings < PASettings
             x.frameDurationMinutes = 'Frame duration (minutes)';
             x.numDaysAllowed = 'Number of days allowed (7)';
             x.featureLabel = 'Feature label (''All'')';
-            x.logFilename = 'Batch log filename';
+            x.logFilename = 'Batch mode log filename';
             x.summaryFilename = 'Summary output filename';
             x.isOutputPathLinked = 'Link output and input pathnames (0/1)';
             
@@ -266,7 +266,7 @@ classdef  PAAppSettings < PASettings
             x.titleStr = {'Title string'};
             
             
-            % VIEW
+            % SingleStudy
             x.filter_inf_file = 'Filter settings file';
             x.database_inf_file = 'Database credentials file';
             x.loadOutcomesOnStartup = {'Load outcomes file on startup when present','[0], 1'};
@@ -278,15 +278,15 @@ classdef  PAAppSettings < PASettings
         % -----------------------------------------------------------------
         % =================================================================
         %> @brief Activates GUI for editing single study mode settings
-        %> (<b>VIEW</b>,<b>PSD</b>,<b>MUSIC</b>)
+        %> (<b>SingleStudy</b>,<b>PSD</b>,<b>MUSIC</b>)
         %> @param obj instance of PAAppSettings class.
         %> @param optional_fieldName (Optional)  String indicating which settings to update.
         %> Can be
-        %> - @c statTool
-        %> - @c VIEW
-        %> - @c BATCH
-        %> - @c CONTROLLER
-        %> - @c IMPORT        
+        %> - @c StatTool
+        %> - @c SingleStudy
+        %> - @c BatchMode
+        %> - @c App
+        %> - @c Importing        
         %> @retval wasModified a boolean value; true if any changes were
         %> made to the settings in the GUI and false otherwise.
         % =================================================================
@@ -304,7 +304,7 @@ classdef  PAAppSettings < PASettings
             
             tmp_obj.fieldNames = lite_fieldNames;
             
-            %             tmp_obj.statTool = rmfield(tmp_obj.statTool,'customDaysOfWeek');  % get rid of fields that contain arrays of values, since I don't actually know how to handle this
+            %             tmp_obj.StatTool = rmfield(tmp_obj.StatTool,'customDaysOfWeek');  % get rid of fields that contain arrays of values, since I don't actually know how to handle this
             tmp_obj = pair_value_dlg(tmp_obj);
             
             
@@ -343,32 +343,32 @@ classdef  PAAppSettings < PASettings
             
             for f = 1:numel(fieldNames)
                 switch fieldNames{f}
-                    case 'IMPORT'
-                        obj.IMPORT = PASensorDataImport.getDefaults();
-                    case 'statTool'
-                        obj.statTool = PAStatTool.getDefaults();                    
-                    case 'outcomesTable'
-                        obj.outcomesTable = PAOutcomesTable.getDefaults();
-                    case 'DATA'
-                        obj.DATA = PASensorData.getDefaults();
-                    case 'CONTROLLER'
-                        obj.CONTROLLER = PAAppController.getDefaults();
-                    case 'VIEW'
-                        obj.VIEW.yDir = 'normal';  %or can be 'reverse'
-                        obj.VIEW.screenshot_path = obj.rootpathname; %initial directory to look in for EDF files to load
-                        obj.VIEW.output_pathname = fullfile(fileparts(mfilename('fullpath')),'output');
-                        if(~isdir(obj.VIEW.output_pathname))
+                    case 'Importing'
+                        obj.Importing = PASensorDataImport.getDefaults();
+                    case 'StatTool'
+                        obj.StatTool = PAStatTool.getDefaults();                    
+                    case 'OutcomesTable'
+                        obj.OutcomesTable = PAOutcomesTable.getDefaults();
+                    case 'SensorData'
+                        obj.SensorData = PASensorData.getDefaults();
+                    case 'App'
+                        obj.App = PAAppController.getDefaults();
+                    case 'SingleStudy'
+                        obj.SingleStudy.yDir = 'normal';  %or can be 'reverse'
+                        obj.SingleStudy.screenshot_path = obj.rootpathname; %initial directory to look in for EDF files to load
+                        obj.SingleStudy.output_pathname = fullfile(fileparts(mfilename('fullpath')),'output');
+                        if(~isdir(obj.SingleStudy.output_pathname))
                             try
-                                mkdir(obj.VIEW.output_pathname);
+                                mkdir(obj.SingleStudy.output_pathname);
                             catch me
                                 showME(me);
-                                obj.VIEW.output_pathname = fileparts(mfilename('fullpath'));
+                                obj.SingleStudy.output_pathname = fileparts(mfilename('fullpath'));
                             end
                         end
-                        obj.VIEW.filter_inf_file = 'filter.inf';
-                        obj.VIEW.database_inf_file = 'database.inf';
-                    case 'BATCH'
-                        obj.BATCH = PABatchTool.getDefaults();
+                        obj.SingleStudy.filter_inf_file = 'filter.inf';
+                        obj.SingleStudy.database_inf_file = 'database.inf';
+                    case 'BatchMode'
+                        obj.BatchMode = PABatchTool.getDefaults();
                     otherwise
                         fprintf(1,'Unsupported fieldname: %s\n',fieldNames{f});
                 end

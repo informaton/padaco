@@ -83,7 +83,7 @@ function handles = initializeView(handles)
     % panel_tabs
     % panel_main
     numRecords = 0;
-    for f=1:numTabs %fieldNames; %The field names of the parameters to be shown to the user (i.e. VIEW, BATCH_PROCESS, PSD,....)
+    for f=1:numTabs %fieldNames; %The field names of the parameters to be shown to the user
         fname = handles.user.settings_obj.fieldNames{f}; %current field/tab name
         
         if(verLessThan('matlab','7.14'))
