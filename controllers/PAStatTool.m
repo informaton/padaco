@@ -2444,8 +2444,7 @@ classdef PAStatTool < PAFigureController
                 'edit_minClusters'
                 'push_refreshClusters'
                 'panel_shapeSettings'
-                'panel_clusterSettings'                
-                'panel_resultsContainer'
+                'panel_clusterSettings'
                 'panel_results'                
                 'text_minClusters'
                 'text_clusterResultsOverlay'
@@ -3322,7 +3321,7 @@ classdef PAStatTool < PAFigureController
             % swapping between time series and results views.
             disableHandles(this.handles.toolbar_results);
             
-            containerPos = get(this.handles.panel_resultsContainer,'position');
+            containerPos = get(this.handles.panel_results,'position');
             clusterPos = get(this.handles.panel_clusterSettings,'position');
             shapePos = get(this.handles.panel_shapeSettings,'position');
             
@@ -3335,7 +3334,7 @@ classdef PAStatTool < PAFigureController
                 
                 containerPos(2) = containerPos(2)+hDelta;
                 containerPos(4) = containerPos(4)-hDelta;
-                set(this.handles.panel_resultsContainer,'position',containerPos);
+                set(this.handles.panel_results,'position',containerPos);
             end
             
             % remove anycontext menu on the primary axes
@@ -3349,7 +3348,7 @@ classdef PAStatTool < PAFigureController
         function showClusterControls(this)
 
             
-            containerPos = get(this.handles.panel_resultsContainer,'position');
+            containerPos = get(this.handles.panel_results,'position');
             shapePos = get(this.handles.panel_shapeSettings,'position');
             clusterPos = get(this.handles.panel_clusterSettings,'position');
 
@@ -3363,7 +3362,7 @@ classdef PAStatTool < PAFigureController
                 
                 containerPos(2) = containerPos(2)-hDelta;
                 containerPos(4) = containerPos(4)+hDelta;
-                set(this.handles.panel_resultsContainer,'position',containerPos);
+                set(this.handles.panel_results,'position',containerPos);
             end
             
             

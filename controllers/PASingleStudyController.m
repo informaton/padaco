@@ -1955,10 +1955,10 @@ classdef PASingleStudyController < PAFigureController
             obj.texthandle.frameDurationHours = handles.edit_frameSizeHours;
             obj.texthandle.trimAmount = handles.edit_aggregate;
             
-            %             obj.tablehandle.centroidProfiles = handles.table_profiles;
-            obj.patchhandle.controls = handles.panel_timeseries;
-            obj.patchhandle.features = handles.panel_features;
-            obj.patchhandle.metaData = handles.panel_study;
+            obj.panelhandle.controls = handles.panel_timeseries;
+            obj.panelhandle.epoch = handles.panel_epochControls;
+            obj.panelhandle.dispalyFeatures = handles.panel_displayButtonGroup;
+            obj.panelhandle.metaData = handles.panel_study;
             
             obj.menuhandle.windowDurSec = handles.menu_windowDurSec;
             obj.menuhandle.signalSelection = handles.menu_signalSelection;

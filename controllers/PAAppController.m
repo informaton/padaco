@@ -389,12 +389,12 @@ classdef PAAppController < PAFigureController
             % export
             safeset(figHandles,'menu_file_export','callback',@obj.menu_file_exportMenu_callback);
             if(~isdeployed)
-                safeset(figHandles,'menu_file_export_sensorData','callback',@obj.menu_file_export_sensorData_callback);%,'label','Sensor object to MATLAB');
+                safeset(figHandles,'menu_file_export_sensorDataObj','callback',@obj.menu_file_export_sensorDataObj_callback);%,'label','Sensor object to MATLAB');
                 safeset(figHandles,'menu_file_export_clusterObj','callback',@obj.menu_file_export_clusterObj_callback); %,'label','Cluster object to MATLAB');
             % No point in sending data to the workspace on deployed
             % version.  There is no 'workspace'.
             else
-                safeset(figHandles,'menu_file_export_sensorData','visible','off');
+                safeset(figHandles,'menu_file_export_sensorDataObj','visible','off');
                 safeset(figHandles,'menu_file_export_clusterObj','visible','off');
             end
             safeset(figHandles,'menu_file_export_clusters_to_csv','callback',{@obj.exportClustersCb,'csv'});%, 'label','Cluster results to disk');
@@ -435,8 +435,6 @@ classdef PAAppController < PAFigureController
                 set(this.handles.menu_tools_bootstrap,'enable','off');
             end
         end
-
-        
         
         % --------------------------------------------------------------------
         %> @brief Callback to display help FAQ from the menubar help->faq menu.
@@ -676,9 +674,7 @@ classdef PAAppController < PAFigureController
                     fmtStruct.fieldOrder = {'datetime','x','y','z'};
                     fmtStruct.headerLines = 2;
                     
-                    
                     obj.SensorData.loadCustomRawCSVFile(f,fmtStruct); % two header lines %elapsed time stamp, x, y, z
-                    
                     
                     if(~strcmpi(obj.getViewMode(),'timeseries'))
                         obj.setViewMode('timeseries');
@@ -686,14 +682,6 @@ classdef PAAppController < PAFigureController
                     
                     %initialize the PASensorData object's visual properties
                     obj.initAccelDataView(); %calls show obj.SingleStudy.showReady() Ready...
-                    
-                    % For testing/debugging
-                    %                     featureFcn = 'mean';
-                    %                     elapsedStartHour = 0;
-                    %                     intervalDurationHours = 24;
-                    %                     signalTagLine = obj.getSignalSelection(); %'accel.count.x';
-                    %                     obj.SensorData.getAlignedFeatureVecs(featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours);
-                    
                     
                 end
             catch me
@@ -743,13 +731,7 @@ classdef PAAppController < PAFigureController
                     
                     %initialize the PASensorData object's visual properties
                     obj.initAccelDataView(); %calls show obj.SingleStudy.showReady() Ready...
-                    
-                    % For testing/debugging
-                    %                     featureFcn = 'mean';
-                    %                     elapsedStartHour = 0;
-                    %                     intervalDurationHours = 24;
-                    %                     signalTagLine = obj.getSignalSelection(); %'accel.count.x';
-                    %                     obj.SensorData.getAlignedFeatureVecs(featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours);               
+                  
                 end
             catch me
                 showME(me);
@@ -911,7 +893,7 @@ classdef PAAppController < PAFigureController
         % --------------------------------------------------------------------
         function menu_file_exportMenu_callback(this,hObject, ~)
             curHandles = guidata(hObject); %this.SingleStudy.getFigHandle());
-            timeSeriesH = [curHandles.menu_file_export_sensorData
+            timeSeriesH = [curHandles.menu_file_export_sensorDataObj
                 curHandles.menu_export_timeseries_to_disk];
             resultsH = [curHandles.menu_file_export_clusterObj;
                 curHandles.menu_file_export_clusters_to_csv];
@@ -943,7 +925,7 @@ classdef PAAppController < PAFigureController
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
-        function menu_file_export_sensorData_callback(obj,varargin)
+        function menu_file_export_sensorDataObj_callback(obj,varargin)
             SensorData = obj.SensorData; %#ok<PROPLC>
             varName = 'SensorDataect';
             makeModal = true;
@@ -1650,21 +1632,17 @@ classdef PAAppController < PAFigureController
                 handles = guidata(hFigure);
                 
                 set([handles.text_status;
-                    handles.panel_results;
-                    handles.panel_timeseries],'backgroundcolor',figColor,'units',defaultUnits);
+                    ],'backgroundcolor',figColor,'units',defaultUnits);
                 
-                set([handles.panel_results;
-                    handles.panel_timeseries],'bordertype','none');
-                
+
                 set([hFigure
                     handles.panel_timeseries
                     handles.panel_results
-                    handles.panel_resultsContainer
                     handles.panel_epochControls
                     handles.panel_displayButtonGroup
                     handles.btngrp_clusters],'units','pixels');
                 
-                screenSize = get(0,'screensize');
+                % screenSize = get(0,'screensize');
                 figPos = get(hFigure,'position');
                 timeSeriesPanelPos = get(handles.panel_timeseries,'position');
                 resultsPanelPos = get(handles.panel_results,'position');
