@@ -16,6 +16,9 @@ classdef PAAppController < PAFigureController
     properties(Constant)
         versionMatFilename = 'version.chk';
     end
+    properties(Constant,Access=private)
+        NWAnchor = struct('tag','text_status','y',0.967,'units','normalized');
+    end
     properties(Access=private)
         resizeValues; % for handling resize functions
         versionNum;
@@ -334,7 +337,7 @@ classdef PAAppController < PAFigureController
         % --------------------------------------------------------------------
         function windowButtonDownCallback(obj,varargin)
             if(ishandle(obj.current_linehandle))
-                set(obj.SingleStudy.figurehandle,'windowbuttonmotionfcn',[]);
+                set(obj.SingleStudy.figureH,'windowbuttonmotionfcn',[]);
                 
                 obj.deactivateLineHandle();
             end
@@ -344,7 +347,7 @@ classdef PAAppController < PAFigureController
             set(obj.current_linehandle,'selected','off');
             obj.current_linehandle = [];
             obj.SingleStudy.showReady();
-            set(obj.SingleStudy.figurehandle,'windowbuttonmotionfcn',[],'WindowScrollWheelFcn',[]);
+            set(obj.SingleStudy.figureH,'windowbuttonmotionfcn',[],'WindowScrollWheelFcn',[]);
         end
         
         %-- Menubar configuration --
@@ -842,7 +845,7 @@ classdef PAAppController < PAFigureController
             
             switch(lower(screenshotDescription))
                 case 'figure'
-                    handle = obj.SingleStudy.figurehandle;
+                    handle = obj.SingleStudy.figureH;
                 case 'primaryaxes'
                     handle = obj.SingleStudy.axeshandle.primary;
                 case 'secondaryaxes'
@@ -1359,7 +1362,7 @@ classdef PAAppController < PAFigureController
                         
                     end
                 else
-                    this.StatTool = PAStatTool(this.SingleStudy.figurehandle,this.resultsPathname,this.AppSettings.StatTool);
+                    this.StatTool = PAStatTool(this.SingleStudy.figureH,this.AppSettings.StatTool,this.resultsPathname);
                     this.StatTool.setIcon(this.iconFilename);
                     if(~isempty(this.OutcomesTable) && this.OutcomesTable.importOnStartup && this.StatTool.useOutcomes)
                         this.StatTool.setOutcomesTable(this.OutcomesTable);
@@ -1408,7 +1411,7 @@ classdef PAAppController < PAFigureController
                 imgFmt = strcat('-d',lower(ext));
             end
             
-            fig_h = obj.SingleStudy.figurehandle;
+            fig_h = obj.SingleStudy.figureH;
             axes_copy = copyobj(obj.SingleStudy.axeshandle.secondary,fig_h);
             
             f = figure('visible','off','paperpositionmode','auto','inverthardcopy','on',...
@@ -1561,7 +1564,7 @@ classdef PAAppController < PAFigureController
                     if(filterindex>2)
                         filterindex = 1; %default to .png
                     end
-                    fig_h = obj.SingleStudy.figurehandle;
+                    fig_h = obj.SingleStudy.figureH;
                     axes_copy = copyobj(obj.SingleStudy.axeshandle.secondary,fig_h);
                     
                     f = figure('visible','off','paperpositionmode','auto','inverthardcopy','on',...
@@ -1634,7 +1637,8 @@ classdef PAAppController < PAFigureController
                 set([handles.text_status;
                     ],'backgroundcolor',figColor,'units',defaultUnits);
                 
-
+                
+                
                 set([hFigure
                     handles.panel_timeseries
                     handles.panel_results
@@ -1642,11 +1646,41 @@ classdef PAAppController < PAFigureController
                     handles.panel_displayButtonGroup
                     handles.btngrp_clusters],'units','pixels');
                 
+                hAnchor = handles.(obj.NWAnchor.tag);
+                set(hAnchor,'units','normalized');
+                posAnchorPct = get(hAnchor,'position');
                 % screenSize = get(0,'screensize');
                 figPos = get(hFigure,'position');
+                
+                diffY = posAnchorPct(2)-obj.NWAnchor.y;
+                diffYpixels = figPos(4)*diffY;
+                % Adjust for changing screen sizes first ...
+                
+                anchoredTags = {'text_status'
+                    'panel_timeseries'
+                    'panel_study'
+                    'axes_primary'
+                    'axes_secondary'
+                    'text_clusterResultsOverlay'
+                    'panel_displayButtonGroup'
+                    'panel_epochControls'
+                    'btngrp_clusters'
+                    'panel_results'
+                    };
+                for t= 1:numel(anchoredTags)
+                    tag = anchoredTags{t};
+                    if(isfield(handles,tag))
+                        h = handles.(tag);
+                        set(h,'units','pixels');
+                        pos = get(h,'position');  % get adjusted position
+                        pos(2)=pos(2)-diffYpixels; %undo
+                        set(h,'position',pos);   % reset 
+                    end
+                end
+                
                 timeSeriesPanelPos = get(handles.panel_timeseries,'position');
                 resultsPanelPos = get(handles.panel_results,'position');
-                
+
                 % Line our panels up to same top left position - do this here
                 % so I can edit them easy in GUIDE and avoid to continually
                 % updating the position property each time i need to drag the

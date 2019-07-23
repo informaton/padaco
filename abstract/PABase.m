@@ -1,12 +1,15 @@
 classdef PABase < handle
+    
     events
         DefaultParameterChange;
     end
+    
     properties(SetAccess=protected)
         handles;
         statusHandle;
         statusTimerH;
     end
+    
     methods
         
         function clearStatus(obj)
@@ -70,8 +73,8 @@ classdef PABase < handle
                 didSet = true;
             end
         end
-
     end
+    
 end
     
     

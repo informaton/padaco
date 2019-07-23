@@ -121,8 +121,6 @@ classdef PAStatTool < PAFigureController
         iconCMap;
         iconFilename;
         
-
-        
         %> Booleans
         outcomesObj;
         
@@ -138,7 +136,6 @@ classdef PAStatTool < PAFigureController
         %> selection fields which are not initialized until after data has
         %> been load (i.e. and populates the dropdown menus.
         originalWidgetSettings;
-
     end
     
     properties
@@ -148,7 +145,6 @@ classdef PAStatTool < PAFigureController
         profileFields;
         maxNumDaysAllowed;
         minNumDaysAllowed;
-        
     end
     
     methods
@@ -161,15 +157,11 @@ classdef PAStatTool < PAFigureController
         %> user settings.  See getSaveParameters
         %> @retval this Instance of PAStatTool
         % ======================================================================
-        function this = PAStatTool(padaco_fig_h, resultsPathname, initSettings)
-            if(nargin<3 || isempty(initSettings))
-                initSettings = PAStatTool.getDefaults();
-            end
+        function this = PAStatTool(varargin)
+            this@PAFigureController(varargin{1:2});
                 
-            % This call ensures that we have at a minimum, the default parameter field-values in widgetSettings.
-            % And eliminates later calls to determine if a field exists
-            % or not in the input widgetSettings parameter
-            initSettings = mergeStruct(this.getDefaults(),initSettings);
+            resultsPathname = varargin{3};
+            initSettings = this.settings;
             
             if(~isfield(initSettings,'useDatabase'))
                 initSettings.useDatabase = false;
@@ -200,34 +192,14 @@ classdef PAStatTool < PAFigureController
             % variable names for the table
             %             this.profileMetrics = {''};
 
-            initializeOnSet = false;
-            this.setWidgetSettings(initSettings, initializeOnSet);
+            this.initFigure();
             
-            this.originalFeatureStruct = [];
-            this.canPlot = false;
-            this.featuresDirectory = [];
-            
-            this.figureH = padaco_fig_h;
-            this.featureStruct = [];            
-            
-            this.initBase();
-            this.clusterDistributionType = initSettings.clusterDistributionType;  % {'performance_progression','membership','weekday_membership'}
-            
-            this.featureInputFilePattern = ['%s',filesep,'%s',filesep,'features.%s.accel.%s.%s.txt'];
-            this.featureInputFileFieldnames = {'inputPathname','displaySeletion','processType','curSignal'};       
-            
-            this.initScatterPlotFigure();
             
             if(isdir(resultsPathname))
                 this.setResultsDirectory(resultsPathname); % a lot of initialization code in side this call.
             else
-                fprintf('%s does not exist!\n',resultsPathname); 
-            end
-            
-            % Create property/event listeners
-            this.addlistener('ProfileFieldSelectionChange_Event',@this.profileFieldSelectionChangeCallback);
-            addlistener(this.handles.check_segment,'Value','PostSet',@this.checkSegmentPropertyChgCallback);
-            addlistener(this.handles.menu_number_of_data_segments,'Enable','PostSet',@this.checkSegmentPropertyChgCallback);    
+                fprintf('%s does not exist!\n',resultsPathname);
+            end 
         end
 
         % ======================================================================
@@ -492,9 +464,9 @@ classdef PAStatTool < PAFigureController
                     'Select a settings file',path2check);
                 try
                     if(~isempty(filename))
-                        initSettings = PASettings.loadParametersFromFile(filename);
-                        initSettings = mergeStruct(obj.getDefaults(),initSettings);
-                        obj.setWidgetSettings(initSettings);
+                        this.settings = PASettings.loadParametersFromFile(filename);
+                        this.settings = mergeStruct(obj.getDefaults(),this.settings);
+                        obj.setWidgetSettings(this.settings);
                     end
                 catch me
                     showME(me);
@@ -1846,6 +1818,38 @@ classdef PAStatTool < PAFigureController
     end
     
     methods(Access=protected)
+        
+        function didInit = initFigure(this) 
+            didInit = false;
+            try
+                initializeOnSet = false;
+                this.setWidgetSettings(this.settings, initializeOnSet);
+                
+                this.originalFeatureStruct = [];
+                this.canPlot = false;
+                this.featuresDirectory = [];
+                
+                this.featureStruct = [];
+                
+                this.initBase();
+                this.clusterDistributionType = this.settings.clusterDistributionType;  % {'performance_progression','membership','weekday_membership'}
+                
+                this.featureInputFilePattern = ['%s',filesep,'%s',filesep,'features.%s.accel.%s.%s.txt'];
+                this.featureInputFileFieldnames = {'inputPathname','displaySeletion','processType','curSignal'};
+                
+                this.initScatterPlotFigure();
+                
+                % Create property/event listeners
+                this.addlistener('ProfileFieldSelectionChange_Event',@this.profileFieldSelectionChangeCallback);
+                addlistener(this.handles.check_segment,'Value','PostSet',@this.checkSegmentPropertyChgCallback);
+                addlistener(this.handles.menu_number_of_data_segments,'Enable','PostSet',@this.checkSegmentPropertyChgCallback);
+                didInit = true;
+            catch me
+                this.logError(me);
+            end
+        end
+        
+        
         function bgColorClickOnCb(this, hToggle, e)
             curState = get(hToggle,'state');
             this.setStatus(e.EventName);
