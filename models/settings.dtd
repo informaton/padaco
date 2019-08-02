@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!ELEMENT modules (module)+>
+<!ELEMENT module (name, parameters)>
+<!ELEMENT parameters (parameter)>
+<!ELEMENT parameter (name, type, default, description?)>
+<!ELEMENT name (#PCDATA)*>
+
+<!ATTLIST parameter type (logical, number, char, string, enum) "string"
+                    default PCDATA #REQUIRED>
+
+<!ELEMENT srcFolder %pathElement;>
+<!ATTLIST srcFolder %pathAttrib;>
+
+<!ELEMENT workingFolder %pathElement;>
+<!ATTLIST workingFolder %pathAttrib;>
+
+<!ENTITY % pathElement "(pathname , psgPath?, stagePathname?, eventsPathname?, xmlPathname?, scoPathname?)">
+<!ENTITY % pathElementAttrib "pathType (tier,flat,split,group) #REQUIRED 
+                              psgExtension CDATA %defaultPSGExtension">
+<!ENTITY % defaultPSGExtention ".EDF">
+
+
+
+<!ELEMENT projecName (#PCDATA|i)*>
+
+
+
+<!ELEMENT pathname (#PCDATA|i)*>
+<!ELEMENT psgPath (#PCDATA|i)*>
+<!ELEMENT stagePathname (#PCDATA|i)*>
+<!ELEMENT stagePathname (#PCDATA|i)*>
+<!ELEMENT eventsPathname (#PCDATA)>
+<!ELEMENT xmlPathname (#PCDATA)>
+<!ELEMENT scoPathname (#PCDATA)>
+
+<!ELEMENT helperFiles (patientDescriptionFile?, transformationScript?, mappingFile?)>
+<!ELEMENT patientDescriptionFile (#PCDATA)>
+<!ELEMENT transformationScript (#PCDATA)>
+<!ELEMENT mappingFile (#PCDATA)>
+
+<!ELEMENT pointOfContact (#PCDATA)>
+<!ELEMENT notes (#PCDATA)>
+<!ELEMENT reference (#PCDATA)>
+<!ELEMENT website (#PCDATA)>
+<!ELEMENT timeframe (#PCDATA)>
+<!ELEMENT i (#PCDATA)>
