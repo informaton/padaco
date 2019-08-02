@@ -4,7 +4,8 @@
 %> is itself a struct with similar organization as the first
 %> argument.
 %> @param ltStruct A structure whose fields are to be appended by the other.
-%> @param rtStruct A structure whose fields are will be appened to the other.
+%> @param rtStruct A structure whose fields will be appended to the left structure, or overwrite 
+%  same named fields.
 %> @retval ltStruct The result of merging rtStruct with ltStruct.
 %> @note For example:
 %> @note ltStruct =
@@ -25,10 +26,9 @@
 %> @note     accel: [1x1 struct]
 %> @note              [x]: 1.0
 %> @note              [y]: 1
-%> @note            [pos]: [0.5000, 1, 0]
+%> @note              [pos]: [0.5000, 1, 0]
 %> @note     lux: [1x1 struct]
 %> @note            [z]: 0.5000
-%> @note            [pos]: [0.5000, 1, 0]
 %> @note
 % ======================================================================
 function ltStruct = mergeStruct(ltStruct,rtStruct)
