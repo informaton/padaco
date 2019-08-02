@@ -13,40 +13,59 @@ classdef PAParam < handle
         default;
         value;
     end
+    properties(Access=private)
+        help;
+    end
     
     methods
         function this = PAParam(classType, varargin)
-            narginchk(1,9);
+            narginchk(1,inf);
             if(~this.setType(classType))
                 fprintf(2,'Unable to set parameter type to %s\n',classType);
-            else
-                
-                args.description = this.type;
+            else                
                 args.default = [];
-                args.value = [];
-                args = mergepvpairs(args,varargin{:});
-                this.setDescription(args.description);
-                if(~empty(this.default))
+                args.description = this.type;
+                args.help = '';
+                args = mergepvpairs(args,varargin{:});                
+                if(~isempty(args.default))
                     this.setDefault(args.default);
                 end
-                if(~isempty(this.value))
-                    this.setValue(args.value);
-                end
-            end
-        end
-    end
-    
-    methods(Access=protected)
-        function didSet = setValue(this, value2set)
-            if(isa(value2set,this.type))
-                this.value = value2set;
-                didSet = true;
-                this.notify('ValueSet');
-            else
-                didSet = false;
+                this.setDescription(args.description);
+                this.setHelp(args.help);
             end
         end
         
+        
+        function canIt = canSetValue(this, value2set)
+            canIt = isa(value2set,this.type);
+        end
+        
+        function didSet = setValue(this, value2set)
+            didSet = false;
+            if(nargin>1 && this.canSetValue(value2set))
+                this.value = value2set;
+                didSet = true;
+                this.notify('ValueSet');
+            end
+        end
+        
+        function hasIt = hasHelp(this)
+            hasIt = ~isempty(this.help);
+        end
+        
+        function helpStr = getHelp(this)
+            helpStr = this.help;
+        end
+
+    end
+    
+    methods(Access=protected)
+        function setHelp(this, helpStr)
+            if(ischar(helpStr))
+                this.help = helpStr;
+            end
+        end
+                
         function didSet = setDescription(this, descStr)
             if(nargin>1 && ischar(descStr))
                 this.description = descStr;
@@ -54,23 +73,29 @@ classdef PAParam < handle
             else
                 didSet = false;
             end
-        end
-        
+        end        
     end
     
-    methods(Access=private)
-        
+    methods(Access=private)        
         function didSet = setType(this, classType)
             if(isa(classType,'function_handle'))
                 classType = func2str(classType);
             end
             
-            if(ischar(classType) && ~empty(meta.class.fromName(classType)))
+            if(ischar(classType) && ~isempty(meta.class.fromName(classType)))
                 this.type = classType;
                 didSet = true;
             else
                 didSet = false;
             end
-        end        
+        end
+        function didSet = setDefault(this, defaultValue)
+            if(isa(defaultValue,this.type))
+                this.default = defaultValue;
+                didSet = this.setValue(defaultValue);                
+            else
+                didSet = false;
+            end
+        end
     end
 end

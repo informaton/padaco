@@ -357,8 +357,8 @@ classdef PAAppController < PAFigureController
         %> @param obj Instance of PAAppController
         % --------------------------------------------------------------------
         function initMenubarCallbacks(obj)
-            figH = obj.figureH;
-            figHandles = guidata(figH);
+            
+            figHandles = obj.handles;
             
             %% file
             % settings and about
@@ -386,7 +386,7 @@ classdef PAAppController < PAFigureController
             safeset(figHandles,'menu_file_screenshot_secondaryAxes','callback',{@obj.menuFileScreenshotCallback,'secondaryAxes'});
             
             %  quit - handled in main window.
-            safeset(figHandles,'menu_file_quit','callback',{@obj.menuFileQuitCallback,guidata(figH)},'label','Close');
+            safeset(figHandles,'menu_file_quit','callback',{@obj.menuFileQuitCallback,guidata(obj.figureH)},'label','Close');
             safeset(figHandles,'menu_file_restart','callback',@restartDlg);
             
             % export
@@ -1055,13 +1055,11 @@ classdef PAAppController < PAFigureController
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
-        function menuToolsBatchCallback(obj,varargin)
-            
+        function menuToolsBatchCallback(obj,varargin)            
             batchTool = PABatchTool(obj.AppSettings.BatchMode);
             batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
             batchTool.addlistener('SwitchToResults',@obj.setResultsViewModeCallback);
             batchTool.addlistener('BatchToolClosing',@obj.updateBatchToolSettingsCallback);
-
         end
         
         function menuToolsBootstrapCallback(this, varargin)
@@ -1099,8 +1097,13 @@ classdef PAAppController < PAFigureController
         
         function updateBatchToolSettingsCallback(obj,batchToolObj,eventData)
             obj.AppSettings.BatchMode = eventData.settings;
-            if(isdir(obj.AppSettings.BatchMode.outputDirectory))
-                obj.resultsPathname = obj.AppSettings.BatchMode.outputDirectory;
+            try
+                resultsPath = obj.AppSettings.BatchMode.outputDirectory.value;
+                if(isdir(resultsPath))
+                    obj.resultsPathname = resultsPath;
+                end
+            catch me
+                showME(me);
             end
         end
         

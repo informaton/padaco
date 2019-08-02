@@ -4,7 +4,7 @@
 %> The class creates and controls the batch processing figure that is used
 %> to process a collection of Actigraph GT3X+ data files.
 % ======================================================================
-classdef PABatchTool < handle
+classdef PABatchTool < PAFigureController
    
     properties(Constant)
         % In minutes
@@ -52,17 +52,6 @@ classdef PABatchTool < handle
     end
     
     properties(Access=private) 
-        %> Struct with the following fields:
-        %> - @c sourceDirectory Directory of Actigraph files that will be batch processed
-        %> - @c outputDirectory Output directory for batch processing
-        %> - @c classifyUsageState Describe activity, inactivity, non-wear
-        %> periods, and sleep state estimates.
-        settings;
-        %> Handle to the figure we create.  
-        figureH;
-        
-        %> result of guidata(figureH) at time of construction
-        handles;
         
         %> Flag for determining if batch mode is running or not.  Can be
         %> changed to false by user cancelling.
@@ -96,86 +85,20 @@ classdef PABatchTool < handle
         %> values.
         %> @retval  PABatchTool Instance of PABatchTool.
         function this = PABatchTool(batchSettings)
+            
             if(nargin>0 && ~isempty(batchSettings))
                 this.settings = batchSettings;
             else
                 this.settings = this.getDefaults();
             end
                         
-            batchFig = batchTool('visible','off','name','','sizechangedfcn',[]);
-            this.handles = guidata(batchFig);
-            
-            contextmenu_directory = uicontextmenu('parent',batchFig);
-            if(ismac)
-                label = 'Show in Finder';
-            elseif(ispc)
-                label = 'Show in Explorer';
-            else
-                label = 'Show in browser';
-            end
-            
-            this.isRunning = false;
-            uimenu(contextmenu_directory,'Label',label,'callback',@showPathContextmenuCallback);
-            
-            set(this.handles.button_getSourcePath,'callback',@this.getSourceDirectoryCallback);  
-            set(this.handles.button_getOutputPath,'callback',@this.getOutputDirectoryCallback);
-            
-            set(this.handles.text_outputPath,'string',this.settings.outputDirectory,'uicontextmenu',contextmenu_directory);
-            set(this.handles.text_sourcePath,'string','','uicontextmenu',contextmenu_directory);
-            
-            set(this.handles.check_linkInOutPaths,'callback',@this.toggleOutputToInputPathLinkageCallbackFcn,'value',this.settings.isOutputPathLinked);
-            
-            % Send a refresh to the widgets that may be effected by the
-            % current value of the linkage checkbox.
-            this.toggleOutputToInputPathLinkageCallbackFcn(this.handles.check_linkInOutPaths,[]);            
-            %             set(this.handles.check_usageState,'value',this.settings.classifyUsageState);
-
-            
-            set(this.handles.menu_frameDurationMinutes,'string',this.featureDurationStr,'userdata',this.featureDurationVal,'value',find(cellfun(@(x)(x==this.settings.frameDurationMinutes),this.featureDurationVal)));
-            set(this.handles.menu_maxDaysAllowed,'string',this.maxDaysAllowedStr,'userdata',this.maxDaysVal,'value',find(cellfun(@(x)(x==this.settings.numDaysAllowed),this.maxDaysVal)));
-            
-            set(this.handles.check_run_aligned_feature_export,'callback',@this.checkExportFeaturesCallback,'value',1);
-            set(this.handles.check_run_unaligned_feature_export,'callback',@this.checkExportFeaturesCallback,'value',0);
-
-            set(this.handles.button_go,'callback',@this.startBatchProcessCallback);
-
-            % try and set the source and output paths.  In the event that
-            % the path is not set, then revert to the empty ('') path.
-            if(~this.setSourcePath(this.settings.sourceDirectory))
-                this.setSourcePath('');
-            end
-            if(~this.setOutputPath(this.settings.outputDirectory))
-                this.setOutputPath('');
-            end
-            
-            %             imgFmt = this.settings.images.format;
-            %             imageFormats = {'JPEG','PNG'};
-            %             imgSelection = find(strcmpi(imageFormats,imgFmt));
-            %             if(isempty(imgSelection))
-            %                 imgSelection = 1;
-            %             end
-            %             set(this.handles.menu_imageFormat,'string',imageFormats,'value',imgSelection);
-            %
-            featureFcns = fieldnames(PASensorData.getFeatureDescriptionStruct()); %spits field-value pairs of feature names and feature description strings
-            featureDesc = PASensorData.getExtractorDescriptions();  %spits out the string values      
-
-            featureFcns = [featureFcns; 'all_sans_psd';'all_sans_psd_usagestate','all']; 
-            featureLabels = [featureDesc;'All (sans PSD)';'All (sans PSD and activity categories)'; 'All'];
-            
-
-            featureLabel = this.settings.featureLabel;
-            featureSelection = find(strcmpi(featureLabels,featureLabel));
-            
-            if(isempty(featureSelection))
-                featureSelection =1;
-            end
-            set(this.handles.menu_featureFcn,'string',featureLabels,'value',featureSelection,'userdata',featureFcns);
-
-            % Make visible
-            this.figureH = batchFig;
-            set(this.figureH,'visible','on','closerequestFcn',@this.close);
+            figureH = batchTool('visible','off','name','','sizechangedfcn',[]);
+            if ~(this.setFigureHandle(figureH) && this.initFigure())
+                fprintf(2,'Failed to initialize PABatchTool!\n');
+                delete(figureH);
+            end            
         end
-          
+        
         function checkExportFeaturesCallback(this, varargin)
             this.refreshSettings();
         end
@@ -183,15 +106,16 @@ classdef PABatchTool < handle
         function shouldExport = shouldExportAlignedFeatures(this)
             shouldExport = get(this.handles.check_run_aligned_feature_export,'value');            
         end
+        
         function shouldExport = shouldExportUnalignedFeatures(this)
             shouldExport = get(this.handles.check_run_unaligned_feature_export,'value');            
         end
         
         function refreshSettings(this)
             if(ishandle(this.figureH))
-                this.settings.featureLabel = getMenuString(this.handles.menu_featureFcn);            
-                this.settings.frameDurationMinutes = getSelectedMenuUserData(this.handles.menu_frameDurationMinutes);
-                this.settings.numDaysAllowed = getMenuUserData(this.handles.menu_maxDaysAllowed);
+                this.setSetting('featureLabel',getMenuString(this.handles.menu_featureFcn));            
+                this.setSetting('frameDurationMinutes',getSelectedMenuUserData(this.handles.menu_frameDurationMinutes));
+                this.setSetting('numDaysAllowed',getMenuUserData(this.handles.menu_maxDaysAllowed));
                 if(this.shouldExportAlignedFeatures())
                     enableHandles(this.handles.panel_loadshape_settings);
                 else
@@ -247,8 +171,8 @@ classdef PABatchTool < handle
         
         function didUpdate = toggleOutputToInputPathLinkageCallbackFcn(this, checkboxHandle, eventData)
             try
-                this.settings.isOutputPathLinked = this.isOutputPathLinkedToInputPath();
-                if(this.settings.isOutputPathLinked)
+                this.setSetting('isOutputPathLinked',this.isOutputPathLinkedToInputPath());
+                if(this.getSetting('isOutputPathLinked'))
                     this.setOutputPath(this.getSourcePath());
                     set(this.handles.button_getOutputPath,'enable','off');                    
                 else
@@ -264,7 +188,7 @@ classdef PABatchTool < handle
         function didSet = setSourcePath(this,tmpSrcPath)
             if(~isempty(tmpSrcPath) && isdir(tmpSrcPath))
                 %assign the settings directory variable
-                this.settings.sourceDirectory = tmpSrcPath;
+                this.setSetting('sourceDirectory',tmpSrcPath);
                 set(this.handles.text_sourcePath,'string',tmpSrcPath);
                 this.calculateFilesFound();                
                 if(this.isOutputPathLinkedToInputPath())
@@ -284,7 +208,7 @@ classdef PABatchTool < handle
         function didSet = setOutputPath(this,tmpOutputPath)
             if(~isempty(tmpOutputPath) && isdir(tmpOutputPath))
                 %assign the settings directory variable
-                this.settings.outputDirectory = tmpOutputPath;
+                this.setSetting('outputDirectory',tmpOutputPath);
                 set(this.handles.text_outputPath,'string',tmpOutputPath);
                 this.updateOutputLogs();
                 didSet = true;
@@ -302,11 +226,11 @@ classdef PABatchTool < handle
         end
         
         function pathName = getOutputPath(this)
-            pathName = this.settings.outputDirectory;
+            pathName = this.getSetting('outputDirectory');
         end
         
         function pathName = getSourcePath(this)
-            pathName = this.settings.sourceDirectory;
+            pathName = this.getSetting('sourceDirectory');
         end
                         
         % --------------------------------------------------------------------
@@ -499,33 +423,33 @@ classdef PABatchTool < handle
                 
                 % Get maximum days allowed for any one subject
                 maximumDaysAllowed = getMenuUserData(this.handles.menu_maxDaysAllowed);
-                this.settings.numDaysAllowed = maximumDaysAllowed;
+                this.setSetting('numDaysAllowed',maximumDaysAllowed);
                 
                 % get feature settings
                 % determine which feature to process
                 
                 featureFcn = getMenuUserData(this.handles.menu_featureFcn);
-                this.settings.featureLabel = getMenuString(this.handles.menu_featureFcn);
+                this.setSetting('featureLabel',getMenuString(this.handles.menu_featureFcn));
                 
                 % determine frame aggreation size - size to calculate each
                 % feature from
                 %             allFrameDurationMinutes = get(handles.menu_frameDurationMinutes,'userdata');
                 %             frameDurationMinutes = allFrameDurationMinutes(get(handles.menu_frameDurationMinutes,'value'));
                 frameDurationMinutes = getSelectedMenuUserData(this.handles.menu_frameDurationMinutes);
-                this.settings.frameDurationMinutes = frameDurationMinutes;
+                this.setSetting('frameDurationMinutes',frameDurationMinutes);
                 
                 % features are grouped for all studies into one file per
                 % signal, place groupings into feature function directories
                 
                 
-                this.settings.alignment.elapsedStartHours = 0; %when to start the first measurement
-                this.settings.alignment.intervalLengthHours = 24;  %duration of each interval (in hours) once started
+                this.setSetting('alignment.elapsedStartHours',0); %when to start the first measurement
+                this.setSetting('alignment.intervalLengthHours',24);  %duration of each interval (in hours) once started
                 
                 % setup developer friendly variable names
-                elapsedStartHour  = this.settings.alignment.elapsedStartHours;
-                intervalDurationHours = this.settings.alignment.intervalLengthHours;
+                elapsedStartHour  = this.getSetting('alignment.elapsedStartHours');
+                intervalDurationHours = this.getSetting('alignment.intervalLengthHours');
                 maxNumIntervals = 24/intervalDurationHours*maximumDaysAllowed;  %set maximum to a week
-                %this.settings.alignment.singalName = 'X';
+                %this.setSetting('alignment.singalName = 'X';
                 
                 signalNames = strcat('accel.',accelType,'.',{'x','y','z','vecMag'})';
                 %signalNames = {strcat('accel.',this.accelObj.accelType,'.','x')};
@@ -559,7 +483,7 @@ classdef PABatchTool < handle
                     outputFeatureLabels = struct2cell(outputFeatureStruct);
                 else
                     outputFeatureFcns = {featureFcn};
-                    outputFeatureLabels = {this.settings.featureLabel};
+                    outputFeatureLabels = {this.getSetting('featureLabel')};
                 end
                 
                 
@@ -990,7 +914,90 @@ classdef PABatchTool < handle
     
     methods(Access=protected)
         
-       % --------------------------------------------------------------------
+        function didInit = initFigure(this)
+            didInit = false;
+            if(ishandle(this.figureH))
+                try
+                    batchFig = this.figureH;
+                    
+                    contextmenu_directory = uicontextmenu('parent',batchFig);
+                    if(ismac)
+                        label = 'Show in Finder';
+                    elseif(ispc)
+                        label = 'Show in Explorer';
+                    else
+                        label = 'Show in browser';
+                    end
+                    
+                    this.isRunning = false;
+                    uimenu(contextmenu_directory,'Label',label,'callback',@showPathContextmenuCallback);
+                    
+                    set(this.handles.button_getSourcePath,'callback',@this.getSourceDirectoryCallback);
+                    set(this.handles.button_getOutputPath,'callback',@this.getOutputDirectoryCallback);
+                    
+                    set(this.handles.text_outputPath,'string',this.getSetting('outputDirectory'),'uicontextmenu',contextmenu_directory);
+                    set(this.handles.text_sourcePath,'string','','uicontextmenu',contextmenu_directory);
+                    
+                    set(this.handles.check_linkInOutPaths,'callback',@this.toggleOutputToInputPathLinkageCallbackFcn,'value',this.getSetting('isOutputPathLinked'));
+                    
+                    % Send a refresh to the widgets that may be effected by the
+                    % current value of the linkage checkbox.
+                    this.toggleOutputToInputPathLinkageCallbackFcn(this.handles.check_linkInOutPaths,[]);
+                    %             set(this.handles.check_usageState,'value',this.getSetting('classifyUsageState);
+                    
+                    
+                    set(this.handles.menu_frameDurationMinutes,'string',this.featureDurationStr,'userdata',this.featureDurationVal,'value',find(cellfun(@(x)(x==this.getSetting('frameDurationMinutes')),this.featureDurationVal)));
+                    set(this.handles.menu_maxDaysAllowed,'string',this.maxDaysAllowedStr,'userdata',this.maxDaysVal,'value',find(cellfun(@(x)(x==this.getSetting('numDaysAllowed')),this.maxDaysVal)));
+                    
+                    set(this.handles.check_run_aligned_feature_export,'callback',@this.checkExportFeaturesCallback,'value',1);
+                    set(this.handles.check_run_unaligned_feature_export,'callback',@this.checkExportFeaturesCallback,'value',0);
+                    
+                    set(this.handles.button_go,'callback',@this.startBatchProcessCallback);
+                    
+                    % try and set the source and output paths.  In the event that
+                    % the path is not set, then revert to the empty ('') path.
+                    if(~this.setSourcePath(this.getSetting('sourceDirectory')))
+                        this.setSourcePath('');
+                    end
+                    if(~this.setOutputPath(this.getSetting('outputDirectory')))
+                        this.setOutputPath('');
+                    end
+                    
+                    %             imgFmt = this.getSetting('images.format;
+                    %             imageFormats = {'JPEG','PNG'};
+                    %             imgSelection = find(strcmpi(imageFormats,imgFmt));
+                    %             if(isempty(imgSelection))
+                    %                 imgSelection = 1;
+                    %             end
+                    %             set(this.handles.menu_imageFormat,'string',imageFormats,'value',imgSelection);
+                    %
+                    featureFcns = fieldnames(PASensorData.getFeatureDescriptionStruct()); %spits field-value pairs of feature names and feature description strings
+                    featureDesc = PASensorData.getExtractorDescriptions();  %spits out the string values
+                    
+                    featureFcns = [featureFcns; 'all_sans_psd';'all_sans_psd_usagestate','all'];
+                    featureLabels = [featureDesc;'All (sans PSD)';'All (sans PSD and activity categories)'; 'All'];
+                    
+                    
+                    featureLabel = this.getSetting('featureLabel');
+                    featureSelection = find(strcmpi(featureLabels,featureLabel));
+                    
+                    if(isempty(featureSelection))
+                        featureSelection =1;
+                    end
+                    set(this.handles.menu_featureFcn,'string',featureLabels,'value',featureSelection,'userdata',featureFcns);
+                    
+                    % Make visible
+                    this.figureH = batchFig;
+                    set(this.figureH,'visible','on','closerequestFcn',@this.close);
+                    didInit = true;
+                catch me
+                    showME(me);
+                end
+            end
+            
+        end
+        
+        % --------------------------------------------------------------------
         %> @brief Prepares the current run's log and summary files.
         %> @param this Instance of PABatchTool
         %> @param settings
@@ -1069,17 +1076,38 @@ classdef PABatchTool < handle
                 docPath = fileparts(mfilename('fullpath'));
             end
             
-            pStruct.sourceDirectory = docPath;
-            pStruct.outputDirectory = docPath;
+            %             pStruct.sourceDirectory = docPath;
+            %             pStruct.outputDirectory = docPath;
+            %
+            %
+            %             pStruct.alignment.elapsedStartHours = 0; %when to start the first measurement
+            %             pStruct.alignment.intervalLengthHours = 24;  %duration of each interval (in hours) once started
+            %             pStruct.frameDurationMinutes = 15;
+            %
+            %
+            %             pStruct.numDaysAllowed = 7;
+            %             pStruct.featureLabel = 'All';
+            %             pStruct.logFilename = 'batchRun_@TIMESTAMP.txt';
+            %             pStruct.summaryFilename = 'batchSummary_@TIMESTAMP.txt';
+            %             pStruct.isOutputPathLinked = false;
             
-            pStruct.alignment.elapsedStartHours = 0; %when to start the first measurement
-            pStruct.alignment.intervalLengthHours = 24;  %duration of each interval (in hours) once started
-            pStruct.frameDurationMinutes = 15;
-            pStruct.numDaysAllowed = 7;
-            pStruct.featureLabel = 'All';
-            pStruct.logFilename = 'batchRun_@TIMESTAMP.txt'; 
-            pStruct.summaryFilename = 'batchSummary_@TIMESTAMP.txt';            
-            pStruct.isOutputPathLinked = false;  
+            pStruct.sourceDirectory = PAStringParam('default',docPath,'description','Source Directory');
+            pStruct.outputDirectory = PAStringParam('default',docPath,'description','Output Directory');
+            
+            pStruct.alignment.elapsedStartHours = PANumericParam('default',0,'Description','Hour of the day to start first measurement','min',0,'max',23.99);
+            pStruct.alignment.intervalLengthHours = PANumericParam('default',24,'Description','%Duration of each interval (in hours) once started','min',0,'max',24); 
+            pStruct.frameDurationMinutes = PANumericParam('default',15,'Description','Duration of frame in minutes','min',0,'max',24*60);
+            
+            pStruct.numDaysAllowed = PANumericParam('default',7,'Description','Maximum number of days allowed/used','min',0);
+
+            pStruct.featureLabel = PAStringParam('default','All','description','Feature selection');
+            
+            pStruct.logFilename = PAStringParam('default','batchRun_@TIMESTAMP.txt','description','Log filename convention');
+            pStruct.summaryFilename = PAStringParam('default','batchRun_@TIMESTAMP.txt','description','Summary filename convention');
+             
+            pStruct.isOutputPathLinked = PABoolParam('default',false,'description','Store output results within same folder as input files');
+            
+
         end            
                 
         

@@ -35,10 +35,10 @@
 % ======================================================================
 function ltStruct = mergeStructi(ltStruct,rtStruct)
     if(isstruct(rtStruct))
-        ltFields = fieldnames(ltStruct);
+        
         for curFieldCell=fieldnames(rtStruct)'
             curField = curFieldCell{1};
-            ltField = getCaseSensitiveMatch(curField, ltFields);
+            ltField = getCaseSensitiveMatch(curField, ltStruct);
             if(isempty(ltField))
                 ltStruct.(curField) = rtStruct.(curField);
             else
@@ -52,11 +52,3 @@ function ltStruct = mergeStructi(ltStruct,rtStruct)
     end
 end
 
-function caseSensitiveMatch = getCaseSensitiveMatch(caseInsensitiveStrToMatch, caseSensitiveStrings)
-    matchVector = strcmpi(caseSensitiveStrings,caseInsensitiveStrToMatch);
-    if(any(matchVector))
-        caseSensitiveMatch = caseSensitiveStrings{matchVector};
-    else
-        caseSensitiveMatch  = '';    
-    end
-end
