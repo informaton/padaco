@@ -4403,62 +4403,120 @@ classdef PAStatTool < PAFigureController
             % Prime with cluster parameters.
             paramStruct = PACluster.getDefaults();
             
-            paramStruct.exportShowNonwear = true;
-            paramStruct.cacheDirectory = fullfile(workingPath,'cache');
-            paramStruct.useCache = 1;
+
+            paramStruct.exportShowNonwear = PABoolParam('default',true,'description','');
+            paramStruct.cacheDirectory = PAPathParam('default',fullfile(workingPath,'cache','description');
+            paramStruct.useCache = PABoolParam('default',true,'description','');
             
-            paramStruct.useOutcomes = 0;
-            paramStruct.useDatabase = 0;
-            paramStruct.profileFieldIndex = 1;
-            paramStruct.databaseClass = 'CLASS_database_goals';
-            paramStruct.discardNonwearFeatures = 1;
-            paramStruct.trimResults = 0;
-            paramStruct.cullResults = 0;            
-            paramStruct.chunkShapes = 0;
-            paramStruct.numChunks = 6;
-            paramStruct.numDataSegmentsSelection = find(baseSettings.numDataSegments==paramStruct.numChunks,1); %results in number six
+            paramStruct.useOutcomes = PABoolParam('default',false,'description','');
+            paramStruct.useDatabase = PABoolParam('default',false,'description','');
+            paramStruct.profileFieldIndex = PAIndexParam('default',1,'description','');
+            paramStruct.databaseClass = PAStringParam('default','CLASS_database_goals','description','');
+            paramStruct.discardNonwearFeatures = PABoolParam('default',true,'description','');
+            paramStruct.trimResults = PABoolParam('default',false,'description','');
+            paramStruct.cullResults = PABoolParam('default',false,'description','');    
+            paramStruct.chunkShapes = PABoolParam('default',false,'description','');  
+            numChunks =6;
+            paramStruct.numChunks = PANumeric('default',numChunks,'description','Number of chunks');
+            paramStruct.numDataSegmentsSelection = PAIndexParam('default',find(baseSettings.numDataSegments==numChunks,1),'description',''); %results in number six
             
             % If we no longer have 6 as a choice, then just take the first
             % choice that is available 
             if(isempty(paramStruct.numDataSegmentsSelection))
-                paramStruct.numDataSegmentsSelection = 1;
+                paramStruct.numDataSegmentsSelection = PAIndexParam('default',1,'description','');
                 paramStruct.numChunks=baseSettings.numDataSegments(paramStruct.numDataSegmentsSelection);
             end
             
-            paramStruct.preclusterReductionSelection = 1; % defaults to 'none'
+            paramStruct.preclusterReductionSelection = PAIndexParam('default',1,'description',''); % defaults to 'none'
 
-            paramStruct.maxNumDaysAllowed = 0; % Maximum number of days allowed per subject.  Leave 0 to include all days.
-            paramStruct.minNumDaysAllowed = 0; % Minimum number of days allowed per subject.  Leave 0 for no minimum.  Currently variable has no effect at all.
+            paramStruct.maxNumDaysAllowed = PANumeric('default',0,'Description','Maximum number of days allowed per subject.','help','Leave 0 to include all days.','min',0);
+            paramStruct.minNumDaysAllowed = PANumeric('default',0,'Description','Minimum number of days allowed per subject.','help','Leave 0 for no minimum.  Currently variable has no effect at all.','min',0);
             
-            paramStruct.normalizeValues = 0;            
-            paramStruct.processedTypeSelection = 1;
-            paramStruct.baseFeatureSelection = 1;
-            paramStruct.signalSelection = 1;
-            paramStruct.plotTypeSelection = 1;
-            paramStruct.trimToPercent = 100;
-            paramStruct.cullToValue = 0;
-            paramStruct.showClusterMembers = 0;
-            paramStruct.showClusterSummary = 0;
+            paramStruct.normalizeValues = PABoolParam('default',false,'description','');            
+            paramStruct.processedTypeSelection = PAIndexParam('default',1,'description','');
+            paramStruct.baseFeatureSelection = PAIndexParam('default',1,'description','');
+            paramStruct.signalSelection = PAIndexParam('default',1,'description','');
+            paramStruct.plotTypeSelection = PAIndexParam('default',1,'description','');
+            paramStruct.trimToPercent = PANumericParam('default',100,'description','');
+            paramStruct.cullToValue = PANumericParam('default',0,'description','');
+            paramStruct.showClusterMembers = PABoolParam('default',false,'description','');
+            paramStruct.showClusterSummary = PABoolParam('default',false,'description','');
             
-            paramStruct.weekdaySelection = 1;
-            paramStruct.startTimeSelection = 1;
-            paramStruct.stopTimeSelection = -1;
+            paramStruct.weekdaySelection = PAIndexParam('default',1,'description','');
+            paramStruct.startTimeSelection = PAIndexParam('default',1,'description','');
+            paramStruct.stopTimeSelection = PAIndexParam('default',-1,'description','');
             paramStruct.customDaysOfWeek = 0;  %for sunday.
             
-            paramStruct.clusterDurationSelection = 1;
+            paramStruct.clusterDurationSelection = PAIndexParam('default',1,'description','');
                         
-            paramStruct.primaryAxis_yLimMode = 'auto';
+            paramStruct.primaryAxis_yLimMode = PACategoricalParam('default','auto','categories',{'auto','manual'},'description','y-axis range');
             paramStruct.primaryAxis_nextPlot = 'replace';
-            paramStruct.showAnalysisFigure = 0; % do not display the other figure at first
-            paramStruct.showTimeOfDayAsBackgroundColor = 0; % do not display at first
+            paramStruct.showAnalysisFigure = PABoolParam('default',false,'description',''); % do not display the other figure at first
+            paramStruct.showTimeOfDayAsBackgroundColor = PABoolParam('default',false,'description',''); % do not display at first
             paramStruct.clusterDistributionType = 'loadshape_membership';  %{'loadshape_membership','participant_membership','performance_progression','membership','weekday_membership'}            
-            paramStruct.profileFieldSelection = 1;    
+            paramStruct.profileFieldSelection = PAIndexParam('default',1,'description','');    
             
-            paramStruct.bootstrapIterations =  100;
+            paramStruct.bootstrapIterations =  PANumericParam('default',100,'description','');
             paramStruct.bootstrapSampleName = 'studyID';  % or 'days'
-            
-            paramStruct.exportPathname = '';
+            paramStruct.exportPathname = PAPathParam('default','','Description','Export path');
            
+
+%             paramStruct.exportShowNonwear = true;
+%             paramStruct.cacheDirectory = fullfile(workingPath,'cache');
+%             paramStruct.useCache = 1;
+%             
+%             paramStruct.useOutcomes = 0;
+%             paramStruct.useDatabase = 0;
+%             paramStruct.profileFieldIndex = 1;
+%             paramStruct.databaseClass = 'CLASS_database_goals';
+%             paramStruct.discardNonwearFeatures = 1;
+%             paramStruct.trimResults = 0;
+%             paramStruct.cullResults = 0;            
+%             paramStruct.chunkShapes = 0;
+%             paramStruct.numChunks = 6;
+%             paramStruct.numDataSegmentsSelection = find(baseSettings.numDataSegments==paramStruct.numChunks,1); %results in number six
+%             
+%             % If we no longer have 6 as a choice, then just take the first
+%             % choice that is available 
+%             if(isempty(paramStruct.numDataSegmentsSelection))
+%                 paramStruct.numDataSegmentsSelection = 1;
+%                 paramStruct.numChunks=baseSettings.numDataSegments(paramStruct.numDataSegmentsSelection);
+%             end
+%             
+%             paramStruct.preclusterReductionSelection = 1; % defaults to 'none'
+% 
+%             paramStruct.maxNumDaysAllowed = 0; % Maximum number of days allowed per subject.  Leave 0 to include all days.
+%             paramStruct.minNumDaysAllowed = 0; % Minimum number of days allowed per subject.  Leave 0 for no minimum.  Currently variable has no effect at all.
+%             
+%             paramStruct.normalizeValues = 0;            
+%             paramStruct.processedTypeSelection = 1;
+%             paramStruct.baseFeatureSelection = 1;
+%             paramStruct.signalSelection = 1;
+%             paramStruct.plotTypeSelection = 1;
+%             paramStruct.trimToPercent = 100;
+%             paramStruct.cullToValue = 0;
+%             paramStruct.showClusterMembers = 0;
+%             paramStruct.showClusterSummary = 0;
+%             
+%             paramStruct.weekdaySelection = 1;
+%             paramStruct.startTimeSelection = 1;
+%             paramStruct.stopTimeSelection = -1;
+%             paramStruct.customDaysOfWeek = 0;  %for sunday.
+%             
+%             paramStruct.clusterDurationSelection = 1;
+%                         
+%             paramStruct.primaryAxis_yLimMode = 'auto';
+%             paramStruct.primaryAxis_nextPlot = 'replace';
+%             paramStruct.showAnalysisFigure = 0; % do not display the other figure at first
+%             paramStruct.showTimeOfDayAsBackgroundColor = 0; % do not display at first
+%             paramStruct.clusterDistributionType = 'loadshape_membership';  %{'loadshape_membership','participant_membership','performance_progression','membership','weekday_membership'}            
+%             paramStruct.profileFieldSelection = 1;    
+%             
+%             paramStruct.bootstrapIterations =  100;
+%             paramStruct.bootstrapSampleName = 'studyID';  % or 'days'
+%             
+%             paramStruct.exportPathname = '';
+%            
         end
         
         % ======================================================================

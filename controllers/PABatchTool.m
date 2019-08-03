@@ -1091,8 +1091,8 @@ classdef PABatchTool < PAFigureController
             %             pStruct.summaryFilename = 'batchSummary_@TIMESTAMP.txt';
             %             pStruct.isOutputPathLinked = false;
             
-            pStruct.sourceDirectory = PAStringParam('default',docPath,'description','Source Directory');
-            pStruct.outputDirectory = PAStringParam('default',docPath,'description','Output Directory');
+            pStruct.sourceDirectory = PAPathParam('default',docPath,'description','Source Directory');
+            pStruct.outputDirectory = PAPathParam('default',docPath,'description','Output Directory');
             
             pStruct.alignment.elapsedStartHours = PANumericParam('default',0,'Description','Hour of the day to start first measurement','min',0,'max',23.99);
             pStruct.alignment.intervalLengthHours = PANumericParam('default',24,'Description','%Duration of each interval (in hours) once started','min',0,'max',24); 
