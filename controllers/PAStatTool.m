@@ -4405,7 +4405,7 @@ classdef PAStatTool < PAFigureController
             
 
             paramStruct.exportShowNonwear = PABoolParam('default',true,'description','');
-            paramStruct.cacheDirectory = PAPathParam('default',fullfile(workingPath,'cache','description');
+            paramStruct.cacheDirectory = PAPathParam('default',fullfile(workingPath,'cache','description'));
             paramStruct.useCache = PABoolParam('default',true,'description','');
             
             paramStruct.useOutcomes = PABoolParam('default',false,'description','');
@@ -4417,7 +4417,7 @@ classdef PAStatTool < PAFigureController
             paramStruct.cullResults = PABoolParam('default',false,'description','');    
             paramStruct.chunkShapes = PABoolParam('default',false,'description','');  
             numChunks =6;
-            paramStruct.numChunks = PANumeric('default',numChunks,'description','Number of chunks');
+            paramStruct.numChunks = PANumericParam('default',numChunks,'description','Number of chunks');
             paramStruct.numDataSegmentsSelection = PAIndexParam('default',find(baseSettings.numDataSegments==numChunks,1),'description',''); %results in number six
             
             % If we no longer have 6 as a choice, then just take the first
@@ -4429,38 +4429,37 @@ classdef PAStatTool < PAFigureController
             
             paramStruct.preclusterReductionSelection = PAIndexParam('default',1,'description',''); % defaults to 'none'
 
-            paramStruct.maxNumDaysAllowed = PANumeric('default',0,'Description','Maximum number of days allowed per subject.','help','Leave 0 to include all days.','min',0);
-            paramStruct.minNumDaysAllowed = PANumeric('default',0,'Description','Minimum number of days allowed per subject.','help','Leave 0 for no minimum.  Currently variable has no effect at all.','min',0);
+            paramStruct.maxNumDaysAllowed = PANumericParam('default',0,'Description','Maximum number of days allowed per subject.','help','Leave 0 to include all days.','min',0);
+            paramStruct.minNumDaysAllowed = PANumericParam('default',0,'Description','Minimum number of days allowed per subject.','help','Leave 0 for no minimum.  Currently variable has no effect at all.','min',0);
             
-            paramStruct.normalizeValues = PABoolParam('default',false,'description','');            
+            paramStruct.normalizeValues =        PABoolParam('default',false,'description','');            
             paramStruct.processedTypeSelection = PAIndexParam('default',1,'description','');
-            paramStruct.baseFeatureSelection = PAIndexParam('default',1,'description','');
-            paramStruct.signalSelection = PAIndexParam('default',1,'description','');
-            paramStruct.plotTypeSelection = PAIndexParam('default',1,'description','');
-            paramStruct.trimToPercent = PANumericParam('default',100,'description','');
-            paramStruct.cullToValue = PANumericParam('default',0,'description','');
-            paramStruct.showClusterMembers = PABoolParam('default',false,'description','');
-            paramStruct.showClusterSummary = PABoolParam('default',false,'description','');
+            paramStruct.baseFeatureSelection =   PAIndexParam('default',1,'description','');
+            paramStruct.signalSelection =        PAIndexParam('default',1,'description','');
+            paramStruct.plotTypeSelection =      PAIndexParam('default',1,'description','');
+            paramStruct.trimToPercent =         PANumericParam('default',100,'description','');
+            paramStruct.cullToValue =           PANumericParam('default',0,'description','');
+            paramStruct.showClusterMembers =    PABoolParam('default',false,'description','');
+            paramStruct.showClusterSummary =    PABoolParam('default',false,'description','');
             
-            paramStruct.weekdaySelection = PAIndexParam('default',1,'description','');
-            paramStruct.startTimeSelection = PAIndexParam('default',1,'description','');
-            paramStruct.stopTimeSelection = PAIndexParam('default',-1,'description','');
-            paramStruct.customDaysOfWeek = 0;  %for sunday.
+            paramStruct.weekdaySelection =      PAIndexParam('default',1,'description','');
+            paramStruct.startTimeSelection =    PAIndexParam('default',1,'description','');
+            paramStruct.stopTimeSelection =     PAIndexParam('default',-1,'description','');
+            paramStruct.customDaysOfWeek =      PANumericParam('default',0,'min',0,'max',6,'Description','Day of week','help','0 = Sunday, 1 = Monday, ... 6 = Saturday');
             
             paramStruct.clusterDurationSelection = PAIndexParam('default',1,'description','');
                         
-            paramStruct.primaryAxis_yLimMode = PACategoricalParam('default',categorical({'auto'},{'auto','manual'},'protected',true),'description','y-axis range');
-            paramStruct.primaryAxis_nextPlot = 'replace';
-            paramStruct.showAnalysisFigure = PABoolParam('default',false,'description',''); % do not display the other figure at first
+            paramStruct.primaryAxis_yLimMode =          PACategoricalParam('default',categorical({'auto'},{'auto','manual'},'protected',true),'description','y-axis range');
+            paramStruct.primaryAxis_nextPlot =          PAEnumParam('default','replace','categories',{{'replace','hold'}},'description','');
+            paramStruct.showAnalysisFigure =            PABoolParam('default',false,'description',''); % do not display the other figure at first
             paramStruct.showTimeOfDayAsBackgroundColor = PABoolParam('default',false,'description',''); % do not display at first
-            paramStruct.clusterDistributionType = 'loadshape_membership';  %{'loadshape_membership','participant_membership','performance_progression','membership','weekday_membership'}            
-            paramStruct.profileFieldSelection = PAIndexParam('default',1,'description','');    
+            paramStruct.clusterDistributionType =       PAEnumParam('default','loadshape_membership','categories',{{'loadshape_membership','participant_membership','performance_progression','membership','weekday_membership'}},'description','');
+            paramStruct.profileFieldSelection =         PAIndexParam('default',1,'description','');    
             
-            paramStruct.bootstrapIterations =  PANumericParam('default',100,'description','');
-            paramStruct.bootstrapSampleName = 'studyID';  % or 'days'
-            paramStruct.exportPathname = PAPathParam('default','','Description','Export path');
+            paramStruct.bootstrapIterations =   PANumericParam('default',100,'description','');
+            paramStruct.bootstrapSampleName =   PAEnumParam('default','studyID','categories',{{'studyID','days'}},'description','');
+            paramStruct.exportPathname =        PAPathParam('default','','Description','Export path');
            
-
 %             paramStruct.exportShowNonwear = true;
 %             paramStruct.cacheDirectory = fullfile(workingPath,'cache');
 %             paramStruct.useCache = 1;
