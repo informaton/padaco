@@ -35,7 +35,6 @@ classdef PAParam < handle
             end
         end
         
-        
         function canIt = canSetValue(this, value2set)
             canIt = isa(value2set,this.type);
         end
@@ -92,7 +91,8 @@ classdef PAParam < handle
         function didSet = setDefault(this, defaultValue)
             if(isa(defaultValue,this.type))
                 this.default = defaultValue;
-                didSet = this.setValue(defaultValue);                
+                this.setValue(defaultValue);  % this may fail if the default is out of bounds
+                didSet = true;  % but don'tmake setting the current value's success or failure mean a requirement for replying the value was set.
             else
                 didSet = false;
             end

@@ -1,16 +1,17 @@
-classdef PACategoricalParam < PAParam
+classdef PAEnumParam < PAStringParam
     properties(SetAccess=protected)
         categories;
     end
     
     methods
-        function this = PACategoricalParam(varargin)
-            this@PAParam('categorical',varargin{:});
-            this.categories = categories(this.default);
+        function this = PAEnumParam(varargin)
+            this@PAStringParam(varargin{:});
+            args.categories = [];
+            args = mergepvpairs(args, varargin{:});
+            this.categories = args.categories();
             this.setValue(char(this.default));
         end
         
-        % Also in PAEnumParam
         function canIt = canSetValue(this, value2set)
             canIt = nargin>1 && ischar(value2set) && any(strcmpi(value2set,this.categories));
         end

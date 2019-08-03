@@ -4449,7 +4449,7 @@ classdef PAStatTool < PAFigureController
             
             paramStruct.clusterDurationSelection = PAIndexParam('default',1,'description','');
                         
-            paramStruct.primaryAxis_yLimMode = PACategoricalParam('default','auto','categories',{'auto','manual'},'description','y-axis range');
+            paramStruct.primaryAxis_yLimMode = PACategoricalParam('default',categorical({'auto'},{'auto','manual'},'protected',true),'description','y-axis range');
             paramStruct.primaryAxis_nextPlot = 'replace';
             paramStruct.showAnalysisFigure = PABoolParam('default',false,'description',''); % do not display the other figure at first
             paramStruct.showTimeOfDayAsBackgroundColor = PABoolParam('default',false,'description',''); % do not display at first
