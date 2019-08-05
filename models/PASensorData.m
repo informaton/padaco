@@ -88,11 +88,7 @@ classdef PASensorData < PAData
         %> @brief Numeric values for date time sample for when the extracted features stop/end.
         stopDatenums;
 
-        %> @brief Struct of line handle properties corresponding to the
-        %> fields of linehandle.  These are derived from the input files
-        %> loaded by the PASensorData class.
-        lineproperty;
-
+        
         label;
         color;
         offset;
@@ -191,14 +187,16 @@ classdef PASensorData < PAData
         %> @param pStruct Optional struct of parameters to use.  If it is not
         %> included then parameters from getDefaults method are used.
         %> @retval Instance of PASensorData.
-        % fullFile = '~/Google Drive/work/Stanford - Pediatrics/sampledata/female child 1 second epoch.csv'
-        % =================================================================
+         % =================================================================
         function obj = PASensorData(fullFilenameOrPath,pStruct)
             obj.pathname =[];
             obj.filename = [];
 
+            defaultSettings = obj.getDefaults();
             if(nargin<2 || isempty(pStruct))
-                pStruct = obj.getDefaults();
+                pStruct = defaultSettings;
+            else
+                pStruct = mergeStruct(defaultSettings,pStruct);
             end
 
             obj.hasCounts = false;
@@ -1020,6 +1018,11 @@ classdef PASensorData < PAData
         % --------------------------------------------------------------------
         function varargout = setProperty(obj,propertyName,fieldName,propertyValueStr)
             eval(['obj.',propertyName,'.',fieldName,'.propertyName = ',propertyValueStr,';']);
+            
+            % Not sure about the [] argument here.  Untested @hyatt4
+            % 8/4/2019
+            evtData = LinePropertyChanged_EventData(fieldName,propertyName,propertyValueStr,[]);
+            obj.notify('LinePropertyChanged',evtData);                
             if(nargout>0)
                 varargout = cell(1,nargout);
             end
@@ -1514,12 +1517,14 @@ classdef PASensorData < PAData
                     obj.accelType = 'all';
                 elseif(obj.hasRaw)
                     obj.accelType = 'raw';
-                    obj.setVisible('lux','off');
-                    obj.setVisible('steps','off');
-                    obj.setVisible('inclinometer.standing','off');
-                    obj.setVisible('inclinometer.sitting','off');
-                    obj.setVisible('inclinometer.lying','off');
-                    obj.setVisible('inclinometer.off','off');
+                    % I think everything is inivislbe at this point
+                    % already.  
+                    %                     obj.setVisible('timeSeries.lux','off');
+                    %                     obj.setVisible('timeSeries.steps','off');
+                    %                     obj.setVisible('timeSeries.inclinometer.standing','off');
+                    %                     obj.setVisible('timeSeries.inclinometer.sitting','off');
+                    %                     obj.setVisible('timeSeries.inclinometer.lying','off');
+                    %                     obj.setVisible('timeSeries.inclinometer.off','off');
                 elseif(obj.hasCounts)
                     obj.accelType = 'count';
                 else
@@ -3889,7 +3894,7 @@ classdef PASensorData < PAData
             end
         end
         
-                % --------------------------------------------------------------------
+        % --------------------------------------------------------------------
         %> @brief Returns the fieldname of PASensorData's struct types (see getStructTypes())
         %> that matches the string argument.
         %> @param description String description that can be

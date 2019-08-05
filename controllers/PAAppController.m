@@ -23,9 +23,6 @@ classdef PAAppController < PAFigureController
         resizeValues; % for handling resize functions
         versionNum;
         
-        %> @brief Vector for keeping track of the feature handles that are
-        %> displayed on the secondary axes field.
-        featureHandles;
         
         %> String identifying Padaco's current view mode.  Values include
         %> - @c timeseries
@@ -51,24 +48,7 @@ classdef PAAppController < PAFigureController
         AppSettings;
         %> Instance of PASingleStudyController - Padaco's view component.
         SingleStudy;
-        
-        %> Linehandle in Padaco that is currently selected by the user.
-        current_linehandle;
-        
-        %> cell of string choices for the marking state (off, 'marking','general')
-        state_choices_cell;
-        %> string of the current selected choice
-        %> handle to the figure an instance of this class is associated with
-        %> struct of handles for the context menus
-        contextmenuhandle;
-        
-        %> struct of different time resolutions, field names correspond to the units of time represented in the field
-        window_resolution;
-        num_windows;
-        display_samples; %vector of the samples to be displayed
-        shift_display_samples_delta; %number of samples to adjust display by for moving forward or back
-        startDateTime;
-        
+
         %> Struct of batch settings with fields as described by
         %PABatchTool's getDefault
         % batch;
@@ -121,8 +101,7 @@ classdef PAAppController < PAFigureController
             if(obj.setFigureHandle(hFigure))
                 if(obj.initFigure())
                     obj.setStatusHandle(obj.handles.text_status);                    
-                    obj.featureHandles = [];
-                    
+                                        
                     % Create a SingleStudy class
                     singleStudySettings = obj.AppSettings.Main;
                     obj.SingleStudy = PASingleStudyController(obj.figureH, singleStudySettings);
@@ -149,6 +128,7 @@ classdef PAAppController < PAFigureController
             end
         end
         
+        
         %% Shutdown functions
         %> Destructor
         function close(obj)
@@ -165,6 +145,7 @@ classdef PAAppController < PAFigureController
             fprintf(1,'Settings saved to disk.\n');
         end
 
+        
         %> @brief Sync the controller's settings with the SETTINGS object
         %> member variable.
         %> @param Instance of PAAppController;
@@ -196,31 +177,7 @@ classdef PAAppController < PAFigureController
         end
         
         %% Startup configuration functions and callbacks
-        % --------------------------------------------------------------------
-        %> @brief Configure callbacks for the figure, menubar, and widets.
-        %> Called internally during class construction.
-        %> @param obj Instance of PAAppController
-        % --------------------------------------------------------------------
-        function initCallbacks(obj)
-            figH = obj.SingleStudy.getFigHandle();
-            
-            % mouse and keyboard callbacks
-            set(figH,'KeyPressFcn',@obj.keyPressCallback);
-            set(figH,'KeyReleaseFcn',@obj.keyReleaseCallback);
-            set(figH,'WindowButtonDownFcn',@obj.windowButtonDownCallback);
-            set(figH,'WindowButtonUpFcn',@obj.windowButtonUpCallback);
-            
-                  
-            %         function setLinehandle(obj, line_h)
-            %             obj.clear_handles();
-            %             obj.current_linehandle = line_h;
-            %             set(obj.current_linehandle,'selected','on');
-            %         end
-            
-            
-            %configure the user interface widgets
-            obj.initWidgetCallbacks();
-        end
+
         
         % --------------------------------------------------------------------
         %> @brief Executes when user attempts to close figure_padaco.
@@ -240,115 +197,6 @@ classdef PAAppController < PAFigureController
             end
         end
         
-        % --------------------------------------------------------------------
-        %> @brief  Executes on key press with focus on figure and no controls selected.
-        %> @param obj Instance of PAAppController
-        %> @param hObject    handle to figure (gcf)
-        %> @param eventdata Structure of key press information.
-        % --------------------------------------------------------------------
-        function keyPressCallback(obj,hObject, eventdata)
-            % key=double(get(hObject,'CurrentCharacter')); % compare the values to the list
-            key=eventdata.Key;
-            %             handles = guidata(hObject);
-            window = obj.getCurWindow();
-            
-            if(strcmp(key,'add'))
-                
-            elseif(strcmp(key,'subtract'))
-                
-            elseif(strcmp(key,'leftarrow')||strcmp(key,'pagedown'))
-                %go backward 1 window
-                obj.setCurWindow(window-1);
-            elseif(strcmp(key,'rightarrow')||strcmp(key,'pageup'))
-                %go forward 1 window
-                obj.setCurWindow(window+1);
-            elseif(strcmp(key,'uparrow'))
-                %go forward 10 windows
-                obj.setCurWindow(window+10);
-            elseif(strcmp(key,'downarrow'))
-                %go back 10 windows
-                obj.setCurWindow(window-10);
-            end
-            
-            if(strcmp(eventdata.Key,'shift'))
-                set(obj.SingleStudy.getFigHandle(),'pointer','ibeam');
-            end
-            if(strcmp(eventdata.Modifier,'control'))
-                %kill the program
-                if(strcmp(eventdata.Key,'x'))
-                    delete(hObject);
-                    %take screen capture of figure
-                elseif(strcmp(eventdata.Key,'f'))
-                    obj.figureScreenshot();
-                    %take screen capture of main axes
-                elseif(strcmp(eventdata.Key,'s'))
-                    if(isa(obj.SingleStudy,'PASingleStudyController') &&ishandle(obj.SingleStudy.axeshandle.secondary))
-                        obj.screenshotPathname = screencap(obj.SingleStudy.axeshandle.secondary,[],obj.screenshotPathname);
-                    end
-                elseif(strcmp(eventdata.Key,'p'))
-                    if(isa(obj.SingleStudy,'PASingleStudyController') &&ishandle(obj.SingleStudy.axeshandle.primary))
-                        obj.screenshotPathname = screencap(obj.SingleStudy.axeshandle.primary,[],obj.screenshotPathname);
-                    end
-                end
-            end
-        end
-        
-        % --------------------------------------------------------------------
-        %> @brief  Executes on key press with focus on figure and no controls selected.
-        %> @param obj Instance of PAAppController
-        %> @param hObject    handle to figure (gcf), unused
-        %> @param eventdata Structure of key press information.
-        % --------------------------------------------------------------------
-        function keyReleaseCallback(obj,~, eventdata)            
-            key=eventdata.Key;
-            if(strcmp(key,'shift'))
-                set(obj.SingleStudy.getFigHandle(),'pointer','arrow');
-            end
-        end
-        
-        % --------------------------------------------------------------------
-        %> @brief  Executes when user releases mouse click
-        %> If the currentObject selected is the secondary axes, then
-        %> the current window is set to the closest window corresponding to
-        %> the mouse's x-position.
-        %> @param obj Instance of PAAppController
-        %> @param hObject    handle to figure (gcf), unused
-        %> @param eventData Structure of mouse press information; unused
-        % --------------------------------------------------------------------
-        function windowButtonUpCallback(obj,hObject,~)
-            selected_obj = get(hObject,'CurrentObject');
-            if(~isempty(selected_obj) && ~strcmpi(get(hObject,'SelectionType'),'alt'))   % Dont get confused with mouse button up due to contextmenu call
-                if(selected_obj==obj.SingleStudy.axeshandle.secondary)
-                    pos = get(selected_obj,'currentpoint');
-                    clicked_datenum = pos(1);
-                    cur_window = obj.SensorData.datenum2window(clicked_datenum,obj.SingleStudy.getDisplayType());
-                    obj.setCurWindow(cur_window);
-                end
-            end
-        end
-        
-        % --------------------------------------------------------------------
-        %> @brief  Executes when user first clicks the mouse.
-        %> @param obj Instance of PAAppController
-        %> @param hObject    handle to figure (gcf), unused
-        %> @param eventData Structure of mouse press information; unused
-        %> @param Note - this turns off all other mouse movement and mouse
-        %> wheel callback methods.
-        % --------------------------------------------------------------------
-        function windowButtonDownCallback(obj,varargin)
-            if(ishandle(obj.current_linehandle))
-                set(obj.SingleStudy.figureH,'windowbuttonmotionfcn',[]);
-                
-                obj.deactivateLineHandle();
-            end
-        end
-        
-        function deactivateLineHandle(obj)
-            set(obj.current_linehandle,'selected','off');
-            obj.current_linehandle = [];
-            obj.SingleStudy.showReady();
-            set(obj.SingleStudy.figureH,'windowbuttonmotionfcn',[],'WindowScrollWheelFcn',[]);
-        end
         
         %-- Menubar configuration --
         % --------------------------------------------------------------------
@@ -400,6 +248,7 @@ classdef PAAppController < PAFigureController
                 safeset(figHandles,'menu_file_export_sensorDataObj','visible','off');
                 safeset(figHandles,'menu_file_export_clusterObj','visible','off');
             end
+            
             safeset(figHandles,'menu_file_export_clusters_to_csv','callback',{@obj.exportClustersCb,'csv'});%, 'label','Cluster results to disk');
             safeset(figHandles,'menu_file_export_clusters_to_xls','callback',{@obj.exportClustersCb,'xls'});%, 'label','Cluster results to disk');
             safeset(figHandles,'menu_export_timeseries_to_disk','callback',@obj.exportTimeSeriesCb);%,'label','Wear/nonwear to disk');
@@ -609,9 +458,6 @@ classdef PAAppController < PAFigureController
                 'Select a file',fullfile(obj.AppSettings.SensorData.pathname,obj.AppSettings.SensorData.filename));
             try
                 if(~isempty(f))
-                    %                     if(~strcmpi(obj.getViewMode(),'timeseries'))
-                    %                         obj.SingleStudy.setViewMode('timeseries'); % bypass the this.setViewMode() for now to avoid follow-up query that a file has not been loaded yet.
-                    %                     end
                     
                     obj.SingleStudy.showBusy('Loading','all');
                     obj.SingleStudy.disableWidgets();
@@ -620,8 +466,6 @@ classdef PAAppController < PAFigureController
                     obj.AppSettings.SensorData.filename = strcat(basename,baseext);
                     
                     obj.SensorData = PASensorData(f,obj.AppSettings.SensorData);
-                    
-                    obj.SensorData.addlistener('LinePropertyChanged',@obj.linePropertyChangeCallback);
                     
                     if(~strcmpi(obj.getViewMode(),'timeseries'))
                         obj.setViewMode('timeseries');  % Call initAccelDataView as well 
@@ -1020,8 +864,8 @@ classdef PAAppController < PAFigureController
                 obj.SingleStudy.showBusy(['Switching to ',viewMode,' view'],'all');        
                 obj.viewMode = viewMode;
                 obj.SingleStudy.setViewMode(viewMode);
-
             end
+            
             figure(obj.figureH);  %redraw and place it on top
             refresh(obj.figureH); % redraw it
             %             shg();  %make sure it is on top.
@@ -1314,8 +1158,7 @@ classdef PAAppController < PAFigureController
         %> variables SingleStudy (PASingleStudyController) and SensorData (PASensorData)
         %> @param obj Instance of PAAppController
         % --------------------------------------------------------------------
-        function initAccelDataView(obj)
-            
+        function initAccelDataView(obj)            
             
             % Shows line labels after initWithAccelData
             obj.SingleStudy.initWithAccelData(obj.SensorData);
@@ -1632,6 +1475,8 @@ classdef PAAppController < PAFigureController
                 % before reaching the closerequestfcn we want to use later
                 % on (Which requires certain initializations to complete).
                 set(hFigure,'closeRequestFcn','delete(gcbo)');
+                set(obj.figureH,'renderer','zbuffer'); %  set(obj.figureH,'renderer','OpenGL');
+
 
                 figColor = get(hFigure,'color');
                 defaultUnits = 'pixels';
@@ -1639,8 +1484,6 @@ classdef PAAppController < PAFigureController
                 
                 set([handles.text_status;
                     ],'backgroundcolor',figColor,'units',defaultUnits);
-                
-                
                 
                 set([hFigure
                     handles.panel_timeseries
