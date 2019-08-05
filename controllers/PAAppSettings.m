@@ -352,7 +352,7 @@ classdef  PAAppSettings < PASettings
                     case 'Main'
                         obj.Main = PAAppController.getDefaults();
                     case 'SingleStudy'
-                        obj.SingleStudy  = PASingleStudy.getDefaults();
+                        obj.SingleStudy  = PASingleStudyController.getDefaults();
                     case 'BatchMode'
                         obj.BatchMode = PABatchTool.getDefaults();
                     otherwise

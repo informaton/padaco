@@ -1,7 +1,7 @@
 classdef(Abstract) PAFigureController < PABase
     properties(SetAccess=protected)
         %> Figure handle to the main figure window
-        figureH;
+        figureH;        
         settings;  % struct of settings that can be saved on exit and loaded on startup
     end
     methods(Abstract, Access=protected)
@@ -10,18 +10,32 @@ classdef(Abstract) PAFigureController < PABase
     
     methods
         
-        function this = PAFigureController(figureH, initSettings)
+        % Sometimes a figure handle is given and sometimes it is not.
+        % Same goes for initSettings.  When a figureH is given it will be a
+        % figure handle and when initSettings are given it will be a
+        % struct.
+        function this = PAFigureController(varargin)
             this@PABase();
-            if(nargin<2 || isempty(initSettings))
-                this.settings = this.getDefaults();
-            else
+            figureH = [];
+            initSettings = [];
+            for v=1:numel(varargin)
+                if(isstruct(varargin{v}))
+                    initSettings = varargin{v};
+                elseif(ishandle(varargin{v}))
+                    figureH = varargin{v};
+                end
+            end
+            this.settings = this.getDefaults();
+            if ~isempty(initSettings)                
                 % This call ensures that we have at a minimum, the default parameter field-values in widgetSettings.
                 % And eliminates later calls to determine if a field exists
                 % or not in the input widgetSettings parameter
-                this.settings = mergeStruct(this.getDefaults(),initSettings);
+                this.settings = mergeStruct(this.settings,initSettings);
             end
             
-            nargin && this.setFigureHandle(figureH) && this.initFigure(); %#ok<VUNUS>
+            if(this.setFigureHandle(figureH))
+                this.initFigure();                
+            end
         end
         
         function settings = getSettings(this)            
@@ -31,8 +45,8 @@ classdef(Abstract) PAFigureController < PABase
         function didSet = setSetting(this, varargin)
             narginchk(3,inf);
             value2set = varargin{end};
-            keys = varargin{1:end-1};
-            param = this.getSettingsParam(keys);
+            keys = varargin(1:end-1);
+            param = this.getSettingsParam(keys{:});
             if(~isempty(param) && isa(param, 'PAParam'))
                 didSet = param.setValue(value2set);
             else
@@ -44,7 +58,11 @@ classdef(Abstract) PAFigureController < PABase
             narginchk(2,inf);
             param = this.getSettingsParam(varargin{:});
             if(~isempty(param))
-                value = param.value;
+                if(isa(param,'PAParam'))
+                    value = param.value;
+                else
+                    value = param;
+                end
             else
                 value = [];
             end
@@ -78,7 +96,7 @@ classdef(Abstract) PAFigureController < PABase
                 % go down the tree structure if we have additional keys
                 % e.g. settings.alignment.x = 1;
                 %      retrieved by :  this.getSettings('alignment','x');
-                for v=numel(varargin)
+                for v=1:numel(varargin)
                     if isstruct(param)
                         exactKey = getCaseSensitiveMatch(varargin{v}, param);
                         param = param.(exactKey);

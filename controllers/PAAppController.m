@@ -55,8 +55,6 @@ classdef PAAppController < PAFigureController
         
         %> Foldername of most recent screenshot.
         screenshotPathname;
-        %> Foldername of most recent results output pathname used.
-        resultsPathname;
         
         %> struct to keep track of various Padaco states
         %         STATE;  % commented out on 5/5/2016
@@ -96,7 +94,7 @@ classdef PAAppController < PAFigureController
             obj.OutcomesTable.addlistener('LoadSuccess',@obj.outcomesLoadCb);
             obj.OutcomesTable.addlistener('LoadFail',@obj.outcomesLoadCb);
             obj.screenshotPathname = obj.AppSettings.Main.screenshotPathname;
-            obj.resultsPathname = obj.AppSettings.Main.resultsPathname;
+            
             
             if(obj.setFigureHandle(hFigure))
                 if(obj.initFigure())
@@ -981,35 +979,7 @@ classdef PAAppController < PAFigureController
             structName = obj.SingleStudy.getDisplayType();
         end
         
-        % ======================================================================
-        %> @brief Returns a structure of PAAppControllers saveable parameters as a struct.
-        %> @param obj Instance of PASingleStudyController.
-        %> @retval pStruct A structure of save parameters which include the following
-        %> fields
-        %> - @c featureFcn
-        %> - @c signalTagLine
-        %> - @
-        function pStruct = getSaveParameters(obj)
-            % pStruct = obj.AppSettings.Main;            
-            pStruct.screenshotPathname = obj.screenshotPathname;
-            pStruct.viewMode = obj.viewMode;
-            pStruct.resultsPathname = obj.resultsPathname;
-            
-%             pStruct.featureFcnName = obj.getExtractorMethod();
-%             pStruct.signalTagLine = obj.getSignalSelection();
-%             
-%             % If we did not load a file then our signal selection will be
-%             % empty (don't know if were going to use count or raw data,
-%             % etc.  So, just stick with whatever we began with at time of construction.
-%             if(isempty(pStruct.signalTagLine))
-%                 pStruct.signalTagLine = obj.AppSettings.Main.signalTagLine;
-%             end
-%             
-%             pStruct.highlightNonwear = obj.SingleStudy.getNonwearHighlighting();
-%             pStruct.useSmoothing = obj.SingleStudy.getUseSmoothing();
-
-        end
-      
+        
     end
     
     methods(Access=private)

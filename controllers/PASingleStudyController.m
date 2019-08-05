@@ -3217,12 +3217,7 @@ classdef PASingleStudyController < PAFigureController
             % Main appcontroller should handle screenshots ...
             % pStruct.screenshot_path = obj.rootpathname; %initial directory to look in for EDF files to load
             
-             try
-                docPath = findpath('docs');
-            catch
-                docPath = fileparts(mfilename('fullpath'));
-            end
-            outputPath = fullfile(docPath,'padaco','output');
+            outputPath = fullfile(getSavePath(),'output');
             
             if(~isdir(outputPath))
                 try
@@ -3234,8 +3229,8 @@ classdef PASingleStudyController < PAFigureController
             end
             
             pStruct.outputPath = PAPathParam('default',outputPath,'description','Output save path');
-            pStruct.filter_inf_file = PAFileParam('default','filter.inf','description','Filter configuration file');
-            pStruct.database_inf_file = PAFileParam('default','database.inf','description','Database configuration file');
+            pStruct.filter_inf_file = PAFilenameParam('default','filter.inf','description','Filter configuration file');
+            pStruct.database_inf_file = PAFilenameParam('default','database.inf','description','Database configuration file');
             
             [tagLines,~] = PASensorData.getDefaultTagLineLabels();
             featureStruct = PASensorData.getFeatureDescriptionStruct();

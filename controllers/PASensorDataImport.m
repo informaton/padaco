@@ -361,9 +361,9 @@ classdef PASensorDataImport < handle
         %> - @c trimResults
         % ======================================================================
         function paramStruct = getDefaults()
-            paramStruct.headerLineNum = PANumeric('default',1,'min',0,'description','Number of header lines to skip');
+            paramStruct.headerLineNum = PANumericParam('default',1,'min',0,'description','Number of header lines to skip');
             paramStruct.separator = PAStringParam('default',',','description','Field separator');
-            paramStruct.filename =PAFileParam('default','','descrioption','Import filename');
+            paramStruct.filename =PAFilenameParam('default','','descrioption','Import filename');
         end         
     end
 end

@@ -2,7 +2,7 @@
 %> @brief  
 %> @note 
 %> @note Copyright Hyatt Moore, Informaton, 2019
-classdef PAOutcomesTable < PABase
+classdef PAOutcomesTableData < PAData
     events
         LoadSuccess;  
         LoadFail;
@@ -21,9 +21,6 @@ classdef PAOutcomesTable < PABase
         dictionary;
         subjects;  % outcomes, this will be study info...
         primaryKey;
-        
-        figFcn = @importOutcomesDlg;
-        figureH;
     end
     
     properties(Access=protected)
@@ -34,8 +31,8 @@ classdef PAOutcomesTable < PABase
         
         %> @brief Class constructor.
         %> @retval obj Class instance.
-        function this = PAOutcomesTable(settingsStruct)
-            this = this@PABase();
+        function this = PAOutcomesTableData(varargin)
+            this = this@PAData(varargin{:});
             this.tables = mkstruct(this.categories);
             pStruct = this.getDefaults();
             this.filenames = pStruct.filenames; %mkstruct(this.categories);            
@@ -115,6 +112,9 @@ classdef PAOutcomesTable < PABase
         
         function didSet = setFilename(this, category, filename)
             didSet = false;
+            if(isa(filename,'PAParam'))
+                filename = filename.value;
+            end
             if(isfield(this.filenames,category)&& exist(filename,'file')&& ~isdir(filename))
                 this.filenames.(category) = filename;
                 this.lastPathChecked = fileparts(filename);
@@ -256,71 +256,10 @@ classdef PAOutcomesTable < PABase
         
         % Check all required categories have a filename for import 
         function canIt = canImport(this)            
-            canIt = all(cellfun(@(x)exist(this.filenames.(x),'file') && ~isdir(this.filenames.(x)),setdiff(this.categories,this.optionalCategory)));            
+            canIt = all(cellfun(@(x)exist(this.filenames.(x),'file') && ~isdir(this.filenames.(x)),setdiff(this.categories,this.optionalCategory)));
         end
         
-        function didInit = initHandles(this)
-            if(ishandle(this.figureH))
-                this.handles = guidata(this.figureH);
-                
-                fields = fieldnames(this.filenames);
-                for f=1:numel(fields)
-                    category = fields{f};
-                    [pushH, editH] = this.getCategoryHandles(category);
-                    
-                    set(editH,'enable','inactive','string','');
-                    set(pushH,'callback',{@this.getFileCb,category});
-                    
-                    filename = this.filenames.(category);
-                    if(exist(filename,'file') && ~isdir(filename))
-                        set(editH,'string',filename);
-                    end
-                end
-                
-                set(this.handles.check_importOnStartup,'value',this.importOnStartup);
-                set(this.handles.push_import,'callback', @this.hideFigureCb);
-                set(this.handles.push_cancel,'callback', 'closereq');
-                
-                this.updateCanImport();
-                didInit = true;
-            else
-                didInit = false;
-            end
-        end
-        
-        function hideFigureCb(this, varargin)
-            set(this.figureH,'visible','off');
-        end
-        
-        function getFileCb(this, hObject, ~, category)
-            % this.logStatus('Import outcome file');
-            fileExt = {'*.csv;*.txt','Comma Separated Values';
-                '*.*','All (only csv supported)'};
-            promptStr = sprintf('Select %s file',category);
-            locationGuess = this.filenames.(category);
-            
-            if(isempty(locationGuess) || ~exist(locationGuess,'file'))
-                locationGuess = this.lastPathChecked;
-            end
-            
-            f=uigetfullfile(fileExt, promptStr, locationGuess);            
-            if(~isempty(f) && ~isdir(f) && exist(f,'file'))
-                this.setFilename(category, f);                
-            else
-                this.logStatus('User cancelled');
-            end            
-        end
-        
-        function [pushH, editH] = getCategoryHandles(this, categoryString)
-           pushH = [];
-           editH = [];
-           if(ishandle(this.figureH))
-               pushTag = sprintf('push_%s',categoryString);
-               editTag = sprintf('edit_%s',categoryString);
-               pushH = this.handles.(pushTag);
-               editH = this.handles.(editTag);
-           end
-        end
+
         
         function pStruct = getSaveParameters(obj)
             pStruct = struct('filenames',obj.filenames,...
