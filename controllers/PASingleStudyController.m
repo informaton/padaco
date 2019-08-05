@@ -423,6 +423,9 @@ classdef PASingleStudyController < PAFigureController
             %             obj.setDisplayType(displayType,visibleProps);
             %         end
         
+            if(nargin<3 || isempty(visibleProps))
+                visibleProps = obj.accelObj.getVisible(displayTypeStr);
+            end
             
             if(any(strcmpi(fieldnames(PASensorData.getStructTypes()),displayTypeStr)))
                 allProps.visible = 'off';
@@ -439,7 +442,7 @@ classdef PASingleStudyController < PAFigureController
                 
                 displayStruct = obj.displayType;
                 
-                if(nargin>2 && isstruct(visibleProps))
+                if(isstruct(visibleProps))
                     recurseHandleSetter(obj.referencelinehandle.(displayStruct), visibleProps);
                     recurseHandleSetter(obj.linehandle.(displayStruct), visibleProps);
                     recurseHandleSetter(obj.labelhandle.(displayStruct), visibleProps);
@@ -1098,8 +1101,9 @@ classdef PASingleStudyController < PAFigureController
                 obj.enableFeatureRadioButton();
                 
                 % set the display to show time series data initially.
-                displayType = 'Time Series';
-                displayStructName = PASensorData.getStructNameFromDescription(displayType);
+                % displayType = 'Time Series';
+                % displayStructName = PASensorData.getStructNameFromDescription(displayType);
+                displayStructName = 'timeSeries';
                 obj.setRadioButton(displayStructName);
                 
                 % Now I am showing labels
