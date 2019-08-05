@@ -333,11 +333,16 @@ classdef PAOutcomesTable < PABase
     methods(Static)
         
        function pStruct = getDefaults()
-            pStruct.filenames = mkstruct(PAOutcomesTable.categories);
-            pStruct.importOnStartup = true;
-            pStruct.selectedField = '';
+           filenameCats = PAOutcomesTable.categories;
+           pStruct.filenames = mkstruct(filenameCats);
+           
+           for f = 1:numel(filenameCats)
+               cat = filenameCats{f};
+               pStruct.filenames.(cat) = PAFilenameParam('default','','Description',sprintf('%s file',cat));
+           end
+           pStruct.importOnStartup = PABoolParam('default',true,'description','Import On startup');
+           pStruct.selectedField = PAStringParam('default','','Description','Selected field');
        end 
-       
     end
 end
 

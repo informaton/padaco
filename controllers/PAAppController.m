@@ -1638,12 +1638,17 @@ classdef PAAppController < PAFigureController
         %> @brief Returns a structure of PAAppControllers default, saveable parameters as a struct.
         %> @retval pStruct A structure of saveable parameters
         function pStruct = getDefaults()
-            mPath = fileparts(mfilename('fullpath'));
-            pStruct.screenshotPathname = mPath;
+            try
+                docPath = findpath('docs');
+            catch
+                docPath = fileparts(mfilename('fullpath'));
+            end
             
-            pStruct.viewMode = 'timeseries';
-            batchSettings = PABatchTool.getDefaults();
-            pStruct.resultsPathname = batchSettings.outputDirectory;
+            pStruct.screenshotPathname = PAPathParam('default',docPath,'description','Screenshot save path');
+            pStruct.viewMode = PAEnumParam('default','timeseries','categories',{'timeseries','results'},'description','View');
+            
+            % batchSettings = PABatchTool.getDefaults();
+            % pStruct.resultsPathname = batchSettings.outputDirectory;
         end
     end
     

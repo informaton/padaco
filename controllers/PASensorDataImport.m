@@ -14,7 +14,6 @@ classdef PASensorDataImport < handle
         
         FIG_HEIGHT_PIXELS = 640;
         FIG_NAME = 'Import Accelerometer Data File';
-        
 
         SEPARATORS = {',',';',' ','\t'};
         MAX_LINES = 16;
@@ -362,9 +361,9 @@ classdef PASensorDataImport < handle
         %> - @c trimResults
         % ======================================================================
         function paramStruct = getDefaults()
-            paramStruct.headerLineNum = 1;
-            paramStruct.separator = ',';
-            paramStruct.filename ='';
+            paramStruct.headerLineNum = PANumeric('default',1,'min',0,'description','Number of header lines to skip');
+            paramStruct.separator = PAStringParam('default',',','description','Field separator');
+            paramStruct.filename =PAFileParam('default','','descrioption','Import filename');
         end         
     end
 end

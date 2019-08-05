@@ -3212,6 +3212,31 @@ classdef PASingleStudyController < PAFigureController
         %> - @c featureFcnName
         %> - @c signalTagLine
         function pStruct = getDefaults()
+            pStruct.yDir = PAEnumParam('default','normal','categories',{'normal','reverse'},'description','y-axis direction');  %or can be 'reverse'
+            
+            % Main appcontroller should handle screenshots ...
+            % pStruct.screenshot_path = obj.rootpathname; %initial directory to look in for EDF files to load
+            
+             try
+                docPath = findpath('docs');
+            catch
+                docPath = fileparts(mfilename('fullpath'));
+            end
+            outputPath = fullfile(docPath,'padaco','output');
+            
+            if(~isdir(outputPath))
+                try
+                    mkdir(outputPath);
+                catch me
+                    showME(me);
+                    %pStruct.output_pathname = fileparts(mfilename('fullpath'));
+                end
+            end
+            
+            pStruct.outputPath = PAPathParam('default',outputPath,'description','Output save path');
+            pStruct.filter_inf_file = PAFileParam('default','filter.inf','description','Filter configuration file');
+            pStruct.database_inf_file = PAFileParam('default','database.inf','description','Database configuration file');
+            
             [tagLines,~] = PASensorData.getDefaultTagLineLabels();
             featureStruct = PASensorData.getFeatureDescriptionStruct();
             featureFcnNames = fieldnames(featureStruct);

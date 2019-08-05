@@ -352,19 +352,7 @@ classdef  PAAppSettings < PASettings
                     case 'Main'
                         obj.Main = PAAppController.getDefaults();
                     case 'SingleStudy'
-                        obj.SingleStudy.yDir = 'normal';  %or can be 'reverse'
-                        obj.SingleStudy.screenshot_path = obj.rootpathname; %initial directory to look in for EDF files to load
-                        obj.SingleStudy.output_pathname = fullfile(fileparts(mfilename('fullpath')),'output');
-                        if(~isdir(obj.SingleStudy.output_pathname))
-                            try
-                                mkdir(obj.SingleStudy.output_pathname);
-                            catch me
-                                showME(me);
-                                obj.SingleStudy.output_pathname = fileparts(mfilename('fullpath'));
-                            end
-                        end
-                        obj.SingleStudy.filter_inf_file = 'filter.inf';
-                        obj.SingleStudy.database_inf_file = 'database.inf';
+                        obj.SingleStudy  = PASingleStudy.getDefaults();
                     case 'BatchMode'
                         obj.BatchMode = PABatchTool.getDefaults();
                     otherwise
