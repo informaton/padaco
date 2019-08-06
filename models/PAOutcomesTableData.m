@@ -34,21 +34,48 @@ classdef PAOutcomesTableData < PAData
         function this = PAOutcomesTableData(varargin)
             this = this@PAData(varargin{:});
             this.tables = mkstruct(this.categories);
-            pStruct = this.getDefaults();
-            this.filenames = pStruct.filenames; %mkstruct(this.categories);            
-            this.importOnStartup= pStruct.importOnStartup;            
+            initSettings = this.getDefaults();
+            
             try
                 if nargin
-                    this.setFilenames(settingsStruct.filenames);
-                    this.importOnStartup = settingsStruct.importOnStartup;
-                     this.selectedField = settingsStruct.selectedField;
-                    if(this.importOnStartup && this.canImport())                        
+                    initSettings = mergestruct(initSettings, varargin{1});
+                end
+                
+                if(this.setSettings(initSettings))
+                    if(this.importOnStartup && this.canImport())
                         this.importFiles();
                     end
-                end                
+                end
+                
             catch me
                 this.logError('Constructor exception',me);
             end
+        end
+        
+        function importWithSettings(this, newSettings)
+            if(this.setSettings(newSettings))
+               if(this.canImport())
+                   this.importFiles();
+               end
+            end
+        end
+        
+        function didSet = setSettings(this, newSettings)
+            didSet = false;
+            if nargin>1 && isstruct(newSettings)
+                this.settings = newSettings;
+                didSet = true;                
+                this.filenames = newSettings.filenames; %mkstruct(this.categories);
+                this.importOnStartup= newSettings.importOnStartup;
+                this.setFilenames(settingsStruct.filenames);
+                this.importOnStartup = settingsStruct.importOnStartup;
+                this.selectedField = settingsStruct.selectedField;
+            end
+        end
+        
+        function didExport = exportToDisk(this)
+            didExport = false;
+            this.logStatus('Export to disk not supported');
         end
         
         % I want a summary statistic of each subject field, grouped by the primary keys given.
@@ -78,6 +105,7 @@ classdef PAOutcomesTableData < PAData
         function isValid = isvalidCategory(this, categoryName)
             isValid = ismember(categoryName,this.categories);
         end
+        
         function colNames = getColumnNames(this, categoryName)
             colNames = {};
             if(this.isvalidCategory(categoryName))
@@ -117,22 +145,15 @@ classdef PAOutcomesTableData < PAData
             end
             if(isfield(this.filenames,category)&& exist(filename,'file')&& ~isdir(filename))
                 this.filenames.(category) = filename;
-                this.lastPathChecked = fileparts(filename);
-                if(ishandle(this.figureH))
-                    [~,textH] = this.getCategoryHandles(category);
-                    if(ishandle(textH))
-                        set(textH,'string',filename,'enable','inactive');
-                    end
-                    this.updateCanImport();                    
-                end
-            end
-        end       
-        
-        function importFilesFromDlg(this)
-            if this.confirmFilenamesDlg() % make them go through the dialog successfully first.
-                this.importFiles(true);
+                this.lastPathChecked = fileparts(filename);                
             end
         end
+        
+        %         function importFilesFromDlg(this)
+        %             if this.confirmFilenamesDlg() % make them go through the dialog successfully first.
+        %                 this.importFiles(true);
+        %             end
+        %         end
         
         % Show message box is flag ([false]) indicating whether to show a
         % message box to the user with feedback of which file category is
@@ -146,10 +167,9 @@ classdef PAOutcomesTableData < PAData
             else
                 didImportAll = true;
                 makeModal = false;
-                
                 h = [];
+                
                 for f=1:numel(this.categories)
-                    
                     category = this.categories{f};
                     msg = sprintf('Loading %s table data',category);
                     if(showMsgBox)
@@ -170,6 +190,7 @@ classdef PAOutcomesTableData < PAData
                     end
                     this.logStatus(msg);
                 end
+                
                 if(ishandle(h))
                    delete(h);
                 end
@@ -259,7 +280,6 @@ classdef PAOutcomesTableData < PAData
             canIt = all(cellfun(@(x)exist(this.filenames.(x),'file') && ~isdir(this.filenames.(x)),setdiff(this.categories,this.optionalCategory)));
         end
         
-
         
         function pStruct = getSaveParameters(obj)
             pStruct = struct('filenames',obj.filenames,...
@@ -272,7 +292,7 @@ classdef PAOutcomesTableData < PAData
     methods(Static)
         
        function pStruct = getDefaults()
-           filenameCats = PAOutcomesTable.categories;
+           filenameCats = PAOutcomesTableData.categories;
            pStruct.filenames = mkstruct(filenameCats);
            
            for f = 1:numel(filenameCats)

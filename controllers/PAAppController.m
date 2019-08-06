@@ -40,9 +40,10 @@ classdef PAAppController < PAFigureController
         %> mode.
         StatTool;
         
-        %> Instance of PAOutcomesTable - for importing outcomes data to be
+        %> Instance of PAOutcomesTableData - for importing outcomes data to be
         %> used with cluster analysis.
-        OutcomesTable;
+        OutcomesTableData;
+        
         
         %> Instance of PAAppSettings - keeps track of application wide settings.
         AppSettings;
@@ -90,9 +91,9 @@ classdef PAAppController < PAFigureController
             
             %create/intilize the settings object
             obj.AppSettings = PAAppSettings(rootPathname,parameters_filename);
-            obj.OutcomesTable = PAOutcomesTable(obj.AppSettings.OutcomesTable);            
-            obj.OutcomesTable.addlistener('LoadSuccess',@obj.outcomesLoadCb);
-            obj.OutcomesTable.addlistener('LoadFail',@obj.outcomesLoadCb);
+            obj.OutcomesTableData = PAOutcomesTableData(obj.AppSettings.OutcomesTableData);
+            obj.OutcomesTableData.addlistener('LoadSuccess',@obj.outcomesLoadCb);
+            obj.OutcomesTableData.addlistener('LoadFail',@obj.outcomesLoadCb);
             obj.screenshotPathname = obj.AppSettings.Main.screenshotPathname;
             
             
@@ -152,7 +153,7 @@ classdef PAAppController < PAFigureController
         function didRefresh = refreshAppSettings(obj)
             try
                 
-                refreshObjects = {'SensorData','SingleStudy','StatTool','OutcomesTable'};
+                refreshObjects = {'SensorData','SingleStudy','StatTool','OutcomesTableData'};
                 % importing and batch settings are handled separately..
                 for r = 1:numel(refreshObjects)
                     tag = refreshObjects{r};
@@ -306,8 +307,15 @@ classdef PAAppController < PAFigureController
         
         function importOutcomesFileCb(this, varargin)
             %f=getOutcomeFiles();
-            this.OutcomesTable.importFilesFromDlg();
-            %             
+            a = PAOutcomesTableSetup(this.settings.OutcomesTableSetup);
+            if(~isempty(a.outcomesFileStruct))
+                this.settings.OutcomesTableSetup = a.getSaveParameters();
+                showLoadStatus = true;
+                this.OutcomesTableData.import(showLoadStatus);
+            else
+                this.logStatus('User cancelled');
+            end
+            
         end
         
         function outcomesLoadCb(this, outcomesController, evtData)

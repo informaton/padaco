@@ -17,7 +17,7 @@ classdef  PAAppSettings < PASettings
 
         %> @brief cell of string names corresponding to the struct properties that
         %> contain settings  <b><i> {'SensorData','SingleStudy', 'Main','BatchMode','StatTool','Importing'}</i></b>
-        fieldNames = {'Main','Importing','SingleStudy','SensorData','BatchMode','StatTool','OutcomesTable'}; 
+        fieldNames = {'Main','Importing','SingleStudy','SensorData','BatchMode','StatTool','OutcomesTableSetup'}; 
         
         %> @brief Fieldnmaes whose structures are only one level deep.
         liteFieldNames={'StatTool','SingleStudy','Main','Importing'};
@@ -29,10 +29,9 @@ classdef  PAAppSettings < PASettings
         %> always saved in the same place and not in another directory
         %> (e.g. if the user moves about in MATLAB's editor).
         % rootpathname;
-        
     end
+    
     properties
-
         
         %> struct of PAAppController preferences.
         Main;
@@ -51,12 +50,11 @@ classdef  PAAppSettings < PASettings
         %> struct of StatTool plot/analysis settings.
         StatTool;
         
-        %> struct for PAOutcomesTable settings
-        OutcomesTable;
+        %> struct for PAOutcomesTableSetup settings
+        OutcomesTableSetup;
     end
     
     methods
-        
         % --------------------------------------------------------------------
         % ======================================================================
         %> @brief Class constructor
@@ -345,8 +343,8 @@ classdef  PAAppSettings < PASettings
                         obj.Importing = PASensorDataImport.getDefaults();
                     case 'StatTool'
                         obj.StatTool = PAStatTool.getDefaults();                    
-                    case 'OutcomesTable'
-                        obj.OutcomesTable = PAOutcomesTable.getDefaults();
+                    case 'OutcomesTableSetup'
+                        obj.OutcomesTableSetup = PAOutcomesTableSetup.getDefaults();
                     case 'SensorData'
                         obj.SensorData = PASensorData.getDefaults();
                     case 'Main'
