@@ -93,7 +93,7 @@ classdef PACluster < PAData
         %> - @c maxClusters
         %> - @c clusterThreshold        
         %> - @c method - {'kmeans' (Default),'kmedoids','kmedians'}
-        settings;
+        % settings;
         
         
         %> struct with X, Y data, and last statusStr calculated during

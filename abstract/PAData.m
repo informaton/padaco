@@ -1,4 +1,4 @@
-classdef PAData < PABase
+classdef PAData < PABaseWithSettings
     
     properties(SetAccess=protected)
         %> @brief Folder where exported files are saved to .
@@ -7,23 +7,17 @@ classdef PAData < PABase
         %> @brief file formats
         exportFormat;
         
-        settings; 
         
         EXPORT_FORMATS = {'csv','xls','mat'};
     end
     methods(Abstract)
        didExport = exportToDisk(this); 
-       didSet = setInputData(this, dataOrFile)
+       %didSet = setInputData(this, dataOrFile)
     end
     methods
         
-        function this = PAData(dataOrFile, inputSettings, varargin)
-            
-            
-            
-            if(nargin)
-                this.setInputData(dataOrFile);
-            end
+        function this = PAData(varargin)  
+            this@PABaseWithSettings(varargin{:})            
         end
         
         

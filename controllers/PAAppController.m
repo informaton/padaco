@@ -54,8 +54,7 @@ classdef PAAppController < PAFigureController
         %PABatchTool's getDefault
         % batch;
         
-        %> Foldername of most recent screenshot.
-        screenshotPathname;
+        
         
         %> struct to keep track of various Padaco states
         %         STATE;  % commented out on 5/5/2016
@@ -94,7 +93,6 @@ classdef PAAppController < PAFigureController
             obj.OutcomesTableData = PAOutcomesTableData(obj.AppSettings.OutcomesTableData);
             obj.OutcomesTableData.addlistener('LoadSuccess',@obj.outcomesLoadCb);
             obj.OutcomesTableData.addlistener('LoadFail',@obj.outcomesLoadCb);
-            obj.screenshotPathname = obj.AppSettings.Main.screenshotPathname;
             
             
             if(obj.setFigureHandle(hFigure))
@@ -116,7 +114,7 @@ classdef PAAppController < PAFigureController
                     obj.initMenubarCallbacks();
                     
                     % attempt to load the last set of results
-                    lastViewMode = obj.AppSettings.Main.viewMode;
+                    lastViewMode = obj.getSetting('viewMode');
                     try
                         obj.setViewMode(lastViewMode);
                         obj.initResize();
@@ -708,7 +706,7 @@ classdef PAAppController < PAFigureController
                 if(strcmpi(screenshotDescription,'figure'))
                     obj.figureScreenshot();
                 else
-                    obj.screenshotPathname = screencap(handle,[],obj.screenshotPathname);
+                    obj.setSetting('screenshotPathname', screencap(handle,[],obj.getSetting('screenshotPathname')));
                 end
             end
         end
@@ -868,8 +866,8 @@ classdef PAAppController < PAFigureController
                 obj.setStatus('Refreshing %s view',viewMode);
             else
                 obj.SingleStudy.showBusy(['Switching to ',viewMode,' view'],'all');        
-                obj.viewMode = viewMode;
-                obj.SingleStudy.setViewMode(viewMode);
+                obj.setSetting('viewMode', viewMode);
+                obj.SingleStudy.refreshView();
             end
             
             figure(obj.figureH);  %redraw and place it on top
@@ -1380,7 +1378,7 @@ classdef PAAppController < PAFigureController
             else
                 img_filename = ['padaco_window ',num2str(obj.getCurWindow),'.png'];
             end
-            [img_filename, img_pathname, filterindex] = uiputfile(filterspec,'Screenshot name',fullfile(obj.screenshotPathname,img_filename));
+            [img_filename, img_pathname, filterindex] = uiputfile(filterspec,'Screenshot name',fullfile(obj.getSetting('screenshotPathname'),img_filename));
             if isequal(img_filename,0) || isequal(img_pathname,0)
                 disp('User pressed cancel');
             else
@@ -1410,7 +1408,7 @@ classdef PAAppController < PAFigureController
                     %         print(f,['-d',filterspec{filterindex,1}],fullfile(img_pathname,img_filename));
                     %         set(handles.axes1,'position',apos,'dataaspectratiomode','manual' ,'dataaspectratio',dataaspectratio,'parent',handles.sev_main_fig)
                     delete(f);
-                    obj.screenshotPathname = img_pathname;
+                    obj.setSetting('screenshotPathname', img_pathname);
                 catch ME
                     showME(ME);
                     %         set(handles.axes1,'parent',handles.sev_main_fig);
@@ -1622,7 +1620,8 @@ classdef PAAppController < PAFigureController
                 docPath = fileparts(mfilename('fullpath'));
             end
             
-            pStruct.screenshotPathname = PAPathParam('default',docPath,'description','Screenshot save path');
+            %> Foldername of most recent screenshot.        
+            pStruct.screenshotPathname = PAPathParam('default',docPath,'description','Screenshot save path','help','Foldername of most recent screenshot');
             pStruct.viewMode = PAEnumParam('default','timeseries','categories',{'timeseries','results'},'description','View');
             
             % batchSettings = PABatchTool.getDefaults();
@@ -1632,3 +1631,74 @@ classdef PAAppController < PAFigureController
     
 end
 
+
+% 
+% % --------------------------------------------------------------------
+% %> @brief Clears axes handles of any children and sets default properties.
+% %> Called when first creating a view.  See also initAxesHandles.
+% %> @param obj Instance of PASingleStudyController
+% %> @param viewMode A string with one of two values
+% %> - @c timeseries
+% %> - @c results
+% % --------------------------------------------------------------------
+% function initAxesHandlesViewMode(obj,viewMode)
+% 
+% obj.clearAxesHandles();
+% 
+% axesProps.primary.xtickmode='manual';
+% axesProps.primary.xticklabelmode='manual';
+% axesProps.primary.xlimmode='manual';
+% axesProps.primary.xtick=[];
+% axesProps.primary.xgrid='on';
+% axesProps.primary.visible = 'on';
+% 
+% %             axesProps.primary.nextplot='replacechildren';
+% axesProps.primary.box= 'on';
+% axesProps.primary.plotboxaspectratiomode='auto';
+% axesProps.primary.fontSize = 14;
+% % axesProps.primary.units = 'normalized'; %normalized allows it to resize automatically
+% if verLessThan('matlab','7.14')
+%     axesProps.primary.drawmode = 'normal'; %fast does not allow alpha blending...
+% else
+%     axesProps.primary.sortmethod = 'childorder'; %fast does not allow alpha blending...
+% end
+% 
+% axesProps.primary.ygrid='off';
+% axesProps.primary.ytick = [];
+% axesProps.primary.yticklabel = [];
+% axesProps.primary.uicontextmenu = [];
+% 
+% if(strcmpi(viewMode,'timeseries'))
+%     % Want these for both the primary (upper) and secondary (lower) axes
+%     axesProps.primary.xAxisLocation = 'top';
+%     axesProps.primary.ylimmode = 'manual';
+%     axesProps.primary.ytickmode='manual';
+%     axesProps.primary.yticklabelmode = 'manual';
+%     
+%     axesProps.secondary = axesProps.primary;
+%     
+%     % Distinguish primary and secondary properties here:
+%     axesProps.primary.xminortick='on';
+%     axesProps.primary.uicontextmenu = obj.contextmenuhandle.primaryAxes;
+%     
+%     axesProps.secondary.xminortick = 'off';
+%     axesProps.secondary.uicontextmenu = obj.contextmenuhandle.secondaryAxes;
+%     
+% elseif(strcmpi(viewMode,'results'))
+%     axesProps.primary.ylimmode = 'auto';
+%     %                 axesProps.primary.ytickmode='auto';
+%     %                 axesProps.primary.yticklabelmode = 'auto';
+%     axesProps.primary.xAxisLocation = 'bottom';
+%     axesProps.primary.xminortick='off';
+%     
+%     axesProps.secondary = axesProps.primary;
+%     % axesProps.secondary.visible = 'off';
+% end
+% 
+% axesProps.secondary.xgrid = 'off';
+% axesProps.secondary.xminortick = 'off';
+% axesProps.secondary.xAxisLocation = 'bottom';
+% 
+% %initialize axes
+% obj.initAxesHandles(axesProps);
+% end

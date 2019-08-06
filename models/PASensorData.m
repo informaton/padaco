@@ -188,8 +188,8 @@ classdef PASensorData < PAData
         %> included then parameters from getDefaults method are used.
         %> @retval Instance of PASensorData.
          % =================================================================
-        function obj = PASensorData(fullFilenameOrPath,inputSettings)
-            obj = obj@PAData([],initSettings);
+        function obj = PASensorData(fullFilenameOrPath,varargin)  % inputSettings is second argument
+            obj = obj@PAData(varargin{:});
             obj.pathname =[];
             obj.filename = [];
 
@@ -236,7 +236,7 @@ classdef PASensorData < PAData
                 obj.loadFile();
             end
 
-            obj.setCurWindow(inputSettings.curWindow);
+            obj.setCurWindow(obj.getSetting('curWindow'));
         end
 
         function didSet= setSettings(this, inputSettings)

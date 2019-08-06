@@ -29,7 +29,7 @@ classdef PAOutcomesTableData < PAData
             this = this@PAData(varargin{:});
             this.tables = mkstruct(this.categories);
             try
-                if(this.importOnStartup && this.canImport())
+                if(this.getSetting('importOnStartup') && this.canImport())
                     this.importFiles();
                 end                
             catch me

@@ -31,12 +31,12 @@ classdef(Abstract) PAFigureController < PABaseWithSettings
     methods(Access=protected)
         function didSet = setFigureHandle(obj, figHandle)
             didSet = false;
-            if(nargin<2 || isempty(figHandle) || ~ishandle(figHandle))
-                obj.logWarning('Could not set figure handle');
-            else
+            if(nargin>1 && ~isempty(figHandle) && ishandle(figHandle))                
                 obj.figureH = figHandle;
                 obj.handles = guidata(figHandle);
                 didSet = true;
+            else
+                disp('oops');
             end
         end
     end

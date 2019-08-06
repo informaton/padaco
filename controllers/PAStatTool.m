@@ -3,19 +3,20 @@
 %> @brief PAStatTool serves as Padaco's controller for visualization and
 %> analysis of batch results.
 % ======================================================================
-classdef PAStatTool < PAFigureController
+classdef PAStatTool < PAViewController
     events
        UserCancel_Event;
        ProfileFieldSelectionChange_Event;
     end
     
     properties(Constant)
-       RESULTS_CACHE_FILENAME = 'results.tmp';
-       COLOR_MEMBERSHAPE = [0.5 0.45 0.65];
-       COLOR_LINESELECTION = [0.8 0.1 0.1];
-       COLOR_MEMBERID = [0.1 0.1 0.8];
-       MAX_DAYS_PER_STUDY = 7;
-       DISTRIBUTION_TYPES = {'loadshape_membership','participant_membership','nonwear_membership','weekday_scores','weekday_membership','performance_progression'}
+        viewTag = 'result';
+        RESULTS_CACHE_FILENAME = 'results.tmp';
+        COLOR_MEMBERSHAPE = [0.5 0.45 0.65];
+        COLOR_LINESELECTION = [0.8 0.1 0.1];
+        COLOR_MEMBERID = [0.1 0.1 0.8];
+        MAX_DAYS_PER_STUDY = 7;
+        DISTRIBUTION_TYPES = {'loadshape_membership','participant_membership','nonwear_membership','weekday_scores','weekday_membership','performance_progression'}
     end
     
     properties(SetAccess=protected)
@@ -158,7 +159,7 @@ classdef PAStatTool < PAFigureController
         %> @retval this Instance of PAStatTool
         % ======================================================================
         function this = PAStatTool(varargin)
-            this@PAFigureController(varargin{1:2});
+            this@PAViewController(varargin{1:2});
                 
             resultsPathname = varargin{3};
             initSettings = this.settings;
@@ -1208,50 +1209,7 @@ classdef PAStatTool < PAFigureController
             end
             
         end
-        % ======================================================================
-        %> @brief Shows busy state: Disables all non-cluster panel widgets
-        %> and mouse pointer becomes a watch.
-        %> @param this Instance of PAStatTool
-        % ======================================================================
-        function showBusy(this)
-            set(findall(this.handles.panels_sansClusters,'enable','on'),'enable','off');
-            % For some reason, this does not catch them all the first time
-            set(findall(this.handles.panels_sansClusters,'enable','on'),'enable','off');
-            this.showMouseBusy();
-        end
-        
-        % ======================================================================
-        %> @brief Shows busy state (mouse pointer becomes a watch)
-        %> @param this Instance of PAStatTool
-        % ======================================================================        
-        function showMouseBusy(this)
-            set(this.figureH,'pointer','watch');
-            drawnow();            
-        end
-        
-        % --------------------------------------------------------------------
-        %> @brief Shows ready status (mouse becomes the default pointer).
-        %> @param obj Instance of PAStatTool
-        % --------------------------------------------------------------------
-        function showMouseReady(this)
-            set(this.figureH,'pointer','arrow');
-            drawnow();
-        end     
-        
-        % --------------------------------------------------------------------
-        %> @brief Shows ready status: enables all non cluster panels and mouse becomes the default arrow pointer.
-        %> @param obj Instance of PAStatTool
-        % --------------------------------------------------------------------
-        function showReady(this)
-            set(findall(this.handles.panels_sansClusters,'enable','off'),'enable','on');
-            % for some reason, this does not catch them all the first time
-            set(findall(this.handles.panels_sansClusters,'enable','off'),'enable','on');
-            set(this.figureH,'pointer','arrow');
-            
-            %             set(this.handles.panel_results,'enable','on');
-            drawnow();
-        end
-                
+
         % ======================================================================
         %> @brief Plot dropdown selection menu callback.
         %> @param this Instance of PAStatTool
@@ -1849,6 +1807,30 @@ classdef PAStatTool < PAFigureController
             end
         end
         
+        % ======================================================================
+        %> @brief Shows busy state: Disables all non-cluster panel widgets
+        %> and mouse pointer becomes a watch.
+        %> @param this Instance of PAStatTool
+        % ======================================================================
+        function showBusy(this)
+            set(findall(this.handles.panels_sansClusters,'enable','on'),'enable','off');
+            % For some reason, this does not catch them all the first time
+            set(findall(this.handles.panels_sansClusters,'enable','on'),'enable','off');
+            showBusy@PAViewController(this);
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Shows ready status: enables all non cluster panels and mouse becomes the default arrow pointer.
+        %> @param obj Instance of PAStatTool
+        % --------------------------------------------------------------------
+        function showReady(this, varargin)
+            set(findall(this.handles.panels_sansClusters,'enable','off'),'enable','on');
+            % for some reason, this does not catch them all the first time
+            set(findall(this.handles.panels_sansClusters,'enable','off'),'enable','on');
+            
+            showReady@PAViewController(this, varargin{:});
+        end
+                
         
         function bgColorClickOnCb(this, hToggle, e)
             curState = get(hToggle,'state');
@@ -2577,6 +2559,32 @@ classdef PAStatTool < PAFigureController
         % ======================================================================
         function initBase(this)
             this.base = this.getBaseSettings();
+        end
+        
+        
+        % --------------------------------------------------------------------
+        %> @brief Initialize data specific properties of the axes handles.
+        %> Set the x and y limits of the axes based on limits found in
+        %> dataStruct struct.
+        %> @param obj Instance of PASingleStudyController
+        %> @param axesProps Structure of axes property structures.  First fields
+        %> are:
+        %> - @c primary (for the primary axes);
+        %> - @c secondary (for the secondary axes, lower, timeline axes)
+        % --------------------------------------------------------------------
+        function initAxesHandles(obj,axesProps)
+            if(nargin<2)                
+                obj.clearAxesHandles();
+                axesProps = getPadacoAxesProps('results');                
+                %initialize axes
+                obj.initAxesHandles(axesProps);                
+            else
+                axesNames = fieldnames(axesProps);
+                for a=1:numel(axesNames)
+                    axesName = axesNames{a};
+                    set(obj.axeshandle.(axesName),axesProps.(axesName));
+                end
+            end
         end
         
         % ======================================================================

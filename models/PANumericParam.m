@@ -16,6 +16,10 @@ classdef PANumericParam < PAParam
             this.maxAllowed = args.max;
         end
         
+        function str = char(this)
+            str = num2str(this.value);
+        end
+        
         function canIt = canSetValue(this, value2set)
             canIt = canSetValue@PAParam(this,value2set) && value2set>=this.minAllowed && value2set<=this.maxAllowed;
         end

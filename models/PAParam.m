@@ -39,6 +39,10 @@ classdef PAParam < handle
             canIt = isa(value2set,this.type);
         end
         
+        function str = char(this)
+            str = this.value;
+        end
+        
         function didSet = setValue(this, value2set)
             didSet = false;
             if(nargin>1 && this.canSetValue(value2set))
