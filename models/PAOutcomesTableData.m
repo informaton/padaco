@@ -11,42 +11,27 @@ classdef PAOutcomesTableData < PAData
         categories = {'studyinfo','subjects','dictionary'}; % padaco results
         optionalCategory = 'dictionary';
     end
-    properties(SetAccess=protected)
-        filenames;
+    properties(SetAccess=protected)        
         tables;
-        
-        selectedField;
-        importOnStartup; 
+         
         studyinfo;
         dictionary;
         subjects;  % outcomes, this will be study info...
         primaryKey;
     end
     
-    properties(Access=protected)
-        lastPathChecked;
-    end
     
     methods
         
         %> @brief Class constructor.
         %> @retval obj Class instance.
-        function this = PAOutcomesTableData(varargin)
+        function this = PAOutcomesTableData(varargin)            
             this = this@PAData(varargin{:});
             this.tables = mkstruct(this.categories);
-            initSettings = this.getDefaults();
-            
             try
-                if nargin
-                    initSettings = mergestruct(initSettings, varargin{1});
-                end
-                
-                if(this.setSettings(initSettings))
-                    if(this.importOnStartup && this.canImport())
-                        this.importFiles();
-                    end
-                end
-                
+                if(this.importOnStartup && this.canImport())
+                    this.importFiles();
+                end                
             catch me
                 this.logError('Constructor exception',me);
             end
@@ -60,18 +45,16 @@ classdef PAOutcomesTableData < PAData
             end
         end
         
-        function didSet = setSettings(this, newSettings)
-            didSet = false;
-            if nargin>1 && isstruct(newSettings)
-                this.settings = newSettings;
-                didSet = true;                
-                this.filenames = newSettings.filenames; %mkstruct(this.categories);
-                this.importOnStartup= newSettings.importOnStartup;
-                this.setFilenames(settingsStruct.filenames);
-                this.importOnStartup = settingsStruct.importOnStartup;
-                this.selectedField = settingsStruct.selectedField;
-            end
-        end
+%         function didSet = setSettings(this, varargin)
+%             didSet = setSettings@PAData(this, varargin{:});
+%             if didSet
+%                 this.filenames = this.settings.filenames; %mkstruct(this.categories);
+%                 this.importOnStartup= this.settings.importOnStartup;
+%                 this.setFilenames(this.settings.filenames);
+%                 this.importOnStartup = this.settings.importOnStartup;
+%                 this.selectedField = this.settings.selectedField;
+%             end
+%         end
         
         function didExport = exportToDisk(this)
             didExport = false;
@@ -117,11 +100,11 @@ classdef PAOutcomesTableData < PAData
         end
            
         function setSelectedField(this, fName)            
-            this.selectedField = fName;
+            this.setSetting('selectedField',fName);            
         end
         
         function index = getSelectedIndex(this)
-            index = find(strcmpi(this.subjects.Properties.VariableNames,this.selectedField));
+            index = find(strcmpi(this.subjects.Properties.VariableNames,this.getSetting('selectedField')));
             if(isempty(index))
                 index = 1;
             end
@@ -143,9 +126,9 @@ classdef PAOutcomesTableData < PAData
             if(isa(filename,'PAParam'))
                 filename = filename.value;
             end
-            if(isfield(this.filenames,category)&& exist(filename,'file')&& ~isdir(filename))
-                this.filenames.(category) = filename;
-                this.lastPathChecked = fileparts(filename);                
+            if(exist(filename,'file') && ~isdir(filename))
+                this.setSetting('filenames',category,filename);
+                this.setSetting('lastPathChecked',fileparts(filename));
             end
         end
         
@@ -180,7 +163,7 @@ classdef PAOutcomesTableData < PAData
                         end
                     end
                     
-                    filename = this.filenames.(category);
+                    filename = this.getSetting('filenames',category);
                     [didImport, msg] = this.importFile(category,filename);
                     if(~strcmpi(category, this.optionalCategory))
                         if(~didImport)
@@ -255,8 +238,8 @@ classdef PAOutcomesTableData < PAData
                 set(this.figureH,'visible','on');                
                 waitfor(this.figureH,'visible','off');
                 if(ishandle(this.figureH))
-                    outcomeFileStruct = this.filenames;
-                    this.importOnStartup = get(this.handles.check_importOnStartup,'value');
+                    outcomeFileStruct = this.getSetting('filenames');
+                    this.setSetting('importOnStartup', get(this.handles.check_importOnStartup,'value'));
                     delete(this.figureH);
                 end
             end
@@ -264,7 +247,7 @@ classdef PAOutcomesTableData < PAData
         end
         
         function loadOn = getLoadOnStartup(this)
-            loadOn = this.importOnStartup;
+            loadOn = this.getSetting('importOnStartup');
         end
         
         function updateCanImport(this)
@@ -277,15 +260,15 @@ classdef PAOutcomesTableData < PAData
         
         % Check all required categories have a filename for import 
         function canIt = canImport(this)            
-            canIt = all(cellfun(@(x)exist(this.filenames.(x),'file') && ~isdir(this.filenames.(x)),setdiff(this.categories,this.optionalCategory)));
+            canIt = all(cellfun(@(x)exist(this.getSetting('filenames',x),'file') && ~isdir(this.getSetting('filenames',x)),setdiff(this.categories,this.optionalCategory)));
         end
         
         
-        function pStruct = getSaveParameters(obj)
-            pStruct = struct('filenames',obj.filenames,...
-                'importOnStartup',obj.importOnStartup,...
-                'selectedField',obj.selectedField);
-        end
+        %         function pStruct = getSaveParameters(obj)
+        %             pStruct = struct('filenames',obj.filenames,...
+        %                 'importOnStartup',obj.importOnStartup,...
+        %                 'selectedField',obj.selectedField);
+        %         end
         
     end
     

@@ -7,12 +7,26 @@ classdef PAData < PABase
         %> @brief file formats
         exportFormat;
         
+        settings; 
+        
         EXPORT_FORMATS = {'csv','xls','mat'};
     end
     methods(Abstract)
        didExport = exportToDisk(this); 
+       didSet = setInputData(this, dataOrFile)
     end
     methods
+        
+        function this = PAData(dataOrFile, inputSettings, varargin)
+            
+            
+            
+            if(nargin)
+                this.setInputData(dataOrFile);
+            end
+        end
+        
+        
         % --------------------------------------------------------------------
         % Helper functions for setting the export paths to be used when
         % saving data about clusters and covariates to disk.
@@ -111,40 +125,7 @@ classdef PAData < PABase
                 settings.exportPathname = fullfile(homePath,'Documents/');  
             end
         end
-        
-        
- % =================================================================
-        %> @brief Removes periods of activity that are too short and groups
-        %> nearby activity groups together.
-        %> @param logicalVec Initial vector which has 1's where an event or
-        %> activity is occurring at that sample.
-        %> @param min_duration_samples The minimum number of consecutive
-        %> samples required for a run of on (1) samples to be kept.
-        %> @param merge_distance_samples The maximum number of samples
-        %> considered when looking for adjacent runs to merge together.
-        %> Adjacent runs that are within this distance are merged into a
-        %> single run beginning at the start of the first and stopping at the end of the last run.
-        %> @retval processVec A vector of size (logicalVec) that has removed
-        %> runs (of 1) that are too short and merged runs that are close enough
-        %> together.
-        %======================================================================
-        function processVec = reprocessEventVector(logicalVec,min_duration_samples,merge_distance_samples)
 
-            candidate_events= PAData.thresholdcrossings(logicalVec,0);
-
-            if(~isempty(candidate_events))
-
-                if(merge_distance_samples>0)
-                    candidate_events = PASensorData.merge_nearby_events(candidate_events,merge_distance_samples);
-                end
-
-                if(min_duration_samples>0)
-                    diff_samples = (candidate_events(:,2)-candidate_events(:,1));
-                    candidate_events = candidate_events(diff_samples>=min_duration_samples,:);
-                end
-            end
-            processVec = PAData.unrollEvents(candidate_events,numel(logicalVec));
-        end
 
         %======================================================================
         %> @brief Moving summer finite impulse response filter.

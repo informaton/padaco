@@ -17,10 +17,10 @@ classdef  PAAppSettings < PASettings
 
         %> @brief cell of string names corresponding to the struct properties that
         %> contain settings  <b><i> {'SensorData','SingleStudy', 'Main','BatchMode','StatTool','Importing'}</i></b>
-        fieldNames = {'Main','Importing','SingleStudy','SensorData','BatchMode','StatTool','OutcomesTableSetup'}; 
+        fieldNames = {'Main','Importing','SingleStudy','SensorData','BatchMode','StatTool','OutcomesTableSetup','OutcomesTableData'}; 
         
-        %> @brief Fieldnmaes whose structures are only one level deep.
-        liteFieldNames={'StatTool','SingleStudy','Main','Importing'};
+        %> @brief Fieldnames whose structures are only one level deep.
+        liteFieldNames={'StatTool','SingleStudy','Main','Importing','OutcomesTableSetup','OutcomesTableData'};
 
         % Inherited: 
         %> pathname of Padaco working directory - determined at run time.
@@ -52,6 +52,7 @@ classdef  PAAppSettings < PASettings
         
         %> struct for PAOutcomesTableSetup settings
         OutcomesTableSetup;
+        OutcomesTableData;        
     end
     
     methods
@@ -343,6 +344,8 @@ classdef  PAAppSettings < PASettings
                         obj.Importing = PASensorDataImport.getDefaults();
                     case 'StatTool'
                         obj.StatTool = PAStatTool.getDefaults();                    
+                    case 'OutcomesTableData'
+                        obj.OutcomesTableSetup = PAOutcomesTableData.getDefaults();
                     case 'OutcomesTableSetup'
                         obj.OutcomesTableSetup = PAOutcomesTableSetup.getDefaults();
                     case 'SensorData'

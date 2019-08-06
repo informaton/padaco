@@ -1,9 +1,5 @@
 classdef PABase < handle
     
-    events
-        DefaultParameterChange;
-    end
-    
     properties(SetAccess=protected)
         handles;
         statusHandle;

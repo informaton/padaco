@@ -228,8 +228,8 @@ classdef PACluster < PAData
         %> @note PACluster can be used apart from Padaco.  For example
         %> obj = PACluster(loadShapes,settings,[],[],loadShapeIDs,loadShapeDayOfWeek)
         % ======================================================================        
-        function this = PACluster(loadShapes,settings,axesOrLineH,textHandle,loadShapeIDs,loadShapeDayOfWeek, delayedStart)    
-            
+        function this = PACluster(loadShapes,settings,axesOrLineH,textHandle,loadShapeIDs,loadShapeDayOfWeek, delayedStart)
+            this = PAData(loadShapes, settings);
             this.init();
             if(nargin<7)
                 delayedStart = false;
@@ -248,16 +248,6 @@ classdef PACluster < PAData
                         end
                     end
                 end
-            end
-
-            defaultSettings = PAStatTool.getDefaults();
-            if(isempty(settings))
-                this.settings = defaultSettings;
-            else
-                % This call ensures that we have at a minimum, the default parameter field-values in widgetSettings.
-                % And eliminates later calls to determine if a field exists
-                % or not in the input widgetSettings parameter
-                this.settings = mergeStruct(defaultSettings,settings);
             end
             
             if(~isempty(textHandle) && ishandle(textHandle) && strcmpi(get(textHandle,'type'),'uicontrol') && strcmpi(get(textHandle,'style'),'text'))

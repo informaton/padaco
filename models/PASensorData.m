@@ -188,16 +188,11 @@ classdef PASensorData < PAData
         %> included then parameters from getDefaults method are used.
         %> @retval Instance of PASensorData.
          % =================================================================
-        function obj = PASensorData(fullFilenameOrPath,pStruct)
+        function obj = PASensorData(fullFilenameOrPath,inputSettings)
+            obj = obj@PAData([],initSettings);
             obj.pathname =[];
             obj.filename = [];
 
-            defaultSettings = obj.getDefaults();
-            if(nargin<2 || isempty(pStruct))
-                pStruct = defaultSettings;
-            else
-                pStruct = mergeStruct(defaultSettings,pStruct);
-            end
 
             obj.hasCounts = false;
             obj.hasRaw = false;
@@ -211,15 +206,6 @@ classdef PASensorData < PAData
             %            obj.frameDurHour = 1;
             %            obj.curWindow = 1;
             %            obj.windowDurSec = 60*5;  %this is the window size
-            fields = fieldnames(pStruct);
-            for f=1:numel(fields)
-
-                %need to make sure we are not overwriting the filename we just
-                %brought in
-                if(~strcmpi(fields{f},'pathname') && ~strcmpi(fields{f},'filename'))
-                    obj.(fields{f}) = pStruct.(fields{f});
-                end
-            end
 
             obj.curWindow = 1;  %don't use current window until after a file has been loaded.
 
@@ -250,14 +236,25 @@ classdef PASensorData < PAData
                 obj.loadFile();
             end
 
-            obj.setCurWindow(pStruct.curWindow);
+            obj.setCurWindow(inputSettings.curWindow);
         end
 
+        function didSet= setSettings(this, inputSettings)
+            didSet = setSettings@PAData(this,inputSettings);
+            fields = fieldnames(this.settings);            
+            for f=1:numel(fields)                
+                %need to make sure we are not overwriting the filename we just
+                %brought in
+                if(~strcmpi(fields{f},'pathname') && ~strcmpi(fields{f},'filename'))
+                    this.(fields{f}) = this.settings.(fields{f});
+                end
+            end
+        end
+        
         function hasIt = hasData(obj)
             hasIt = obj.hasCounts||obj.hasRaw;
         end
 
-        
         function [didExport, resultMsg] = exportToDisk(obj,exportPath)
             didExport = false;
             try
@@ -747,7 +744,6 @@ classdef PASensorData < PAData
             visibleOut = obj.getProperty('visible',varargin{:});
         end
 
-
         % --------------------------------------------------------------------
         %> @brief Returns the color instance variable
         %> @param obj Instance of PASensorData
@@ -767,8 +763,6 @@ classdef PASensorData < PAData
         function colorOut = getColor(obj,varargin)
             colorOut = obj.getProperty('color',varargin{:});
         end
-
-
 
         % --------------------------------------------------------------------
         %> @brief Returns the scale instance variable
@@ -814,7 +808,6 @@ classdef PASensorData < PAData
         function labelOut = getLabel(obj,varargin)
             labelOut = obj.getProperty('label',varargin{:});
         end
-
 
         % --------------------------------------------------------------------
         %> @brief Returns the property requested in the format requested.
@@ -981,7 +974,6 @@ classdef PASensorData < PAData
                 varargout = cell(1,nargout);
             end
             obj.notify('LinePropertyChanged',evtData);
-
         end
 
         % --------------------------------------------------------------------
@@ -3302,6 +3294,38 @@ classdef PASensorData < PAData
 
 
         %% Analysis
+        % =================================================================
+        %> @brief Removes periods of activity that are too short and groups
+        %> nearby activity groups together.
+        %> @param logicalVec Initial vector which has 1's where an event or
+        %> activity is occurring at that sample.
+        %> @param min_duration_samples The minimum number of consecutive
+        %> samples required for a run of on (1) samples to be kept.
+        %> @param merge_distance_samples The maximum number of samples
+        %> considered when looking for adjacent runs to merge together.
+        %> Adjacent runs that are within this distance are merged into a
+        %> single run beginning at the start of the first and stopping at the end of the last run.
+        %> @retval processVec A vector of size (logicalVec) that has removed
+        %> runs (of 1) that are too short and merged runs that are close enough
+        %> together.
+        %======================================================================
+        function processVec = reprocessEventVector(logicalVec,min_duration_samples,merge_distance_samples)
+            
+            candidate_events= PAData.thresholdcrossings(logicalVec,0);
+            
+            if(~isempty(candidate_events))
+                
+                if(merge_distance_samples>0)
+                    candidate_events = PASensorData.merge_nearby_events(candidate_events,merge_distance_samples);
+                end
+                
+                if(min_duration_samples>0)
+                    diff_samples = (candidate_events(:,2)-candidate_events(:,1));
+                    candidate_events = candidate_events(diff_samples>=min_duration_samples,:);
+                end
+            end
+            processVec = PAData.unrollEvents(candidate_events,numel(logicalVec));
+        end
 
         % =================================================================
         %> @brief Calculates a feature vector for the provided data and feature function.
