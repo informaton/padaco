@@ -1618,7 +1618,7 @@ classdef PASingleStudyController < PAViewController
             if(nargin>1 && ~isempty(axesTag))
                 obj.setAxesState(axesTag,'ready');
             end
-            showReady@PAViewController(this);
+            showReady@PAViewController(obj);
         end
         
         % --------------------------------------------------------------------
@@ -1637,7 +1637,7 @@ classdef PASingleStudyController < PAViewController
                     obj.setAxesState(axesTag,'busy');
                 end
             end
-            showBusy@PAViewController(this);          
+            showBusy@PAViewController(obj);          
         end
         
         

@@ -105,7 +105,7 @@ classdef PAAppController < PAFigureController
                     
                     set(obj.figureH,'visible','on');
                     
-                    obj.SingleStudy.showBusy([],'all');                    
+                    obj.showBusy();                    
                     set(obj.figureH,'CloseRequestFcn',{@obj.figureCloseCallback,guidata(obj.figureH)});
                     
                     % set(obj.figureH,'scrollable','on'); - not supported

@@ -384,7 +384,7 @@ classdef  PASettings < handle
                         fprintf(fid,newline);  %this adds extra line between root groups.
                     end
                     
-                else
+                else                    
                     fprintf(fid,['root %s',newline],num2str(root));
                 end
                 
@@ -398,14 +398,16 @@ classdef  PASettings < handle
                 else
                     fprintf(fid,['%s\t%s',newline],PASettings.strcat_with_dot(varargin{:}),num2str(field));
                 end
-            end
-            
+            end            
         end
         
         %> @brief helper function for loadStruct
         function out_str = strcat_with_dot(root,varargin)
             %like strcat, except here a '.' is placed in between each element
             if(isempty(varargin))
+                if(isa(root,'PAParam'))
+                    root = char(root);
+                end
                 out_str = root;
             else
                 out_str = strcat(root,'.',PASettings.strcat_with_dot(varargin{:}));

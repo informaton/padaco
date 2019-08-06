@@ -4,7 +4,7 @@ classdef(Abstract) PAFigureController < PABaseWithSettings
         figureH;        
     end
     methods(Abstract, Access=protected)
-        didInit=initFigure(this)
+        didInit=initFigure(obj)
     end
     
     methods
@@ -13,8 +13,8 @@ classdef(Abstract) PAFigureController < PABaseWithSettings
         % Same goes for initSettings.  When a figureH is given it will be a
         % figure handle and when initSettings are given it will be a
         % struct.
-        function this = PAFigureController(varargin)
-            this@PABaseWithSettings(varargin{:});
+        function obj = PAFigureController(varargin)
+            obj@PABaseWithSettings(varargin{:});
             figureH = [];
             for v=1:numel(varargin)
                if(ishandle(varargin{v}))
@@ -22,8 +22,8 @@ classdef(Abstract) PAFigureController < PABaseWithSettings
                end
             end
             
-            if(this.setFigureHandle(figureH))
-                this.initFigure();                
+            if(obj.setFigureHandle(figureH))
+                obj.initFigure();                
             end
         end
     end
@@ -38,6 +38,44 @@ classdef(Abstract) PAFigureController < PABaseWithSettings
             else
                 disp('oops');
             end
+        end
+        
+% --------------------------------------------------------------------
+        %> @brief Shows busy status (mouse becomes a watch).
+        %> @param obj Instance of PASingleStudyController
+        % --------------------------------------------------------------------
+        function showBusy(obj)
+            obj.showMouseBusy();
+            drawnow();
+        end
+        
+        
+        % --------------------------------------------------------------------
+        %> @brief Shows ready status (mouse becomes the default pointer).
+        %> @param obj Instance of PASingleStudyController        
+        % --------------------------------------------------------------------
+        function showReady(obj)
+            obj.showMouseReady();
+            set(obj.texthandle.status,'string','');            
+            drawnow();
+        end
+        
+        % ======================================================================
+        %> @brief Shows busy state (mouse pointer becomes a watch)
+        %> @param obj Instance of PAStatTool
+        % ======================================================================
+        function showMouseBusy(obj)
+            set(obj.figureH,'pointer','watch');
+            drawnow();
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Shows ready status (mouse becomes the default pointer).
+        %> @param obj Instance of PAStatTool
+        % --------------------------------------------------------------------
+        function showMouseReady(obj)
+            set(obj.figureH,'pointer','arrow');
+            drawnow();
         end
     end
 end

@@ -42,6 +42,10 @@ classdef PAParam < handle
         function str = char(this)
             str = this.value;
         end
+        function str = num2str(this)
+            str = num2str(this.value);
+        end
+
         
         function didSet = setValue(this, value2set)
             didSet = false;
