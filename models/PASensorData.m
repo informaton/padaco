@@ -3490,7 +3490,7 @@ classdef PASensorData < PAData
         function pStruct = getDefaults()
             pStruct = PAData.getDefaults();
             
-            pStruct.pathname = '.'; %directory of accelerometer data.
+            pStruct.pathname = getDocumentsPath(); %best guess directory of accelerometer data.
             pStruct.filename = ''; %last accelerometer data opened.
             pStruct.curWindow = 1;
             pStruct.frameDurMin = 15;  % frame duration minute of 0 equates to frame sizes of 1 frame per sample (i.e. no aggregation)

@@ -136,7 +136,7 @@ classdef PAStatTool < PAViewController
         %> 'reset' parameters and keep track of time start and stop
         %> selection fields which are not initialized until after data has
         %> been load (i.e. and populates the dropdown menus.
-        originalWidgetSettings;
+        originalSettings;
     end
     
     properties
@@ -160,28 +160,8 @@ classdef PAStatTool < PAViewController
         % ======================================================================
         function this = PAStatTool(varargin)
             this@PAViewController(varargin{1:2});
-                
-            resultsPathname = varargin{3};
-            initSettings = this.settings;
             
-            if(~isfield(initSettings,'useDatabase'))
-                initSettings.useDatabase = false;
-            end
-            
-            if(~isfield(initSettings,'useOutcomes'))
-                initSettings.useOutcomes = false;
-            end
-            
-            % A flag, whether you want to use them or not.  Separate from
-            % whether you can use them or not (e.g. outcome data may or may
-            % not be present).
-            this.useOutcomes = initSettings.useOutcomes;
-            
-            this.bootstrapIterations =  initSettings.bootstrapIterations;
-            this.bootstrapSampleName = initSettings.bootstrapSampleName;
-            this.maxNumDaysAllowed = initSettings.maxNumDaysAllowed;
-            this.minNumDaysAllowed = initSettings.minNumDaysAllowed;
-            
+              
             this.hasIcon = false;
             this.iconData = [];
             this.iconCMap = [];
@@ -190,19 +170,39 @@ classdef PAStatTool < PAViewController
             this.coiProfile = [];
             this.allProfiles = [];
             
-            % variable names for the table
-            %             this.profileMetrics = {''};
 
-            this.initFigure();
+
+            % this.initFigure();
             
-            
-            if(isdir(resultsPathname))
-                this.setResultsDirectory(resultsPathname); % a lot of initialization code in side this call.
-            else
-                fprintf('%s does not exist!\n',resultsPathname);
-            end 
+            if nargin > 2
+                resultsPathname = varargin{3};
+                if(isdir(resultsPathname))
+                    this.setResultsDirectory(resultsPathname); % a lot of initialization code in side this call.
+                else
+                    fprintf('%s does not exist!\n',resultsPathname);
+                end
+            end
         end
-
+                
+        function didSet = setSettings(this, inputSettings)
+            didSet = setSettings@PAFigureController(this, inputSettings);
+            if(didSet)
+                this.useOutcomes = this.getSetting('useOutcomes');
+                this.bootstrapIterations =  this.getSetting('bootstrapIterations');
+                this.bootstrapSampleName = this.getSetting('bootstrapSampleName');
+                this.maxNumDaysAllowed = this.getSetting('maxNumDaysAllowed');
+                this.minNumDaysAllowed = this.getSetting('minNumDaysAllowed');
+                
+                this.useCache = this.getSetting('useCache');
+                this.cacheDirectory = this.getSetting('cacheDirectory');
+                this.clusterSettings.clusterMethod = this.getSetting('clusterMethod');
+                this.clusterSettings.useDefaultRandomizer = this.getSetting('useDefaultRandomizer');
+                this.clusterSettings.initClusterWithPermutation = this.getSetting('initClusterWithPermutation');
+                
+                this.originalSettings = inputSettings;
+            end
+        end
+        
         % ======================================================================
         %> @brief Overload delete method to ensure we get rid of the
         %> analysis figure
@@ -213,7 +213,7 @@ classdef PAStatTool < PAViewController
             end
             
             % call the parent/superclass method
-            delete@handle(this);
+            delete@PAViewController(this);
         end
 
         function resultsPath = getResultsDirectory(this)
@@ -275,10 +275,10 @@ classdef PAStatTool < PAViewController
                                 previousSettingsFromClusterObj = this.clusterObj.settings;
                                 previousSettingsFromClusterObj.useDatabase = this.useDatabase;
                                 previousSettingsFromClusterObj.useOutcomes = this.useOutcomes;
-                                previousSettingsFromClusterObj.exportPathname = this.originalWidgetSettings.exportPathname;
+                                previousSettingsFromClusterObj.exportPathname = this.originalSettings.get('exportPathname');
                                 this.updateOriginalWidgetSettings(previousSettingsFromClusterObj); 
                                 didInit = true;
-                                this.clusterObj.setExportPath(this.originalWidgetSettings.exportPathname);
+                                this.clusterObj.setExportPath(this.originalSettings.get('exportPathname'));
                                 this.clusterObj.addlistener('DefaultParameterChange',@this.clusterParameterChangeCb);
                             end
                             
@@ -294,7 +294,7 @@ classdef PAStatTool < PAViewController
                     end
                 end
                 if(~didInit)
-                    this.init(this.originalWidgetSettings);  %initializes previousstate.plotType on success and calls plot selection change cb for sync.
+                    this.init(this.originalSettings);  %initializes previousstate.plotType on success and calls plot selection change cb for sync.
                     didInit = true;
                 end
                 
@@ -377,7 +377,7 @@ classdef PAStatTool < PAViewController
                     exportPath = curCluster.getExportPath();
                     % original widget settings are kept track of using a
                     % separate gui                    
-                    exportNonwearFeatures = this.originalWidgetSettings.exportShowNonwear;
+                    exportNonwearFeatures = this.originalSettings.get('exportShowNonwear');
                     if(exportNonwearFeatures)
                         nonwearFeatures = this.nonwear;                        
                     else
@@ -424,8 +424,8 @@ classdef PAStatTool < PAViewController
 
         
         function clusterParameterChangeCb(this, clusterObj, paramEventData)
-            if(isfield(this.originalWidgetSettings,paramEventData.fieldName))
-                this.originalWidgetSettings.(paramEventData.fieldName) = paramEventData.changedTo;
+            if(isfield(this.originalSettings,paramEventData.fieldName))
+                this.originalSettings.setSetting(paramEventData.fieldName, paramEventData.changedTo);
             end
         end
         
@@ -435,27 +435,27 @@ classdef PAStatTool < PAViewController
         %> @param this Instance of PAStatTool
         %> @retval Structure of current plot settings.
         % ======================================================================
-        function paramStruct = getSaveParameters(this)
-            paramStruct = this.getPlotSettings();            
-            
-            paramStruct.exportShowNonwear = this.originalWidgetSettings.exportShowNonwear;
-            paramStruct.exportPathname = this.originalWidgetSettings.exportPathname;
-            
-            % These parameters not stored in figure widgets
-            paramStruct.useDatabase = this.useDatabase;
-            paramStruct.useOutcomes = this.useOutcomes;     
-            paramStruct.profileFieldIndex = this.getProfileFieldIndex();
-            % paramStruct.minDaysAllowed =    this.minNumDaysAllowed;  % Remove after 4/26/2019 @hyatt if no bugs
-            paramStruct.minNumDaysAllowed = this.minNumDaysAllowed;
-            paramStruct.maxNumDaysAllowed = this.maxNumDaysAllowed;
-            paramStruct.databaseClass = this.originalWidgetSettings.databaseClass;
-            
-            paramStruct.useCache = this.useCache;
-            paramStruct.cacheDirectory = this.cacheDirectory;            
-            
-            paramStruct.bootstrapIterations = this.bootstrapIterations;
-            paramStruct.bootstrapSampleName = this.bootstrapSampleName;
-        end
+        %         function paramStruct = getSaveParameters(this)
+        %             paramStruct = this.getPlotSettings();
+        %
+        %             paramStruct.exportShowNonwear = this.originalSettings.exportShowNonwear;
+        %             paramStruct.exportPathname = this.originalWidgetSettings.exportPathname;
+        %
+        %             % These parameters not stored in figure widgets
+        %             paramStruct.useDatabase = this.useDatabase;
+        %             paramStruct.useOutcomes = this.useOutcomes;
+        %             paramStruct.profileFieldIndex = this.getProfileFieldIndex();
+        %             % paramStruct.minDaysAllowed =    this.minNumDaysAllowed;  % Remove after 4/26/2019 @hyatt if no bugs
+        %             paramStruct.minNumDaysAllowed = this.minNumDaysAllowed;
+        %             paramStruct.maxNumDaysAllowed = this.maxNumDaysAllowed;
+        %             paramStruct.databaseClass = this.originalWidgetSettings.databaseClass;
+        %
+        %             paramStruct.useCache = this.useCache;
+        %             paramStruct.cacheDirectory = this.cacheDirectory;
+        %
+        %             paramStruct.bootstrapIterations = this.bootstrapIterations;
+        %             paramStruct.bootstrapSampleName = this.bootstrapSampleName;
+        %         end
         
         function loadSettings(obj, settingsFilename)
             if(nargin<2 || ~exist(settingsFilename,'file'))
@@ -481,7 +481,7 @@ classdef PAStatTool < PAViewController
             % since this method was made when tyring to synce cahed cluster
             % results, where a cluster exists and may have been loaded already,
             % but the settings have not been updated in this class yet.
-            this.originalWidgetSettings = mergeStruct(this.originalWidgetSettings,updatedSettings); % keep a record of our most recent settings.
+            this.originalSettings = mergeStruct(this.originalSettings,updatedSettings); % keep a record of our most recent settings.
             this.setWidgetSettings(this.originalWidgetSettings);
         end
         
@@ -499,10 +499,10 @@ classdef PAStatTool < PAViewController
             if(nargin<3 || isempty(initializeOnSet) || ~islogical(initializeOnSet))
                 initializeOnSet = true;
             end
-            if(~isequal(this.originalWidgetSettings,widgetSettings))
+            if(~isequal(this.originalSettings,widgetSettings))
                 this.clusterObj = [];
             end
-            this.originalWidgetSettings = widgetSettings;
+            this.setSettings( widgetSettings );
             
             % Merge the defaults with what is here otherwise.  
             
@@ -511,16 +511,11 @@ classdef PAStatTool < PAViewController
             % the outcomesTable profileFields if it is called after
             % setUseOutcomesTable.  The preference at this point is given
             % to the outcomesTable.  2/14/2019 @hyatt
-            this.setUseDatabase(widgetSettings.useDatabase);  %sets this.useDatabase to false if it was initially true and then fails to open the database
-            this.setUseOutcomesTable(widgetSettings.useOutcomes);
-            
-            this.useCache = widgetSettings.useCache;
-            this.cacheDirectory = widgetSettings.cacheDirectory;
-            this.clusterSettings.clusterMethod = widgetSettings.clusterMethod;
-            this.clusterSettings.useDefaultRandomizer = widgetSettings.useDefaultRandomizer;
-            this.clusterSettings.initClusterWithPermutation = widgetSettings.initClusterWithPermutation;
+            this.setUseDatabase(this.getSetting('useDatabase'));  %sets this.useDatabase to false if it was initially true and then fails to open the database
+            this.setUseOutcomesTable(this.getSetting('useOutcomes'));
+
             if(initializeOnSet)
-                this.initWidgets(this.originalWidgetSettings);
+                this.initWidgets(this.originalSettings);
             end
         end
         
@@ -1155,8 +1150,6 @@ classdef PAStatTool < PAViewController
             end
         end
         
-
-        
         %> @brief Database functionality
         function didSet = setUseOutcomesTable(this, willSet)
             if(nargin>1)
@@ -1183,8 +1176,6 @@ classdef PAStatTool < PAViewController
             end
             set(this.toolbarH.cluster.toggle_analysisFigure,'visible',visibility);
         end
-        
-
         
         function hasIt = hasProfileData(this)
             hasIt = ~isempty(this.profileFields) && ~isempty(this.profileTableData);
@@ -1375,7 +1366,6 @@ classdef PAStatTool < PAViewController
             end
             this.plotClusters();     
         end
-
     end
     
     methods
@@ -1390,13 +1380,13 @@ classdef PAStatTool < PAViewController
         % ======================================================================        
         function initWidgets(this, widgetSettings)
             if(nargin<2 || isempty(widgetSettings))
-                widgetSettings = this.getDefaults();                
+                widgetSettings = this.getSettings();                
             end
 
             customIndex = strcmpi(this.base.weekdayTags,'custom');
-            this.base.weekdayValues{customIndex} = widgetSettings.customDaysOfWeek;
+            this.base.weekdayValues{customIndex} = this.getSetting('customDaysOfWeek');
             
-            this.holdPlots = strcmpi(widgetSettings.primaryAxis_nextPlot,'add'); % boolean
+            this.holdPlots = strcmpi(this.getSetting('primaryAxis_nextPlot'),'add'); % boolean
             
             featuresPathname = this.featuresDirectory;
             % this.hideClusterControls();
@@ -1425,7 +1415,7 @@ classdef PAStatTool < PAViewController
                 'enable','off');
             
             clusterMethods = PACluster.getClusterMethods();
-            cmIndex = find(strcmpi(clusterMethods,widgetSettings.clusterMethod),1);
+            cmIndex = find(strcmpi(clusterMethods,this.getSetting('clusterMethod')),1);
             if(isempty(cmIndex))
                 cmIndex = 1;
             end
@@ -1449,43 +1439,43 @@ classdef PAStatTool < PAViewController
                         this.canPlot = true;
                         
                         this.featureDescriptions = this.base.featureDescriptions(ib);
-                        set(this.handles.menu_feature,'string',this.featureDescriptions,'userdata',this.featureTypes,'value',widgetSettings.baseFeatureSelection);
+                        set(this.handles.menu_feature,'string',this.featureDescriptions,'userdata',this.featureTypes,'value',this.getSetting('baseFeatureSelection'));
 
                         % Checkboxes
                         % This is good for a true false checkbox value
                         % Checked state has a value of 1
                         % Unchecked state has a value of 0
-                        set(this.handles.check_discardNonwear,'min',0,'max',1,'value',widgetSettings.discardNonwearFeatures);
-                        set(this.handles.check_segment,'min',0,'max',1,'value',widgetSettings.chunkShapes);
-                        set(this.handles.check_trim,'min',0,'max',1,'value',widgetSettings.trimResults);
-                        set(this.handles.check_cull,'min',0,'max',1,'value',widgetSettings.cullResults);                        
-                        set(this.handles.check_normalizevalues,'min',0,'max',1,'value',widgetSettings.normalizeValues);
+                        set(this.handles.check_discardNonwear,'min',0,'max',1,'value',this.getSetting('discardNonwearFeatures'));
+                        set(this.handles.check_segment,'min',0,'max',1,'value',this.getSetting('chunkShapes'));
+                        set(this.handles.check_trim,'min',0,'max',1,'value',this.getSetting('trimResults'));
+                        set(this.handles.check_cull,'min',0,'max',1,'value',this.getSetting('cullResults'));                        
+                        set(this.handles.check_normalizevalues,'min',0,'max',1,'value',this.getSetting('normalizeValues'));
                         
                         % This should be updated to parse the actual output feature
                         % directories for signal type (count) or raw and the signal
                         % source (vecMag, x, y, z)
-                        set(this.handles.menu_signalsource,'string',this.base.signalDescriptions,'userdata',this.base.signalTypes,'value',widgetSettings.signalSelection);
-                        set(this.handles.menu_plottype,'userdata',this.base.plotTypes,'string',this.base.plotTypeDescriptions,'value',widgetSettings.plotTypeSelection);
+                        set(this.handles.menu_signalsource,'string',this.base.signalDescriptions,'userdata',this.base.signalTypes,'value',this.getSetting('signalSelection'));
+                        set(this.handles.menu_plottype,'userdata',this.base.plotTypes,'string',this.base.plotTypeDescriptions,'value',this.getSetting('plotTypeSelection'));
                         
                         % Cluster widgets 
-                        set(this.handles.menu_precluster_reduction,'string',this.base.preclusterReductionDescriptions,'userdata',this.base.preclusterReductions,'value',widgetSettings.preclusterReductionSelection);
-                        set(this.handles.menu_number_of_data_segments,'string',this.base.numDataSegmentsDescriptions,'userdata',this.base.numDataSegments,'value',widgetSettings.numDataSegmentsSelection);
+                        set(this.handles.menu_precluster_reduction,'string',this.base.preclusterReductionDescriptions,'userdata',this.base.preclusterReductions,'value',this.getSetting('preclusterReductionSelection'));
+                        set(this.handles.menu_number_of_data_segments,'string',this.base.numDataSegmentsDescriptions,'userdata',this.base.numDataSegments,'value',this.getSetting('numDataSegmentsSelection'));
 
-                        if(strcmpi(this.base.weekdayTags{widgetSettings.weekdaySelection},'custom'))
-                            customIndex = widgetSettings.weekdaySelection;
+                        if(strcmpi(this.base.weekdayTags{this.getSetting('weekdaySelection')},'custom'))
+                            customIndex = this.getSetting('weekdaySelection');
                             tooltipString = cell2str(this.base.daysOfWeekDescriptions(this.base.weekdayValues{customIndex}+1));
-                        elseif(strcmpi(this.base.weekdayTags{widgetSettings.weekdaySelection},'weeklong'))
+                        elseif(strcmpi(this.base.weekdayTags{this.getSetting('weekdaySelection')},'weeklong'))
                             tooltipString = 'Concatenates days, Sunday through Saturday, into a single week';
                         else
                             tooltipString = '';
                         end
                         
                         set(this.handles.menu_weekdays,'string',this.base.weekdayDescriptions,'userdata',this.base.weekdayTags,...
-                            'value',widgetSettings.weekdaySelection,'callback',@this.menuWeekdaysCallback,'tooltipstring',tooltipString);
+                            'value',this.getSetting('weekdaySelection'),'callback',@this.menuWeekdaysCallback,'tooltipstring',tooltipString);
 
-                        set(this.handles.menu_duration,'string',this.base.clusterDurationDescriptions,'value',widgetSettings.clusterDurationSelection);
-                        set(this.handles.edit_minClusters,'string',num2str(widgetSettings.minClusters));
-                        set(this.handles.edit_clusterConvergenceThreshold,'string',num2str(widgetSettings.clusterThreshold)); 
+                        set(this.handles.menu_duration,'string',this.base.clusterDurationDescriptions,'value',this.getSetting('clusterDurationSelection'));
+                        set(this.handles.edit_minClusters,'string',num2str(this.getSetting('minClusters')));
+                        set(this.handles.edit_clusterConvergenceThreshold,'string',num2str(this.getSetting('clusterThreshold'))); 
                         
                         %% set callbacks
                         set([
@@ -1502,25 +1492,25 @@ classdef PAStatTool < PAViewController
                         set(this.handles.menu_plottype,'callback',@this.plotSelectionChangeCb);
                         
                         % Trim results
-                        if(widgetSettings.trimResults)
+                        if(this.getSetting('trimResults'))
                             enableState = 'on';
                         else
                             enableState = 'off';
                         end
                         set(this.handles.check_trim,'callback',@this.checkTrimCallback);
-                        set(this.handles.edit_trimToPercent,'string',num2str(widgetSettings.trimToPercent),'callback',@this.editTrimToPercentChange,'enable',enableState);
+                        set(this.handles.edit_trimToPercent,'string',num2str(this.getSetting('trimToPercent')),'callback',@this.editTrimToPercentChange,'enable',enableState);
                         
                         % Cull results
-                        if(widgetSettings.cullResults)
+                        if(this.getSetting('cullResults'))
                             enableState = 'on';
                         else
                             enableState = 'off';
                         end
                         set(this.handles.check_cull,'callback',@this.checkCullCallback);
-                        set(this.handles.edit_cullToValue,'string',num2str(widgetSettings.cullToValue),'callback',@this.editCullToValueChange,'enable',enableState);
+                        set(this.handles.edit_cullToValue,'string',num2str(this.getSetting('cullToValue')),'callback',@this.editCullToValueChange,'enable',enableState);
                         
                         % Check results
-                        if(widgetSettings.chunkShapes)
+                        if(this.getSetting('chunkShapes'))
                             enableState = 'on';
                         else
                             enableState = 'off';
@@ -1541,18 +1531,18 @@ classdef PAStatTool < PAViewController
                         
                         % Refactoring for toolbars
                         offOnState = {'off','on'}; % 0 -> 'off', 1 -> 'on'  and then +1 to get matlab 1-based so that 1-> 'off' and 2-> 'on'
-                        set(this.toolbarH.cluster.toggle_membership,'state',offOnState{widgetSettings.showClusterMembers+1},...
+                        set(this.toolbarH.cluster.toggle_membership,'state',offOnState{this.getSetting('showClusterMembers')+1},...
                             'clickedcallback',@this.checkShowClusterMembershipCallback);
-                        set(this.toolbarH.cluster.toggle_summary,'state',offOnState{widgetSettings.showClusterSummary+1},...
+                        set(this.toolbarH.cluster.toggle_summary,'state',offOnState{this.getSetting('showClusterSummary')+1},...
                             'clickedcallback',@this.plotCb);
                         
                         set(this.toolbarH.cluster.toggle_holdPlots,'state',offOnState{this.holdPlots+1},...
                             'clickedcallback',@this.checkHoldPlotsCallback);
-                        set(this.toolbarH.cluster.toggle_yLimit,'state',offOnState{strcmpi(widgetSettings.primaryAxis_yLimMode,'manual')+1},...
+                        set(this.toolbarH.cluster.toggle_yLimit,'state',offOnState{strcmpi(this.getSetting('primaryAxis_yLimMode'),'manual')+1},...
                             'clickedcallback',@this.togglePrimaryAxesYCb);                        
-                        set(this.toolbarH.cluster.toggle_analysisFigure,'state',offOnState{widgetSettings.showAnalysisFigure+1},...
+                        set(this.toolbarH.cluster.toggle_analysisFigure,'state',offOnState{this.getSetting('showAnalysisFigure')+1},...
                             'clickedcallback',@this.toggleAnalysisFigureCb);
-                        set(this.toolbarH.cluster.toggle_backgroundColor,'state',offOnState{widgetSettings.showTimeOfDayAsBackgroundColor+1},...
+                        set(this.toolbarH.cluster.toggle_backgroundColor,'state',offOnState{this.getSetting('showTimeOfDayAsBackgroundColor')+1},...
                             'ClickedCallback',@this.plotCb); %'OffCallback',@this.toggleBgColorCb,'OnCallback',@this.toggleBgColorCb);
                         
                         set(this.toolbarH.cluster.push_right,'clickedcallback',@this.showNextClusterCallback);
@@ -1580,7 +1570,7 @@ classdef PAStatTool < PAViewController
                         set(this.handles.axes_secondary,'uicontextmenu',contextmenu_secondaryAxes);
                         
                         
-                        this.setClusterDistributionType(widgetSettings.clusterDistributionType);
+                        this.setClusterDistributionType(this.getSetting('clusterDistributionType'));
                             
                     end
                 end                
@@ -1590,8 +1580,8 @@ classdef PAStatTool < PAViewController
             % can be shown or not.  
             
             % Previous state initialization - set to current state.            
-            this.previousState.normalizeValues = widgetSettings.normalizeValues;
-            this.previousState.weekdaySelection = widgetSettings.weekdaySelection;
+            this.previousState.normalizeValues = this.getSetting('normalizeValues');
+            this.previousState.weekdaySelection = this.getSetting('weekdaySelection');
             
             % Set previous plot type to 'clustering' which is how it look
             % in the guide figure on startup, and is dynamically when
@@ -1605,7 +1595,7 @@ classdef PAStatTool < PAViewController
             
             % Profile Summary and analysis figure
             if(this.useDatabase || this.useOutcomes)
-                this.initProfileTable(widgetSettings.profileFieldSelection);                
+                this.initProfileTable(this.getSetting('profileFieldSelection'));                
             end            
             % Now check and update whether we make the option available 
             this.refreshAnalysisFigureAvailability();
@@ -3179,7 +3169,7 @@ classdef PAStatTool < PAViewController
                 delayedStart = true;
                 cSettings = this.getClusterSettings(pSettings);
                 tmpClusterObj = PACluster(this.featureStruct.features,cSettings,this.handles.axes_primary,resultsTextH,this.featureStruct.studyIDs, this.featureStruct.startDaysOfWeek, delayedStart);
-                tmpClusterObj.setExportPath(this.originalWidgetSettings.exportPathname);
+                tmpClusterObj.setExportPath(this.originalSettings.get('exportPathname'));
                 tmpClusterObj.addlistener('DefaultParameterChange',@this.clusterParameterChangeCb);
                 
                 % This creates multiple, unused listeners unless we
@@ -3416,7 +3406,7 @@ classdef PAStatTool < PAViewController
             %             this.handles.contextmenu.showMenu = uimenu(contextmenu_primaryAxes,'Label','Show'); %,'callback',@this.primaryAxesClusterSummaryContextmenuCallback);
             %
             %             % Possibly use this.originalWidgetSettings.
-            %             if(this.originalWidgetSettings.showClusterSummary)
+            %             if(this.originalSettings.get('showClusterSummary)
             %                 checkedState = 'on';
             %             else
             %                 checkedState = 'off';
@@ -3875,7 +3865,7 @@ classdef PAStatTool < PAViewController
         %> @retval userSettings Struct of GUI parameter value pairs
         % ======================================================================
         function userSettings = getPlotSettings(this)
-            userSettings.discardNonwearFeatures = get(this.handles.check_discardNonwear,'value'); %this.originalWidgetSettings.discardNonwearFeatures;
+            userSettings.discardNonwearFeatures = get(this.handles.check_discardNonwear,'value'); %this.originalSettings.get('discardNonwearFeatures;
             
             userSettings.showClusterMembers = istoggled(this.toolbarH.cluster.toggle_membership);
             userSettings.showClusterSummary = istoggled(this.toolbarH.cluster.toggle_summary); 

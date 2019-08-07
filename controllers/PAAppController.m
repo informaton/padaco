@@ -54,7 +54,7 @@ classdef PAAppController < PAFigureController
         %PABatchTool's getDefault
         % batch;
         
-        
+        rootpathname;
         
         %> struct to keep track of various Padaco states
         %         STATE;  % commented out on 5/5/2016
@@ -75,53 +75,58 @@ classdef PAAppController < PAFigureController
             if(nargin<2)
                 rootPathname = fileparts(mfilename('fullpath'));
             end
-            
+            obj@PAFigureController(hFigure);
+            obj.rootpathname = rootPathname;
             %check to see if a settings file exists
             if(nargin<3)
                 parameters_filename = '_padaco.parameters.txt';
             end
             
+            configPath = getSavePath();
             obj.iconFilename = fullfile(rootPathname,'resources','icons','logo','icon_32.png');
-            obj.setVersionNum();            
-            obj.StatTool = [];
+            obj.setVersionNum();
             
             obj.addlistener('StatToolCreationSuccess',@obj.StatToolCreationCallback);
             obj.addlistener('StatToolCreationFailure',@obj.StatToolCreationCallback);
             
             %create/intilize the settings object
-            obj.AppSettings = PAAppSettings(rootPathname,parameters_filename);
+            obj.AppSettings = PAAppSettings(configPath,parameters_filename);
             obj.OutcomesTableData = PAOutcomesTableData(obj.AppSettings.OutcomesTableData);
             obj.OutcomesTableData.addlistener('LoadSuccess',@obj.outcomesLoadCb);
             obj.OutcomesTableData.addlistener('LoadFail',@obj.outcomesLoadCb);
             
+            % if did Init then we are here ...
+            obj.setStatusHandle(obj.handles.text_status);
             
-            if(obj.setFigureHandle(hFigure))
-                if(obj.initFigure())
-                    obj.setStatusHandle(obj.handles.text_status);                    
-                                        
-                    % Create a SingleStudy class
-                    singleStudySettings = obj.AppSettings.Main;
-                    obj.SingleStudy = PASingleStudyController(obj.figureH, singleStudySettings);
-                    
-                    set(obj.figureH,'visible','on');
-                    
-                    obj.showBusy();                    
-                    set(obj.figureH,'CloseRequestFcn',{@obj.figureCloseCallback,guidata(obj.figureH)});
-                    
-                    % set(obj.figureH,'scrollable','on'); - not supported
-                    % for guide figures (figure)
-                    %configure the menu bar callbacks.
-                    obj.initMenubarCallbacks();
-                    
-                    % attempt to load the last set of results
-                    lastViewMode = obj.getSetting('viewMode');
-                    try
-                        obj.setViewMode(lastViewMode);
-                        obj.initResize();
-                    catch me
-                        showME(me);
-                    end
-                end
+            % Create a SingleStudy class
+            obj.SingleStudy = PASingleStudyController(obj.figureH, obj.AppSettings.SingleStudy);
+            
+            % Create a results class
+            obj.StatTool = PAStatTool(obj.figureH, obj.AppSettings.StatTool);
+            obj.StatTool.setIcon(obj.iconFilename);
+            
+            fprintf(1,'Need to return to outcomes table data refactor\n');
+%             if(~isempty(obj.OutcomesTableData) && obj.OutcomesTableData.importOnStartup && obj.StatTool.useOutcomes)
+%                 obj.StatTool.setOutcomesTable(obj.OutcomesTableData);
+%             end
+
+            set(obj.figureH,'visible','on');
+            
+            obj.showBusy();
+            set(obj.figureH,'CloseRequestFcn',{@obj.figureCloseCallback,guidata(obj.figureH)});
+            
+            % set(obj.figureH,'scrollable','on'); - not supported
+            % for guide figures (figure)
+            %configure the menu bar callbacks.
+            obj.initMenubarCallbacks();
+            
+            % attempt to load the last set of results
+            lastViewMode = obj.getSetting('viewMode');
+            try
+                obj.setViewMode(lastViewMode);
+                obj.initResize();
+            catch me
+                showME(me);
             end
         end
         
@@ -294,7 +299,7 @@ classdef PAAppController < PAFigureController
         function menuHelpFAQCallback(this,varargin)
             %msg = sprintf('Help FAQ');
             this.SingleStudy.showBusy('Initializing help');
-            filename = fullfile(this.AppSettings.rootpathname,'resources/html','PadacoFAQ.html');
+            filename = fullfile(this.rootpathname,'resources/html','PadacoFAQ.html');
             url = sprintf('file://%s',filename);
             %             web(url,'-notoolbar','-noaddressbox');
             htmldlg('url',url);
@@ -1134,8 +1139,7 @@ classdef PAAppController < PAFigureController
         %> variables SingleStudy (PASingleStudyController) and SensorData (PASensorData)
         %> @param obj Instance of PAAppController
         % --------------------------------------------------------------------
-        function initAccelDataView(obj)            
-            
+        function initAccelDataView(obj)
             % Shows line labels after initWithAccelData
             obj.SingleStudy.initWithAccelData(obj.SensorData);
             
@@ -1184,7 +1188,7 @@ classdef PAAppController < PAFigureController
                         
                     end
                 else
-                    this.StatTool = PAStatTool(this.SingleStudy.figureH,this.AppSettings.StatTool,this.resultsPathname);
+                    this.StatTool = PAStatTool(this.figureH,this.AppSettings.StatTool,this.resultsPathname);
                     this.StatTool.setIcon(this.iconFilename);
                     if(~isempty(this.OutcomesTable) && this.OutcomesTable.importOnStartup && this.StatTool.useOutcomes)
                         this.StatTool.setOutcomesTable(this.OutcomesTable);
@@ -1445,7 +1449,7 @@ classdef PAAppController < PAFigureController
         function didInit = initFigure(obj)
             didInit = false;
             hFigure = obj.figureH;
-            if(obj.setFigureHandle(hFigure))
+            if(ishandle(hFigure))
                 % Place this sooner so that we can go ahead and crush the
                 % figure if something breaks down and we get get stuck
                 % before reaching the closerequestfcn we want to use later

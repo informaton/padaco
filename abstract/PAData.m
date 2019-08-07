@@ -107,17 +107,7 @@ classdef PAData < PABaseWithSettings
     end
     methods(Static)
         function settings = getDefaults()
-            settings = struct();
-            if(ispc)
-                homePath = getenv('USERPROFILE');                
-                settings.exportPathname = fullfile(homePath,'My Documents');  
-            else
-                homePath = getenv('HOME');                
-                if(isempty(homePath))
-                    homePath = '~/';
-                end
-                settings.exportPathname = fullfile(homePath,'Documents/');  
-            end
+            settings.exportPathname = getSavePath();            
         end
 
 

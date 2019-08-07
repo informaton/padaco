@@ -15,17 +15,9 @@ classdef PASingleStudyController < PAViewController
         %> @li @c Features
         displayType; 
         
-        %> Boolean value: 
-        %> - @c true : Apply line smoothing when presenting features on the
-        %> secondary axes (Default).  
-        %> - @c false : Do not apply line smoothing when presenting features on the
-        %> secondary axes (show them in original form).
-        useSmoothing;  
         
-        %> Boolean value: 
-        %> - @c true : Highlight nonwear in second secondary axes (Default).  
-        %> - @c false : Do not highlight nonwear on the secondary axes.
-        nonwearHighlighting;          
+        
+                
         
         %> for the patch handles when editing and dragging
         hg_group;   %may be unused?
@@ -305,14 +297,14 @@ classdef PASingleStudyController < PAViewController
         % --------------------------------------------------------------------
         function setUseSmoothing(obj,smoothingState)
             if(nargin<2 || isempty(smoothingState))
-                obj.useSmoothing = true;
+                obj.setSetting('useSmoothing', true);
             else
-                obj.useSmoothing = smoothingState==true;
-            end           
+                obj.setSetting('useSmoothing', smoothingState==true);
+            end
         end
         
         function smoothing = getUseSmoothing(obj)
-            smoothing = obj.useSmoothing;
+            smoothing = obj.getSetting('useSmoothing');
         end
         
         % --------------------------------------------------------------------
@@ -325,16 +317,16 @@ classdef PASingleStudyController < PAViewController
         % --------------------------------------------------------------------
         function setNonwearHighlighting(obj,showNonwearHighlighting)
             if(nargin<2 || isempty(showNonwearHighlighting))
-                obj.settings.nonwearHighlighting = true;
+                obj.setSetting('highlightNonwear', true);
             else
-                obj.settings.nonwearHighlighting = showNonwearHighlighting==true;
+                obj.setSetting('highlightNonwear', showNonwearHighlighting==true);
             end
-            
         end
         
         function smoothing = getNonwearHighlighting(obj)
-            smoothing = obj.settings.nonwearHighlighting;
+            smoothing = obj.getSetting('highlightNonwear');
         end
+        
         
         % --------------------------------------------------------------------
         %> @brief Sets display type instance variable.    
@@ -1466,12 +1458,8 @@ classdef PASingleStudyController < PAViewController
                 %  and highlighting nonwear
                 %  from obj.VIEW when it comes time to save parameters.
                 % obj.setUseSmoothing(obj.settingsObj.CONTROLLER.useSmoothing);
-                obj.setSmoothingState(obj.settings.useSmoothing);
+                obj.setSmoothingState(obj.getSetting('useSmoothing'));
                 
-                %  Apply this so that later we can retrieve useSmoothing
-                %  from obj.VIEW when it comes time to save parameters.
-                % obj.setUseSmoothing(obj.settingsObj.CONTROLLER.useSmoothing);
-                obj.setNonwearHighlighting(obj.settings.highlightNonwear);
                 
                 didInit = obj.initWidgets();
                 obj.initCallbacks(); %initialize callbacks now that we have some data we can interact with.
@@ -1748,12 +1736,8 @@ classdef PASingleStudyController < PAViewController
                 showME(me);
                 obj.showReady('all');
                 set(hObject,'enable','on');
-                
             end
-            
         end
-        
-        
         
         % --------------------------------------------------------------------
         %> @brief Updates the secondary axes with the current features selected in the GUI
@@ -2572,7 +2556,7 @@ classdef PASingleStudyController < PAViewController
         % =================================================================
         function cmenuConfigureNonwearHighlightingCb(obj,~,~, on_uimenu_h, off_uimenu_h)
             %configure sub contextmenus
-            if(obj.getNonwearHighlighting())
+            if(obj.getSetting('highlightNonwear'))
                 set(on_uimenu_h,'checked','on');
                 set(off_uimenu_h,'checked','off');
             else
@@ -2702,9 +2686,7 @@ classdef PASingleStudyController < PAViewController
             % feature_cumsumLineH =line('parent',axesH,'ydata',vectorSum+overlayOffset,'xdata',startStopDatenum(:,1),'color','g','hittest','off');
             feature_cumsumLineH = [];
         end
-        
   
-        
         % ======================================================================
         %> @brief Returns a structure of the controller's default, saveable parameters as a struct.
         %> @retval pStruct A structure of parameters which include the following
@@ -2740,8 +2722,26 @@ classdef PASingleStudyController < PAViewController
             pStruct.signalTagLine = PAEnumParam('default',tagLines{1},'categories',tagLines,'description','Axis');
             
             pStruct.viewMode = PAEnumParam('default','timeseries','categories',{'timeseries','results'},'description','Current View');
-            pStruct.useSmoothing = PABoolParam('default',true,'description','Line smoothing on');
-            pStruct.highlightNonwear = PABoolParam('default',true,'description','Highlight nonwear');
+            
+            %> Boolean value:
+            %> - @c true : Apply line smoothing when presenting features on the
+            %> secondary axes (Default).
+            %> - @c false : Do not apply line smoothing when presenting features on the
+            %> secondary axes (show them in original form).            
+            helpTxt = {'true : Apply line smoothing when presenting features on the secondary axes (Default).'
+                'false : Do not apply line smoothing when presenting features on the secondary axes (show them in original form).'
+                };
+            pStruct.useSmoothing = PABoolParam('default',true,'description','Line smoothing','help',helpTxt);
+            
+            
+            %> Boolean value:
+            %> - @c true : Highlight nonwear in second secondary axes (Default).
+            %> - @c false : Do not highlight nonwear on the secondary axes.
+            helpTxt = {
+                'true : Highlight nonwear in second secondary axes (Default).'
+                'false : Do not highlight nonwear on the secondary axes.'
+                };
+            pStruct.highlightNonwear = PABoolParam('default',true,'description','Highlight nonwear','help',helpTxt);
 %             pStruct.featureFcnName = featureFcnNames{1};
 %             pStruct.signalTagLine = tagLines{1};
 %             
