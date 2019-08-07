@@ -724,7 +724,9 @@ classdef PASensorData < PAData
 
                 %calculate the current window based on the start sample using
                 %the previous versions window
-                obj.setCurWindow(obj.sample2window(windowRange(1)));
+                %                 windowIndex = max(1, min(obj.sample2window(obj.durationSec-durSec),obj.sample2window(windowRange(1))));
+                windowIndex = obj.sample2window(windowRange(1));
+                obj.setCurWindow(windowIndex);
             else
                 durSec = obj.windowDurSec;
             end

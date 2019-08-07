@@ -358,6 +358,7 @@ classdef PASingleStudyController < PAViewController
             end
             
             if(any(strcmpi(fieldnames(PASensorData.getStructTypes()),displayTypeStr)))
+                obj.setRadioButton(displayTypeStr);
                 allProps.visible = 'off';
                 allStructTypes = PASensorData.getStructTypes();
                 fnames = fieldnames(allStructTypes);
@@ -784,15 +785,9 @@ classdef PASingleStudyController < PAViewController
                 obj.enableFeatureRadioButton();
                 
                 % set the display to show time series data initially.
-                % displayType = 'Time Series';
-                % displayStructName = PASensorData.getStructNameFromDescription(displayType);
-                displayStructName = 'timeSeries';
-                obj.setRadioButton(displayStructName);
-                
-                % Now I am showing labels
+                displayStructName = 'timeSeries';                
                 obj.setDisplayType(displayStructName);
                 
-                %but not everything is shown...
                 
                 obj.setCurWindow(obj.accelObj.getCurWindow());
                 
@@ -1657,26 +1652,19 @@ classdef PASingleStudyController < PAViewController
         %> @li @c timeSeries
         %> @li @c bins
         %> @li @c features
-        function setRadioButton(obj,displayType)
-            handles = guidata(obj.getFigHandle());
-            eventStruct.EventName = 'SelectionChanged';
-            eventStruct.OldValue = get(handles.panel_displayButtonGroup,'selectedObject');
-            
-            switch displayType
-                case 'timeSeries'
-                    eventStruct.NewValue = handles.radio_time;
+        function setRadioButton(obj,displayTypeStr)
+            switch lower(displayTypeStr)
+                case 'timeseries'
+                    radioH = obj.handles.radio_time;
                 case 'bins'
-                    eventStruct.NewValue = handles.radio_bins;
+                    radioH = obj.handles.radio_bins;
                 case 'features'
-                    eventStruct.NewValue = handles.radio_features;
+                    radioH = obj.handles.radio_features;
                 otherwise
-                    fprintf('Sorry, (%s) is not a recognized type.\n',displayType);
+                    radioH = [];
+                    fprintf('Sorry, (%s) is not a recognized type.\n',displayTypeStr);
             end
-            
-            if(eventStruct.OldValue~=eventStruct.NewValue)
-                set(eventStruct.NewValue,'value',1);
-                obj.displayChangeCallback(handles.panel_displayButtonGroup,eventStruct);
-            end
+            set(radioH,'value',1);
         end
         
         % --------------------------------------------------------------------
@@ -1720,9 +1708,7 @@ classdef PASingleStudyController < PAViewController
                 obj.updateSecondaryFeaturesDisplay();
                 % obj.appendFeatureMenu(extractorMethod);
                 
-                
-                % obj.setRadioButton('features');
-                obj.setDisplaytype('features');
+                obj.setDisplayType('features');
                 
                 % This is disabled until the first time features are
                 % calculated.
@@ -1985,14 +1971,13 @@ classdef PASingleStudyController < PAViewController
         %> @param eventdata Required by MATLAB, but not used
         % --------------------------------------------------------------------
         function menu_windowDurSecCallback(obj,hObject,~)
-            %get the array of window sizes in seconds
-            windowDurSec = get(hObject,'userdata');
-            % grab the currently selected window size (in seconds)
-            windowDurSec = windowDurSec(get(hObject,'value'));
+            % get the current window size selection in seconds
+            windowDurSec = getMenuUserData(hObject);
             
             %change it - this internally recalculates the cur window
             obj.accelObj.setWindowDurSec(windowDurSec);
-            obj.setCurWindow(obj.getCurWindow());
+            newWindow = obj.accelObj.getCurWindow();
+            obj.setCurWindow(newWindow);
         end
         
         % --------------------------------------------------------------------
