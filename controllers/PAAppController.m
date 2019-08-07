@@ -6,8 +6,7 @@
 %
 %> In the model, view, controller paradigm, this is the
 %> controller.
-classdef PAAppController < PAFigureController
-    
+classdef PAAppController < PAFigureController    
     events
        StatToolCreationSuccess;
        StatToolCreationFailure;
@@ -31,6 +30,8 @@ classdef PAAppController < PAFigureController
         
     end
     properties(SetAccess=protected)
+        toolbarH; % struct containining handles for toolbar buttons
+        
         %> acceleration activity object - instance of PASensorData
         SensorData;
         
@@ -1437,19 +1438,19 @@ classdef PAAppController < PAFigureController
 
                 figColor = get(hFigure,'color');
                 defaultUnits = 'pixels';
-                handles = guidata(hFigure);
                 
-                set([handles.text_status;
+                
+                set([obj.handles.text_status;
                     ],'backgroundcolor',figColor,'units',defaultUnits);
                 
                 set([hFigure
-                    handles.panel_timeseries
-                    handles.panel_results
-                    handles.panel_epochControls
-                    handles.panel_displayButtonGroup
-                    handles.btngrp_clusters],'units','pixels');
+                    obj.handles.panel_timeseries
+                    obj.handles.panel_results
+                    obj.handles.panel_epochControls
+                    obj.handles.panel_displayButtonGroup
+                    obj.handles.btngrp_clusters],'units','pixels');
                 
-                hAnchor = handles.(obj.NWAnchor.tag);
+                hAnchor = obj.handles.(obj.NWAnchor.tag);
                 set(hAnchor,'units','normalized');
                 posAnchorPct = get(hAnchor,'position');
                 % screenSize = get(0,'screensize');
@@ -1472,8 +1473,8 @@ classdef PAAppController < PAFigureController
                     };
                 for t= 1:numel(anchoredTags)
                     tag = anchoredTags{t};
-                    if(isfield(handles,tag))
-                        h = handles.(tag);
+                    if(isfield(obj.handles,tag))
+                        h = obj.handles.(tag);
                         set(h,'units','pixels');
                         pos = get(h,'position');  % get adjusted position
                         pos(2)=pos(2)-diffYpixels; %undo
@@ -1481,8 +1482,8 @@ classdef PAAppController < PAFigureController
                     end
                 end
                 
-                timeSeriesPanelPos = get(handles.panel_timeseries,'position');
-                resultsPanelPos = get(handles.panel_results,'position');
+                timeSeriesPanelPos = get(obj.handles.panel_timeseries,'position');
+                resultsPanelPos = get(obj.handles.panel_results,'position');
 
                 % Line our panels up to same top left position - do this here
                 % so I can edit them easy in GUIDE and avoid to continually
@@ -1495,46 +1496,107 @@ classdef PAAppController < PAFigureController
                     figPos(3) = resultsPanelPos(1);  % The start of the results panel (x-value) indicates the point that the figure should be clipped
                     set(hFigure,'position',figPos);
                     newResultsPanelY = sum(timeSeriesPanelPos([2,4]))-resultsPanelPos(4);
-                    set(handles.panel_results,'position',[timeSeriesPanelPos(1),newResultsPanelY,resultsPanelPos(3:4)]);
+                    set(obj.handles.panel_results,'position',[timeSeriesPanelPos(1),newResultsPanelY,resultsPanelPos(3:4)]);
                    
-                    metaDataHandles = [handles.panel_study;get(handles.panel_study,'children')];
+                    metaDataHandles = [obj.handles.panel_study;get(obj.handles.panel_study,'children')];
                     set(metaDataHandles,'backgroundcolor',[0.94,0.94,0.94],'visible','off');
                     
-                    whiteHandles = [handles.panel_features_prefilter
-                        handles.panel_features_aggregate
-                        handles.panel_features_frame
-                        handles.panel_features_signal
-                        handles.edit_minClusters
-                        handles.edit_clusterConvergenceThreshold];
+                    whiteHandles = [obj.handles.panel_features_prefilter
+                        obj.handles.panel_features_aggregate
+                        obj.handles.panel_features_frame
+                        obj.handles.panel_features_signal
+                        obj.handles.edit_minClusters
+                        obj.handles.edit_clusterConvergenceThreshold];
                     sethandles(whiteHandles,'backgroundcolor',[1 1 1]);
                     
                     innerPanelHandles = [
-                        handles.panel_clusteringSettings
-                        handles.panel_timeFrame
-                        handles.panel_source
-                        handles.panel_shapeAdjustments
-                        handles.panel_clusterSettings
-                        handles.panel_shapeSettings
-                        handles.btngrp_clusters
-                        handles.panel_chunking];
+                        obj.handles.panel_clusteringSettings
+                        obj.handles.panel_timeFrame
+                        obj.handles.panel_source
+                        obj.handles.panel_shapeAdjustments
+                        obj.handles.panel_clusterSettings
+                        obj.handles.panel_shapeSettings
+                        obj.handles.btngrp_clusters
+                        obj.handles.panel_chunking];
                     sethandles(innerPanelHandles,'backgroundcolor',[0.9 0.9 0.9]);
                     
                     % Make the inner edit boxes appear white
-                    set([handles.edit_minClusters
-                        handles.edit_clusterConvergenceThreshold],'backgroundcolor',[1 1 1]);
+                    set([obj.handles.edit_minClusters
+                        obj.handles.edit_clusterConvergenceThreshold],'backgroundcolor',[1 1 1]);
                     
-                    set(handles.text_threshold,'tooltipstring','Smaller thresholds result in more stringent conversion requirements and often produce more clusters than when using higher threshold values.');
+                    set(obj.handles.text_threshold,'tooltipstring','Smaller thresholds result in more stringent conversion requirements and often produce more clusters than when using higher threshold values.');
                     % Flush our drawing queue
                     drawnow();
                 end
                 
                 %     renderOffscreen(hObject);
                 movegui(hFigure,'northwest');
-                obj.handles = handles;
+                
                 
                 didInit = true;
             end
         end
+        
+        function initToolbar(this)  
+            toolbarHandles.cluster = {
+                'toggle_backgroundColor'
+                'toggle_holdPlots'
+                'toggle_yLimit'
+                'toggle_membership'
+                'toggle_summary'
+                'toggle_analysisFigure'
+                'push_right'
+                'push_left'
+                };
+            
+            fnames = fieldnames(toolbarHandles);
+            this.toolbarH = mkstruct(fnames);
+            for f=1:numel(fnames)
+                fname = fnames{f};
+                %                 this.toolbarH.(fname) = mkstruct(toolbarHandles.(fname));
+                for h=1:numel(toolbarHandles.(fname))
+                    hname = toolbarHandles.(fname){h};
+                    tH = tmpHandles.(hname);
+                    this.toolbarH.(fname).(hname) = tH;
+                    
+                    if(isa(tH,'matlab.ui.container.toolbar.ToggleTool'))
+                        cdata.Off = get(tH,'cdata');
+                        cdata.On = max(cdata.Off-0.2,0);
+                        cdata.On(isnan(cdata.Off)) = nan;
+                        set(tH,'userdata',cdata,'oncallback',@this.toggleOnOffCb,'offcallback',@this.toggleOnOffCb,'state','Off');
+                    end
+                end
+            end
+            
+            %             cdata.Off = get(this.toolbarH.cluster.toggle_membership,'cdata');
+            %             cdata.On = cdata.Off;
+            %             cdata.On(cdata.Off==1) = 0.7;
+            %             set(this.toolbarH.cluster.toggle_membership,'userdata',cdata,'oncallback',@this.toggleOnOffCb,'offcallback',@this.toggleOnOffCb);
+            %             sethandles(this.handles.toolbar_results,'handlevisibility','callback');
+            %             set(this.toolbarH.cluster.toggle_backgroundColor,'handlevisibility','off');
+            %             set(this.handles.toolbar_results,'handlevisibility','off');
+            
+            set(this.toolbarH.cluster.toggle_membership,'clickedcallback',@this.checkShowClusterMembershipCallback);
+            set(this.toolbarH.cluster.toggle_summary,'clickedcallback',@this.plotCb);
+            
+            set(this.toolbarH.cluster.toggle_holdPlots,'clickedcallback',@this.checkHoldPlotsCallback);
+            set(this.toolbarH.cluster.toggle_yLimit,'clickedcallback',@this.togglePrimaryAxesYCb);
+            set(this.toolbarH.cluster.toggle_analysisFigure,'clickedcallback',@this.toggleAnalysisFigureCb);
+            set(this.toolbarH.cluster.toggle_backgroundColor,'ClickedCallback',@this.plotCb); %'OffCallback',@this.toggleBgColorCb,'OnCallback',@this.toggleBgColorCb);
+            
+            set(this.toolbarH.cluster.push_right,'clickedcallback',@this.showNextClusterCallback);
+            set(this.toolbarH.cluster.push_left,'clickedcallback',@this.showPreviousClusterCallback);
+            
+            % Refactoring for toolbars
+            offOnState = {'off','on'}; % 0 -> 'off', 1 -> 'on'  and then +1 to get matlab 1-based so that 1-> 'off' and 2-> 'on'
+            
+            this.logStatus('Need to add toolbar callbacks');
+            %             set(this.toolbarH.cluster.toggle_holdPlots,'state',offOnState{this.holdPlots+1});
+            %             set(this.toolbarH.cluster.toggle_yLimit,'state',offOnState{strcmpi(this.getSetting('primaryAxis_yLimMode'),'manual')+1});
+            %             set(this.toolbarH.cluster.toggle_analysisFigure,'state',offOnState{this.getSetting('showAnalysisFigure')+1});
+            %             set(this.toolbarH.cluster.toggle_backgroundColor,'state',offOnState{this.getSetting('showTimeOfDayAsBackgroundColor')+1}); %'OffCallback',@this.toggleBgColorCb,'OnCallback',@this.toggleBgColorCb);
+            %
+        end        
         
         function showBusy(obj, varargin)
             obj.SingleStudy.showBusy(varargin{:});

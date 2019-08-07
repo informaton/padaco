@@ -82,58 +82,6 @@ classdef(Abstract) PAViewController < PAFigureController
             this@PAFigureController(varargin{:});            
         end
         
-        function didInit = initFigure(obj)
-            if(ishandle(obj.figureH))                
-                obj.designateHandles();
-                didInit = obj.initWidgets();
-                obj.initCallbacks(); %initialize callbacks now that we have some data we can interact with.
-            else
-                didInit = false;
-            end
-        end
-        
-        %> @brief Creates line handles and maps figure tags to PASingleStudyController instance variables.
-        %> @param obj Instance of PASingleStudyController.
-        %> @note This method does not set the view mode.  Call
-        %> refreshView or initView(.) to configure the axes and widgets accordingly.
-        % --------------------------------------------------------------------
-        function designateHandles(obj)
-            handles = guidata(obj.getFigHandle());
-            
-            obj.texthandle.status = handles.text_status;
-            obj.texthandle.filename = handles.text_filename;
-            obj.texthandle.studyinfo = handles.text_studyinfo;
-            
-            obj.axeshandle.primary = handles.axes_primary;
-            obj.axeshandle.secondary = handles.axes_secondary;            
-        end        
-        
-        % --------------------------------------------------------------------
-        %> @brief Initialize data specific properties of the axes handles.
-        %> Set the x and y limits of the axes based on limits found in
-        %> dataStruct struct.
-        %> @param obj Instance of PASingleStudyController
-        %> @param axesProps Structure of axes property structures.  First fields
-        %> are:
-        %> - @c primary (for the primary axes);
-        %> - @c secondary (for the secondary axes, lower, timeline axes)
-        % --------------------------------------------------------------------
-        function initAxesHandles(obj,axesProps)
-            if(nargin<2)                
-                obj.clearAxesHandles();
-                axesProps = obj.getPadacoAxesProps(obj.viewTag);                
-                %initialize axes
-                obj.initAxesHandles(axesProps);                
-            else
-                axesNames = fieldnames(axesProps);
-                for a=1:numel(axesNames)
-                    axesName = axesNames{a};
-                    set(obj.axeshandle.(axesName),axesProps.(axesName));
-                end
-            end
-        end
-        
-        
         
         % --------------------------------------------------------------------
         %> @brief Initialize text handles that will be used in the view.
@@ -165,16 +113,15 @@ classdef(Abstract) PAViewController < PAFigureController
         %> @param obj Instance of PASingleStudyController
          % --------------------------------------------------------------------
         function clearWidgets(obj)            
-            handles = guidata(obj.getFigHandle());            
             
-            set(handles.edit_aggregate,'string','');
-            set(handles.edit_frameSizeHours,'string','');
-            set(handles.edit_frameSizeMinutes,'string','');
-            set(handles.edit_curWindow,'string','');
+            set(obj.handles.edit_aggregate,'string','');
+            set(obj.handles.edit_frameSizeHours,'string','');
+            set(obj.handles.edit_frameSizeMinutes,'string','');
+            set(obj.handles.edit_curWindow,'string','');
             
             %what about all of the menus that I have ?
-            set(handles.panel_study,'visible','off');
-            set(handles.panel_clusterInfo,'visible','off');            
+            set(obj.handles.panel_study,'visible','off');
+            set(obj.handles.panel_clusterInfo,'visible','off');            
         end        
 
         % --------------------------------------------------------------------
@@ -182,19 +129,18 @@ classdef(Abstract) PAViewController < PAFigureController
         %> @param obj Instance of PASingleStudyController
         % --------------------------------------------------------------------
         function disableWidgets(obj)
-            handles = guidata(obj.getFigHandle());
             
             resultPanels = [
-                handles.panel_results
-                handles.btngrp_clusters
-                handles.panel_epochControls
+                obj.handles.panel_results
+                obj.handles.btngrp_clusters
+                obj.handles.panel_epochControls
                 ];
             
-            timeseriesPanels = [handles.panel_timeseries;
-                handles.panel_displayButtonGroup;
-                handles.panel_epochControls];
-            menubarHandles = [handles.menu_file_screenshot_primaryAxes;
-                handles.menu_file_screenshot_secondaryAxes];
+            timeseriesPanels = [obj.handles.panel_timeseries;
+                obj.handles.panel_displayButtonGroup;
+                obj.handles.panel_epochControls];
+            menubarHandles = [obj.handles.menu_file_screenshot_primaryAxes;
+                obj.handles.menu_file_screenshot_secondaryAxes];
             set(menubarHandles,'enable','off');
             
             % disable panel widgets
@@ -226,27 +172,25 @@ classdef(Abstract) PAViewController < PAFigureController
                 end
             end
             
-            handles = guidata(obj.getFigHandle());
-            
             resultPanels = [
-                handles.panel_results
-                %  handles.toolbar_results
-                handles.btngrp_clusters
+                obj.handles.panel_results
+                %  obj.handles.toolbar_results
+                obj.handles.btngrp_clusters
                 ];
                        
             timeseriesPanels = [
-                handles.panel_timeseries;
-                handles.panel_displayButtonGroup;
-                handles.panel_epochControls];
+                obj.handles.panel_timeseries;
+                obj.handles.panel_displayButtonGroup;
+                obj.handles.panel_epochControls];
             
             if(strcmpi(viewMode,'timeseries'))
                 
                 set(timeseriesPanels,'visible','on');
                 set(resultPanels,'visible','off');
                 %set(findall(resultPanels,'enable','on'),'enable','off');
-                set(findall(handles.toolbar_results,'enable','on'),'enable','off');
-                set(handles.menu_viewmode_timeseries,'checked','on');
-                set(handles.menu_viewmode_results,'checked','off');
+                set(findall(obj.handles.toolbar_results,'enable','on'),'enable','off');
+                set(obj.handles.menu_viewmode_timeseries,'checked','on');
+                set(obj.handles.menu_viewmode_results,'checked','off');
                 
                 if(disableFlag)                    
                     set(findall(timeseriesPanels,'enable','on'),'enable','off');
@@ -267,18 +211,18 @@ classdef(Abstract) PAViewController < PAFigureController
                 % which has more control
                 %                 set(resultPanels(1),'visible','on');
                 %                 set(resultPanels(2:3),'visible','off');
-                set(handles.menu_viewmode_timeseries,'checked','off');
-                set(handles.menu_viewmode_results,'checked','on');
+                set(obj.handles.menu_viewmode_timeseries,'checked','off');
+                set(obj.handles.menu_viewmode_results,'checked','on');
             else
                 fprintf('Unknown view mode (%s)\n',viewMode);
             end
 
-            menubarHandles = [handles.menu_file_screenshot_primaryAxes;
-                handles.menu_file_screenshot_secondaryAxes];
+            menubarHandles = [obj.handles.menu_file_screenshot_primaryAxes;
+                obj.handles.menu_file_screenshot_secondaryAxes];
             set(menubarHandles,'visible','on','enable','on');
             
-            set(handles.panel_study,'visible','off');
-            set(handles.panel_clusterInfo,'visible','off');            
+            set(obj.handles.panel_study,'visible','off');
+            set(obj.handles.panel_clusterInfo,'visible','off');            
         end          
         
         function refreshView(obj)
@@ -351,9 +295,63 @@ classdef(Abstract) PAViewController < PAFigureController
             axesProps.secondary.xAxisLocation = 'bottom';
         end        
     end
-    
+    methods(Abstract,Access=protected)
+        didInit = initWidgets(obj)
+    end
+        
     methods(Access=protected)
         
+        function didInit = initFigure(obj)
+            if(ishandle(obj.figureH))
+                obj.designateHandles();
+                didInit = obj.initWidgets();
+                obj.initCallbacks(); %initialize callbacks now that we have some data we can interact with.
+                
+            else
+                didInit = false;
+            end
+        end
+        
+        %> @brief Creates line handles and maps figure tags to PASingleStudyController instance variables.
+        %> @param obj Instance of PASingleStudyController.
+        %> @note This method does not set the view mode.  Call
+        %> refreshView or initView(.) to configure the axes and widgets accordingly.
+        % --------------------------------------------------------------------
+        function designateHandles(obj)
+            handles = guidata(obj.figureH);
+            
+            obj.texthandle.status = obj.handles.text_status;
+            obj.texthandle.filename = obj.handles.text_filename;
+            obj.texthandle.studyinfo = obj.handles.text_studyinfo;
+            
+            obj.axeshandle.primary = obj.handles.axes_primary;
+            obj.axeshandle.secondary = obj.handles.axes_secondary;            
+        end        
+        
+        % --------------------------------------------------------------------
+        %> @brief Initialize data specific properties of the axes handles.
+        %> Set the x and y limits of the axes based on limits found in
+        %> dataStruct struct.
+        %> @param obj Instance of PASingleStudyController
+        %> @param axesProps Structure of axes property structures.  First fields
+        %> are:
+        %> - @c primary (for the primary axes);
+        %> - @c secondary (for the secondary axes, lower, timeline axes)
+        % --------------------------------------------------------------------
+        function initAxesHandles(obj,axesProps)
+            if(nargin<2)                
+                obj.clearAxesHandles();
+                axesProps = obj.getPadacoAxesProps(obj.viewTag);                
+                %initialize axes
+                obj.initAxesHandles(axesProps);                
+            else
+                axesNames = fieldnames(axesProps);
+                for a=1:numel(axesNames)
+                    axesName = axesNames{a};
+                    set(obj.axeshandle.(axesName),axesProps.(axesName));
+                end
+            end
+        end
         
         % --------------------------------------------------------------------
         %> @brief  Executes on key press with focus on figure and no controls selected.
@@ -386,7 +384,7 @@ classdef(Abstract) PAViewController < PAFigureController
             end
             
             if(strcmp(eventdata.Key,'shift'))
-                set(obj.getFigHandle(),'pointer','ibeam');
+                set(obj.figureH,'pointer','ibeam');
             end
             if(strcmp(eventdata.Modifier,'control'))
                 %kill the program
@@ -417,7 +415,7 @@ classdef(Abstract) PAViewController < PAFigureController
         function keyReleaseCallback(obj,~, eventdata)            
             key=eventdata.Key;
             if(strcmp(key,'shift'))
-                set(obj.getFigHandle(),'pointer','arrow');
+                set(obj.figureH,'pointer','arrow');
             end
         end
         
@@ -471,12 +469,11 @@ classdef(Abstract) PAViewController < PAFigureController
         %> state to 'ready'.  See setAxesState method.
         %> @param obj Instance of PAViewController        
         % --------------------------------------------------------------------
-        function showReady(obj,axesTag)            
-            set(obj.texthandle.status,'string','');
+        function showReady(obj,axesTag)
             if(nargin>1 && ~isempty(axesTag))
                 obj.setAxesState(axesTag,'ready');
             end
-            showReady@PAFigureController(obj);
+            showReady@PAFigureController(obj); % set(obj.texthandle.status,'string','');
         end
         
         % --------------------------------------------------------------------
@@ -497,8 +494,7 @@ classdef(Abstract) PAViewController < PAFigureController
             end
             showBusy@PAFigureController(obj);          
         end
-        
-        
+                
         %> @brief Adjusts the color of the specified axes according to the
         %> specified state.
         %> @param obj Instance of PASingleStudyController
@@ -549,7 +545,7 @@ classdef(Abstract) PAViewController < PAFigureController
         %> @param obj Instance of PAAppController
         % --------------------------------------------------------------------
         function initCallbacks(obj)
-            figH = obj.getFigHandle();
+            figH = obj.figureH;
             
             % mouse and keyboard callbacks
             set(figH,'KeyPressFcn',@obj.keyPressCallback);

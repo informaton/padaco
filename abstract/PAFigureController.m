@@ -26,6 +26,15 @@ classdef(Abstract) PAFigureController < PABaseWithSettings
                 obj.initFigure();                
             end
         end
+        % --------------------------------------------------------------------
+        %> @brief Get the view's figure handle.
+        %> @param obj Instance of PAFigureController
+        %> @retval figHandle The figure handle.
+        % --------------------------------------------------------------------
+        function figHandle = getFigHandle(obj)
+            figHandle = obj.figureH;
+        end
+        
     end
     
     methods(Access=protected)
@@ -40,7 +49,7 @@ classdef(Abstract) PAFigureController < PABaseWithSettings
             end
         end
         
-% --------------------------------------------------------------------
+        % --------------------------------------------------------------------
         %> @brief Shows busy status (mouse becomes a watch).
         %> @param obj Instance of PASingleStudyController
         % --------------------------------------------------------------------
@@ -56,7 +65,7 @@ classdef(Abstract) PAFigureController < PABaseWithSettings
         % --------------------------------------------------------------------
         function showReady(obj)
             obj.showMouseReady();
-            set(obj.texthandle.status,'string','');            
+            set(obj.statusHandle,'string','');            
             drawnow();
         end
         

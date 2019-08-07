@@ -713,7 +713,7 @@ classdef PASingleStudyController < PAViewController
             
             cf = get(0,'children');
             for k=1:numel(cf)
-                if(cf(k)==obj.getFigHandle())
+                if(cf(k)==obj.figureH)
                     set(0,'currentfigure',cf(k));
                 else
                     delete(cf(k)); %removes other children aside from this one
@@ -942,23 +942,22 @@ classdef PASingleStudyController < PAViewController
             set(obj.patchhandle.positionBar,'visible','on','xdata',nan(1,4),'ydata',[0 1 1 0]);
             
             % Enable and some panels
-            handles = guidata(obj.getFigHandle());
-            timeseriesPanels = [handles.panel_timeseries;
-                handles.panel_epochControls];
+            timeseriesPanels = [obj.handles.panel_timeseries;
+                obj.handles.panel_epochControls];
             set(findall(timeseriesPanels,'enable','off'),'enable','on');
             
             % This has not been implemented yet, so disable it.
-            set(findall(handles.panel_features_prefilter,'enable','on'),'enable','off');
+            set(findall(obj.handles.panel_features_prefilter,'enable','on'),'enable','off');
             
             % Disable button group - option to switch radio buttons will be
             % allowed after go callback (i.e. user presses a gui button).
             
-            set(findall(handles.panel_displayButtonGroup,'enable','on'),'enable','off');
+            set(findall(obj.handles.panel_displayButtonGroup,'enable','on'),'enable','off');
             
             % This is in the panel display button group, but is not
             % actually part of it and should be moved to another place
             % soon.
-            set(handles.menu_displayFeature,'enable','on');
+            set(obj.handles.menu_displayFeature,'enable','on');
             
             % Turn on the meta data handles - panel that shows information
             % about the current file/study.
@@ -1246,8 +1245,7 @@ classdef PASingleStudyController < PAViewController
             if(nargin<2)
                 enableState = 'on';
             end
-            handles = guidata(obj.getFigHandle());
-            set(handles.radio_bins,'enable',enableState);
+            set(obj.handles.radio_bins,'enable',enableState);
         end
         
         % --------------------------------------------------------------------
@@ -1261,8 +1259,7 @@ classdef PASingleStudyController < PAViewController
             if(nargin<2)
                 enableState = 'on';
             end
-            handles = guidata(obj.getFigHandle());
-            set([handles.radio_features],'enable',enableState);
+            set(obj.handles.radio_features,'enable',enableState);
         end
         
         % --------------------------------------------------------------------
@@ -1278,8 +1275,7 @@ classdef PASingleStudyController < PAViewController
             if(nargin<2)
                 enableState = 'on';
             end
-            handles = guidata(obj.getFigHandle());
-            set(handles.radio_time,'enable',enableState);
+            set(obj.handles.radio_time,'enable',enableState);
         end
         
         
@@ -1391,15 +1387,6 @@ classdef PASingleStudyController < PAViewController
         end
 
         % --------------------------------------------------------------------
-        %> @brief Get the view's figure handle.
-        %> @param obj Instance of PASingleStudyController
-        %> @retval figHandle View's figure handle.
-        % --------------------------------------------------------------------
-        function figHandle = getFigHandle(obj)
-            figHandle = obj.figureH;
-        end
-        
-        % --------------------------------------------------------------------
         %> @brief Get the view's line handles as a struct.
         %> @param obj Instance of PASingleStudyController
         %> @param structType String of a subfieldname to access the line
@@ -1503,23 +1490,23 @@ classdef PASingleStudyController < PAViewController
             
             set(obj.menuhandle.windowDurSec,'userdata',cell2mat(windowMinSelection(:,1)), 'string',windowMinSelection(:,2),'value',5);
         
-            viewHandles = guidata(obj.figureH);
-            set(viewHandles.edit_curWindow,'callback',@obj.edit_curWindowCallback);
-            set(viewHandles.edit_aggregate,'callback',@obj.edit_aggregateCallback);
-            set(viewHandles.edit_frameSizeMinutes,'callback',@obj.edit_frameSizeMinutesCallback);
-            set(viewHandles.edit_frameSizeHours,'callback',@obj.edit_frameSizeHoursCallback);
+            
+            set(obj.handles.edit_curWindow,'callback',@obj.edit_curWindowCallback);
+            set(obj.handles.edit_aggregate,'callback',@obj.edit_aggregateCallback);
+            set(obj.handles.edit_frameSizeMinutes,'callback',@obj.edit_frameSizeMinutesCallback);
+            set(obj.handles.edit_frameSizeHours,'callback',@obj.edit_frameSizeHoursCallback);
             
             %initialize dropdown menu callbacks
             set(obj.menuhandle.displayFeature,'callback',@obj.updateSecondaryFeaturesDisplayCallback);
-            set(viewHandles.menu_windowDurSec,'callback',@obj.menu_windowDurSecCallback);
+            set(obj.handles.menu_windowDurSec,'callback',@obj.menu_windowDurSecCallback);
             
             %             set(obj.menuhandle.prefilterMethod,'callback',[]);
             %             set(obj.menuhandle.signalSelection,'callback',[]);
             %             set(obj.menuhandle.signalSelection,'callback',@obj.updateSecondaryFeaturesDisplayCallback);
             
-            set(viewHandles.panel_displayButtonGroup,'selectionChangeFcn',@obj.displayChangeCallback);
+            set(obj.handles.panel_displayButtonGroup,'selectionChangeFcn',@obj.displayChangeCallback);
             
-            set(viewHandles.button_go,'callback',@obj.button_goCallback);
+            set(obj.handles.button_go,'callback',@obj.button_goCallback);
 
             % Clear the figure and such.
             obj.clearAxesHandles();
@@ -1537,30 +1524,29 @@ classdef PASingleStudyController < PAViewController
         % --------------------------------------------------------------------
         function designateHandles(obj)
             designateHandles@PAViewController(obj);
-            handles = guidata(obj.getFigHandle());
             
-            obj.texthandle.curWindow = handles.edit_curWindow;
-            obj.texthandle.aggregateDuration = handles.edit_aggregate;
-            obj.texthandle.frameDurationMinutes = handles.edit_frameSizeMinutes;
-            obj.texthandle.frameDurationHours = handles.edit_frameSizeHours;
-            obj.texthandle.trimAmount = handles.edit_aggregate;
+            obj.texthandle.curWindow = obj.handles.edit_curWindow;
+            obj.texthandle.aggregateDuration = obj.handles.edit_aggregate;
+            obj.texthandle.frameDurationMinutes = obj.handles.edit_frameSizeMinutes;
+            obj.texthandle.frameDurationHours = obj.handles.edit_frameSizeHours;
+            obj.texthandle.trimAmount = obj.handles.edit_aggregate;
             
-            obj.panelhandle.controls = handles.panel_timeseries;
-            obj.panelhandle.epoch = handles.panel_epochControls;
-            obj.panelhandle.dispalyFeatures = handles.panel_displayButtonGroup;
-            obj.panelhandle.metaData = handles.panel_study;
+            obj.panelhandle.controls = obj.handles.panel_timeseries;
+            obj.panelhandle.epoch = obj.handles.panel_epochControls;
+            obj.panelhandle.dispalyFeatures = obj.handles.panel_displayButtonGroup;
+            obj.panelhandle.metaData = obj.handles.panel_study;
             
-            obj.menuhandle.windowDurSec = handles.menu_windowDurSec;
-            obj.menuhandle.signalSelection = handles.menu_signalSelection;
-            obj.menuhandle.prefilterMethod = handles.menu_prefilter;
-            obj.menuhandle.displayFeature = handles.menu_displayFeature;
+            obj.menuhandle.windowDurSec = obj.handles.menu_windowDurSec;
+            obj.menuhandle.signalSelection = obj.handles.menu_signalSelection;
+            obj.menuhandle.prefilterMethod = obj.handles.menu_prefilter;
+            obj.menuhandle.displayFeature = obj.handles.menu_displayFeature;
             
-            obj.menuhandle.signalSource = handles.menu_signalsource;
-            obj.menuhandle.featureSource = handles.menu_feature;
-            obj.menuhandle.resultType = handles.menu_plottype;
+            obj.menuhandle.signalSource = obj.handles.menu_signalsource;
+            obj.menuhandle.featureSource = obj.handles.menu_feature;
+            obj.menuhandle.resultType = obj.handles.menu_plottype;
             
-            obj.checkhandle.normalizeResults = handles.check_normalizevalues;
-            obj.checkhandle.trimResults = handles.check_trim;
+            obj.checkhandle.normalizeResults = obj.handles.check_normalizevalues;
+            obj.checkhandle.trimResults = obj.handles.check_trim;
                         
             
             % create a spot for it in the struct;
@@ -1984,12 +1970,11 @@ classdef PASingleStudyController < PAViewController
         % --------------------------------------------------------------------
         function updateSecondaryFeaturesDisplayCallback(obj,hObject,~)
             set(hObject,'enable','off');
-            handles = guidata(hObject);
-            initColor = get(handles.axes_secondary,'color');
+            initColor = get(obj.handles.axes_secondary,'color');
             obj.showBusy('(Updating secondary display)','secondary');
             numFrames = obj.getFrameCount();
             obj.updateSecondaryFeaturesDisplay(numFrames);
-            set(handles.axes_secondary,'color',initColor);
+            set(obj.handles.axes_secondary,'color',initColor);
             
             obj.showReady('secondary');
             set(hObject,'enable','on');
@@ -2085,7 +2070,6 @@ classdef PASingleStudyController < PAViewController
         function contextmenuLineCb(obj,hObject,~)
             %parent context menu that pops up before any of the children contexts are
             %drawn...
-            %             handles = guidata(hObject);
             %             parent_fig = get(hObject,'parent');
             %             obj_handle = get(parent_fig,'currentobject');
             obj.current_linehandle = gco;
