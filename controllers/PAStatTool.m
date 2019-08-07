@@ -5,8 +5,8 @@
 % ======================================================================
 classdef PAStatTool < PAViewController
     events
-       UserCancel_Event;
-       ProfileFieldSelectionChange_Event;
+        UserCancel_Event;
+        ProfileFieldSelectionChange_Event;
     end
     
     properties(Constant)
@@ -170,8 +170,6 @@ classdef PAStatTool < PAViewController
             this.coiProfile = [];
             this.allProfiles = [];
             
-
-
             % this.initFigure();
             
             if nargin > 2
@@ -421,7 +419,6 @@ classdef PAStatTool < PAViewController
                 end
             end
         end
-
         
         function clusterParameterChangeCb(this, clusterObj, paramEventData)
             if(isfield(this.originalSettings,paramEventData.fieldName))

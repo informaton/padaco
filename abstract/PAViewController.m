@@ -82,7 +82,33 @@ classdef(Abstract) PAViewController < PAFigureController
             this@PAFigureController(varargin{:});            
         end
         
-         % --------------------------------------------------------------------
+        function didInit = initFigure(obj)
+            if(ishandle(obj.figureH))                
+                obj.designateHandles();
+                didInit = obj.initWidgets();
+                obj.initCallbacks(); %initialize callbacks now that we have some data we can interact with.
+            else
+                didInit = false;
+            end
+        end
+        
+        %> @brief Creates line handles and maps figure tags to PASingleStudyController instance variables.
+        %> @param obj Instance of PASingleStudyController.
+        %> @note This method does not set the view mode.  Call
+        %> refreshView or initView(.) to configure the axes and widgets accordingly.
+        % --------------------------------------------------------------------
+        function designateHandles(obj)
+            handles = guidata(obj.getFigHandle());
+            
+            obj.texthandle.status = handles.text_status;
+            obj.texthandle.filename = handles.text_filename;
+            obj.texthandle.studyinfo = handles.text_studyinfo;
+            
+            obj.axeshandle.primary = handles.axes_primary;
+            obj.axeshandle.secondary = handles.axes_secondary;            
+        end        
+        
+        % --------------------------------------------------------------------
         %> @brief Initialize data specific properties of the axes handles.
         %> Set the x and y limits of the axes based on limits found in
         %> dataStruct struct.
@@ -106,6 +132,8 @@ classdef(Abstract) PAViewController < PAFigureController
                 end
             end
         end
+        
+        
         
         % --------------------------------------------------------------------
         %> @brief Initialize text handles that will be used in the view.
@@ -325,14 +353,7 @@ classdef(Abstract) PAViewController < PAFigureController
     end
     
     methods(Access=protected)
-        % --------------------------------------------------------------------
-        %> @brief Shows ready status (mouse becomes the default pointer).
-        %> @param obj Instance of PASingleStudyController        
-        % --------------------------------------------------------------------
-        function showReady(obj)
-            set(obj.texthandle.status,'string',''); 
-            showReady@PAFigureController(obj);
-        end
+        
         
         % --------------------------------------------------------------------
         %> @brief  Executes on key press with focus on figure and no controls selected.
@@ -443,8 +464,40 @@ classdef(Abstract) PAViewController < PAFigureController
             obj.showReady();
             set(obj.figureH,'windowbuttonmotionfcn',[],'WindowScrollWheelFcn',[]);
         end
+       
+        % --------------------------------------------------------------------
+        %> @brief Shows ready status (mouse becomes the default pointer).
+        %> @param axesTag Optional tag, that if set will set the axes tag's
+        %> state to 'ready'.  See setAxesState method.
+        %> @param obj Instance of PAViewController        
+        % --------------------------------------------------------------------
+        function showReady(obj,axesTag)            
+            set(obj.texthandle.status,'string','');
+            if(nargin>1 && ~isempty(axesTag))
+                obj.setAxesState(axesTag,'ready');
+            end
+            showReady@PAFigureController(obj);
+        end
         
-
+        % --------------------------------------------------------------------
+        %> @brief Shows busy status (mouse becomes a watch).
+        %> @param obj Instance of PAViewController
+        %> @param status_label Optional string which, if included, is displayed
+        %> in the figure's status text field (currently at the top right of
+        %> the view).
+        %> @param axesTag Optional tag, that if set will set the axes tag's
+        %> state to 'busy'.  See setAxesState method.
+        % --------------------------------------------------------------------
+        function showBusy(obj,status_label,axesTag)
+            if(nargin>1)
+                set(obj.texthandle.status,'string',status_label);
+                if(nargin>2)
+                    obj.setAxesState(axesTag,'busy');
+                end
+            end
+            showBusy@PAFigureController(obj);          
+        end
+        
         
         %> @brief Adjusts the color of the specified axes according to the
         %> specified state.
@@ -469,13 +522,7 @@ classdef(Abstract) PAViewController < PAFigureController
             end
         end
         
-        % --------------------------------------------------------------------
-        %> @brief An alias for showReady()
-        %> @param obj Instance of PASingleStudyController
-        % --------------------------------------------------------------------
-        function obj = clear_handles(obj)
-            obj.showReady();
-        end
+
         
         %> @brief
         %> @param obj Instance of PAController

@@ -23,12 +23,10 @@ classdef PAAppController < PAFigureController
         resizeValues; % for handling resize functions
         versionNum;
         
-        
         %> String identifying Padaco's current view mode.  Values include
         %> - @c timeseries
         %> - @c results
-        viewMode;   
-        
+        viewMode;
         iconFilename;
         
     end
@@ -53,7 +51,6 @@ classdef PAAppController < PAFigureController
         %> Struct of batch settings with fields as described by
         %PABatchTool's getDefault
         % batch;
-        
         rootpathname;
         
         %> struct to keep track of various Padaco states
@@ -102,9 +99,9 @@ classdef PAAppController < PAFigureController
             obj.SingleStudy = PASingleStudyController(obj.figureH, obj.AppSettings.SingleStudy);
             
             % Create a results class
-            obj.StatTool = PAStatTool(obj.figureH, obj.AppSettings.StatTool);
+            obj.StatTool = PAStatTool(obj.figureH, obj.AppSettings.StatTool); % obj.resultsPathname
             obj.StatTool.setIcon(obj.iconFilename);
-            
+           
             fprintf(1,'Need to return to outcomes table data refactor\n');
 %             if(~isempty(obj.OutcomesTableData) && obj.OutcomesTableData.importOnStartup && obj.StatTool.useOutcomes)
 %                 obj.StatTool.setOutcomesTable(obj.OutcomesTableData);
@@ -130,7 +127,6 @@ classdef PAAppController < PAFigureController
             end
         end
         
-        
         %% Shutdown functions
         %> Destructor
         function close(obj)
@@ -146,7 +142,6 @@ classdef PAAppController < PAFigureController
             obj.AppSettings.saveToFile();
             fprintf(1,'Settings saved to disk.\n');
         end
-
         
         %> @brief Sync the controller's settings with the SETTINGS object
         %> member variable.
@@ -179,8 +174,6 @@ classdef PAAppController < PAFigureController
         end
         
         %% Startup configuration functions and callbacks
-
-        
         % --------------------------------------------------------------------
         %> @brief Executes when user attempts to close figure_padaco.
         %> @param obj Instance of PAAppController
@@ -198,7 +191,6 @@ classdef PAAppController < PAFigureController
                 killall;
             end
         end
-        
         
         %-- Menubar configuration --
         % --------------------------------------------------------------------
@@ -298,7 +290,7 @@ classdef PAAppController < PAFigureController
         % --------------------------------------------------------------------
         function menuHelpFAQCallback(this,varargin)
             %msg = sprintf('Help FAQ');
-            this.SingleStudy.showBusy('Initializing help');
+            this.showBusy('Initializing help');
             filename = fullfile(this.rootpathname,'resources/html','PadacoFAQ.html');
             url = sprintf('file://%s',filename);
             %             web(url,'-notoolbar','-noaddressbox');
@@ -318,7 +310,6 @@ classdef PAAppController < PAFigureController
             else
                 this.logStatus('User cancelled');
             end
-            
         end
         
         function outcomesLoadCb(this, outcomesController, evtData)
@@ -447,8 +438,6 @@ classdef PAAppController < PAFigureController
         function loadSettingsCb(obj, varargin)
             obj.StatTool.loadSettings();
         end
-
- 
         
         % --------------------------------------------------------------------
         %> @brief Menubar callback for opening a file.
@@ -468,7 +457,7 @@ classdef PAAppController < PAFigureController
             try
                 if(~isempty(f))
                     
-                    obj.SingleStudy.showBusy('Loading','all');
+                    obj.showBusy('Loading','all');
                     obj.SingleStudy.disableWidgets();
                     [pathname,basename, baseext] = fileparts(f);
                     obj.AppSettings.SensorData.pathname = pathname;
@@ -515,7 +504,7 @@ classdef PAAppController < PAFigureController
                 'Select a file',fullfile(obj.AppSettings.SensorData.pathname,obj.AppSettings.SensorData.filename));
             try
                 if(~isempty(f))
-                    obj.SingleStudy.showBusy('Loading','all');
+                    obj.showBusy('Loading','all');
                     [pathname,basename, baseext] = fileparts(f);
                     obj.AppSettings.SensorData.pathname = pathname;
                     obj.AppSettings.SensorData.filename = strcat(basename,baseext);
@@ -538,13 +527,11 @@ classdef PAAppController < PAFigureController
                     
                     %initialize the PASensorData object's visual properties
                     obj.initAccelDataView(); %calls show obj.SingleStudy.showReady() Ready...
-                    
                 end
             catch me
                 showME(me);
                 obj.SingleStudy.showReady('all');
             end
-            
         end
         
         % --------------------------------------------------------------------
@@ -562,7 +549,7 @@ classdef PAAppController < PAFigureController
                 'Select a file',fullfile(obj.AppSettings.SensorData.pathname,obj.AppSettings.SensorData.filename));
             try
                 if(~isempty(f))
-                    obj.SingleStudy.showBusy('Loading','all');
+                    obj.showBusy('Loading','all');
                     [pathname,basename, baseext] = fileparts(f);
                     obj.AppSettings.SensorData.pathname = pathname;
                     obj.AppSettings.SensorData.filename = strcat(basename,baseext);
@@ -577,9 +564,7 @@ classdef PAAppController < PAFigureController
                     fmtStruct.fieldOrder = {'datetime','x','y','z'};
                     fmtStruct.headerLines = 2;
                     
-                    
                     obj.SensorData.loadCustomRawCSVFile(f,fmtStruct); % two header lines %elapsed time stamp, x, y, z 
-                    
                     
                     if(~strcmpi(obj.getViewMode(),'timeseries'))
                         obj.setViewMode('timeseries');
@@ -587,14 +572,13 @@ classdef PAAppController < PAFigureController
                     
                     %initialize the PASensorData object's visual properties
                     obj.initAccelDataView(); %calls show obj.SingleStudy.showReady() Ready...
-                  
                 end
             catch me
                 showME(me);
                 obj.SingleStudy.showReady('all');
             end          
-        end       
-                
+        end
+        
         % --------------------------------------------------------------------
         %> @brief Menubar callback for opening a fitbit file.
         %> @param obj Instance of PAAppController
@@ -602,14 +586,13 @@ classdef PAAppController < PAFigureController
         %> @param eventdata Required by MATLAB, but not used.
         % --------------------------------------------------------------------
         function menuFileOpenFitBitCallback(obj,varargin)
-            
             f=uigetfullfile({'*.txt;*.fbit','Fitbit';
                 '*.csv','Comma Separated Values'},...
                 'Select a file',fullfile(obj.AppSettings.SensorData.pathname,obj.AppSettings.SensorData.filename));
             try
                 if(~isempty(f))
  
-                    obj.SingleStudy.showBusy('Loading','all');
+                    obj.showBusy('Loading','all');
                     [pathname,basename, baseext] = fileparts(f);
                     obj.AppSettings.SensorData.pathname = pathname;
                     obj.AppSettings.SensorData.filename = strcat(basename,baseext);
@@ -644,7 +627,7 @@ classdef PAAppController < PAFigureController
         %> @param eventdata Required by MATLAB, but not used.
         % --------------------------------------------------------------------
         function menuFileOpenResultsPathCallback(obj,varargin)
-            initialPath = obj.resultsPathname;
+            initialPath = obj.getResultsPathname();
             resultsPath = uigetfulldir(initialPath, 'Select path containing PADACO''s features directory');
             try
             if(~isempty(resultsPath))
@@ -654,19 +637,20 @@ classdef PAAppController < PAFigureController
                 % hanging around showing results and the user unaware that
                 % a problem occurred (i.e. no change took place).
                 % obj.StatTool = [];
-                obj.resultsPathname = resultsPath;
+                obj.setResultsPathname(resultsPath);
+                
                 if(~strcmpi(obj.getViewMode(),'results'))
-                    obj.SingleStudy.showBusy('Switching to results view');
+                    obj.showBusy('Switching to results view');
                     obj.setViewMode('results');
                 end
                 
-                obj.SingleStudy.showBusy('Initializing results view','all');
+                obj.showBusy('Initializing results view','all');
                 if(obj.initResultsView())
-                    obj.SingleStudy.showReady('all');
+                    obj.showReady('all');
                 else
                     f=warndlg('I could not find any feature files in the directory you selected.  Check the editor window for further information','Load error','modal');
                     waitfor(f);
-                    obj.SingleStudy.showReady();
+                    obj.showReady();
                 end
             else
                 % switch back to other mode?
@@ -678,8 +662,7 @@ classdef PAAppController < PAFigureController
                 showME(me);
                 f=warndlg('An error occurred while trying to load the feature set.  See the console log for details.');
                 waitfor(f);
-                obj.SingleStudy.showReady();
-                
+                obj.showReady();                
             end
         end
         
@@ -818,7 +801,6 @@ classdef PAAppController < PAFigureController
                 pa_msgbox('An error occurred while trying to export the centroid object to a workspace variable.  See console for details.','Warning',makeModal);
             end
         end
-
         
         % --------------------------------------------------------------------
         %> @brief Menubar callback for exporting PAAppController's data object
@@ -870,35 +852,37 @@ classdef PAAppController < PAFigureController
             if(strcmpi(obj.viewMode,viewMode))
                 obj.setStatus('Refreshing %s view',viewMode);
             else
-                obj.SingleStudy.showBusy(['Switching to ',viewMode,' view'],'all');        
+                obj.showBusy(['Switching to ',viewMode,' view'],'all');        
                 obj.setSetting('viewMode', viewMode);
-                obj.SingleStudy.refreshView();
+                
+                switch lower(viewMode)
+                    case 'timeseries'
+                        obj.SingleStudy.refreshView();
+                        if(isempty(obj.SensorData))
+                            checkToOpenFile = false; % can be a user setting.
+                            if(checkToOpenFile)
+                                responseButton = questdlg('A time series file is not currently loaded.  Would you like to open one now?','Find a time series file to load?');
+                                if(strcmpi(responseButton,'yes'))
+                                    obj.menuFileOpenCallback();
+                                end
+                            end
+                        else
+                            obj.initAccelDataView();
+                        end
+                    case 'results'
+                        obj.StatTool.refreshView();
+                        obj.initResultsView();
+                end
             end
             
             figure(obj.figureH);  %redraw and place it on top
-            refresh(obj.figureH); % redraw it
+            %refresh(obj.figureH); % redraw it
             %             shg();  %make sure it is on top.
             
-            switch lower(viewMode)
-                case 'timeseries'
-                    if(isempty(obj.SensorData))
-                        checkToOpenFile = false; % can be a user setting.
-                        if(checkToOpenFile)
-                            responseButton = questdlg('A time series file is not currently loaded.  Would you like to open one now?','Find a time series file to load?');
-                            if(strcmpi(responseButton,'yes'))
-                                obj.menuFileOpenCallback();
-                            end
-                        end
-                    else                        
-                        obj.initAccelDataView();
-                    end
-                case 'results'
-                    obj.initResultsView();
-            end
             % Show ready when everything has been initialized to avoid
             % flickering (i.e. don't place this above the switch
             % statement).
-            obj.SingleStudy.showReady();
+            obj.showReady();
         end
         
         % --------------------------------------------------------------------
@@ -1146,6 +1130,15 @@ classdef PAAppController < PAFigureController
             
         end
         
+        function resultsPath = getResultsPathname(this)
+           resultsPath = this.StatTool.getResultsDirectory(); 
+        end
+        
+        function didSet = setResultsPathname(this, resultsPath)
+           didSet = this.StatTool.setResultsDirectory(resultsPath); 
+        end
+        
+        
         % --------------------------------------------------------------------
         %> @brief Initializes widgets for results view mode.  Widgets are
         %> disabled if the resultsPathname does not exist or cannot be
@@ -1155,62 +1148,50 @@ classdef PAAppController < PAFigureController
         % --------------------------------------------------------------------
         function success = initResultsView(this)
             success = false;
-            if(isdir(this.resultsPathname))
-                if(~isempty(this.StatTool))
-                    
-                    StatToolResultsPath = this.StatTool.getResultsDirectory();
-                    
-                    refreshPath = false;
-                    if(~strcmpi(StatToolResultsPath,this.resultsPathname))
-                        msgStr = sprintf('There has been a change to the results path.\nWould you like to load features from the updated path?\n%s',this.resultsPathname);
-                        titleStr = 'Refresh results path?';
-                        buttonName = questdlg(msgStr,titleStr,'Yes','No','Yes');
-                        switch(buttonName)
-                            case 'Yes'
-                                refreshPath = true;
-                            case 'No'
-                                refreshPath = false;
-                                %make it so we do not ask the quesiton
-                                %again by matching the pathname to the one
-                                %the user wants to use.
-                                this.resultsPathname = StatToolResultsPath;  
-                            otherwise
-                                refreshPath = false;
-                        end                                
+            StatToolResultsPath = this.StatTool.getResultsDirectory();
+          
+            if(isdir(this.getResultsPathname()))
+                refreshPath = false;
+                if(~strcmpi(StatToolResultsPath,this.resultsPathname))
+                    msgStr = sprintf('There has been a change to the results path.\nWould you like to load features from the updated path?\n%s',this.getResultsPathname());
+                    titleStr = 'Refresh results path?';
+                    buttonName = questdlg(msgStr,titleStr,'Yes','No','Yes');
+                    switch(buttonName)
+                        case 'Yes'
+                            refreshPath = true;
+                        case 'No'
+                            refreshPath = false;
+                            %make it so we do not ask the quesiton
+                            %again by matching the pathname to the one
+                            %the user wants to use.
+                            % resultsPathname = StatToolResultsPath;
+                        otherwise
+                            refreshPath = false;
                     end
-
-                    if(refreshPath)
-                        this.StatTool.setResultsDirectory(this.resultsPathname);
-                    else
-                        % Make sure the resultsPath is up to date (e.g. when
-                        % switching back from a batch mode.
-                        this.StatTool.init();  %calls a plot refresh
-                        
-                    end
+                end
+                
+                if(refreshPath)
+                    this.StatTool.setResultsDirectory(resultsPathname);
                 else
-                    this.StatTool = PAStatTool(this.figureH,this.AppSettings.StatTool,this.resultsPathname);
-                    this.StatTool.setIcon(this.iconFilename);
-                    if(~isempty(this.OutcomesTable) && this.OutcomesTable.importOnStartup && this.StatTool.useOutcomes)
-                        this.StatTool.setOutcomesTable(this.OutcomesTable);
-                    end
+                    % Make sure the resultsPath is up to date (e.g. when
+                    % switching back from a batch mode.
+                    this.StatTool.init();  %calls a plot refresh
+                    
                 end
                 success = this.StatTool.getCanPlot();
             end
             
             if(~success)
-                if(isfield(this,'StatTool') && isa(this.StatTool,'PAStatTool'))
-                    this.StatTool.disable();
-                end
-                
-                this.StatTool = [];
+                this.StatTool.disable();
                 this.notify('StatToolCreationFailure');
                 checkToOpenResultsPath = false; % can be a user setting.
-                if(checkToOpenResultsPath)                    
+                if(checkToOpenResultsPath)
                     responseButton = questdlg('Results output pathname is either not set or was not found.  Would you like to choose one now?','Find results output path?');
                     if(strcmpi(responseButton,'yes'))
                         this.menuFileOpenResultsPathCallback();
                     end
                 end
+
             else
                 this.SingleStudy.showReady();
                 this.notify('StatToolCreationSuccess');
@@ -1291,11 +1272,9 @@ classdef PAAppController < PAFigureController
                     % This requires twice the height because it will have a
                     % feature line and heat map
                     vecHandles = obj.SingleStudy.addFeaturesVecAndOverlayToAxes(featureVec,startStopDatenums,height*2,heightOffset,axesH);
-                    
                 end
                 heightOffset = heightOffset+height;
                 featureHandles = [featureHandles(:);vecHandles(:)];
-
             end
             
             % Added this to keep consistency with updateSecondaryFeaturesDisplay method
@@ -1365,8 +1344,7 @@ classdef PAAppController < PAFigureController
             fontReduction = min([4, floor(durationDays/4)]);
             axesProps.fontSize = 14-fontReduction;
             
-            set(axesH,axesProps);
-            
+            set(axesH,axesProps);            
         end
         
         % --------------------------------------------------------------------
@@ -1440,8 +1418,7 @@ classdef PAAppController < PAFigureController
             else
                 viewable = false;
             end
-        end
-        
+        end        
     end
     
     methods (Access=protected)
@@ -1557,7 +1534,11 @@ classdef PAAppController < PAFigureController
                 
                 didInit = true;
             end
-        end 
+        end
+        
+        function showBusy(obj, varargin)
+            obj.SingleStudy.showBusy(varargin{:});
+        end            
     end
     methods (Static)
         % --------------------------------------------------------------------

@@ -1412,8 +1412,7 @@ classdef PASingleStudyController < PAViewController
             else
                 lineHandle = obj.linehandle.(structType);
             end
-        end        
-        
+        end
     end
     
     methods(Access=protected)
@@ -1444,25 +1443,6 @@ classdef PASingleStudyController < PAViewController
                 showME(me);
             end
         end
-        function didInit = initFigure(obj)
-            if(ishandle(obj.figureH))
-                
-                obj.designateHandles();               
-                
-                %  Apply this so that later we can retrieve useSmoothing
-                %  and highlighting nonwear
-                %  from obj.VIEW when it comes time to save parameters.
-                % obj.setUseSmoothing(obj.settingsObj.CONTROLLER.useSmoothing);
-                obj.setSmoothingState(obj.getSetting('useSmoothing'));
-                
-                
-                didInit = obj.initWidgets();
-                obj.initCallbacks(); %initialize callbacks now that we have some data we can interact with.
-   
-            else
-                didInit = false;
-            end
-        end 
         
         function didInit = initWidgets(obj)
             obj.initContextmenus();
@@ -1556,11 +1536,9 @@ classdef PASingleStudyController < PAViewController
         %> refreshView or initView(.) to configure the axes and widgets accordingly.
         % --------------------------------------------------------------------
         function designateHandles(obj)
+            designateHandles@PAViewController(obj);
             handles = guidata(obj.getFigHandle());
             
-            obj.texthandle.status = handles.text_status;
-            obj.texthandle.filename = handles.text_filename;
-            obj.texthandle.studyinfo = handles.text_studyinfo;
             obj.texthandle.curWindow = handles.edit_curWindow;
             obj.texthandle.aggregateDuration = handles.edit_aggregate;
             obj.texthandle.frameDurationMinutes = handles.edit_frameSizeMinutes;
@@ -1584,44 +1562,12 @@ classdef PASingleStudyController < PAViewController
             obj.checkhandle.normalizeResults = handles.check_normalizevalues;
             obj.checkhandle.trimResults = handles.check_trim;
                         
-            obj.axeshandle.primary = handles.axes_primary;
-            obj.axeshandle.secondary = handles.axes_secondary;
             
             % create a spot for it in the struct;
             obj.patchhandle.feature = [];
         end
         
-        % --------------------------------------------------------------------
-        %> @brief Shows ready status (mouse becomes the default pointer).
-        %> @param axesTag Optional tag, that if set will set the axes tag's
-        %> state to 'ready'.  See setAxesState method.
-        %> @param obj Instance of PASingleStudyController        
-        % --------------------------------------------------------------------
-        function showReady(obj,axesTag)            
-            if(nargin>1 && ~isempty(axesTag))
-                obj.setAxesState(axesTag,'ready');
-            end
-            showReady@PAViewController(obj);
-        end
         
-        % --------------------------------------------------------------------
-        %> @brief Shows busy status (mouse becomes a watch).
-        %> @param obj Instance of PASingleStudyController
-        %> @param status_label Optional string which, if included, is displayed
-        %> in the figure's status text field (currently at the top right of
-        %> the view).
-        %> @param axesTag Optional tag, that if set will set the axes tag's
-        %> state to 'busy'.  See setAxesState method.
-        % --------------------------------------------------------------------
-        function showBusy(obj,status_label,axesTag)
-            if(nargin>1)
-                set(obj.texthandle.status,'string',status_label);
-                if(nargin>2)
-                    obj.setAxesState(axesTag,'busy');
-                end
-            end
-            showBusy@PAViewController(obj);          
-        end
         
         
         %% Widget callbacks
@@ -2125,7 +2071,7 @@ classdef PASingleStudyController < PAViewController
         
         
         %         function setLinehandle(obj, line_h)
-        %             obj.clear_handles();
+        %             obj.showReady();
         %             obj.current_linehandle = line_h;
         %             set(obj.current_linehandle,'selected','on');
         %         end
