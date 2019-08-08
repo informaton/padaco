@@ -964,7 +964,6 @@ classdef PASingleStudyController < PAViewController
             metaDataHandles = [obj.panelhandle.metaData;get(obj.panelhandle.metaData,'children')];
             set(metaDataHandles,'visible','on');
         end
-    
          
         % --------------------------------------------------------------------
         %> @brief Updates the secondary axes x and y axes limits.
@@ -992,11 +991,9 @@ classdef PASingleStudyController < PAViewController
                 axesProps.primary.XTickLabel = datestr(dateTicks,'ddd HH:MM PM');
             end    
             
-            axesProps.primary.XTick = xTick;
-            
-           
+            axesProps.primary.XTick = xTick;            
             obj.initAxesHandles(axesProps);
-%             datetick(obj.axeshandle.secondary,'x','ddd HH:MM')
+
         end
         
 

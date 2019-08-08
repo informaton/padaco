@@ -10,7 +10,7 @@ classdef PAStatTool < PAViewController
     end
     
     properties(Constant)
-        viewTag = 'result';
+        viewTag = 'results';
         RESULTS_CACHE_FILENAME = 'results.tmp';
         COLOR_MEMBERSHAPE = [0.5 0.45 0.65];
         COLOR_LINESELECTION = [0.8 0.1 0.1];
@@ -1832,31 +1832,6 @@ classdef PAStatTool < PAViewController
             end
         end
         
-        % --------------------------------------------------------------------
-        %> @brief Initialize data specific properties of the axes handles.
-        %> Set the x and y limits of the axes based on limits found in
-        %> dataStruct struct.
-        %> @param obj Instance of PASingleStudyController
-        %> @param axesProps Structure of axes property structures.  First fields
-        %> are:
-        %> - @c primary (for the primary axes);
-        %> - @c secondary (for the secondary axes, lower, timeline axes)
-        % --------------------------------------------------------------------
-        function initAxesHandles(obj,axesProps)
-            if(nargin<2)                
-                obj.clearAxesHandles();
-                axesProps = getPadacoAxesProps('results');                
-                %initialize axes
-                obj.initAxesHandles(axesProps);                
-            else
-                axesNames = fieldnames(axesProps);
-                for a=1:numel(axesNames)
-                    axesName = axesNames{a};
-                    set(obj.axeshandle.(axesName),axesProps.(axesName));
-                end
-            end
-        end
-                
         
         % ======================================================================
         %> @brief Shows busy state: Disables all non-cluster panel widgets

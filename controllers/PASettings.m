@@ -15,6 +15,7 @@ classdef  PASettings < handle
     
     properties(Abstract, SetAccess = protected)
         fieldNames;
+        liteFieldNames;
     end
     properties(SetAccess=protected)         
         dictionary = struct();
@@ -38,9 +39,7 @@ classdef  PASettings < handle
         %> cell structure to hold additional strings.  If no argument is provided or fieldNames is empty
         %> then object's <i>fieldNames</i> property is used and all
         %> parameter structs are reset to their default values.
-        setDefaults(obj,fieldNames)        
-        
-        
+        setDefaults(obj,fieldNames)
     end
     
     methods
@@ -52,6 +51,9 @@ classdef  PASettings < handle
         function obj = PASettings(varargin)
         end
         
+        function dupe = duplicate(obj)
+            dupe = obj.copy();
+        end
         
         function loadDictionary(varargin)                    
         end
@@ -64,6 +66,51 @@ classdef  PASettings < handle
                 def(1) = upper(def(1)); % make an attempt at sentence casing.
             end
         end
+        
+        % -----------------------------------------------------------------
+        % =================================================================
+        %> @brief Activates GUI for editing single study mode settings
+        %> (<b>SingleStudy</b>,<b>PSD</b>,<b>MUSIC</b>)
+        %> @param obj instance of PAAppSettings class.
+        %> @param optional_fieldName (Optional)  String indicating which settings to update.
+        %> Can be
+        %> - @c StatTool
+        %> - @c SingleStudy
+        %> - @c BatchMode
+        %> - @c Main
+        %> - @c Importing        
+        %> @retval wasModified a boolean value; true if any changes were
+        %> made to the settings in the GUI and false otherwise.
+        % =================================================================
+        function wasModified = defaultsEditor(obj,optional_fieldName)
+            tmp_obj = obj.duplicate();
+            if(nargin<2 || isempty(optional_fieldName))
+                                       
+                lite_fieldNames = tmp_obj.liteFieldNames;
+            else
+                lite_fieldNames = optional_fieldName;
+                if(~iscell(lite_fieldNames))
+                    lite_fieldNames = {lite_fieldNames};
+                end
+            end
+            
+            tmp_obj.fieldNames = lite_fieldNames;
+            
+            %             tmp_obj.StatTool = rmfield(tmp_obj.StatTool,'customDaysOfWeek');  % get rid of fields that contain arrays of values, since I don't actually know how to handle this
+            tmp_obj = pair_value_dlg(tmp_obj);
+            
+            if(~isempty(tmp_obj))
+                for f=1:numel(lite_fieldNames)
+                    fname = lite_fieldNames{f};
+                    obj.(fname) = tmp_obj.(fname);
+                end
+                wasModified = true;
+                clear('tmp_obj');%     tmp_obj = []; %clear it out.
+                
+            else
+                wasModified = false;
+            end
+        end        
         
         % -----------------------------------------------------------------
         % =================================================================
@@ -124,14 +171,14 @@ classdef  PASettings < handle
     methods (Access = private)
         
         % -----------------------------------------------------------------
-        %> @brief create a new PASettings object with the same property
+        %> @brief create a new PASettings derived object with the same property
         %> values as this one (i.e. of obj)
         %> @param obj instance of PASettings
         %> @retval copyObj a new instance of PASettings having the same
         %> property values as obj.
         % -----------------------------------------------------------------
-        function copyObj = copy(obj)
-            copyObj = PASettings();
+        function copyObj = copy(obj)            
+            copyObj = feval(class(obj));
             
             props = properties(obj);
             if(~iscell(props))

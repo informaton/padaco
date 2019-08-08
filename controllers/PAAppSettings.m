@@ -274,50 +274,7 @@ classdef  PAAppSettings < PASettings
         end
         
         
-        % -----------------------------------------------------------------
-        % =================================================================
-        %> @brief Activates GUI for editing single study mode settings
-        %> (<b>SingleStudy</b>,<b>PSD</b>,<b>MUSIC</b>)
-        %> @param obj instance of PAAppSettings class.
-        %> @param optional_fieldName (Optional)  String indicating which settings to update.
-        %> Can be
-        %> - @c StatTool
-        %> - @c SingleStudy
-        %> - @c BatchMode
-        %> - @c Main
-        %> - @c Importing        
-        %> @retval wasModified a boolean value; true if any changes were
-        %> made to the settings in the GUI and false otherwise.
-        % =================================================================
-        function wasModified = defaultsEditor(obj,optional_fieldName)
-            tmp_obj = obj.copy();
-            if(nargin<2 || isempty(optional_fieldName))
-                                       
-                lite_fieldNames = tmp_obj.liteFieldNames;
-            else
-                lite_fieldNames = optional_fieldName;
-                if(~iscell(lite_fieldNames))
-                    lite_fieldNames = {lite_fieldNames};
-                end
-            end
-            
-            tmp_obj.fieldNames = lite_fieldNames;
-            
-            %             tmp_obj.StatTool = rmfield(tmp_obj.StatTool,'customDaysOfWeek');  % get rid of fields that contain arrays of values, since I don't actually know how to handle this
-            tmp_obj = pair_value_dlg(tmp_obj);
-            
-            if(~isempty(tmp_obj))
-                for f=1:numel(lite_fieldNames)
-                    fname = lite_fieldNames{f};
-                    obj.(fname) = tmp_obj.(fname);
-                end
-                wasModified = true;
-                clear('tmp_obj');%     tmp_obj = []; %clear it out.
-                
-            else
-                wasModified = false;
-            end
-        end
+
 
         % --------------------------------------------------------------------
         %> @brief sets default values for the class parameters listed in
@@ -361,28 +318,5 @@ classdef  PAAppSettings < PASettings
                 end
             end
         end
-    end
-    
-    methods (Access = private)
-        
-        % -----------------------------------------------------------------
-        %> @brief create a new PAAppSettings object with the same property
-        %> values as this one (i.e. of obj)
-        %> @param obj instance of PAAppSettings
-        %> @retval copyObj a new instance of PAAppSettings having the same
-        %> property values as obj.
-        % -----------------------------------------------------------------
-        function copyObj = copy(obj)
-            copyObj = PAAppSettings();
-            props = properties(obj);
-            if(~iscell(props))
-                props = {props};
-            end
-            for p=1:numel(props)
-                pname = props{p};
-                copyObj.(pname) = obj.(pname);
-            end
-        end
-        
-    end
+    end    
 end

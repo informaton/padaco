@@ -22,10 +22,7 @@ classdef PAAppController < PAFigureController
         resizeValues; % for handling resize functions
         versionNum;
         
-        %> String identifying Padaco's current view mode.  Values include
-        %> - @c timeseries
-        %> - @c results
-        viewMode;
+        
         iconFilename;
         
     end
@@ -828,7 +825,7 @@ classdef PAAppController < PAFigureController
         end
         
         function viewMode = getViewMode(obj)
-            viewMode = obj.viewMode;
+            viewMode = obj.getSetting('viewMode');
         end
         
         function setViewModeCallback(obj, ~, ~, viewMode)
@@ -850,30 +847,30 @@ classdef PAAppController < PAFigureController
                 viewMode = 'timeseries';
             end
             
-            if(strcmpi(obj.viewMode,viewMode))
+            if(strcmpi(obj.getSetting('viewMode'),viewMode))
                 obj.setStatus('Refreshing %s view',viewMode);
             else
                 obj.showBusy(['Switching to ',viewMode,' view'],'all');        
                 obj.setSetting('viewMode', viewMode);
-                
-                switch lower(viewMode)
-                    case 'timeseries'
-                        obj.SingleStudy.refreshView();
-                        if(isempty(obj.SensorData))
-                            checkToOpenFile = false; % can be a user setting.
-                            if(checkToOpenFile)
-                                responseButton = questdlg('A time series file is not currently loaded.  Would you like to open one now?','Find a time series file to load?');
-                                if(strcmpi(responseButton,'yes'))
-                                    obj.menuFileOpenCallback();
-                                end
+            end
+            
+            switch lower(viewMode)
+                case 'timeseries'
+                    obj.SingleStudy.refreshView();
+                    if(isempty(obj.SensorData))
+                        checkToOpenFile = false; % can be a user setting.
+                        if(checkToOpenFile)
+                            responseButton = questdlg('A time series file is not currently loaded.  Would you like to open one now?','Find a time series file to load?');
+                            if(strcmpi(responseButton,'yes'))
+                                obj.menuFileOpenCallback();
                             end
-                        else
-                            obj.initAccelDataView();
                         end
-                    case 'results'
-                        obj.StatTool.refreshView();
-                        obj.initResultsView();
-                end
+                    else
+                        obj.initAccelDataView();
+                    end
+                case 'results'
+                    obj.StatTool.refreshView();
+                    obj.initResultsView();
             end
             
             figure(obj.figureH);  %redraw and place it on top
@@ -1587,10 +1584,11 @@ classdef PAAppController < PAFigureController
             set(this.toolbarH.cluster.push_right,'clickedcallback',@this.showNextClusterCallback);
             set(this.toolbarH.cluster.push_left,'clickedcallback',@this.showPreviousClusterCallback);
             
+            
+            this.logStatus('Need to add toolbar callbacks');
             % Refactoring for toolbars
             offOnState = {'off','on'}; % 0 -> 'off', 1 -> 'on'  and then +1 to get matlab 1-based so that 1-> 'off' and 2-> 'on'
             
-            this.logStatus('Need to add toolbar callbacks');
             %             set(this.toolbarH.cluster.toggle_holdPlots,'state',offOnState{this.holdPlots+1});
             %             set(this.toolbarH.cluster.toggle_yLimit,'state',offOnState{strcmpi(this.getSetting('primaryAxis_yLimMode'),'manual')+1});
             %             set(this.toolbarH.cluster.toggle_analysisFigure,'state',offOnState{this.getSetting('showAnalysisFigure')+1});
@@ -1669,7 +1667,12 @@ classdef PAAppController < PAFigureController
             
             %> Foldername of most recent screenshot.        
             pStruct.screenshotPathname = PAPathParam('default',docPath,'description','Screenshot save path','help','Foldername of most recent screenshot');
-            pStruct.viewMode = PAEnumParam('default','timeseries','categories',{'timeseries','results'},'description','View');
+            
+            %> String identifying Padaco's current view mode.  Values include
+            %> - @c timeseries
+            %> - @c results
+        
+            pStruct.viewMode = PAEnumParam('default','timeseries','categories',{'timeseries','results'},'description','View','help','String identifying Padaco''s current view mode.');
             
             % batchSettings = PABatchTool.getDefaults();
             % pStruct.resultsPathname = batchSettings.outputDirectory;
