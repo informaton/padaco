@@ -6,7 +6,6 @@ classdef PABaseWithSettings < PABase
     
     properties(SetAccess=protected)
         settings;  % struct of settings that can be saved on exit and loaded on startup
- 
     end
     
     methods(Static, Abstract)
@@ -24,19 +23,22 @@ classdef PABaseWithSettings < PABase
             end
 
             defaultSettings = this.getDefaults();
-            if(isempty(inputSettings))
-                inputSettings = defaultSettings;
-            else
-                inputSettings = mergeStruct(defaultSettings,inputSettings);
+            % if defaultSettins are empty, then we don't have any settings
+            % to work with.
+            if(~isempty(defaultSettings))
+                if(isempty(inputSettings))
+                    inputSettings = defaultSettings;
+                else
+                    inputSettings = mergeStruct(defaultSettings,inputSettings);
+                end
+                this.setSettings(inputSettings);
             end
-            this.setSettings(inputSettings);
         end
         
         function didSet = setSettings(this, inputSettings)
             this.settings = inputSettings;
             didSet = true;
         end
-        
 
         function settings = getSettings(this)            
             settings = this.settings;
@@ -71,9 +73,9 @@ classdef PABaseWithSettings < PABase
         % Overload as necessary.
         function saveParams = getSaveParameters(this)
             saveParams = this.getSettings();
-        end
-        
+        end        
     end
+    
     methods(Access=protected)
         
         function param = getSettingsParam(this, key, varargin)

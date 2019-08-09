@@ -71,13 +71,13 @@ classdef  PAAppSettings < PASettings
         % =================================================================
         function obj = PAAppSettings(rootpathname,parameters_filename)
             %initialize settings in Padaco....
-            if(nargin==0)
-                
-            else
+            if(nargin>1)
                 obj.rootpathname = rootpathname;
-                obj.parameters_filename = parameters_filename;
-                obj.initialize();
+                if(nargin>2)
+                    obj.parameters_filename = parameters_filename;
+                end
             end
+            obj.initialize();
         end
         
         % --------------------------------------------------------------------

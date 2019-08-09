@@ -4,7 +4,7 @@
 %> The class creates and controls the batch processing figure that is used
 %> to process a collection of Actigraph GT3X+ data files.
 % ======================================================================
-classdef PABatchTool < PAFigureController
+classdef PABatchTool < PAFigureFcnController
    
     properties(Constant)
         % In minutes
@@ -51,30 +51,14 @@ classdef PABatchTool < PAFigureController
         SwitchToResults;
     end
     
-    properties(Access=private) 
-        
+    properties(Access=protected)
+       figureFcn = @batchTool; 
+    end
+    
+    properties(Access=private)
         %> Flag for determining if batch mode is running or not.  Can be
         %> changed to false by user cancelling.
         isRunning;
-    end
-    
-    methods(Access=private)
-        function disable(this)
-            disableHandles(this.figureH);
-        end
-        function enable(this)
-            enableHandles(this.figureH);
-        end
-        
-        function hide(this)
-            set(this.figureH,'visible','off');
-        end
-        function show(this)
-            this.unhide();
-        end
-        function unhide(this)
-            set(this.figureH,'visible','on');
-        end
     end
     
     methods
@@ -84,19 +68,13 @@ classdef PABatchTool < PAFigureController
         %> it is not inclded then the getDefaults() method will be called to obtain default
         %> values.
         %> @retval  PABatchTool Instance of PABatchTool.
-        function this = PABatchTool(batchSettings)
-            
-            if(nargin>0 && ~isempty(batchSettings))
-                this.settings = batchSettings;
-            else
-                this.settings = this.getDefaults();
-            end
-                        
-            figureH = batchTool('visible','off','name','','sizechangedfcn',[]);
-            if ~(this.setFigureHandle(figureH) && this.initFigure())
-                fprintf(2,'Failed to initialize PABatchTool!\n');
-                delete(figureH);
-            end            
+        function this = PABatchTool(varargin)
+            this@PAFigureFcnController(varargin{:});                        
+            %             figureH = batchTool('visible','off','name','','sizechangedfcn',[]);
+            %             if ~(this.setFigureHandle(figureH) && this.initFigure())
+            %                 fprintf(2,'Failed to initialize PABatchTool!\n');
+            %                 delete(figureH);
+            %             end
         end
         
         function checkExportFeaturesCallback(this, varargin)
@@ -167,7 +145,6 @@ classdef PABatchTool < PAFigureController
             tmpOutputDirectory = uigetfulldir(initPath,displayMessage);
             this.setOutputPath(tmpOutputDirectory);
         end
-        
         
         function didUpdate = toggleOutputToInputPathLinkageCallbackFcn(this, checkboxHandle, eventData)
             try

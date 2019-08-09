@@ -1,7 +1,12 @@
-killall;
 
+function figH = settingsDlg(varargin)
 % Pretty version
-figH = figure('visible','on','name','Settings','menubar','none','toolbar','none','numbertitle','off');
+h = 640;
+w = 420;
+
+position = [0 0 w h];
+figH = figure('visible','off','name','Settings','position',position,...
+    'menubar','none','toolbar','none','numbertitle','off',varargin{:});
 tabGroupH = uitabgroup('parent',figH,'units','normalized','position',[0.0125 0.15 0.975 0.825]);
 tabs = {'Name 1','Tab 2','Tab 3'};
 for t = 1:numel(tabs)    
@@ -11,6 +16,7 @@ p = uipanel('parent',figH,'units','normalized',...
     'bordertype','beveledin','borderwidth',2,...
     'position',[0.025 0.025 0.95 0.12]);
 btnProps.style = 'pushbutton';
+btnProps.fontSize = 12;
 btnProps.callback = @btnPressCb;
 btnProps.units = 'normalized';
 btnProps.string = 'Cancel';
@@ -27,7 +33,8 @@ btnProps.string = 'Set Defaults';
 btnProps.style = 'togglebutton';
 bD = uicontrol(btnProps);
 
-
+movegui('center');
+set(figH,'visible','on');
 % figH = figure('name','Settings');
 % tbG=uitabgroup(figH,'units','normalized','position',[0.0125 0.15 0.975 0.825]);
 % tbG=matlab.ui.container.TabGroup('parent',figH,'units','normalized','position',[0.0125 0.15 0.975 0.825]);
@@ -60,4 +67,5 @@ bD = uicontrol(btnProps);
 % tabGroupH = uitabgroup(figH);
 % 
 % uibutton(u,'push','text','Confirm');
+end
 

@@ -1010,24 +1010,7 @@ classdef PAStatTool < PAViewController
                 fprintf('PAStatTool.m cannot plot (refreshPlot)\n');
             end
         end
-        
-        function enable(obj)
-            obj.setEnableState('on');
-        end
-        
-        function disable(obj)
-            obj.setEnableState('off');
-        end
-        
-        % Enable state should be 'on','off', or empty (defaults to 'off').
-        function setEnableState(obj, enableState)
-            
-            if(strcmpi( enableState, 'on') &&  obj.isClusterMode())
-                obj.enableClusterControls();
-            else
-                obj.disableClusterControls();
-            end
-        end
+
         
         
         function fullFilename = getFullClusterCacheFilename(this)
@@ -1832,6 +1815,23 @@ classdef PAStatTool < PAViewController
             end
         end
         
+                function enable(obj)
+            obj.setEnableState('on');
+        end
+        
+        function disable(obj)
+            obj.setEnableState('off');
+        end
+        
+        % Enable state should be 'on','off', or empty (defaults to 'off').
+        function setEnableState(obj, enableState)
+            
+            if(strcmpi( enableState, 'on') &&  obj.isClusterMode())
+                obj.enableClusterControls();
+            else
+                obj.disableClusterControls();
+            end
+        end
         
         % ======================================================================
         %> @brief Shows busy state: Disables all non-cluster panel widgets

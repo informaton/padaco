@@ -1,7 +1,7 @@
 classdef(Abstract) PAFigureController < PABaseWithSettings
     properties(SetAccess=protected)
         %> Figure handle to the main figure window
-        figureH;        
+        figureH;
     end
     methods(Abstract, Access=protected)
         didInit=initFigure(obj)
@@ -48,6 +48,24 @@ classdef(Abstract) PAFigureController < PABaseWithSettings
                 disp('oops');
             end
         end
+
+        function disable(this)
+            disableHandles(this.figureH);
+        end
+        function enable(this)
+            enableHandles(this.figureH);
+        end
+        
+        function hide(this)
+            set(this.figureH,'visible','off');
+        end
+        function show(this)
+            this.unhide();
+        end
+        function unhide(this)
+            set(this.figureH,'visible','on');
+        end
+  
         
         % --------------------------------------------------------------------
         %> @brief Shows busy status (mouse becomes a watch).
