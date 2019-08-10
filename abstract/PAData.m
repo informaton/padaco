@@ -107,7 +107,7 @@ classdef PAData < PABaseWithSettings
     end
     methods(Static)
         function settings = getDefaults()
-            settings.exportPathname = getSavePath();            
+            settings.exportPathname = PAPathParam('default',getSavePath(),'description','Export pathname');
         end
 
 

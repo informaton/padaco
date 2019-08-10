@@ -1655,13 +1655,15 @@ classdef PACluster < PAData
         %> @note Higher thresholds result in fewer clusters (and vice versa).
         function settings = getDefaults()
             settings = PAData.getDefaults();
-            settings.minClusters = 10;
-            settings.clusterThreshold = 1.0;    %higher threshold equates to fewer clusters.
+            settings.minClusters = PANumericParam('default',10,'min',0,'description','Starting value for K','help','Starting value of K to begin clustering with.');
             
-            settings.clusterMethod = 'kmeans';
-            settings.useDefaultRandomizer = false;
-            settings.initClusterWithPermutation = false;
+            settings.clusterThreshold = PANumericParam('default',1.0,'min',0,...
+                'help','Higher threshold equates to fewer clusters.  Enter ''inf'' to converge using the set value of K',...
+                'description','Cluster convergence threshold');
             
+            settings.clusterMethod = PAEnumParam('default','kmeans','categories',PACluster.getClusterMethods(),'description','Clustering method');
+            settings.useDefaultRandomizer = PABoolParam('default',false,'description','Use default randomizer');
+            settings.initClusterWithPermutation = PABoolParam('default',false,'description','Initialize clusters with permutation');            
         end
         
         function methods = getClusterMethods()

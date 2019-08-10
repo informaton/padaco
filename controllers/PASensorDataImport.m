@@ -363,7 +363,7 @@ classdef PASensorDataImport < handle
         function paramStruct = getDefaults()
             paramStruct.headerLineNum = PANumericParam('default',1,'min',0,'description','Number of header lines to skip');
             paramStruct.separator = PAStringParam('default',',','description','Field separator');
-            paramStruct.filename =PAFilenameParam('default','','descrioption','Import filename');
+            paramStruct.filename =PAFilenameParam('default','','description','Import filename');
         end         
     end
 end

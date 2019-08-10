@@ -42,7 +42,10 @@ classdef(Abstract) PAFigureController < PABaseWithSettings
             didSet = false;
             if(nargin>1 && ~isempty(figHandle) && ishandle(figHandle))                
                 obj.figureH = figHandle;
-                obj.handles = guidata(figHandle);
+                obj.handles = guidata(obj.figureH);
+                if(isempty(obj.handles))
+                    obj.handles = guihandles(obj.figureH);
+                end
                 didSet = true;
             else
                 disp('oops');

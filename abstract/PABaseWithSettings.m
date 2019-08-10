@@ -1,5 +1,4 @@
-classdef PABaseWithSettings < PABase
-    
+classdef PABaseWithSettings < PABase   
     events
         DefaultParameterChange;
     end
@@ -13,19 +12,21 @@ classdef PABaseWithSettings < PABase
     end
     
     methods
+        
         function this = PABaseWithSettings(varargin)
             inputSettings = [];
             for v=1:numel(varargin)
-                if(isstruct(varargin{v}))
+                if(isstruct(varargin{v}) || isa(varargin{v},'PASettings'))
                     inputSettings = varargin{v};
                     break; % just take the first one given...
                 end
             end
-
             defaultSettings = this.getDefaults();
-            % if defaultSettins are empty, then we don't have any settings
-            % to work with.
-            if(~isempty(defaultSettings))
+            % if defaultSettins are empty, then we don't have any default settings
+            % to work with 
+            if(isempty(defaultSettings) && ~isempty(inputSettings))
+                this.setSettings(inputSettings);
+            elseif(~isempty(defaultSettings))
                 if(isempty(inputSettings))
                     inputSettings = defaultSettings;
                 else
@@ -99,7 +100,3 @@ classdef PABaseWithSettings < PABase
         end        
     end
 end
-    
-    
-    
-   

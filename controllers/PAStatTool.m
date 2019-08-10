@@ -4269,17 +4269,17 @@ classdef PAStatTool < PAViewController
             
 
             paramStruct.exportShowNonwear = PABoolParam('default',true,'description','');
-            paramStruct.cacheDirectory = PAPathParam('default',fullfile(workingPath,'cache','description'));
-            paramStruct.useCache = PABoolParam('default',true,'description','');
+            paramStruct.cacheDirectory = PAPathParam('default',fullfile(workingPath,'cache'),'description','Caching directory');
+            paramStruct.useCache = PABoolParam('default',true,'description','Use file caching','help','Turn on file caching to improve startup times.');
             
-            paramStruct.useOutcomes = PABoolParam('default',false,'description','');
-            paramStruct.useDatabase = PABoolParam('default',false,'description','');
-            paramStruct.profileFieldIndex = PAIndexParam('default',1,'description','');
-            paramStruct.databaseClass = PAStringParam('default','CLASS_database_goals','description','');
-            paramStruct.discardNonwearFeatures = PABoolParam('default',true,'description','');
-            paramStruct.trimResults = PABoolParam('default',false,'description','');
-            paramStruct.cullResults = PABoolParam('default',false,'description','');    
-            paramStruct.chunkShapes = PABoolParam('default',false,'description','');  
+            paramStruct.useOutcomes = PABoolParam('default',false,'description','Use outcomes table');
+            paramStruct.useDatabase = PABoolParam('default',false,'description','Use MySQL database');
+            paramStruct.profileFieldIndex = PAIndexParam('default',1,'description','Profile field index');
+            paramStruct.databaseClass = PAStringParam('default','CLASS_database_goals','description','Database classname');
+            paramStruct.discardNonwearFeatures = PABoolParam('default',true,'description','Discard nonwear features prior to clustering');
+            paramStruct.trimResults = PABoolParam('default',false,'description','Trim results');
+            paramStruct.cullResults = PABoolParam('default',false,'description','Cull results');    
+            paramStruct.chunkShapes = PABoolParam('default',false,'description','Chunk feature vectors prior to clustering');  
             numChunks =6;
             paramStruct.numChunks = PANumericParam('default',numChunks,'description','Number of chunks');
             paramStruct.numDataSegmentsSelection = PAIndexParam('default',find(baseSettings.numDataSegments==numChunks,1),'description',''); %results in number six
@@ -4287,36 +4287,36 @@ classdef PAStatTool < PAViewController
             % If we no longer have 6 as a choice, then just take the first
             % choice that is available 
             if(isempty(paramStruct.numDataSegmentsSelection))
-                paramStruct.numDataSegmentsSelection = PAIndexParam('default',1,'description','');
-                paramStruct.numChunks=baseSettings.numDataSegments(paramStruct.numDataSegmentsSelection);
+                paramStruct.numDataSegmentsSelection = PAIndexParam('default',1,'description','Data chunk size selection');
+                paramStruct.numChunks.setValue(baseSettings.numDataSegments(paramStruct.numDataSegmentsSelection));
             end
             
-            paramStruct.preclusterReductionSelection = PAIndexParam('default',1,'description',''); % defaults to 'none'
+            paramStruct.preclusterReductionSelection = PAIndexParam('default',1,'description','Preclustering data reduction method'); % defaults to 'none'
 
             paramStruct.maxNumDaysAllowed = PANumericParam('default',0,'Description','Maximum number of days allowed per subject.','help','Leave 0 to include all days.','min',0);
             paramStruct.minNumDaysAllowed = PANumericParam('default',0,'Description','Minimum number of days allowed per subject.','help','Leave 0 for no minimum.  Currently variable has no effect at all.','min',0);
             
-            paramStruct.normalizeValues =        PABoolParam('default',false,'description','');            
-            paramStruct.processedTypeSelection = PAIndexParam('default',1,'description','');
-            paramStruct.baseFeatureSelection =   PAIndexParam('default',1,'description','');
-            paramStruct.signalSelection =        PAIndexParam('default',1,'description','');
-            paramStruct.plotTypeSelection =      PAIndexParam('default',1,'description','');
-            paramStruct.trimToPercent =         PANumericParam('default',100,'description','');
-            paramStruct.cullToValue =           PANumericParam('default',0,'description','');
-            paramStruct.showClusterMembers =    PABoolParam('default',false,'description','');
-            paramStruct.showClusterSummary =    PABoolParam('default',false,'description','');
+            paramStruct.normalizeValues =        PABoolParam('default',false,'description','Normalize values');
+            paramStruct.processedTypeSelection = PAIndexParam('default',1,'description','Processed type');
+            paramStruct.baseFeatureSelection =   PAIndexParam('default',1,'description','Base feature');
+            paramStruct.signalSelection =        PAIndexParam('default',1,'description','Signal');
+            paramStruct.plotTypeSelection =      PAIndexParam('default',1,'description','Plot type');
+            paramStruct.trimToPercent =         PANumericParam('default',100,'description','Trim to percent');
+            paramStruct.cullToValue =           PANumericParam('default',0,'description','Cull to');
+            paramStruct.showClusterMembers =    PABoolParam('default',false,'description','Show cluster members');
+            paramStruct.showClusterSummary =    PABoolParam('default',false,'description','Show cluster summary');
             
-            paramStruct.weekdaySelection =      PAIndexParam('default',1,'description','');
-            paramStruct.startTimeSelection =    PAIndexParam('default',1,'description','');
-            paramStruct.stopTimeSelection =     PAIndexParam('default',-1,'description','');
+            paramStruct.weekdaySelection =      PAIndexParam('default',1,'description','Weekday selection');
+            paramStruct.startTimeSelection =    PAIndexParam('default',1,'description','Start time selection');
+            paramStruct.stopTimeSelection =     PAIndexParam('default',-1,'description','Stop time selection');
             paramStruct.customDaysOfWeek =      PANumericParam('default',0,'min',0,'max',6,'Description','Day of week','help','0 = Sunday, 1 = Monday, ... 6 = Saturday');
             
-            paramStruct.clusterDurationSelection = PAIndexParam('default',1,'description','');
+            paramStruct.clusterDurationSelection = PAIndexParam('default',1,'description','Cluster duration');
                         
             paramStruct.primaryAxis_yLimMode =          PACategoricalParam('default',categorical({'auto'},{'auto','manual'},'protected',true),'description','y-axis range');
-            paramStruct.primaryAxis_nextPlot =          PAEnumParam('default','replace','categories',{{'replace','hold'}},'description','');
-            paramStruct.showAnalysisFigure =            PABoolParam('default',false,'description',''); % do not display the other figure at first
-            paramStruct.showTimeOfDayAsBackgroundColor = PABoolParam('default',false,'description',''); % do not display at first
+            paramStruct.primaryAxis_nextPlot =          PAEnumParam('default','replace','categories',{{'replace','hold'}},'description','Next plot');
+            paramStruct.showAnalysisFigure =            PABoolParam('default',false,'description','Show analysis figure'); % do not display the other figure at first
+            paramStruct.showTimeOfDayAsBackgroundColor = PABoolParam('default',false,'description','Show time of day visual indicator'); % do not display at first
             
             % plots clusters id's (sorted by membership in ascending order) on x-axis
             % and the count of loadshapes (i.e. membership count) on the y-axis.
