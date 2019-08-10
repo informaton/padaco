@@ -43,7 +43,8 @@ classdef PASettingsEditor < PAFigureFcnController
                             if(strcmpi(settingName,'SensorData'))
                                 break;
                             end
-                            u = uitab(this.handles.tabgroup,'title',settingName,'tag',sprintf('tag_%d',t));
+                            u = uitab(this.handles.tabgroup,...
+                                'title',settingName,'tag',sprintf('tag_%d',t));
                             labelProps.parent = u;
                             labelProps.units = 'normalized';
                             labelProps.position = [0.05 0.875 0.475 0.075];
@@ -51,6 +52,10 @@ classdef PASettingsEditor < PAFigureFcnController
                             labelProps.fontweight = 'normal';
                             valueProps = labelProps;
                             valueProps.position = [0.5 0.9 0.45 0.05];
+                            enumProps.position  = [0.6 0.9 0.35 0.05];
+                            boolProps.position  = [0.7 0.9 0.25 0.05];
+                            indexProps.position = [0.8 0.9 0.15 0.05];
+                            
                             valueProps.horizontalAlignment = 'center';
                             setting = this.settings.(settingName);
                             if(isstruct(setting))
@@ -61,11 +66,32 @@ classdef PASettingsEditor < PAFigureFcnController
                                         labelProps.String = param.description;
                                         valueProps.String = num2str(param.value);
                                         valueProps.userdata = param;
+                                        nextValuePropsPosition = valueProps.position+[0 -0.08 0 0];
                                         switch(class(param))
+                                            case 'PABoolParam'
+                                                boolProps.position(2) = valueProps.position(2);
+                                                valueProps.position = boolProps.position;
+                                                valueProps.style = 'popupmenu';
+                                                valueProps.String = {'No','Yes'};
+                                                valueProps.value = param.value+1;
+
                                             case 'PAEnumParam'
+                                                enumProps.position(2) = valueProps.position(2);
+                                                valueProps.position = enumProps.position;
+                                                
                                                 valueProps.style = 'popupmenu';
                                                 valueProps.String = param.categories;
                                                 valueProps.value = find(strcmpi(param.categories,param.value));
+                                            
+                                            case 'PAIndexParam'
+                                                continue;
+                                                indexProps.position(2) = valueProps.position(2);
+                                                valueProps.position = indexProps.position;
+                                                
+                                                valueProps.style = 'popupmenu';
+                                                valueProps.String = num2str((1:10)');
+                                                valueProps.value = param.value;
+                                            
                                             case 'PANumericParam'
                                                 valueProps.String = num2str(param.value);
                                                 valueProps.style = 'edit';
@@ -76,7 +102,7 @@ classdef PASettingsEditor < PAFigureFcnController
                                         t = uicontrol(labelProps);
                                         v =uicontrol(valueProps);
                                         labelProps.position(2)  = labelProps.position(2)-0.08;
-                                        valueProps.position(2)  = valueProps.position(2)-0.08;
+                                        valueProps.position = nextValuePropsPosition;
                                     catch me
                                        showME(me); 
                                     end

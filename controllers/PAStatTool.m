@@ -4268,13 +4268,13 @@ classdef PAStatTool < PAViewController
             paramStruct = PACluster.getDefaults();
             
 
-            paramStruct.exportShowNonwear = PABoolParam('default',true,'description','');
+            paramStruct.exportShowNonwear = PABoolParam('default',true,'description','Include nonwear with export');
             paramStruct.cacheDirectory = PAPathParam('default',fullfile(workingPath,'cache'),'description','Caching directory');
             paramStruct.useCache = PABoolParam('default',true,'description','Use file caching','help','Turn on file caching to improve startup times.');
             
             paramStruct.useOutcomes = PABoolParam('default',false,'description','Use outcomes table');
             paramStruct.useDatabase = PABoolParam('default',false,'description','Use MySQL database');
-            paramStruct.profileFieldIndex = PAIndexParam('default',1,'description','Profile field index');
+            
             paramStruct.databaseClass = PAStringParam('default','CLASS_database_goals','description','Database classname');
             paramStruct.discardNonwearFeatures = PABoolParam('default',true,'description','Discard nonwear features prior to clustering');
             paramStruct.trimResults = PABoolParam('default',false,'description','Trim results');
@@ -4282,7 +4282,7 @@ classdef PAStatTool < PAViewController
             paramStruct.chunkShapes = PABoolParam('default',false,'description','Chunk feature vectors prior to clustering');  
             numChunks =6;
             paramStruct.numChunks = PANumericParam('default',numChunks,'description','Number of chunks');
-            paramStruct.numDataSegmentsSelection = PAIndexParam('default',find(baseSettings.numDataSegments==numChunks,1),'description',''); %results in number six
+            paramStruct.numDataSegmentsSelection = PAIndexParam('default',find(baseSettings.numDataSegments==numChunks,1),'description','Data segments selection'); %results in number six
             
             % If we no longer have 6 as a choice, then just take the first
             % choice that is available 
@@ -4325,9 +4325,10 @@ classdef PAStatTool < PAViewController
             %> - @c weekday
             %> - @c membership [default]
             
-            paramStruct.clusterDistributionType =       PAEnumParam('default','loadshape_membership','categories',{{'loadshape_membership','participant_membership','performance_progression','membership','weekday_membership'}},'description','');
-            paramStruct.profileFieldSelection =         PAIndexParam('default',1,'description','');    
-            
+            paramStruct.clusterDistributionType =       PAEnumParam('default','loadshape_membership','categories',{{'loadshape_membership','participant_membership','performance_progression','membership','weekday_membership'}},'description','Cluster distribution selection');
+            paramStruct.profileFieldSelection =         PAIndexParam('default',1,'description','Profile field selection');    
+            paramStruct.profileFieldIndex = PAIndexParam('default',1,'description','Profile field index'); % is one for database and the other for outcomes table?  looks redundant.
+
             paramStruct.bootstrapIterations =   PANumericParam('default',100,'description','');
             paramStruct.bootstrapSampleName =   PAEnumParam('default','studyID','categories',{{'studyID','days'}},'description','');
             paramStruct.exportPathname =        PAPathParam('default','','Description','Export path');

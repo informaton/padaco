@@ -7,7 +7,8 @@ w = 580;
 position = [0 0 w h];
 figH = figure('visible','off','name','Settings','position',position,...
     'menubar','none','toolbar','none','numbertitle','off',varargin{:});
-tabGroupH = uitabgroup('parent',figH,'units','normalized','position',[0.0125 0.15 0.975 0.825],'tag','tabgroup');
+tabGroupH = uitabgroup('parent',figH,'units','normalized',...
+    'position',[0.0125 0.15 0.975 0.825],'tag','tabgroup');
 % tabs = {'Name 1','Tab 2','Tab 3'};
 % for t = 1:numel(tabs)    
 %     u = uitab(tabGroupH,'title',tabs{t},'tag',sprintf('tag_%d',t));
