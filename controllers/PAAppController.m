@@ -1659,20 +1659,16 @@ classdef PAAppController < PAFigureController
         %> @brief Returns a structure of PAAppControllers default, saveable parameters as a struct.
         %> @retval pStruct A structure of saveable parameters
         function pStruct = getDefaults()
-            try
-                docPath = findpath('docs');
-            catch
-                docPath = fileparts(mfilename('fullpath'));
-            end
-            
-            %> Foldername of most recent screenshot.        
-            pStruct.screenshotPathname = PAPathParam('default',docPath,'description','Screenshot save path','help','Foldername of most recent screenshot');
             
             %> String identifying Padaco's current view mode.  Values include
             %> - @c timeseries
             %> - @c results
-        
-            pStruct.viewMode = PAEnumParam('default','timeseries','categories',{'timeseries','results'},'description','View','help','String identifying Padaco''s current view mode.');
+            
+            pStruct.viewMode = PAEnumParam('default','timeseries','categories',{'timeseries','results'},'description','Current View','help','String identifying Padaco''s current view mode.');
+
+            %> Foldername of most recent screenshot.        
+            pStruct.screenshotPathname = PAPathParam('default',getSavePath(),'description','Screenshot save path','help','Foldername of most recent screenshot');
+            
             
             % batchSettings = PABatchTool.getDefaults();
             % pStruct.resultsPathname = batchSettings.outputDirectory;

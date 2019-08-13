@@ -1655,7 +1655,7 @@ classdef PACluster < PAData
         %> @note Higher thresholds result in fewer clusters (and vice versa).
         function settings = getDefaults()
             settings = PAData.getDefaults();
-            settings.minClusters = PANumericParam('default',10,'min',0,'description','Starting value for K','help','Starting value of K to begin clustering with.');
+            settings.minClusters = PAIndexParam('default',10,'min',1,'description','Starting value for K','help','Starting value of K to begin clustering with.');
             
             settings.clusterThreshold = PANumericParam('default',1.0,'min',0,...
                 'help','Higher threshold equates to fewer clusters.  Enter ''inf'' to converge using the set value of K',...

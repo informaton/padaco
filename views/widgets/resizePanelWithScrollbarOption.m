@@ -246,6 +246,5 @@ end
 
 function scrollbarCallback(hObject, eventData, innerPanelH, innerPanelPos)
     innerPanelPos(2) = get(hObject,'min')+(get(hObject,'max')-get(hObject,'value'));
-    
     set(innerPanelH,'position',innerPanelPos);
 end

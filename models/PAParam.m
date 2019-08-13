@@ -5,16 +5,14 @@ classdef PAParam < handle
     end
     
     properties(SetAccess=private)
-        type;
+        type='';
+        help='';
     end
     
     properties(SetAccess=protected)
         description;
         default;
         value;
-    end
-    properties(Access=private)
-        help;
     end
     
     methods
