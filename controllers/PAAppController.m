@@ -104,9 +104,9 @@ classdef PAAppController < PAFigureController
 %                 obj.StatTool.setOutcomesTable(obj.OutcomesTableData);
 %             end
 
-            set(obj.figureH,'visible','on');
+            obj.showBusy([],'all')
+            set(obj.figureH,'visible','on');            
             
-            obj.showBusy();
             set(obj.figureH,'CloseRequestFcn',{@obj.figureCloseCallback,guidata(obj.figureH)});
             
             % set(obj.figureH,'scrollable','on'); - not supported
@@ -288,12 +288,18 @@ classdef PAAppController < PAFigureController
         function menuHelpFAQCallback(this,varargin)
             %msg = sprintf('Help FAQ');
             this.showBusy('Initializing help');
-            filename = fullfile(this.rootpathname,'resources/html','PadacoFAQ.html');
+            filename = fullfile(this.rootpathname,'_resources','html','PadacoFAQ.html');
             url = sprintf('file://%s',filename);
             %             web(url,'-notoolbar','-noaddressbox');
-            htmldlg('url',url);
+            web(url,'-notoolbar','-noaddressbox','-browser');
+            %             if(isdeployed)
+            %                 web(url,'-notoolbar','-noaddressbox','-browser');
+            %             else
+            %                 [stat, browserH] = web(url,'-notoolbar','-noaddressbox','-helpbrowser');
+            %             end
+            %htmldlg('url',url,'title','Padaco FAQ');
             
-            this.SingleStudy.showReady();
+            this.showReady();
             %             web(url);
         end
         
@@ -856,6 +862,7 @@ classdef PAAppController < PAFigureController
             
             if(strcmpi(obj.getSetting('viewMode'),viewMode))
                 obj.setStatus('Refreshing %s view',viewMode);
+                obj.showBusy(['Refreshing ',viewMode,' view'],'all'); 
             else
                 obj.showBusy(['Switching to ',viewMode,' view'],'all');        
                 obj.setSetting('viewMode', viewMode);
@@ -1131,8 +1138,6 @@ classdef PAAppController < PAFigureController
         function initAccelDataView(obj)
             % Shows line labels after initWithAccelData
             obj.SingleStudy.initWithAccelData(obj.SensorData);
-            
-            
         end
         
         function resultsPath = getResultsPathname(this)
@@ -1620,6 +1625,8 @@ classdef PAAppController < PAFigureController
             if(exist(PAAppController.versionMatFilename,'file'))
                 try
                     versionInfo = load(PAAppController.versionMatFilename,'-mat');
+                    % num = '2.001';
+                    % save(PAAppController.versionMatFilename,'num','-mat');
                 catch me
                     showME(me);
                     versionInfo.num = '1.85x';

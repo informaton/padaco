@@ -77,8 +77,35 @@ classdef PASingleStudyController < PAViewController
         function updateWidgets(obj, varargin)
             
             updateWidgets@PAViewController(obj, varargin{:});
-            obj.setDisplayType(obj.getSetting('displayType')); 
-            %obj.setRadioButton(obj.getSetting('displayType'));
+            
+            %set signal choice
+            obj.setExtractorMethod(obj.getSetting('featureFcnName'));
+            obj.setDisplayType(obj.getSetting('displayType'));
+
+            if(isempty(obj.accelObj))
+                % obj.setRadioButton(obj.getSetting('displayType'));            
+            else
+                % This only works if we have an initialized timeseries dataset.
+                obj.setSignalSelection(obj.getSetting('signalTagLine')); %internally sets to 1st in list if not found..
+                
+                
+                % FAILS:
+                % obj.setFrameDurationHours(obj.getSetting('frameDurationHours'));
+                % obj.setFrameDurationMinutes(obj.getSetting('frameDurationMinutes'));
+                %%
+                
+                % This used to be in the init with accel data -right below
+                % the update widgets call.
+                obj.setAggregateDurationMinutes(num2str(obj.accelObj.aggregateDurMin));
+                [frameDurationMinutes, frameDurationHours] = obj.accelObj.getFrameDuration();
+                obj.setFrameDurationMinutes(frameDurationMinutes);
+                obj.setFrameDurationHours(frameDurationHours);
+                
+                windowDurationSec = obj.accelObj.getWindowDurSec();
+                obj.setWindowDurSecMenu(windowDurationSec);
+            end
+            
+            
         end
         
         % returns visible linehandles in the upper axes of padaco.
@@ -773,14 +800,11 @@ classdef PASingleStudyController < PAViewController
                 obj.initView();
                 
                 
-                %set signal choice
-                signalSelection = obj.setSignalSelection(obj.settings.signalTagLine); %internally sets to 1st in list if not found..
-                obj.setExtractorMethod(obj.settings.featureFcnName);
                 
                 % Go ahead and extract features using current settings.  This
                 % is good because then we can use
-                obj.showBusy('Calculating features','all');
-                obj.accelObj.extractFeature(signalSelection,'all');
+                obj.showBusy('Calculating features','all');                
+                obj.accelObj.extractFeature(obj.getSignalSelection(),'all');
                 
                 % This was disabled until the first time features are
                 % calculated.
@@ -933,13 +957,7 @@ classdef PASingleStudyController < PAViewController
             % initialize and enable widgets (drop down menus, edit boxes, etc.)
             obj.updateWidgets();
             
-            obj.setAggregateDurationMinutes(num2str(obj.accelObj.aggregateDurMin));
-            [frameDurationMinutes, frameDurationHours] = obj.accelObj.getFrameDuration();
-            obj.setFrameDurationMinutes(frameDurationMinutes);
-            obj.setFrameDurationHours(frameDurationHours);
             
-            windowDurationSec = obj.accelObj.getWindowDurSec();
-            obj.setWindowDurSecMenu(windowDurationSec);
             
             set(obj.positionBarHandle,'visible','on','xdata',nan(1,5),'ydata',[0 1 1 0 0],'linestyle',':');
             set(obj.patchhandle.positionBar,'visible','on','xdata',nan(1,4),'ydata',[0 1 1 0]);
@@ -1668,80 +1686,92 @@ classdef PASingleStudyController < PAViewController
         %> additional items on top of in the secondary axes.
         % --------------------------------------------------------------------
         function heightOffset = updateSecondaryFeaturesDisplay(obj,numFeatures)
-            
-            if(nargin<2 || isempty(numFeatures))
-                numFeatures = obj.getFrameCount();
-            end
-            
-            featureFcnName = obj.getExtractorMethod();
-            
-            numViews = obj.numViewsInSecondaryDisplay; %(numel(signalTagLines)+1);
-            
-            % update secondary axes y labels according to our feature
-            % function.
-            if(strcmpi(featureFcnName,'psd'))
-                ytickLabels = {'Band 5','Band 4','Band 3','Band 2','Band 1'};
-                signalTags = {'b5','b4','b3','b2','b1'};                
-            else
-                signalTags = {'x','y','z','vecMag'};
-                ytickLabels = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|'};
-            end
-            
-            %axesHeight = 1;
-            if(strcmpi(obj.getAccelType(),'raw'))
-                ytickLabels = [ytickLabels,'Activity','Daylight'];
-                %                 deltaHeight = 1/(numViews+1);
-                %                 heightOffset = deltaHeight/2;
-            else
-                ytickLabels = [ytickLabels,'Activity','Lumens','Daylight'];
-            end
-            
-            deltaHeight = 1/numViews;
-            heightOffset = 0;
-            
-            % This has already been updated though?
-            obj.updateSecondaryAxesLabels('y',ytickLabels);
-
-            %  signalTagLine = obj.getSignalSelection();
-            %  obj.drawFeatureVecPatches(featureFcn,signalTagLine,numFrames);
-            
-            signalTagLines = strcat('accel.',obj.accelTypeShown,'.',signalTags)';
-            
-            if(any(ishandle(obj.featureHandles)))
-                delete(obj.featureHandles);
-            end
-            obj.featureHandles = [];
-            startStopDatenums = obj.getFeatureStartStopDatenums(featureFcnName,signalTagLines{1},numFeatures);
-            
-            % Normal behavior is to show each axes for the accelerometer
-            % x, y, z, vecMag (i.e. accel.count.x, accel.count.y, ...)
-            % However, for the PSD, we assign PSD bands to these axes as
-            % 'vecMag' - psd_band_1
-            % 'x' - psd_band_2
-            % 'y' - psd_band_3
-            % 'z' - psd_band_4
-            for s=1:numel(signalTagLines)
-                signalName = signalTagLines{s};
-                featureVec = obj.getFeatureVec(featureFcnName,signalName,numFeatures);  %  redundant time stamp calculations benig done for start stpop dateneums in here.
-                
-                % x, y, z
-                if(s<numel(signalTagLines) || (s==numel(signalTagLines)&&strcmpi(featureFcnName,'psd')))
-                    vecHandles = obj.addFeaturesVecToSecondaryAxes(featureVec,startStopDatenums,deltaHeight,heightOffset);                    
-                    heightOffset = heightOffset+deltaHeight;
-                    
-                    % vecMag
-                else
-                    % This requires twice the height because it will have a
-                    % feature line and heat map
-                    [patchH, lineH, cumsumH] = obj.addFeaturesVecAndOverlayToSecondaryAxes(featureVec,startStopDatenums,deltaHeight*2,heightOffset);
-                    
-                    uistack(patchH,'bottom');
-
-                    vecHandles = [patchH, lineH, cumsumH];
-                    heightOffset = heightOffset+deltaHeight*2;
+            try
+                heightOffset = [];
+                set(obj.menuhandle.displayFeature,'enable','off');
+                initColor = get(obj.handles.axes_secondary,'color');
+                obj.showBusy('(Updating secondary display)','secondary');
+                if(nargin<2 || isempty(numFeatures))
+                    numFeatures = obj.getFrameCount();
                 end
-                obj.featureHandles = [obj.featureHandles(:);vecHandles(:)];
+                
+                featureFcnName = obj.getExtractorMethod();
+                
+                numViews = obj.numViewsInSecondaryDisplay; %(numel(signalTagLines)+1);
+                
+                % update secondary axes y labels according to our feature
+                % function.
+                if(strcmpi(featureFcnName,'psd'))
+                    ytickLabels = {'Band 5','Band 4','Band 3','Band 2','Band 1'};
+                    signalTags = {'b5','b4','b3','b2','b1'};
+                else
+                    signalTags = {'x','y','z','vecMag'};
+                    ytickLabels = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|'};
+                end
+                
+                %axesHeight = 1;
+                if(strcmpi(obj.getAccelType(),'raw'))
+                    ytickLabels = [ytickLabels,'Activity','Daylight'];
+                    %                 deltaHeight = 1/(numViews+1);
+                    %                 heightOffset = deltaHeight/2;
+                else
+                    ytickLabels = [ytickLabels,'Activity','Lumens','Daylight'];
+                end
+                
+                deltaHeight = 1/numViews;
+                heightOffset = 0;
+                
+                % This has already been updated though?
+                obj.updateSecondaryAxesLabels('y',ytickLabels);
+                
+                %  signalTagLine = obj.getSignalSelection();
+                %  obj.drawFeatureVecPatches(featureFcn,signalTagLine,numFrames);
+                
+                signalTagLines = strcat('accel.',obj.accelTypeShown,'.',signalTags)';
+                
+                if(any(ishandle(obj.featureHandles)))
+                    delete(obj.featureHandles);
+                end
+                obj.featureHandles = [];
+                startStopDatenums = obj.getFeatureStartStopDatenums(featureFcnName,signalTagLines{1},numFeatures);
+                
+                % Normal behavior is to show each axes for the accelerometer
+                % x, y, z, vecMag (i.e. accel.count.x, accel.count.y, ...)
+                % However, for the PSD, we assign PSD bands to these axes as
+                % 'vecMag' - psd_band_1
+                % 'x' - psd_band_2
+                % 'y' - psd_band_3
+                % 'z' - psd_band_4
+                for s=1:numel(signalTagLines)
+                    signalName = signalTagLines{s};
+                    featureVec = obj.getFeatureVec(featureFcnName,signalName,numFeatures);  %  redundant time stamp calculations benig done for start stpop dateneums in here.
+                    
+                    % x, y, z
+                    if(s<numel(signalTagLines) || (s==numel(signalTagLines)&&strcmpi(featureFcnName,'psd')))
+                        vecHandles = obj.addFeaturesVecToSecondaryAxes(featureVec,startStopDatenums,deltaHeight,heightOffset);
+                        heightOffset = heightOffset+deltaHeight;
+                        
+                        % vecMag
+                    else
+                        % This requires twice the height because it will have a
+                        % feature line and heat map
+                        [patchH, lineH, cumsumH] = obj.addFeaturesVecAndOverlayToSecondaryAxes(featureVec,startStopDatenums,deltaHeight*2,heightOffset);
+                        
+                        uistack(patchH,'bottom');
+                        
+                        vecHandles = [patchH, lineH, cumsumH];
+                        heightOffset = heightOffset+deltaHeight*2;
+                    end
+                    obj.featureHandles = [obj.featureHandles(:);vecHandles(:)];
+                end
+            catch me
+                showME(me);
             end
+            
+            set(obj.handles.axes_secondary,'color',initColor);
+            
+            obj.showReady('secondary');
+            set(obj.menuhandle.displayFeature,'enable','on');
         end
         
        
@@ -1969,15 +1999,7 @@ classdef PASingleStudyController < PAViewController
         %> @param eventdata Not used.  Required by MATLAB.
         % --------------------------------------------------------------------
         function updateSecondaryFeaturesDisplayCallback(obj,hObject,~)
-            set(hObject,'enable','off');
-            initColor = get(obj.handles.axes_secondary,'color');
-            obj.showBusy('(Updating secondary display)','secondary');
-            numFrames = obj.getFrameCount();
-            obj.updateSecondaryFeaturesDisplay(numFrames);
-            set(obj.handles.axes_secondary,'color',initColor);
-            
-            obj.showReady('secondary');
-            set(hObject,'enable','on');
+            obj.updateSecondaryFeaturesDisplay();            
         end
                 
    
@@ -2571,8 +2593,12 @@ classdef PASingleStudyController < PAViewController
             feature_patchH = patch(x,y,vertexColor,'parent',axesH,'edgecolor','interp','facecolor','interp','hittest','off');
                         
             % draw the lines
-            
-            normalizedFeatureVector = featureVector/quantile(featureVector,0.99)*(overlayHeight/2);
+            ninetyninth = quantile(featureVector,0.99);
+            if(ninetyninth==0)
+                normalizedFeatureVector = featureVector*overlayHeight/2;
+            else
+                normalizedFeatureVector = featureVector/ninetyninth*(overlayHeight/2);
+            end
             
             if(useSmoothing)
                 n = 10;

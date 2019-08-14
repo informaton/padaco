@@ -318,7 +318,7 @@ classdef(Abstract) PAViewController < PAFigureController
         %> refreshView or initView(.) to configure the axes and widgets accordingly.
         % --------------------------------------------------------------------
         function designateHandles(obj)
-            handles = guidata(obj.figureH);
+            % handles = guidata(obj.figureH);
             
             obj.texthandle.status = obj.handles.text_status;
             obj.texthandle.filename = obj.handles.text_filename;

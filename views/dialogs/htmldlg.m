@@ -6,10 +6,17 @@
 %> Thank you to Yair Altman and his blog post at http://undocumentedmatlab.com/blog/customizing-help-popup-contents
 %> which inspired this function.
 function htmldlg(varargin)
-    names = {'url','html','title'};
-    defaults = {[],[],'Padaco Help'};
-    [url, html,titleStr] = parsepvpairs(names,defaults,varargin{:});
-    
+    %names = {'url','html','title'};
+    %defaults = {[],[],'Padaco Help'};
+    %[url, html,titleStr] = parsepvpairs(names,defaults,varargin{:});
+
+    args.url = '';
+    args.html = '';
+    args.title = 'Padaco Help';
+    args = mergepvpairs(args,varargin{:});
+    url = args.url;
+    html = args.html;
+    titleStr = args.title;
     %> The following is taken from Yair Altman's blog post at http://undocumentedmatlab.com/blog/customizing-help-popup-contents
     % Find the Help popup window
     
@@ -34,18 +41,18 @@ function htmldlg(varargin)
 
             if jWindows(idx).isVisible
                 jPopup = jWindows(idx);
-                fprintf('We have a visible frame at %i\n',idx);
-%                 break;
+                %%fprintf('We have a visible frame at %i\n',idx);
+                %%break;
             else
-                %jWindows(idx).show;
-                fprintf('We have a non visible frame at %i\n',idx);
+                % %jWindows(idx).show;
+                %fprintf('We have a non visible frame at %i\n',idx);
                 
             end
         end
     end
     
     % Update the popup with selected HTML
-    if (~isempty(jPopup) && (~isempty(url) || ~isempty(html)))
+    if ~isempty(jPopup) && (~isempty(url)||~isempty(html))
         jPopup.setTitle(titleStr);
       
         contentPanel = jPopup.getContentPane.getComponent(0).getComponent(1);
