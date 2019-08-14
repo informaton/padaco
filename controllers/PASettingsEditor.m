@@ -12,6 +12,7 @@ classdef PASettingsEditor < PAFigureFcnController
                 varargin = {PAAppSettings()};
             end
             this@PAFigureFcnController(varargin{:});
+            waitfor(this.figureH);
         end
         
         function setSettings(this, varargin)
@@ -107,6 +108,7 @@ classdef PASettingsEditor < PAFigureFcnController
                                 
                                 labelProps.parent = parent;
                                 valueProps.parent = parent;
+                                valueProps.Callback = @this.valueWidgetCb;
                                 pathBtnProps.parent = parent;
                                 labelProps.String = '';
                                 yStart = 1-0.125/newH;
@@ -206,6 +208,31 @@ classdef PASettingsEditor < PAFigureFcnController
             end
         end
         
+        function valueWidgetCb(this, hObject, evtData)
+            
+            param = get(hObject,'userdata');
+            value = get(hObject,'value');
+            str  = get(hObject,'string');
+            switch(class(param))
+                case 'PABoolParam'
+                    param.setValue(strcmpi(getMenuString(hObject),'yes'));                     
+                case 'PAEnumParam'
+                    param.setValue(param.categories{value});  
+                case 'PAIndexParam'
+                    param.setValue(value);
+                case 'PANumericParam' 
+                    num = str2double(str);
+                    if(~param.setValue(num))
+                        % getMenuString(hObject);  --> should also work,
+                        % but below is more robust if we start using
+                        % different descriptions in the menu for the
+                        % corresponding category values.
+                        set(hObject,'string', num2str(param.value));
+                    end
+                otherwise % PAPathParam, PAFilenameParam, PAStringParam
+                    param.setValue(str);
+            end
+        end
         function scrollPanelCb(this, hObject, eventData, panelH)
             %arrayfun(@(a)set(a,'Position',get(a,'Position')),allchild(panelH));
             %arrayfun(@(a)set(a,'Position',get(a,'Position')+[0 -hObject.Value 0 0]),allchild(panelH));
@@ -228,11 +255,14 @@ classdef PASettingsEditor < PAFigureFcnController
             buttTag = get(hButton,'tag');
             switch(strrep(buttTag,'push_',''))
                 case 'defaults'
-                    fprintf('Default\n');
+                    fprintf('Defaults not implemented yet :(\n');
                 case 'apply'
-                    fprintf('Apply and close\n');
+                    %fprintf('Apply and close\n');
+                    delete(this.figureH);
                 case 'cancel'
-                    fprintf('Cancel\n');
+                    fprintf('Settings configuration canceled\n');
+                    this.settings = [];
+                    delete(this.figureH);
                 otherwise
                     this.logWarning('Unknown button (%s)',buttTag);
             end

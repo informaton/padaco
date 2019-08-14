@@ -8,17 +8,6 @@ classdef PASingleStudyController < PAViewController
     end
     properties (SetAccess = protected)
         
-        %> @brief String representing the current type of display being used.
-        %> Can be
-        %> @li @c Time Series
-        %> @li @c Aggregate Bins
-        %> @li @c Features
-        displayType; 
-        
-        
-        
-                
-        
         %> for the patch handles when editing and dragging
         hg_group;   %may be unused?
         
@@ -84,6 +73,14 @@ classdef PASingleStudyController < PAViewController
             obj@PAViewController(varargin{:});
         end
         
+        % --------------------------------------------------------------------
+        function updateWidgets(obj, varargin)
+            
+            updateWidgets@PAViewController(obj, varargin{:});
+            obj.setDisplayType(obj.getSetting('displayType')); 
+            %obj.setRadioButton(obj.getSetting('displayType'));
+        end
+        
         % returns visible linehandles in the upper axes of padaco.
         function visibleLineHandles = getVisibleLineHandles(obj)
             lineHandleStructs = obj.getLinehandle(obj.getDisplayType());
@@ -91,12 +88,13 @@ classdef PASingleStudyController < PAViewController
             visibleLineHandles = lineHandles(strcmpi(get(lineHandles,'visible'),'on'));
         end
         
+        
         function hiddenLineHandles = getHiddenLineHandles(obj)
             lineHandleStructs = obj.getLinehandle(obj.getDisplayType());
             lineHandles = struct2vec(lineHandleStructs);
             hiddenLineHandles = lineHandles(strcmpi(get(lineHandles,'visible'),'off'));
-            
         end
+                
         %> @brief Want to redistribute or evenly distribute the lines displayed in
         %> this axis.
         function redistributePrimaryAxesLineHandles(obj)
@@ -353,30 +351,35 @@ classdef PASingleStudyController < PAViewController
             %             obj.setDisplayType(displayType,visibleProps);
             %         end
         
-            if(nargin<3 || isempty(visibleProps))
+            if(nargin<3)
+                visibleProps = [];
+            end
+            if(isempty(visibleProps) && isa(obj.accelObj,'PASensorData'))
                 visibleProps = obj.accelObj.getVisible(displayTypeStr);
             end
             
             if(any(strcmpi(fieldnames(PASensorData.getStructTypes()),displayTypeStr)))
                 obj.setRadioButton(displayTypeStr);
-                allProps.visible = 'off';
-                allStructTypes = PASensorData.getStructTypes();
-                fnames = fieldnames(allStructTypes);
-                for f=1:numel(fnames)
-                    curStructName = fnames{f};
-                    recurseHandleInit(obj.labelhandle.(curStructName), allProps);
-                    recurseHandleInit(obj.referencelinehandle.(curStructName), allProps);
-                    recurseHandleInit(obj.linehandle.(curStructName), allProps);
+                
+                if(isstruct(obj.labelhandle))
+                    allProps.visible = 'off';
+                    allStructTypes = PASensorData.getStructTypes();
+                    fnames = fieldnames(allStructTypes);
+                    for f=1:numel(fnames)
+                        curStructName = fnames{f};
+                        recurseHandleInit(obj.labelhandle.(curStructName), allProps);
+                        recurseHandleInit(obj.referencelinehandle.(curStructName), allProps);
+                        recurseHandleInit(obj.linehandle.(curStructName), allProps);
+                        
+                    end
                 end
-                
-                obj.displayType = displayTypeStr;
-                
-                displayStruct = obj.displayType;
-                
-                if(isstruct(visibleProps))
-                    recurseHandleSetter(obj.referencelinehandle.(displayStruct), visibleProps);
-                    recurseHandleSetter(obj.linehandle.(displayStruct), visibleProps);
-                    recurseHandleSetter(obj.labelhandle.(displayStruct), visibleProps);
+                obj.setSetting('displayType',displayTypeStr);                
+                if(isstruct(obj.labelhandle))
+                    if(isstruct(visibleProps))
+                        recurseHandleSetter(obj.referencelinehandle.(displayTypeStr), visibleProps);
+                        recurseHandleSetter(obj.linehandle.(displayTypeStr), visibleProps);
+                        recurseHandleSetter(obj.labelhandle.(displayTypeStr), visibleProps);
+                    end
                 end
             else
                 fprintf('Warning, this string (%s) is not an acceptable option.\n',displayTypeStr);
@@ -393,7 +396,7 @@ classdef PASingleStudyController < PAViewController
         %> @li @c Features
         % --------------------------------------------------------------------
         function displayTypeStr = getDisplayType(obj)
-            displayTypeStr = obj.displayType;
+            displayTypeStr = obj.getSetting('displaytype');
         end
         
         % --------------------------------------------------------------------
@@ -1325,7 +1328,7 @@ classdef PASingleStudyController < PAViewController
         function draw(obj)
             % Axes range must occur at the top as it is used to determine
             % the position of text labels.
-            axesRange   = obj.accelObj.getCurUncorrectedWindowRange(obj.displayType);
+            axesRange   = obj.accelObj.getCurUncorrectedWindowRange(obj.getSetting('displayType'));
             
             %make it increasing
             if(diff(axesRange)==0)
@@ -1336,7 +1339,7 @@ classdef PASingleStudyController < PAViewController
             
             obj.updatePrimaryAxes(axesRange);
             
-            structFieldName =obj.displayType;
+            structFieldName =obj.getSetting('displayType');
             lineProps   = obj.accelObj.getStruct('currentdisplay',structFieldName);
             recurseHandleSetter(obj.linehandle.(structFieldName),lineProps);
                         
@@ -1372,7 +1375,7 @@ classdef PASingleStudyController < PAViewController
         % --------------------------------------------------------------------
         function labelPosStruct = getLabelhandlePosition(obj,displayTypeStr)
             if(nargin<2 || isempty(displayTypeStr))
-                displayTypeStr = obj.displayType;
+                displayTypeStr = obj.getSetting('displayType');
             end
             yOffset = -30; %Trial and error
             dummyStruct = obj.accelObj.getStruct('dummy',displayTypeStr);
@@ -2633,7 +2636,17 @@ classdef PASingleStudyController < PAViewController
             pStruct.featureFcnName = PAEnumParam('default',featureFcnNames{1},'categories',featureFcnNames,'description','Feature function');
             pStruct.signalTagLine = PAEnumParam('default',tagLines{1},'categories',tagLines,'description','Axis');
             
-            pStruct.viewMode = PAEnumParam('default','timeseries','categories',{'timeseries','results'},'description','Current View');
+            % pStruct.viewMode = PAEnumParam('default','timeseries','categories',{'timeseries','results'},'description','Current View');
+            
+            
+            %> @brief String representing the current type of display being used.
+            %> Can be
+            %> @li @c Time Series
+            %> @li @c Aggregate Bins
+            %> @li @c Features
+            displayStruct = PASensorData.getStructTypes();
+            displayTypes = fieldnames(displayStruct);
+            pStruct.displayType = PAEnumParam('default','timeseries','categories',displayTypes,'description','Top panel display');
             
             %> Boolean value:
             %> - @c true : Apply line smoothing when presenting features on the

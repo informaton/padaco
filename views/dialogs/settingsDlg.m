@@ -22,21 +22,22 @@ btnProps.fontSize = 12;
 %btnProps.callback = @btnPressCb;
 btnProps.units = 'normalized';
 btnProps.string = 'Cancel';
-btnProps.position = [0.1 0.2 0.2 0.6];
+btnProps.position = [0.1 0.25 0.2 0.5];
 posOffset = [0.3 0 0 0];
 btnProps.parent = p;
 btnProps.tag = 'push_cancel';
-bC = uicontrol(btnProps);
+uicontrol(btnProps);
 
-btnProps.position = btnProps.position + posOffset;
-btnProps.string = 'Apply';
-btnProps.tag = 'push_apply';
-bX  = uicontrol(btnProps);
 btnProps.tag = 'push_defaults';
 btnProps.position = btnProps.position + posOffset;
 btnProps.string = 'Set Defaults';
-btnProps.style = 'togglebutton';
-bD = uicontrol(btnProps);
+% btnProps.style = 'togglebutton';
+uicontrol(btnProps);
+
+btnProps.position = btnProps.position + posOffset;
+btnProps.string = 'Confirm';
+btnProps.tag = 'push_apply';
+uicontrol(btnProps);
 
 movegui('center');
 % set(figH,'visible','on');

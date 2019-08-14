@@ -494,8 +494,7 @@ classdef PAStatTool < PAViewController
             end
             this.setSettings( widgetSettings );
             
-            % Merge the defaults with what is here otherwise.  
-            
+            % Merge the defaults with what is here otherwise.
             % setUseDatabase() is problematic in that the profileFields
             % property is emptied if it is not used, which would wipe out
             % the outcomesTable profileFields if it is called after
@@ -1194,15 +1193,14 @@ classdef PAStatTool < PAViewController
             if(nargin<3 || isempty(forceSet))
                 forceSet = false;
             end        
-            if(~isequal(plotType, this.previousState.plotType) || forceSet)
+            if(~isempty(plotType) && (~isequal(plotType, this.previousState.plotType) || forceSet))
                 this.clearPlots();
                 set(this.handles.menu_plottype,'tooltipstring',this.base.tooltipstring.(plotType));
                 
                 switch(plotType)
                     case 'clustering'
                         this.switch2clustering();
-                    otherwise
-                        
+                    otherwise                        
                         if(strcmpi(this.previousState.plotType,'clustering'))
                             this.switchFromClustering();
                         else
@@ -1435,7 +1433,7 @@ classdef PAStatTool < PAViewController
                     set(this.analysisFigureH,'visible','on');
                 end
             else
-                set(handles.panel_clusterInfo,'visible','off');
+                set(this.handles.panel_clusterInfo,'visible','off');
             end
         end        
 
@@ -1815,7 +1813,7 @@ classdef PAStatTool < PAViewController
             end
         end
         
-                function enable(obj)
+        function enable(obj)
             obj.setEnableState('on');
         end
         

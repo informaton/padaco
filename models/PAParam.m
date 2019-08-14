@@ -65,6 +65,11 @@ classdef PAParam < handle
     end
     
     methods(Access=protected)
+        function widgetCb(this, hObject, evtData)
+            str  = get(hObject,'string');
+            param.setValue(str);            
+        end
+        
         function setHelp(this, helpStr)
             if(ischar(helpStr))
                 this.help = helpStr;

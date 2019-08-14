@@ -15,17 +15,17 @@ classdef PAAppController < PAFigureController
     properties(Constant)
         versionMatFilename = 'version.chk';
     end
+    
     properties(Constant,Access=private)
         NWAnchor = struct('tag','text_status','y',0.967,'units','normalized');
     end
+    
     properties(Access=private)
         resizeValues; % for handling resize functions
         versionNum;
-        
-        
         iconFilename;
-        
     end
+    
     properties(SetAccess=protected)
         toolbarH; % struct containining handles for toolbar buttons
         
@@ -39,7 +39,6 @@ classdef PAAppController < PAFigureController
         %> Instance of PAOutcomesTableData - for importing outcomes data to be
         %> used with cluster analysis.
         OutcomesTableData;
-        
         
         %> Instance of PAAppSettings - keeps track of application wide settings.
         AppSettings;
@@ -375,21 +374,29 @@ classdef PAAppController < PAFigureController
             
             % Need to refresh the current settings
             obj.refreshAppSettings();
-            wasModified = obj.AppSettings.defaultsEditor(optionalSettingsName);
-            if(wasModified)
-                if(isa(obj.StatTool,'PAStatTool'))
+            settingsEditor = PASettingsEditor(obj.AppSettings);
+            
+            %wasModified = obj.AppSettings.defaultsEditor(optionalSettingsName);
+            
+            wasCanceled = isempty(settingsEditor.settings);
+            if(~wasCanceled)
+                obj.AppSettings = settingsEditor.settings;  
+                
+                if(strcmpi(obj.getViewMode(),'results'))                
                     initializeOnSet = true;  % This is necessary to update widgets, which are used in follow on call to saveAppSettings
                     obj.StatTool.setWidgetSettings(obj.AppSettings.StatTool, initializeOnSet);
+                else
+                    obj.SingleStudy.updateWidgets()
                 end
-                obj.setStatus('Settings have been updated.');
                 
-                % save parameters to disk - this saves many parameters
-                % based on gui selection though ...
+                obj.setStatus('Settings have been updated.');
+                % save parameters to disk - this saves many parameters based on gui selection though ...
                 obj.saveAppSettings();
                 
                 % Activate a refresh()
-                obj.setViewMode(obj.getViewMode());
+                obj.setViewMode(obj.getViewMode());                
             end
+
         end
         
         % --------------------------------------------------------------------

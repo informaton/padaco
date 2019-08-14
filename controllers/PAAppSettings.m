@@ -120,13 +120,21 @@ classdef  PAAppSettings < PASettings
                             end
                         end
                         
-                        tmpStruct = mergeStruct(tmpStruct,paramStruct);
+                        % This only updates tmpStruct with exact fields
+                        % found in paramStruct and ...
+                        tmpStruct = mergeStructs(tmpStruct,paramStruct);
                         
-                        % Do not bring in any new tier-1 fields that may have
-                        % existed independtly in the paramStruct.
+                        % ... filters to what we have member variables for
+                        % in order to prevent bringing in any new tier-1 fields that may have
+                        % existed independtly in the paramStruct.                        
                         for f=1:numel(fnames)
                             if(isprop(obj,fnames{f}))
-                                obj.(fnames{f}) = tmpStruct.(fnames{f});
+                                tmpValue = tmpStruct.(fnames{f});
+                                if(isa(obj.(fnames{f}),'PAParam'))
+                                    obj.(fnames{f}).setValue(tmpValue);
+                                else
+                                    obj.(fnames{f}) = tmpValue;
+                                end
                             end
                         end
                         

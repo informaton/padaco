@@ -45,7 +45,11 @@ function ltStruct = mergeStructi(ltStruct,rtStruct)
                 if(isstruct(rtStruct.(curField)))
                     ltStruct.(ltField) = mergeStructi(ltStruct.(ltField),rtStruct.(curField));
                 else
-                    ltStruct.(ltField) = rtStruct.(curField);
+                    if(isa(ltStruct.(ltField),'PAParam') && ~(isa(rtStruct.(curField),'PAParam')))
+                        ltStruct.(ltField).setValue(rtStruct.(curField));
+                    else
+                        ltStruct.(ltField) = rtStruct.(curField);
+                    end
                 end
             end
         end
