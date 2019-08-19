@@ -89,6 +89,7 @@ classdef PASensorData < PAData
         stopDatenums;
 
         
+        % These have to do with how the data is VIEWed.
         label;
         color;
         offset;
@@ -103,12 +104,7 @@ classdef PASensorData < PAData
     end
 
     properties (SetAccess = protected)
-        missingValue = nan;  % used in place of missing data (that is not found in a file)
-        %> @brief Pathname of file containing accelerometer data.
-        pathname;
-        %> @brief Name of file containing accelerometer data that is loaded.
-        filename;
-
+        
         %> Current window.  Current position in the raw data.
         %> The first window is '1' (i.e. not zero because this is MATLAB programming)
         curWindow;
@@ -117,9 +113,7 @@ classdef PASensorData < PAData
         %> @brief Defined in the accelerometer's file output and converted to seconds.
         %> This is, most likely, the sampling rate of the output file.
         countPeriodSec;
-        %> @brief Window duration (in seconds).
-        %> This can be adjusted by the user, but is 30 s by default.
-        windowDurSec;
+        
 
         %> @brief Initial aggregation duration in minutes.  Frames are
         %comprised of consecutive aggregated windows of data.
@@ -169,6 +163,7 @@ classdef PASensorData < PAData
         %> @brief Sample rate of time series data.
         sampleRate;
 
+        
         nonwearAlgorithm;
         
         % Flags for determining if counts and or raw data is loaded.
@@ -189,10 +184,10 @@ classdef PASensorData < PAData
         %> @retval Instance of PASensorData.
          % =================================================================
         function obj = PASensorData(fullFilenameOrPath,varargin)  % inputSettings is second argument
+            if(nargin<1)
+                fullFilenameOrPath = '';
+            end
             obj = obj@PAData(varargin{:});
-            obj.pathname =[];
-            obj.filename = [];
-
 
             obj.hasCounts = false;
             obj.hasRaw = false;
@@ -226,30 +221,24 @@ classdef PASensorData < PAData
                 obj.loadPathOfRawBinary(obj.pathname);
 
             elseif(exist(fullFilenameOrPath,'file'))
-                [p,name,ext] = fileparts(fullFilenameOrPath);
-                if(isempty(p))
-                    obj.pathname = pwd;
-                else
-                    obj.pathname = p;
-                end
-                obj.filename = strcat(name,ext);
+                obj.setFullFilename(fullFilenameOrPath);
                 obj.loadFile();
             end
 
             obj.setCurWindow(obj.getSetting('curWindow'));
         end
 
-        function didSet= setSettings(this, inputSettings)
-            didSet = setSettings@PAData(this,inputSettings);
-            fields = fieldnames(this.settings);            
-            for f=1:numel(fields)                
-                %need to make sure we are not overwriting the filename we just
-                %brought in
-                if(~strcmpi(fields{f},'pathname') && ~strcmpi(fields{f},'filename'))
-                    this.(fields{f}) = this.settings.(fields{f});
-                end
-            end
-        end
+%         function didSet= setSettings(this, inputSettings)
+%             didSet = setSettings@PAData(this,inputSettings);
+%             fields = fieldnames(this.settings);            
+%             for f=1:numel(fields)                
+%                 %need to make sure we are not overwriting the filename we just
+%                 %brought in
+%                 if(~strcmpi(fields{f},'pathname') && ~strcmpi(fields{f},'filename'))
+%                     this.(fields{f}) = this.settings.(fields{f});
+%                 end
+%             end
+%         end
         
         function hasIt = hasData(obj)
             hasIt = obj.hasCounts||obj.hasRaw;
@@ -404,7 +393,7 @@ classdef PASensorData < PAData
             if(nargin<2 || isempty(structType))
                 structType = 'timeSeries';
             end
-            windowDur = obj.windowDurSec*obj.getWindowSamplerate(structType);
+            windowDur = obj.getSetting('windowDurSec')*obj.getWindowSamplerate(structType);
         end
 
         % --------------------------------------------------------------------
@@ -480,38 +469,6 @@ classdef PASensorData < PAData
             else
                 x = [];
                 varargout = cell(1,nargout-1);
-            end
-        end
-
-
-        function usageRules = getUsageClassificationRules(obj)
-            usageRules = obj.usageStateRules();
-        end
-
-        %> @brief Updates the usage state rules with an input struct.
-        %> @param
-        %> @param
-        function didSet = setUsageClassificationRules(obj, ruleStruct)
-            didSet = false;
-            try
-                if(isstruct(ruleStruct))
-                    obj.usageStateRules = mergeStruct(obj.usageStateRules, ruleStruct);
-
-
-                    %                     ruleFields = fieldnames(obj.usageStateRules);
-                    %                     for f=1:numel(ruleFields)
-                    %                         curField = ruleFields{f};
-                    %                         if(hasfield(ruleStruct,curField) && class(ruleStruct.(curField)) == class(obj.usageStateRules.(curField)))
-                    %                             obj.usageStateRules.(curField) = ruleStruct.(curField);
-                    %                         end
-                    %                     end
-                    %
-
-                    didSet = true;
-                end
-            catch me
-                showME(me);
-                didSet = false;
             end
         end
 
@@ -720,7 +677,7 @@ classdef PASensorData < PAData
                 % requires the current windowDurSec value be initialized
                 % already.
                 windowRange = obj.getCurWindowRange();
-                obj.windowDurSec = durSec;
+                obj.setSetting('windowDurSec',durSec);
 
                 %calculate the current window based on the start sample using
                 %the previous versions window
@@ -728,7 +685,7 @@ classdef PASensorData < PAData
                 windowIndex = obj.sample2window(windowRange(1));
                 obj.setCurWindow(windowIndex);
             else
-                durSec = obj.windowDurSec;
+                durSec = obj.getSetting('windowDurSec');
             end
         end
 
@@ -1042,7 +999,7 @@ classdef PASensorData < PAData
         %> defined as 30 seconds, then the windowCount is 1.
         % --------------------------------------------------------------------
         function windowCount = getWindowCount(obj)
-            windowCount = ceil(obj.durationSec/obj.windowDurSec);
+            windowCount = ceil(obj.durationSec/obj.getSetting('windowDurSec'));
         end
 
         % --------------------------------------------------------------------
@@ -1111,53 +1068,6 @@ classdef PASensorData < PAData
             end
         end
 
-        % ======================================================================
-        %> @brief Returns the filename, pathname, and full filename (pathname + filename) of
-        %> the file that the accelerometer data was loaded from.
-        %> @param obj Instance of PASensorData
-        %> @retval filename The short filename of the accelerometer data.
-        %> @retval pathname The pathname of the accelerometer data.
-        %> @retval fullFilename The full filename of the accelerometer data.
-        % =================================================================
-        function [filename,pathname,fullFilename] = getFilename(obj)
-            filename = obj.filename;
-            pathname = obj.pathname;
-            fullFilename = fullfile(obj.pathname,obj.filename);
-        end
-
-
-        % ======================================================================
-        %> @brief Sets the pathname and filename instance variables using
-        %> the input full filename.
-        %> @param obj Instance of PASensorData
-        %> @param fullfilename The full filenmae of the accelerometer data
-        %> that will be set
-        %> @retval success (T/F)
-        %> -true: if fullfilename exists and is instance variables are set
-        %> - false: otherwise
-        %> @note See also getFilename()
-        % =================================================================
-        function success = setFullFilename(obj,fullfilename)
-            if(exist(fullfilename,'file'))
-                [obj.pathname, basename,ext] = fileparts(fullfilename);
-                obj.filename = strcat(basename,ext);
-                success = true;
-            else
-                success = false;
-            end
-
-        end
-
-        % ======================================================================
-        %> @brief Returns the full filename (pathname + filename) of
-        %> the accelerometer data.
-        %> @param obj Instance of PASensorData
-        %> @retval fullFilename The full filenmae of the accelerometer data.
-        %> @note See also getFilename()
-        % =================================================================
-        function fullFilename = getFullFilename(obj)
-            [~,~,fullFilename] = obj.getFilename();
-        end
 
         % ======================================================================
         %> @brief Returns the protected intance variable windowDurSec.
@@ -1165,7 +1075,7 @@ classdef PASensorData < PAData
         %> @retval windowDurationSec The value of windowDurSec
         % =================================================================
         function windowDurationSec = getWindowDurSec(obj)
-            windowDurationSec = obj.windowDurSec();
+            windowDurationSec = obj.getSetting('windowDurSec');
         end
 
 
@@ -1353,7 +1263,7 @@ classdef PASensorData < PAData
                     windowDatenumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
 
 
-                    [tmpDataCell, obj.dateTimeNum] = obj.mergedCell(startDatenum,stopDatenum,windowDatenumDelta,datevecFound,tmpDataCell,obj.missingValue);
+                    [tmpDataCell, obj.dateTimeNum] = obj.mergedCell(startDatenum,stopDatenum,windowDatenumDelta,datevecFound,tmpDataCell,obj.getSetting('missingValue'));
 
                     obj.durSamples = numel(obj.dateTimeNum);
                     obj.durationSec = floor(obj.getDurationSamples()/obj.sampleRate);
@@ -1381,10 +1291,10 @@ classdef PASensorData < PAData
             else
                 numMissing = obj.getDurationSamples() - samplesFound;
                 if(numMissing>0)
-                    fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullFilename,samplesFound+numMissing,numMissing,num2str(obj.missingValue));
+                    fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullFilename,samplesFound+numMissing,numMissing,num2str(obj.getSetting('missingValue')));
                 else
                     fprintf('This case is not handled yet.\n');
-                    fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullFilename,samplesFound+numMissing,numMissing,num2str(obj.missingValue));
+                    fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullFilename,samplesFound+numMissing,numMissing,num2str(obj.getSetting('missingValue')));
                 end
             end
         end
@@ -1605,7 +1515,7 @@ classdef PASensorData < PAData
                         % The following call to mergedCell ensures the data
                         % is chronologically ordered and data is not
                         % missing.
-                        [dataCell, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,obj.missingValue);
+                        [dataCell, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,obj.getSetting('missingValue'));
 
                         tmpDataCell = []; %free up this memory;
 
@@ -1736,7 +1646,7 @@ classdef PASensorData < PAData
                         obj.dateTimeNum(end)=[];  %remove the very last sample, since it is not actually recorded in the dataset, but represents when the data was downloaded, which happens one sample after the device stops.
                     else
                         stopDateNum = datenum(dateVecFound(end,:));
-                        [tmpDataCell, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,obj.missingValue);
+                        [tmpDataCell, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,obj.getSetting('missingValue'));
                     end
 
                     obj.durSamples = numel(obj.dateTimeNum);
@@ -1936,7 +1846,7 @@ classdef PASensorData < PAData
             [y,m,d,h,mi,s] = datevec(elapsed_time);
             elapsedSec = [d, h, mi, s] * [24*60; 60; 1;1/60]*60;
             %            windowSamplerate = obj.getWindowSamplerate(structType);
-            window = ceil(elapsedSec/obj.windowDurSec);
+            window = ceil(elapsedSec/obj.getSetting('windowDurSec'));
         end
 
 
@@ -1949,7 +1859,7 @@ classdef PASensorData < PAData
         %> value and its windowDurSec instance variable.
         % ======================================================================
         function dateNum = window2datenum(obj,windowSample)
-            elapsed_time_sec = (windowSample-1) * obj.windowDurSec;
+            elapsed_time_sec = (windowSample-1) * obj.getSetting('windowDurSec');
             startStopDatenum = obj.getStartStopDatenum();
             dateNum  = startStopDatenum(1)+datenum([0,0,0,0,0,elapsed_time_sec]);
         end
@@ -2334,6 +2244,9 @@ classdef PASensorData < PAData
         % ======================================================================
         function didClassify = classifyUsageForAllAxes(obj)
             try
+                classifyObj = PAClassifyCounts();% %obj.classifyUsageState(dataStruct.(axesName));
+                classifyObj.setDatenumVec(obj.dateTimeNum);
+                obj.usage = struct();
                 if(obj.hasCounts || obj.hasRaw)
                     dataStruct = obj.getStruct('all');
                     if(obj.hasCounts)
@@ -2341,6 +2254,7 @@ classdef PASensorData < PAData
                     else
                         dataStruct = dataStruct.accel.raw;
                     end
+                    
                     axesNames = fieldnames(dataStruct);
                     for a=1:numel(axesNames)
                         axesName=axesNames{a};
@@ -2348,7 +2262,7 @@ classdef PASensorData < PAData
                         % as there is a better/faster way to classify usage
                         % state from raw data.
                         if(obj.hasCounts)
-                            obj.usage.(axesName) = obj.classifyUsageState(dataStruct.(axesName));
+                            obj.usage.(axesName) = classifyObj.classifyUsageState(dataStruct.(axesName)); %obj.classifyUsageState(dataStruct.(axesName));
                             didClassify = true;
                         else
                             obj.usage.(axesName) = zeros(size(dataStruct.(axesName)));
@@ -2394,8 +2308,6 @@ classdef PASensorData < PAData
                 classificationMethod = obj.nonwearAlgorithm;
             end
             wearVec = rcall_getnonwear(objcountFilename, classificationMethod);
-            
-                
         end
 
 
@@ -2428,227 +2340,8 @@ classdef PASensorData < PAData
 
         end
 
-        % ======================================================================
-        %> @brief Categorizes the study's usage state.
-        %> @param obj Instance of PASensorData.
-        %> @param vector of count activity to apply classification rules
-        %> too.  If not provided, then the vector magnitude is used by
-        %> default.
-        %> @retval usageVec A vector of length obj.dateTimeNum whose values
-        %> represent the usage category at each sample instance specified by
-        %> @b dateTimeNum.
-        %> - c usageVec(activeVec) = 30
-        %> - c usageVec(inactiveVec) = 25
-        %> - c usageVec(~awakeVsAsleepVec) = 20
-        %> - c usageVec(sleepVec) = 15  sleep period (could be a nap)
-        %> - c usageVec(remSleepVec) = 10  REM sleep
-        %> - c usageVec(nonwearVec) = 5  Non-wear
-        %> - c usageVec(studyOverVec) = 0  Non-wear, study over.
-        %> @retval whereState Vector of wear vs non-wear state.  Each element represent the
-        %> consecutive grouping of like states found in the usage vector.
-        %> @note Wear states are categorized as follows:
-        %> - c 5 Nonwear
-        %> - c 10 Wear
-        %> @retval startStopDatenums Start and stop datenums for each usage
-        %> state row entry of usageState.
-        % ======================================================================
-        function [usageVec, wearState, startStopDateNums] = classifyUsageState(obj, countActivity)
 
-            % By default activity determined from vector magnitude signal
-            if(nargin<2 || isempty(countActivity))
-                countActivity = obj.accel.count.vecMag;
-            end
-
-            tagStruct = obj.getActivityTags();
-
-            %             UNKNOWN = -1;
-            %             NONWEAR = 5;
-            %             WEAR = 10;
-            %            STUDYOVER=0;
-            %            REMS = 10;
-            %            NREMS = 15;
-            %            NAPPING = 20;
-            %            INACTIVE = 25;
-            %            ACTIVE = 30;
-
-            longClassificationMinimumDurationOfMinutes = obj.usageStateRules.longClassificationMinimumDurationOfMinutes; %15; %a 15 minute or 1/4 hour filter
-            shortClassificationMinimumDurationOfMinutes = obj.usageStateRules.shortClassificationMinimumDurationOfMinutes; %5; %a 5 minute or 1/12 hour filter
-
-            awakeVsAsleepCountsPerSecondCutoff = obj.usageStateRules.awakeVsAsleepCountsPerSecondCutoff;  %1;  % exceeding the cutoff means you are awake
-            activeVsInactiveCountsPerSecondCutoff = obj.usageStateRules.activeVsInactiveCountsPerSecondCutoff; %10; % exceeding the cutoff indicates active
-            onBodyVsOffBodyCountsPerMinuteCutoff = obj.usageStateRules.onBodyVsOffBodyCountsPerMinuteCutoff; %1; % exceeding the cutoff indicates on body (wear)
-
-            samplesPerMinute = obj.getSampleRate()*60; % samples per second * 60 seconds per minute
-            samplesPerHour = 60*samplesPerMinute;
-
-
-            longFilterLength = longClassificationMinimumDurationOfMinutes*samplesPerMinute;
-            shortFilterLength = shortClassificationMinimumDurationOfMinutes*samplesPerMinute;
-
-            longRunningActivitySum = obj.movingSummer(countActivity,longFilterLength);
-            shortRunningActivitySum = obj.movingSummer(countActivity,shortFilterLength);
-
-            %            usageVec = zeros(size(obj.dateTimeNum));
-            usageVec = repmat(tagStruct.UNKNOWN,(size(obj.dateTimeNum)));
-
-
-            % This is good for determining where the study has ended... using a 15 minute duration minimum
-            % (essentially 1 count allowed per minute or 15 counts per 900 samples )
-            offBodyThreshold = longClassificationMinimumDurationOfMinutes*onBodyVsOffBodyCountsPerMinuteCutoff;
-
-            longActiveThreshold = longClassificationMinimumDurationOfMinutes*(activeVsInactiveCountsPerSecondCutoff*60);
-
-
-            awakeVsAsleepVec = longRunningActivitySum>awakeVsAsleepCountsPerSecondCutoff; % 1 indicates Awake
-            activeVec = longRunningActivitySum>longActiveThreshold; % 1 indicates active
-            inactiveVec = awakeVsAsleepVec&~activeVec; %awake, but not active
-            sleepVec = ~awakeVsAsleepVec; % not awake
-
-            sleepPeriodParams.merge_within_samples = obj.usageStateRules.mergeWithinHoursForSleep*samplesPerHour; % 3600*2*obj.getSampleRate();
-            sleepPeriodParams.min_dur_samples = obj.usageStateRules.minHoursForSleep*samplesPerHour; %3600*4*obj.getSampleRate();
-            sleepVec = obj.reprocessEventVector(sleepVec,sleepPeriodParams.min_dur_samples,sleepPeriodParams.merge_within_samples);
-
-
-            %% Short vector sum - applied to sleep states
-            % Examine rem sleep on a shorter time scale
-            shortOffBodyThreshold = shortClassificationMinimumDurationOfMinutes*onBodyVsOffBodyCountsPerMinuteCutoff;
-            % shortActiveThreshold = shortClassificationMinimumDurationOfMinutes*(activeVsInactiveCountsPerSecondCutoff*60);
-            shortNoActivityVec = shortRunningActivitySum<shortOffBodyThreshold;
-
-            remSleepPeriodParams.merge_within_samples = obj.usageStateRules.mergeWithinMinutesForREM*samplesPerMinute;  %merge within 5 minutes
-            remSleepPeriodParams.min_dur_samples = obj.usageStateRules.minMinutesForREM*samplesPerMinute;   %require minimum of 20 minutes
-            remSleepVec = obj.reprocessEventVector(sleepVec&shortNoActivityVec,remSleepPeriodParams.min_dur_samples,remSleepPeriodParams.merge_within_samples);
-
-
-            % Check for nonwear
-            longNoActivityVec = longRunningActivitySum<offBodyThreshold;
-            candidate_nonwear_events= obj.thresholdcrossings(longNoActivityVec,0);
-
-            params.merge_within_sec = obj.usageStateRules.mergeWithinHoursForNonWear*samplesPerHour; %4;
-            params.min_dur_sec = obj.usageStateRules.minHoursForNonWear*samplesPerHour; %4;
-
-            %            params.merge_within_sec = 3600*1;
-            %            params.min_dur_sec = 3600*1;
-
-            if(~isempty(candidate_nonwear_events))
-
-                if(params.merge_within_sec>0)
-                    merge_distance = round(params.merge_within_sec*obj.getSampleRate());
-                    nonwear_events = obj.merge_nearby_events(candidate_nonwear_events,merge_distance);
-                end
-
-                if(params.min_dur_sec>0)
-                    diff_sec = (candidate_nonwear_events(:,2)-candidate_nonwear_events(:,1))/obj.getSampleRate();
-                    nonwear_events = candidate_nonwear_events(diff_sec>=params.min_dur_sec,:);
-                end
-
-                studyOverParams.merge_within_sec = obj.usageStateRules.mergeWithinHoursForStudyOver*samplesPerHour; %-> group within 6 hours ..
-                studyOverParams.min_dur_sec = obj.usageStateRules.minHoursForStudyOver*samplesPerHour;%12;% -> this is for classifying state as over.
-                merge_distance = round(studyOverParams.merge_within_sec*obj.getSampleRate());
-                candidate_studyover_events = obj.merge_nearby_events(nonwear_events,merge_distance);
-                diff_sec = (candidate_studyover_events(:,2)-candidate_studyover_events(:,1))/obj.getSampleRate();
-                studyover_events = candidate_studyover_events(diff_sec>=studyOverParams.min_dur_sec,:);
-
-            end
-
-            nonwearVec = obj.unrollEvents(nonwear_events,numel(usageVec));
-
-            % Round the study over events to the end of the study if it is
-            % within 4 hours of the end of the study.
-            % --- Otherwise, should I remove all study over events, because
-            % the study is clearly not over then (i.e. there is more
-            % activity being presented).
-            if(~isempty(studyover_events))
-                diff_hours = (obj.getDurationSamples()-studyover_events(end))/samplesPerHour; %      obj.getSampleRate()/3600;
-                if(diff_hours<=obj.usageStateRules.mergeWithinHoursForStudyOver)
-                    studyover_events(end) = obj.getDurationSamples();
-                end
-            end
-
-            % We really just want one section of study over -> though this
-            % may be worthwhile to note in cases where studies have large
-            % gaps.
-            if(size(studyover_events,1)>1)
-                studyover_events = studyover_events(end,:);
-            end
-
-            studyOverVec = obj.unrollEvents(studyover_events,numel(usageVec));
-
-            nonwear_events = obj.thresholdcrossings(nonwearVec,0);
-            if(~isempty(nonwear_events))
-                nonwearStartStopDateNums = [obj.dateTimeNum(nonwear_events(:,1)),obj.dateTimeNum(nonwear_events(:,2))];
-                %durationOff = nonwear(:,2)-nonwear(:,1);
-                %durationOffInHours = (nonwear(:,2)-nonwear(:,1))/3600;
-            else
-                nonwearStartStopDateNums = [];
-            end
-            nonwearState = repmat(tagStruct.NONWEAR,size(nonwear_events,1),1);
-
-            %            wearVec = runningActivitySum>=offBodyThreshold;
-            wearVec = ~nonwearVec;
-            wear = obj.thresholdcrossings(wearVec,0);
-            if(isempty(wear))
-                % only have non wear then
-                wearState = nonwearState;
-                startStopDateNums = nonwearStartStopDateNums;
-            else
-                wearStartStopDateNums = [obj.dateTimeNum(wear(:,1)),obj.dateTimeNum(wear(:,2))];
-                wearState = repmat(tagStruct.WEAR,size(wear,1),1);
-
-                wearState = [nonwearState;wearState];
-                [startStopDateNums, sortIndex] = sortrows([nonwearStartStopDateNums;wearStartStopDateNums]);
-                wearState = wearState(sortIndex);
-            end
-
-            %usageVec(awakeVsAsleepVec) = 20;
-            %usageVec(wearVec) = 10;   %        This is covered
-            % <<<<<<< HEAD
-            %            usageVec(activeVec) = ACTIVE;  %None!
-            %            usageVec(inactiveVec) = INACTIVE;
-            %            usageVec(~awakeVsAsleepVec) = NAPPING;   % Not awake, but may be too short to enter REM or NREMS.
-            %            usageVec(sleepVec) = NREMS;   %Sleep period
-            %            usageVec(remSleepVec) = REMS;  %REM sleep
-            %            usageVec(nonwearVec) = NONWEAR;
-            %            usageVec(studyOverVec) = STUDYOVER;
-            %            % -1 uncategorized
-            %
-            %
-            % =======
-            usageVec(activeVec) = tagStruct.ACTIVE;%35;  %None!
-            usageVec(inactiveVec) = tagStruct.INACTIVE;%25;
-            usageVec(~awakeVsAsleepVec) = tagStruct.NAP;%20;
-            usageVec(sleepVec) = tagStruct.NREM;%15;   %Sleep period
-            usageVec(remSleepVec) = tagStruct.REMS;%10;  %REM sleep
-            usageVec(nonwearVec) = tagStruct.NONWEAR;%5;
-            usageVec(studyOverVec) = tagStruct.STUDYOVER;%0;
-
-        end
-
-
-        % ======================================================================
-        %> @brief Describes an activity.
-        %> @note This is not yet implemented.
-        %> @param obj Instance of PASensorData.
-        %> @param categoryStr The type of activity to describe.  This is a string.  Values include:
-        %> - c sleep
-        %> - c wake
-        %> - c inactivity
-        %> @retval activityStruct A struct describing the activity.  Fields
-        %> include:
-        %> - c empty
-        % ======================================================================
-        function activityStruct = describeActivity(obj,categoryStr)
-            activityStruct = struct();
-            switch(categoryStr)
-                case 'sleep'
-                    activityStruct.sleep = [];
-                case 'wake'
-                    activityStruct.wake = [];
-                case 'inactivity'
-                    activityStruct.inactivity = [];
-            end
-        end
-
+    
 
         % ======================================================================
         %> @brief overloaded subsindex method returns structure of time series data
@@ -3295,40 +2988,7 @@ classdef PASensorData < PAData
         end
 
 
-        %% Analysis
-        % =================================================================
-        %> @brief Removes periods of activity that are too short and groups
-        %> nearby activity groups together.
-        %> @param logicalVec Initial vector which has 1's where an event or
-        %> activity is occurring at that sample.
-        %> @param min_duration_samples The minimum number of consecutive
-        %> samples required for a run of on (1) samples to be kept.
-        %> @param merge_distance_samples The maximum number of samples
-        %> considered when looking for adjacent runs to merge together.
-        %> Adjacent runs that are within this distance are merged into a
-        %> single run beginning at the start of the first and stopping at the end of the last run.
-        %> @retval processVec A vector of size (logicalVec) that has removed
-        %> runs (of 1) that are too short and merged runs that are close enough
-        %> together.
-        %======================================================================
-        function processVec = reprocessEventVector(logicalVec,min_duration_samples,merge_distance_samples)
-            
-            candidate_events= PAData.thresholdcrossings(logicalVec,0);
-            
-            if(~isempty(candidate_events))
-                
-                if(merge_distance_samples>0)
-                    candidate_events = PASensorData.merge_nearby_events(candidate_events,merge_distance_samples);
-                end
-                
-                if(min_duration_samples>0)
-                    diff_samples = (candidate_events(:,2)-candidate_events(:,1));
-                    candidate_events = candidate_events(diff_samples>=min_duration_samples,:);
-                end
-            end
-            processVec = PAData.unrollEvents(candidate_events,numel(logicalVec));
-        end
-
+        
         % =================================================================
         %> @brief Calculates a feature vector for the provided data and feature function.
         %> @param dataVector An N*Mx1 row vector.
@@ -3452,6 +3112,7 @@ classdef PASensorData < PAData
                 };
         end
 
+        % Default custom format struct
         function fmtStruct = getDefaultCustomFmtStruct()
 
              fmtStruct.datetime = 1;
@@ -3490,17 +3151,20 @@ classdef PASensorData < PAData
         %> parameters in getSaveParameters()
         %======================================================================
         function pStruct = getDefaults()
+            
             pStruct = PAData.getDefaults();
+            %> @brief Pathname of file containing accelerometer data.            
             
-            pStruct.pathname = getDocumentsPath(); %best guess directory of accelerometer data.
-            pStruct.filename = ''; %last accelerometer data opened.
-            pStruct.curWindow = 1;
-            pStruct.frameDurMin = 15;  % frame duration minute of 0 equates to frame sizes of 1 frame per sample (i.e. no aggregation)
-            pStruct.frameDurHour = 0;
-            pStruct.aggregateDurMin = 3;
-            pStruct.windowDurSec = 60*60; % set to 1 hour
+            pStruct.missingValue = PAStringParam('default','nan','Description','Missing value identifier','help','Used in place of missing data (that is not found in a file)');
+            pStruct.missingValue = PANumericParam('default',nan,'Description','Missing value identifier','help','Used in place of missing data (that is not found in a file)');
+            pStruct.curWindow = PAIndexParam('default',1,'description','Current window shown');
             
-            pStruct.nonwearAlgorithm = 'padaco';  % [padaco, none, nci, nhanes, choi]
+            pStruct.frameDurMin = PANumericParam('default',15,'description','Frame duration (minutes)','help','frame duration minute of 0 equates to frame sizes of 1 frame per sample (i.e. no aggregation)');
+            pStruct.frameDurHour = PANumericParam('default',0,'description','Frame duration (hours)');
+            pStruct.aggregateDurMin = PANumericParam('default',3,'Description','Aggregatate duration (minutes)','help','This value is not currently used');
+            pStruct.windowDurSec = PANumericParam('default',60*60,'Description','Window display duration','help','This can be adjusted by the user, and is 1 hour by default.'); % set to 1 hour
+           
+            pStruct.nonwearAlgorithm = PAEnumParam('default','padaco','categories',{'padaco','choi','none'},'description','Nonwear classification algorithm');  
 
             usageState.longClassificationMinimumDurationOfMinutes=15;
             usageState.shortClassificationMinimumDurationOfMinutes = 5;
@@ -3964,7 +3628,6 @@ classdef PASensorData < PAData
             %            structType.bins = 'aggregate bins';
             structType.features = 'features';
         end
-
 
         function tagStruct = getActivityTags()
             tagStruct.ACTIVE = 35;

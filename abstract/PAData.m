@@ -7,6 +7,8 @@ classdef PAData < PABaseWithSettings
         %> @brief file formats
         exportFormat;
         
+        pathname;
+        filename;
         
         EXPORT_FORMATS = {'csv','xls','mat'};
     end
@@ -36,6 +38,54 @@ classdef PAData < PABaseWithSettings
             end
         end
         
+        
+        % ======================================================================
+        %> @brief Returns the filename, pathname, and full filename (pathname + filename) of
+        %> the file that the accelerometer data was loaded from.
+        %> @param obj Instance of PAClassifyCounts
+        %> @retval filename The short filename of the accelerometer data.
+        %> @retval pathname The pathname of the accelerometer data.
+        %> @retval fullFilename The full filename of the accelerometer data.
+        % =================================================================
+        function [filename,pathname,fullFilename] = getFilename(obj)
+            filename = obj.filename;
+            pathname = obj.pathname;
+            fullFilename = fullfile(obj.pathname,obj.filename);
+        end
+
+        % ======================================================================
+        %> @brief Sets the pathname and filename instance variables using
+        %> the input full filename.
+        %> @param obj Instance of PASensorData
+        %> @param fullfilename The full filenmae of the accelerometer data
+        %> that will be set
+        %> @retval success (T/F)
+        %> -true: if fullfilename exists and is instance variables are set
+        %> - false: otherwise
+        %> @note See also getFilename()
+        % =================================================================
+        function success = setFullFilename(obj,fullfilename)
+            if(exist(fullfilename,'file'))
+                [obj.pathname, basename,ext] = fileparts(fullfilename);
+                obj.filename = strcat(basename,ext);
+                success = true;
+            else
+                success = false;
+            end
+
+        end
+
+        % ======================================================================
+        %> @brief Returns the full filename (pathname + filename) of
+        %> the accelerometer data.
+        %> @param obj Instance of PASensorData
+        %> @retval fullFilename The full filenmae of the accelerometer data.
+        %> @note See also getFilename()
+        % =================================================================
+        function fullFilename = getFullFilename(obj)
+            [~,~,fullFilename] = obj.getFilename();
+        end
+
         % --------------------------------------------------------------------
         function exportPath = getExportPath(this)
             exportPath = this.exportPathname;
@@ -108,25 +158,6 @@ classdef PAData < PABaseWithSettings
     methods(Static)
         function settings = getDefaults()
             settings.exportPathname = PAPathParam('default',getSavePath(),'description','Export pathname');
-        end
-
-
-        %======================================================================
-        %> @brief Moving summer finite impulse response filter.
-        %> @param signal Vector of sample data to filter.
-        %> @param filterOrder filter order; number of taps in the filter
-        %> @retval summedSignal The filtered signal.
-        %> @note The filter delay is taken into account such that the
-        %> return signal is offset by half the delay.
-        %======================================================================
-        function summedSignal = movingSummer(signal, filterOrder)
-            delay = floor(filterOrder/2);
-            B = ones(filterOrder,1);
-            A = 1;
-            summedSignal = filter(B,A,signal);
-
-            %account for the delay...
-            summedSignal = [summedSignal((delay+1):end); zeros(delay,1)];
         end
 
 

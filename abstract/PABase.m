@@ -1,6 +1,6 @@
 classdef PABase < handle
     
-    properties(SetAccess=protected)
+    properties(Access=protected)
         handles;
         statusHandle;
         statusTimerH;

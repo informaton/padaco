@@ -2635,6 +2635,13 @@ classdef PASingleStudyController < PAViewController
         %> - @c featureFcnName
         %> - @c signalTagLine
         function pStruct = getDefaults()
+            
+            pStruct = PASensorData.getDefaults();
+            
+            pStruct.pathname = PAPathParam('default',getDocumentsPath(),'Description','Directory of accelerometer sensor data');
+            pStruct.filename = PAFilenameParam('default','','Description','Accelerometer filename','help','Name of file containing accelerometer data that is loaded.');
+
+            
             pStruct.yDir = PAEnumParam('default','normal','categories',{'normal','reverse'},'description','y-axis direction');  %or can be 'reverse'
             
             % Main appcontroller should handle screenshots ...
@@ -2652,8 +2659,6 @@ classdef PASingleStudyController < PAViewController
             end
             
             pStruct.outputPath = PAPathParam('default',outputPath,'description','Output save path');
-            pStruct.filter_inf_file = PAFilenameParam('default','filter.inf','description','Filter configuration file');
-            pStruct.database_inf_file = PAFilenameParam('default','database.inf','description','Database configuration file');
             
             [tagLines,~] = PASensorData.getDefaultTagLineLabels();
             featureStruct = PASensorData.getFeatureDescriptionStruct();
@@ -2661,9 +2666,6 @@ classdef PASingleStudyController < PAViewController
             
             pStruct.featureFcnName = PAEnumParam('default',featureFcnNames{1},'categories',featureFcnNames,'description','Feature function');
             pStruct.signalTagLine = PAEnumParam('default',tagLines{1},'categories',tagLines,'description','Axis');
-            
-            % pStruct.viewMode = PAEnumParam('default','timeseries','categories',{'timeseries','results'},'description','Current View');
-            
             
             %> @brief String representing the current type of display being used.
             %> Can be

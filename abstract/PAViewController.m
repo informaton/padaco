@@ -325,7 +325,9 @@ classdef(Abstract) PAViewController < PAFigureController
             obj.texthandle.studyinfo = obj.handles.text_studyinfo;
             
             obj.axeshandle.primary = obj.handles.axes_primary;
-            obj.axeshandle.secondary = obj.handles.axes_secondary;            
+            obj.axeshandle.secondary = obj.handles.axes_secondary; 
+            
+            obj.setStatusHandle(obj.handles.text_status);
         end        
         
         % --------------------------------------------------------------------

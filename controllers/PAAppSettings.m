@@ -274,7 +274,7 @@ classdef  PAAppSettings < PASettings
             
             
             % SingleStudy
-            x.filter_inf_file = 'Filter settings file';
+            % x.filter_inf_file = 'Filter settings file';
             x.database_inf_file = 'Database credentials file';
             x.loadOutcomesOnStartup = {'Load outcomes file on startup when present','[0], 1'};
             obj.dictionary = x;

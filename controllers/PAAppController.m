@@ -464,15 +464,14 @@ classdef PAAppController < PAFigureController
                 '*.bin','Raw Acceleration (binary format: firmwares 2.2.1, 2.5.0, and 3.1.0)';
                 '*.raw','Raw Acceleration (comma separated values)';
                 '*.gt3x','Raw GT3X binary'},...
-                'Select a file',fullfile(obj.AppSettings.SensorData.pathname,obj.AppSettings.SensorData.filename));
+                'Select a file',fullfile(obj.SingleStudy.getSetting('pathname'),obj.SingleStudy.getSetting('filename')));
             try
-                if(~isempty(f))
-                    
+                if(~isempty(f))                    
                     obj.showBusy('Loading','all');
                     obj.SingleStudy.disableWidgets();
                     [pathname,basename, baseext] = fileparts(f);
-                    obj.AppSettings.SensorData.pathname = pathname;
-                    obj.AppSettings.SensorData.filename = strcat(basename,baseext);
+                    obj.SingleStudy.setSetting('pathname', pathname);
+                    obj.SingleStudy.setSetting('filename', strcat(basename,baseext));
                     
                     obj.SensorData = PASensorData(f,obj.AppSettings.SensorData);
                     
@@ -480,8 +479,7 @@ classdef PAAppController < PAFigureController
                         obj.setViewMode('timeseries');  % Call initAccelDataView as well 
                     else
                         %initialize the PASensorData object's visual properties
-                        obj.initAccelDataView(); %calls show obj.SingleStudy.showReady() Ready...
-                        
+                        obj.initAccelDataView(); %calls show obj.SingleStudy.showReady() Ready...                        
                     end
                     
                     % For testing/debugging
@@ -1678,11 +1676,15 @@ classdef PAAppController < PAFigureController
             %> - @c timeseries
             %> - @c results
             
+            
             pStruct.viewMode = PAEnumParam('default','timeseries','categories',{'timeseries','results'},'description','Current View','help','String identifying Padaco''s current view mode.');
 
             %> Foldername of most recent screenshot.        
             pStruct.screenshotPathname = PAPathParam('default',getSavePath(),'description','Screenshot save path','help','Foldername of most recent screenshot');
             
+            
+            % pStruct.filter_inf_file = PAFilenameParam('default','filter.inf','description','Filter configuration file');
+            % pStruct.database_inf_file = PAFilenameParam('default','database.inf','description','Database configuration file');
             
             % batchSettings = PABatchTool.getDefaults();
             % pStruct.resultsPathname = batchSettings.outputDirectory;
