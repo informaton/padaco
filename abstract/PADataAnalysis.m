@@ -44,7 +44,7 @@ classdef PADataAnalysis < PAData
             summedSignal = [summedSignal((delay+1):end); zeros(delay,1)];
         end
 
-%% Analysis
+        %% Analysis
         % =================================================================
         %> @brief Removes periods of activity that are too short and groups
         %> nearby activity groups together.
@@ -96,8 +96,6 @@ classdef PADataAnalysis < PAData
                 vector(eventsStartStop(e,1):eventsStartStop(e,2))=true;
             end
         end
-
-
 
         %> @brief Returns start and stop pairs of the sample points where where line_in is
         %> greater (i.e. crosses) than threshold_line
@@ -192,6 +190,5 @@ classdef PADataAnalysis < PAData
                 studyID = baseName;
             end
         end
-
     end
 end

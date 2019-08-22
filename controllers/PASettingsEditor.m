@@ -112,7 +112,8 @@ classdef PASettingsEditor < PAFigureFcnController
                                 pathBtnProps.parent = parent;
                                 labelProps.String = '';
                                 yStart = 1-0.125/newH;
-                                labelProps.position = [0.05 yStart 0.475 0.075].*heightScale;
+                                labelProps.position = [0.05 yStart 0.5 0.075].*heightScale;
+                              %  labelProps.position = [0.05 yStart 0.425 0.075].*heightScale;
                                 
                                 yStart = 1-0.1/newH;
                                 valueProps.position = [0.5 yStart 0.45 0.05].*heightScale;
@@ -137,7 +138,7 @@ classdef PASettingsEditor < PAFigureFcnController
                                             case 'PAPathParam' %PAFilenameParam, PANumericParam, PAStringParam
                                                 uicontrol(labelProps);
                                                 labelProps.position  = nextLabelPosition;
-                                                
+                                                labelProps.position(3) = labelProps.position(3) - max(valueProps.position(1)-pathProps.position(1),0); % use less width to account for path edit box starting earlier (to the left)
                                                 pathProps.position(2) = valueProps.position(2);
                                                 valueProps.position = pathProps.position;
                                                 valueProps.String = param.value;
@@ -190,6 +191,11 @@ classdef PASettingsEditor < PAFigureFcnController
                                                 valueProps.String = num2str(param.value);
                                                 valueProps.style = 'edit';
                                         end
+                                        % use more or less width to account
+                                        % for widget starting earlier (to
+                                        % the left) or later (to the right)
+                                        labelProps.position(3) = labelProps.position(3) + (valueProps.position(1)-nextValuePropsPosition(1)); 
+                                        
                                         uicontrol(labelProps);
                                         uicontrol(valueProps);
                                         labelProps.position = nextLabelPosition;

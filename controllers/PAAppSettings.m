@@ -122,7 +122,7 @@ classdef  PAAppSettings < PASettings
                         
                         % This only updates tmpStruct with exact fields
                         % found in paramStruct and ...
-                        tmpStruct = mergeStructs(tmpStruct,paramStruct);
+                        tmpStruct = mergeStruct(tmpStruct,paramStruct);
                         
                         % ... filters to what we have member variables for
                         % in order to prevent bringing in any new tier-1 fields that may have
