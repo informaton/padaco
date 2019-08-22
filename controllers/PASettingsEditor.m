@@ -67,7 +67,9 @@ classdef PASettingsEditor < PAFigureFcnController
                                 numKeys = numel(keys);
                                 
                                 if(numKeys==0 || strcmpi(settingName,'SensorData'))
+                                    fprintf('skipping sensor data')
                                     break;
+                                    continue;
                                 end
                                 
                                 parent = uitab(this.handles.tabgroup,...
@@ -75,29 +77,38 @@ classdef PASettingsEditor < PAFigureFcnController
                                 
                                 % if we have too many keys to fit, then
                                 % need to place everything in a scrollable
-                                % panel.  
+                                % panel.
                                 yDelta = 0.08;
                                 % lowestY = 0.875 - yDelta*(numKeys-1)-yDelta;
                                 
-                                numIndexParams = sum(structfun(@(s)isa(s,'PAIndexParam'),setting));
-                                numVisibleKeys = numKeys - numIndexParams;
+                                numIndexParams =  sum(structfun(@(s)isa(s,'PAIndexParam'),setting));
+                                numStructParams = sum(structfun(@(s)isstruct(s),setting));
+                                numVisibleKeys = numKeys - (numIndexParams + numStructParams);
                                 
-                                lowestY = 0.875 - yDelta*(numVisibleKeys-0.5);
+                                lowestY = (1-0.125) - yDelta*(numVisibleKeys-1);
+
                                 heightScale = [1 1 1 1];
                                 scrollScale = [1 1 1 1];
+                                
                                 newH = 1;
                                 if( lowestY< 0) 
                                     %parent.Scrollable = 'on';
-                                    newH = 1+abs(lowestY);
-                                    heightScale = [1 1 1 1/newH];
-                                    scrollScale = [1 1/newH 1 1];
+                                    oldH = 1;
+                                    newH = oldH+abs(lowestY);
+                                    heightScale = [1 1 1 oldH/newH];
+                                    scrollScale = [1 oldH/newH 1 1];
                                     %parent.Scrollable = 'off';
-                                    hPanel = uipanel(parent,'bordertype','none','units','normalized',...
+                                    hPanel = uipanel(parent,'bordertype','etchedin','units','normalized',...
                                         'position',[0 lowestY 0.98 newH]);
                                     % hPanel.BorderType = 'etchedin';
                                   
                                     maxPos = -lowestY;
-                                    minPos = 0; 
+                                    if(maxPos<1)
+                                        minPos = maxPos - maxPos/newH;
+                                    else
+                                        minPos = 0;
+                                    end
+
                                     uicontrol('style','slider',...
                                         'callback',{@this.scrollPanelCb,hPanel},...
                                         'units','normalized','position',[0.98 0 0.02 1],...
@@ -113,7 +124,7 @@ classdef PASettingsEditor < PAFigureFcnController
                                 labelProps.String = '';
                                 yStart = 1-0.125/newH;
                                 labelProps.position = [0.05 yStart 0.5 0.075].*heightScale;
-                              %  labelProps.position = [0.05 yStart 0.425 0.075].*heightScale;
+                                % labelProps.position = [0.05 yStart 0.425 0.075].*heightScale;
                                 
                                 yStart = 1-0.1/newH;
                                 valueProps.position = [0.5 yStart 0.45 0.05].*heightScale;
@@ -127,6 +138,10 @@ classdef PASettingsEditor < PAFigureFcnController
                                 for k =1:numKeys
                                     try
                                         param = setting.(keys{k});
+                                        if(~isa(param,'PAParam'))
+                                            continue;
+                                        end
+                                            
                                         labelProps.String = param.description;
                                         valueProps.String = num2str(param.value);
                                         valueProps.userdata = param;
@@ -136,9 +151,9 @@ classdef PASettingsEditor < PAFigureFcnController
                                         
                                         switch(class(param))
                                             case 'PAPathParam' %PAFilenameParam, PANumericParam, PAStringParam
-                                                uicontrol(labelProps);
-                                                labelProps.position  = nextLabelPosition;
                                                 labelProps.position(3) = labelProps.position(3) - max(valueProps.position(1)-pathProps.position(1),0); % use less width to account for path edit box starting earlier (to the left)
+                                                uicontrol(labelProps);
+                                                
                                                 pathProps.position(2) = valueProps.position(2);
                                                 valueProps.position = pathProps.position;
                                                 valueProps.String = param.value;
@@ -157,7 +172,7 @@ classdef PASettingsEditor < PAFigureFcnController
                                                 % end, just before the
                                                 % continue.
                                                 valueProps.position = nextValuePropsPosition;
-
+                                                labelProps.position = nextLabelPosition;
                                                 continue;
                                             case 'PABoolParam'
                                                 boolProps.position(2) = valueProps.position(2);
