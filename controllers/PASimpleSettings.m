@@ -6,8 +6,8 @@ classdef PASimpleSettings < PASettings
        Settings;
    end
    properties(SetAccess=protected)
-       fieldNames = {'Settings'};
-       liteFieldNames = fieldNames;
+       fieldNames = {'Settings'}
+       liteFieldNames = {'Settings'}
    end
    
    methods

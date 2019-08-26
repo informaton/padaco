@@ -4305,7 +4305,9 @@ classdef PAStatTool < PAViewController
             paramStruct.showClusterSummary =    PABoolParam('default',false,'description','Show cluster summary');
             paramStruct.showAnalysisFigure =            PABoolParam('default',false,'description','Show analysis figure'); % do not display the other figure at first
                         
-            paramStruct.primaryAxis_yLimMode =          PACategoricalParam('default',categorical({'auto'},{'auto','manual'},'protected',true),'description','y-axis range');
+            paramStruct.primaryAxis_yLimMode =          PAEnumParam('default','auto','categories',{'auto','manual'},'description','y-axis range');
+                                                        % PACategoricalParam('default',categorical({'auto'},{'auto','manual'},'protected',true),'description','y-axis range');
+            
             paramStruct.primaryAxis_nextPlot =          PAEnumParam('default','replace','categories',{{'replace','hold'}},'description','Next plot');
             
             % plots clusters id's (sorted by membership in ascending order) on x-axis
