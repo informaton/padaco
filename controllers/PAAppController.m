@@ -12,6 +12,12 @@ classdef PAAppController < PAFigureController
        StatToolCreationFailure;
     end
     
+    % Mac OSX menubar = 21 pixels (I think)
+    % Figue top part is 22 pixels
+    % Toolbar height is 28 pixels on mac
+    % Menubar height is 23 pixels on mac
+    
+    
     properties(Constant)
         versionMatFilename = 'version.chk';
     end
@@ -1089,9 +1095,22 @@ classdef PAAppController < PAFigureController
         end
         
         function initResize(obj)
+            outerPos = obj.figureH.OuterPosition;
+            figPos = obj.figureH.Position;
+            
+            % screenSz = get(0,'screensize');
+            
+            % Do we have a screensizing issue?
+            if(outerPos(2)<0)
+                figPos(4) = figPos(4)+outerPos(2)-1;
+                figPos(2) = 1;
+                set(obj.figureH,'position',figPos);                
+            end
+            
             set(obj.figureH,'Resize','on',...
                 'SizeChangedFcn',@obj.resizeFigCb);
                      
+            
             hoi = {'figure_padaco';
                 'text_status';
                 'panel_timeseries';'panel_results';'axes_primary';'text_clusterResultsOverlay';
