@@ -1159,7 +1159,7 @@ classdef PAStatTool < PAViewController
             didInit = false;
             try
                 if(this.useDatabase)
-                    this.databaseObj = feval(this.originalSettings.databaseClass);
+                    this.databaseObj = feval(this.originalSettings.databaseClass.value);
                     this.profileFields = this.databaseObj.getColumnNames('subjectInfo_t');
                     didInit = true;
                 else
