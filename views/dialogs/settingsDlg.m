@@ -6,7 +6,8 @@ w = 580;
 
 position = [0 0 w h];
 figH = figure('visible','off','name','Settings','position',position,...
-    'menubar','none','toolbar','none','numbertitle','off',varargin{:});
+    'menubar','none','toolbar','none','numbertitle','off',...
+    'CreateFcn',{@movegui,'centern'},varargin{:});
 tabGroupH = uitabgroup('parent',figH,'units','normalized',...
     'position',[0.0125 0.15 0.975 0.825],'tag','tabgroup');
 % tabs = {'Name 1','Tab 2','Tab 3'};
@@ -39,7 +40,8 @@ btnProps.string = 'Confirm';
 btnProps.tag = 'push_apply';
 uicontrol(btnProps);
 
-movegui('center');
+movegui(figH, 'center');
+
 % set(figH,'visible','on');
 % figH = figure('name','Settings');
 % tbG=uitabgroup(figH,'units','normalized','position',[0.0125 0.15 0.975 0.825]);

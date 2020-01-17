@@ -13,7 +13,7 @@ function mPathname = pathsetup(mPathname)
         end
         
         try
-           addpath(fullfile(mPathname,'../matlab/models'));
+           %addpath(fullfile(mPathname,'../matlab/stats/models'));
            addpath(fullfile(mPathname,'../matlab/gee'));           
         catch me
             showME(me);

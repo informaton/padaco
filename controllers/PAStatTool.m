@@ -447,23 +447,24 @@ classdef PAStatTool < PAViewController
         %             paramStruct.bootstrapSampleName = this.bootstrapSampleName;
         %         end
         
-        function loadSettings(obj, settingsFilename)
-            if(nargin<2 || ~exist(settingsFilename,'file'))
-                path2check = obj.getExportPath();
-                filename=uigetfullfile({'*.txt;*.exp','All Settings Files';
-                    '*.exp','Export Settings'},...
-                    'Select a settings file',path2check);
-                try
-                    if(~isempty(filename))
-                        this.settings = PASettings.loadParametersFromFile(filename);
-                        this.settings = mergeStruct(obj.getDefaults(),this.settings);
-                        obj.setWidgetSettings(this.settings);
-                    end
-                catch me
-                    showME(me);
-                end
-            end
-        end
+        % Don't know that this is used anymore ... @hm 1/16/2020
+        %         function loadSettings(obj, settingsFilename)
+        %             if(nargin<2 || ~exist(settingsFilename,'file'))
+        %                 path2check = obj.getExportPath();
+        %                 filename=uigetfullfile({'*.txt;*.exp','All Settings Files';
+        %                     '*.exp','Export Settings'},...
+        %                     'Select a settings file',path2check);
+        %                 try
+        %                     if(~isempty(filename))
+        %                         this.settings = PASettings.loadParametersFromFile(filename);
+        %                         this.settings = mergeStruct(obj.getDefaults(),this.settings);
+        %                         obj.setWidgetSettings(this.settings);
+        %                     end
+        %                 catch me
+        %                     showME(me);
+        %                 end
+        %             end
+        %         end
         
         function updateOriginalWidgetSettings(this, updatedSettings)
             % Updating original widget settings like ensures that the
@@ -2788,19 +2789,19 @@ classdef PAStatTool < PAViewController
 
             bootSettings = struct();
             defaultSettings = struct();
-            defaults  = this.getDefaulParameters();
+            defaults  = this.getDefaults();
             for f=1:numel(this.bootstrapParamNames)
                 pName = this.bootstrapParamNames{f};
                 bootSettings.(pName) = this.(pName);
                 defaultSettings.(pName) = defaults.(pName);
             end
-            bootSettings = PASimpleEditor(bootSettings, defaultSettings);
+            bootSettings = PASimpleSettings(bootSettings, defaultSettings);
             if(~isempty(bootSettings))
                 % update the parameters for next time and for use in the
                 % upcoming bootstrap call
                 for f=1:numel(this.bootstrapParamNames)
                     pName = this.bootstrapParamNames{f};
-                    this.(pName) = bootSettings.(pName);
+                    this.(pName) = bootSettings.ouputStruct.(pName);
                 end
                 this.bootstrap();                
             end

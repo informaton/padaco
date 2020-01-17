@@ -12,7 +12,9 @@ classdef(Abstract) PAFigureFcnController <PAFigureController
     methods(Access=protected)
         function didSet = setFigureHandle(obj, figHandle)
             if(nargin<2 || isempty(figHandle))
-                figHandle = obj.figureFcn('visible','off','name','','numbertitle','off','sizechangedfcn',[]);
+                figHandle = obj.figureFcn('visible','off',...
+                    'numbertitle','off','sizechangedfcn',[],...
+                    'CreateFcn',{@movegui,'northwest'});
             end
             didSet = setFigureHandle@PAFigureController(obj,figHandle);
         end

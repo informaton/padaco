@@ -210,7 +210,7 @@ classdef PAAppController < PAFigureController
             safeset(figHandles,'menu_file_about','callback',@obj.menuFileAboutCallback);
             safeset(figHandles,'menu_file_settings_application','callback',@obj.menuFileSettingsApplicationCallback);
             safeset(figHandles,'menu_file_settings_usageRules','callback',@obj.menuFileSettingsUsageRulesCallback);
-            safeset(figHandles,'menu_load_settings','callback',@obj.loadSettingsCb);
+            safeset(figHandles,'menu_load_settings','callback',@obj.menuFileLoadSettingsCb);
             
             %  open
             safeset(figHandles,'menu_file_open','callback',@obj.menuFileOpenCallback);
@@ -452,9 +452,12 @@ classdef PAAppController < PAFigureController
             end
         end 
         
-        function loadSettingsCb(obj, varargin)
-            obj.StatTool.loadSettings();
+        function menuFileLoadSettingsCb(obj, varargin)
+            
         end
+        %function loadSettingsCb(obj, varargin)
+        %    obj.StatTool.loadSettings();
+        % end
         
         % --------------------------------------------------------------------
         %> @brief Menubar callback for opening a file.
