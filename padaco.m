@@ -2,7 +2,7 @@ function padaco()
     mPathname = pathsetup();
     hObject = padacoFig('visible','off');    
     try
-        parametersFile = '_padaco.parameters.txt';
+        parametersFile = PASettings.parameters_filename; % .pasettings now '_padaco.parameters.txt';
         PAAppController(hObject,mPathname,parametersFile);
     catch me
         showME(me);

@@ -78,8 +78,8 @@ classdef PAAppController < PAFigureController
             obj@PAFigureController(hFigure);
             obj.rootpathname = rootPathname;
             %check to see if a settings file exists
-            if(nargin<3)
-                parameters_filename = '_padaco.parameters.txt';
+            if(nargin<3)                
+                parameters_filename = PASettings.parameters_filename; % '.pasettings'
             end
             
             configPath = getSavePath();
@@ -453,6 +453,7 @@ classdef PAAppController < PAFigureController
         end 
         
         function menuFileLoadSettingsCb(obj, varargin)
+            obj.logStatus('Goes here');
             
         end
         %function loadSettingsCb(obj, varargin)

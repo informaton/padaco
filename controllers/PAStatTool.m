@@ -429,7 +429,7 @@ classdef PAStatTool < PAViewController
         %             paramStruct = this.getPlotSettings();
         %
         %             paramStruct.exportShowNonwear = this.originalSettings.exportShowNonwear;
-        %             paramStruct.exportPathname = this.originalWidgetSettings.exportPathname;
+        %             paramStruct.exportPathname = this.originalSettings.exportPathname;
         %
         %             % These parameters not stored in figure widgets
         %             paramStruct.useDatabase = this.useDatabase;
@@ -438,7 +438,7 @@ classdef PAStatTool < PAViewController
         %             % paramStruct.minDaysAllowed =    this.minNumDaysAllowed;  % Remove after 4/26/2019 @hyatt if no bugs
         %             paramStruct.minNumDaysAllowed = this.minNumDaysAllowed;
         %             paramStruct.maxNumDaysAllowed = this.maxNumDaysAllowed;
-        %             paramStruct.databaseClass = this.originalWidgetSettings.databaseClass;
+        %             paramStruct.databaseClass = this.originalSettings.databaseClass;
         %
         %             paramStruct.useCache = this.useCache;
         %             paramStruct.cacheDirectory = this.cacheDirectory;
@@ -450,7 +450,7 @@ classdef PAStatTool < PAViewController
         % Don't know that this is used anymore ... @hm 1/16/2020
         %         function loadSettings(obj, settingsFilename)
         %             if(nargin<2 || ~exist(settingsFilename,'file'))
-        %                 path2check = obj.getExportPath();
+        %                 path2check = getSavePath();
         %                 filename=uigetfullfile({'*.txt;*.exp','All Settings Files';
         %                     '*.exp','Export Settings'},...
         %                     'Select a settings file',path2check);
@@ -473,12 +473,12 @@ classdef PAStatTool < PAViewController
             % results, where a cluster exists and may have been loaded already,
             % but the settings have not been updated in this class yet.
             this.originalSettings = mergeStruct(this.originalSettings,updatedSettings); % keep a record of our most recent settings.
-            this.setWidgetSettings(this.originalWidgetSettings);
+            this.setWidgetSettings(this.originalSettings);
         end
         
         % ======================================================================
         %> @brief Sets the widget settings.  In particular, set the
-        %> originalWidgetSettings property to the input struct.
+        %> originalSettings property to the input struct.
         %> @param this Instance of PAStatTool
         %> @param Struct of settings for the Stat tool.  Should conform to
         %> getDefaults
@@ -519,12 +519,12 @@ classdef PAStatTool < PAViewController
         %> @retval Selection value for the menu_clusterStopTime menu.
         % ======================================================================
         function [startTimeSelection, stopTimeSelection ] = setStartTimes(this,startTimeCellStr)
-            if(~isempty(this.originalWidgetSettings))
-                stopTimeSelection = this.originalWidgetSettings.stopTimeSelection;
+            if(~isempty(this.originalSettings))
+                stopTimeSelection = this.originalSettings.stopTimeSelection;
                 if(stopTimeSelection<=0 || stopTimeSelection == 1)
                     stopTimeSelection = numel(startTimeCellStr);
                 end
-                startTimeSelection = this.originalWidgetSettings.startTimeSelection;
+                startTimeSelection = this.originalSettings.startTimeSelection;
                 if(startTimeSelection>numel(startTimeCellStr) || stopTimeSelection>numel(startTimeCellStr))
                     startTimeSelection = 1;
                     stopTimeSelection = numel(startTimeCellStr);                
@@ -1159,7 +1159,7 @@ classdef PAStatTool < PAViewController
             didInit = false;
             try
                 if(this.useDatabase)
-                    this.databaseObj = feval(this.originalWidgetSettings.databaseClass);
+                    this.databaseObj = feval(this.originalSettings.databaseClass);
                     this.profileFields = this.databaseObj.getColumnNames('subjectInfo_t');
                     didInit = true;
                 else
@@ -3141,7 +3141,7 @@ classdef PAStatTool < PAViewController
         % Original widget settings from when the last cluster calculation
         % was performed.
         function widgetState = getStateAtTimeOfLastClustering(this)
-            widgetState = this.originalWidgetSettings;            
+            widgetState = this.originalSettings;            
         end
         
         function drawClusterXTicksAndLabels(this)
@@ -3270,7 +3270,7 @@ classdef PAStatTool < PAViewController
             % I don't think this does anything anymore @hyatt 5/11/2017
             %             this.handles.contextmenu.showMenu = uimenu(contextmenu_primaryAxes,'Label','Show'); %,'callback',@this.primaryAxesClusterSummaryContextmenuCallback);
             %
-            %             % Possibly use this.originalWidgetSettings.
+            %             % Possibly use this.originalSettings.
             %             if(this.originalSettings.get('showClusterSummary)
             %                 checkedState = 'on';
             %             else

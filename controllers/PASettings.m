@@ -1,5 +1,5 @@
 %> @file PAsettings.cpp
-%> @brief PAsettings Control user settings and preferences of Padaco toolbox.
+%> @brief PASettings Control user settings and preferences of Padaco toolbox.
 % ======================================================================
 %> @brief PASettings used by Padaco to initialize, store, and update
 %> user preferences.  The class is designed for storage and manipulation of
@@ -13,6 +13,11 @@ classdef  PASettings < handle
     %  - b.  Save settings - X
     %  - c.  Interface for editing the settings
     
+    properties(Constant)
+        %> @brief name of text file that stores the toolkit's settings
+        parameters_filename = '.pasettings';
+    end
+    
     properties(Abstract, SetAccess = protected)
         fieldNames;
         liteFieldNames;
@@ -25,8 +30,6 @@ classdef  PASettings < handle
         % and don't want to set to the current working directory.
         rootpathname = ''; 
         
-        %> @brief name of text file that stores the toolkit's settings
-        parameters_filename = 'pasettings.txt';
     end
     
     methods(Abstract)
@@ -186,7 +189,10 @@ classdef  PASettings < handle
             end
             for p=1:numel(props)
                 pname = props{p};
-                copyObj.(pname) = obj.(pname);
+                prop = obj.findprop(pname);
+                if isa(prop, 'meta.property') && ~strcmpi(prop.SetAccess, 'none')
+                    copyObj.(pname) = obj.(pname);
+                end
             end
         end
     end

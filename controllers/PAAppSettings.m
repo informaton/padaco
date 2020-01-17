@@ -126,7 +126,7 @@ classdef  PAAppSettings < PASettings
                         
                         % ... filters to what we have member variables for
                         % in order to prevent bringing in any new tier-1 fields that may have
-                        % existed independtly in the paramStruct.                        
+                        % existed independently in the paramStruct.                        
                         for f=1:numel(fnames)
                             if(isprop(obj,fnames{f}))
                                 tmpValue = tmpStruct.(fnames{f});

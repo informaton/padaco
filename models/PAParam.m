@@ -34,6 +34,9 @@ classdef PAParam < handle
         end
         
         function canIt = canSetValue(this, value2set)
+            if(strcmpi(this.type,'logical'))
+                value2set = value2set~=0; % force logical type since MATLAB does not consider numeric 1 and 0 as logical 
+            end
             canIt = isa(value2set,this.type);
         end
         
