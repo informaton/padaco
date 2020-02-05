@@ -90,12 +90,14 @@ classdef PASensorData < PAData
 
         
         % These have to do with how the data is VIEWed.
-        label;
-        color;
-        offset;
-        scale;
-        visible;
-        yDelta;
+        % and have been refactored under 'settings' property
+        %         label;
+        %         color;
+        %         offset;
+        %         scale;
+        %         visible;
+        %
+        %         yDelta;
 
         %> @brief Identifier (string) for the file data that was loaded.
         %> @note See getStudyIDFromBasename()
@@ -239,6 +241,25 @@ classdef PASensorData < PAData
 %                 end
 %             end
 %         end
+
+        function didSet = setSettings(this, inputSettings)
+            didSet = false;
+            if(setSettings@PAData(this, inputSettings))
+                fnames = fieldnames(inputSettings);
+                for f= 1:numel(fnames)
+                    fname = fnames{f};
+                    value = inputSettings.(fname);
+                    if isprop(this, fname)
+                        if( isa(value,'PAParam'))
+                            this.(fname) = inputSettings.(fname).value;
+                        else
+                            this.(fname) = inputSettings.(fname);
+                        end
+                    end
+                end
+                didSet = true;
+            end
+        end
         
         function hasIt = hasData(obj)
             hasIt = obj.hasCounts||obj.hasRaw;
@@ -700,7 +721,7 @@ classdef PASensorData < PAData
         %> @retval visibileStruct A struct of obj's visible field values
         % --------------------------------------------------------------------
         function visibleOut = getVisible(obj,varargin)
-            visibleOut = obj.getProperty('visible',varargin{:});
+            visibleOut = obj.getSetting('visible',varargin{:});
         end
 
         % --------------------------------------------------------------------
@@ -720,7 +741,7 @@ classdef PASensorData < PAData
         %> @li 1x3 RGB color matrix.
         % --------------------------------------------------------------------
         function colorOut = getColor(obj,varargin)
-            colorOut = obj.getProperty('color',varargin{:});
+            colorOut = obj.getSetting('color',varargin{:});
         end
 
         % --------------------------------------------------------------------
@@ -735,7 +756,7 @@ classdef PASensorData < PAData
         %> fields of obj.scale.
         % --------------------------------------------------------------------
         function scaleOut = getScale(obj,varargin)
-            scaleOut = obj.getProperty('scale',varargin{:});
+            scaleOut = obj.getSetting('scale',varargin{:});
         end
 
         % --------------------------------------------------------------------
@@ -750,7 +771,7 @@ classdef PASensorData < PAData
         %> fields of obj.offset.
         % --------------------------------------------------------------------
         function offsetOut = getOffset(obj,varargin)
-            offsetOut = obj.getProperty('offset',varargin{:});
+            offsetOut = obj.getSetting('offset',varargin{:});
         end
 
         % --------------------------------------------------------------------
@@ -765,7 +786,7 @@ classdef PASensorData < PAData
         %> fields of obj.label.
         % --------------------------------------------------------------------
         function labelOut = getLabel(obj,varargin)
-            labelOut = obj.getProperty('label',varargin{:});
+            labelOut = obj.getSetting('label',varargin{:});
         end
 
         % --------------------------------------------------------------------
@@ -780,28 +801,31 @@ classdef PASensorData < PAData
         %> @li String with tag line of line handle to obtain
         %> color of.  Example 'timeSeries.accel.count.z'
         %> @retval propOut Depends on structType parameter.
-        %> @li A struct of property values correspodning to the time series
+        %> @li A struct of property values corresponding to the time series
         %> fields of obj.(propToGet).
         %> @li The property value corresponding to obj.(propToGet).(structTypeOrTag)
-        function propOut = getProperty(obj,propToGet,structTypeOrTag)
+        function value = getSetting(obj,fieldToGet,structTypeOrTag)
             if(nargin<3)
                 structTypeOrTag = [];
             end
             if(any(structTypeOrTag=='.'))
-                propOut = eval(sprintf('obj.%s.%s',propToGet,structTypeOrTag));
-                if(isstruct(propOut))
-                    fields = fieldnames(propOut);
+                value = eval(sprintf('obj.settings.%s.%s',fieldToGet,structTypeOrTag));
+                if(isstruct(value))
+                    fields = fieldnames(value);
                     % should only be one value
                     if(numel(fields)==1)
-                        propToGet = fields{1};
+                        fieldToGet = fields{1};
                     end
                     % otherwise, default to the original propToGet for the
                     % field name to retrieve.
-                    propOut = propOut.(propToGet);
+                    value = value.(fieldToGet);
                 end
 
             else
-                propOut = obj.getPropertyStruct(propToGet,structTypeOrTag);
+                value = obj.getSettingStruct(fieldToGet,structTypeOrTag);
+            end
+            if(isa(value, 'PAParam'))
+                value = value.value;
             end
         end
 
@@ -844,13 +868,11 @@ classdef PASensorData < PAData
         %> @li @c bins
         %> @retval visibileStruct A struct of obj's visible field values
         % --------------------------------------------------------------------
-        function propertyStruct = getPropertyStruct(obj,propertyName,structType)
+        function propertyStruct = getSettingStruct(obj,fieldName,structType)
             if(nargin<3 || isempty(structType))
-                propertyStruct = obj.(propertyName);
+                propertyStruct = obj.settings.(fieldName);
             else
-
-                propertyStruct = obj.(propertyName).(structType);
-
+                propertyStruct = obj.settings.(fieldName).(structType);
             end
         end
 
@@ -893,7 +915,7 @@ classdef PASensorData < PAData
         function varargout = setScale(obj,fieldName,newScale)
             evtData = LinePropertyChanged_EventData(fieldName,'scale',newScale,obj.getScale(fieldName));
 
-            eval(['obj.scale.',fieldName,' = ',num2str(newScale),';']);
+            eval(['obj.scale.',fieldName,'.scale = ',num2str(newScale),';']);
             if(nargout>0)
                 varargout = cell(1,nargout);
             end
@@ -948,7 +970,7 @@ classdef PASensorData < PAData
         function varargout = setVisible(obj,fieldName,newVisibilityStr)
             if(strcmpi(newVisibilityStr,'on')||strcmpi(newVisibilityStr,'off'))
                 evtData = LinePropertyChanged_EventData(fieldName,'visible',newVisibilityStr,obj.getVisible(fieldName));
-                eval(['obj.visible.',fieldName,'.visible = ''',newVisibilityStr,''';']);
+                eval(['obj.settings.visible.',fieldName,'.visible = ''',newVisibilityStr,''';']);
                 obj.notify('LinePropertyChanged',evtData);
             else
                 fprintf('An invaled argument was passed for the visibility (i.e. visible) parameter.  (%s)\n',newVisibilityStr);
@@ -968,7 +990,7 @@ classdef PASensorData < PAData
         %> to.
         % --------------------------------------------------------------------
         function varargout = setProperty(obj,propertyName,fieldName,propertyValueStr)
-            eval(['obj.',propertyName,'.',fieldName,'.propertyName = ',propertyValueStr,';']);
+            eval(['obj.',propertyName,'.',fieldName,'.',propertyName,' = ',propertyValueStr,';']);
             
             % Not sure about the [] argument here.  Untested @hyatt4
             % 8/4/2019
@@ -1020,7 +1042,7 @@ classdef PASensorData < PAData
         %> @retval yLim 1x2 vector containing ymin and ymax.
         % ======================================================================
         function yLim = getDisplayMinMax(obj)
-            yLim = [0, 20 ]*obj.yDelta;
+            yLim = [0, 20 ]*obj.settings.yDelta;
         end
 
         % ======================================================================
@@ -1423,7 +1445,8 @@ classdef PASensorData < PAData
                     obj.accelType = 'raw';
                     % I think everything is inivislbe at this point
                     % already.  
-                    %                     obj.setVisible('timeSeries.lux','off');
+                    %                     obj.
+                    e('timeSeries.lux','off');
                     %                     obj.setVisible('timeSeries.steps','off');
                     %                     obj.setVisible('timeSeries.inclinometer.standing','off');
                     %                     obj.setVisible('timeSeries.inclinometer.sitting','off');
@@ -2496,26 +2519,35 @@ classdef PASensorData < PAData
         %> - @c frameDurMin
         %> - @c frameDurHour
         function pStruct = getSaveParameters(obj)
-            fields= {'curWindow';
-                'pathname';
-                'filename';
-                'windowDurSec';
-                'aggregateDurMin';
-                'frameDurMin';
-                'frameDurHour';
-                'scale';
-                'label';
-                'offset';
-                'color';
-                'yDelta';
-                'visible'
-                'usageStateRules'
-                };
-            %            fields = fieldnames(obj.getDefaults());
-            pStruct = struct();
-            for f=1:numel(fields)
-                pStruct.(fields{f}) = obj.(fields{f});
-            end
+            % Why not just use .settings property now?
+            pStruct = obj.settings;
+            
+            % Answer:  At the moment, obj.settings does not include 
+            % - pathname
+            % - filename
+            pStruct.filename = obj.filename;
+            pStruct.pathname = obj.pathname;
+            
+            %             fields= {'curWindow';
+            %                 'pathname';
+            %                 'filename';
+            %                 'windowDurSec';
+            %                 'aggregateDurMin';
+            %                 'frameDurMin';
+            %                 'frameDurHour';
+            %                 'scale';
+            %                 'label';
+            %                 'offset';
+            %                 'color';
+            %                 'yDelta';
+            %                 'visible'
+            %                 'usageStateRules'
+            %                 };
+            %             %            fields = fieldnames(obj.getDefaults());
+            %             pStruct = struct();
+            %             for f=1:numel(fields)
+            %                 pStruct.(fields{f}) = obj.(fields{f});
+            %             end
         end
 
     end
@@ -2945,9 +2977,7 @@ classdef PASensorData < PAData
                     fileHeader = [];
                 end
             end
-
         end
-
 
         % ======================================================================
         %> @brief Parses the information found in input file name and returns
@@ -2986,8 +3016,6 @@ classdef PASensorData < PAData
                 firmware ='';
             end
         end
-
-
         
         % =================================================================
         %> @brief Calculates a feature vector for the provided data and feature function.
@@ -3034,7 +3062,6 @@ classdef PASensorData < PAData
                     Mx1_featureVector = [];
                     fprintf(1,'Unknown method (%s)\n',featureFcn);
             end
-
         end
 
         function featureFcn = getFeatureFcn(functionName)
@@ -3061,11 +3088,7 @@ classdef PASensorData < PAData
                     featureFcn = @(x)x';
                     fprintf(1,'Unknown method (%s)\n',featureFcn);
             end
-
-
         end
-
-
 
         %% Interface (can be moved to a controller class)
         %======================================================================
@@ -3114,7 +3137,6 @@ classdef PASensorData < PAData
 
         % Default custom format struct
         function fmtStruct = getDefaultCustomFmtStruct()
-
              fmtStruct.datetime = 1;
              fmtStruct.datetimeType = 'elapsed'; %datetime
              fmtStruct.datetimeFmtStr = '%f';
@@ -3124,7 +3146,6 @@ classdef PASensorData < PAData
              fmtStruct.fieldOrder = {'datetime','x','y','z'};
              fmtStruct.headerLines = 1;
              fmtStruct.delimiter = ',';
-
         end
 
         % ======================================================================
@@ -3216,18 +3237,17 @@ classdef PASensorData < PAData
                 end
 
                 pStruct.scale.features.(curFeature) = scaleVal;
-                pStruct.label.features.(curFeature).string = curDescription;
+                pStruct.label.features.(curFeature) = curDescription;
                 %                pStruct.label.features.(curFeature).position = [0 0 0];
-                pStruct.color.features.(curFeature).color = curColor;
-                pStruct.visible.features.(curFeature).visible = 'on';
-
+                pStruct.color.features.(curFeature) = curColor;
+                pStruct.visible.features.(curFeature) = 'on';
             end
-
 
             %Default is everything to be visible
             timeSeriesStruct = PASensorData.getDummyStruct('timeSeries');
-            visibleProp.visible = 'on';
-            pStruct.visible.timeSeries = overwriteEmptyStruct(timeSeriesStruct,visibleProp);
+            %visibleProp.visible = 'on';
+            visibility = 'on';
+            pStruct.visible.timeSeries = overwriteEmptyStruct(timeSeriesStruct,visibility);
 
             % yDelta = 1/20 of the vertical screen space (i.e. 20 can fit)
             pStruct.offset.timeSeries.accel.raw.x = pStruct.yDelta*1;
@@ -3246,20 +3266,20 @@ classdef PASensorData < PAData
             pStruct.offset.timeSeries.inclinometer.off = pStruct.yDelta*16.75;
 
 
-            pStruct.color.timeSeries.accel.raw.x.color = 'r';
-            pStruct.color.timeSeries.accel.raw.y.color = 'g';
-            pStruct.color.timeSeries.accel.raw.z.color = 'b';
-            pStruct.color.timeSeries.accel.raw.vecMag.color = 'k';
-            pStruct.color.timeSeries.accel.count.x.color = 'r';
-            pStruct.color.timeSeries.accel.count.y.color = 'g';
-            pStruct.color.timeSeries.accel.count.z.color = 'b';
-            pStruct.color.timeSeries.accel.count.vecMag.color = 'k';
-            pStruct.color.timeSeries.steps.color = 'm'; %[1 0.5 0.5];
-            pStruct.color.timeSeries.lux.color = 'y';
-            pStruct.color.timeSeries.inclinometer.standing.color = 'k';
-            pStruct.color.timeSeries.inclinometer.lying.color = 'k';
-            pStruct.color.timeSeries.inclinometer.sitting.color = 'k';
-            pStruct.color.timeSeries.inclinometer.off.color = 'k';
+            pStruct.color.timeSeries.accel.raw.x = 'r';
+            pStruct.color.timeSeries.accel.raw.y = 'g';
+            pStruct.color.timeSeries.accel.raw.z = 'b';
+            pStruct.color.timeSeries.accel.raw.vecMag = 'k';
+            pStruct.color.timeSeries.accel.count.x = 'r';
+            pStruct.color.timeSeries.accel.count.y = 'g';
+            pStruct.color.timeSeries.accel.count.z = 'b';
+            pStruct.color.timeSeries.accel.count.vecMag = 'k';
+            pStruct.color.timeSeries.steps = 'm'; %[1 0.5 0.5];
+            pStruct.color.timeSeries.lux = 'y';
+            pStruct.color.timeSeries.inclinometer.standing = 'k';
+            pStruct.color.timeSeries.inclinometer.lying = 'k';
+            pStruct.color.timeSeries.inclinometer.sitting = 'k';
+            pStruct.color.timeSeries.inclinometer.off = 'k';
 
             % Scale to show at
             % Increased scale used for raw acceleration data so that it can be
@@ -3281,7 +3301,7 @@ classdef PASensorData < PAData
 
             [tagLines, labels] = PASensorData.getDefaultTagLineLabels();
             for t=1:numel(tagLines)
-                eval(['pStruct.label.timeSeries.',tagLines{t},'.string = ''',labels{t},''';']);
+                eval(['pStruct.label.timeSeries.',tagLines{t},' = ''',labels{t},''';']);
             end
 
             %            pStruct.label.timeSeries.accel.raw.x.string = 'X_R_A_W';

@@ -42,7 +42,7 @@ classdef PABase < handle
         end
         
         function logWarning(obj,fmtStr, varargin)
-            obj.logError(fmtStr, [], varargin{:});
+            obj.logError([], fmtStr, varargin{:});
         end
         
         function logError(obj, me, fmtStr, varargin)

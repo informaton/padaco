@@ -30,10 +30,10 @@ classdef PASensorDataLineSettings < handle
             this.figureH = this.figureFcn('visible','off');
             set(this.figureH,'visible','on');
             this.handles = guidata(this.figureH);
-            if(nargin<2 || ~isa(dataObjIn,'PASensorData') || ~any(strcmpi(viewSelection,fieldnames(dataObjIn.label))))
+            if(nargin<2 || ~isa(dataObjIn,'PASensorData') || ~any(strcmpi(viewSelection,fieldnames(dataObjIn.settings.label))))
                 
             else
-                viewSelections = fieldnames(dataObjIn.label); % have to watch out for cases where view selection comes in as 'timeseries' and field name is actually 'timeSeries'
+                viewSelections = fieldnames(dataObjIn.settings.label); % have to watch out for cases where view selection comes in as 'timeseries' and field name is actually 'timeSeries'
                 this.viewSelection = viewSelections{strcmpi(viewSelections,viewSelection)};
                 this.dataObj = dataObjIn;
                 this.buildRows(lineHandles);
@@ -45,7 +45,7 @@ classdef PASensorDataLineSettings < handle
         
         function numLines = getNumLines(this, structIn)
             if(nargin<2)
-                numLines = this.getNumLines(this.dataObj.label.(this.viewSelection));
+                numLines = this.getNumLines(this.dataObj.settings.label.(this.viewSelection));
             else
                 if(isstruct(structIn))
                     numLines = 0;

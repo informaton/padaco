@@ -30,7 +30,11 @@ classdef PABaseWithSettings < PABase
                 if(isempty(inputSettings))
                     inputSettings = defaultSettings;
                 else
-                    inputSettings = mergeStruct(defaultSettings,inputSettings);
+                    try
+                        inputSettings = mergeStruct(defaultSettings,inputSettings);
+                    catch me
+                        obj.logError(me,'There was an error trying to use previously saved settings.  Using default settings instead.');
+                    end
                 end
                 this.setSettings(inputSettings);
             end

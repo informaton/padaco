@@ -17,8 +17,6 @@ classdef PAClassifyCounts < PADataAnalysis
         
         %> @brief Mode of usage state vector (i.e. taken from getUsageActivity) for current frame rate.
         usageFrames;
-
-
     end
 
     methods
@@ -85,6 +83,7 @@ classdef PAClassifyCounts < PADataAnalysis
         % ======================================================================
         function [usageVec, wearState, startStopDateNums] = classifyUsageState(obj, countActivity, datetimeNums, usageStateRules)
 
+           
             % By default activity determined from vector magnitude signal
             if(nargin<2 || isempty(countActivity))
                 countActivity = obj.dataVec;
@@ -97,7 +96,7 @@ classdef PAClassifyCounts < PADataAnalysis
                 obj.setUsageClassificationRules(usageStateRules);
             end
 
-            usageStateRules = obj.usageClassificationRules();
+            usageStateRules = obj.settings;
                                         
             tagStruct = obj.getActivityTags();
 
@@ -189,15 +188,19 @@ classdef PAClassifyCounts < PADataAnalysis
 
             nonwearVec = obj.unrollEvents(nonwear_events,numel(usageVec));
 
+            % Akin to obj.getDurationSamples() or obj.durSamples -> see
+            % PASensorData.m
+            numSamples = numel(datetimeNums);
+             
             % Round the study over events to the end of the study if it is
             % within 4 hours of the end of the study.
             % --- Otherwise, should I remove all study over events, because
             % the study is clearly not over then (i.e. there is more
             % activity being presented).
             if(~isempty(studyover_events))
-                diff_hours = (obj.getDurationSamples()-studyover_events(end))/samplesPerHour; %      obj.getSampleRate()/3600;
+                diff_hours = (numSamples-studyover_events(end))/samplesPerHour; %      obj.getSampleRate()/3600;
                 if(diff_hours<=usageStateRules.mergeWithinHoursForStudyOver)
-                    studyover_events(end) = obj.getDurationSamples();
+                    studyover_events(end) = numSamples;
                 end
             end
 

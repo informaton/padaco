@@ -11,19 +11,17 @@ classdef  PASettings < handle
     %  A class for handling global initialization and settings
     %  - a.  Load settings - X
     %  - b.  Save settings - X
-    %  - c.  Interface for editing the settings
-    
-    properties(Constant)
-        %> @brief name of text file that stores the toolkit's settings
-        parameters_filename = '.pasettings';
-    end
+    %  - c.  Interface for editing the settings    
     
     properties(Abstract, SetAccess = protected)
         fieldNames;
         liteFieldNames;
     end
+    
     properties(SetAccess=protected)         
         dictionary = struct();
+        %> @brief name of text file that stores the toolkit's settings
+        parameters_filename = '.pasettings';
         
         % Set this to the director you want parameters to be saved to in
         % if you want to use the save parameters methods out of the box,

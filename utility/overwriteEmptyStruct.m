@@ -1,6 +1,3 @@
-
-
-
 % ======================================================================
 %> @brief Inserts the second argument into any empty fields of the first
 %> struct argument.

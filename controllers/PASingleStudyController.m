@@ -382,6 +382,7 @@ classdef PASingleStudyController < PAViewController
                 visibleProps = [];
             end
             if(isempty(visibleProps) && isa(obj.accelObj,'PASensorData'))
+                % visibleProps = obj.settings.visible.(displayTypeStr);
                 visibleProps = obj.accelObj.getVisible(displayTypeStr);
             end
             
@@ -717,9 +718,19 @@ classdef PASingleStudyController < PAViewController
         %> of samples.  In this case, the last section may be shorter or
         %> longer than the others.
         % --------------------------------------------------------------------
-        function [usageVec, usageStates,startStopDatenums] = getUsageState(obj)
+        %function [usageVec, usageStates,startStopDatenums] = getUsageState(obj)
+        function usageVec = getUsageState(obj)            
             paDataObj = obj.accelObj;
-            [usageVec, usageStates, startStopDatenums] = paDataObj.classifyUsageState();
+            usageVec = [];
+            usageStates = [];
+            startStopDatenums = [];
+            if(paDataObj.classifyUsageForAllAxes())
+                %[usageVec, usageStates, startStopDatenums] = paDataObj.classifyUsageForAllAxes();
+                usageVec = paDataObj.usage.vecMag;
+            else
+                obj.logWarning('Unable to classify usage state for all axis');
+            end
+            
         end
         
         % --------------------------------------------------------------------
@@ -796,9 +807,7 @@ classdef PASingleStudyController < PAViewController
                     obj.accelTypeShown = 'count';
                 end
                 
-                
-                obj.initView();
-                
+                obj.initView();                
                 
                 
                 % Go ahead and extract features using current settings.  This
@@ -925,18 +934,20 @@ classdef PASingleStudyController < PAViewController
             for f=1:numel(fnames)
                 curStructType = fnames{f};
                 
-                labelProps = obj.accelObj.getLabel(curStructType);
+                labelStruct = obj.accelObj.getLabel(curStructType);
+                labelStringStruct = appendKeyToStruct(labelStruct,'string');
                 labelPosStruct = obj.getLabelhandlePosition(curStructType);
-                labelProps = mergeStruct(labelProps,labelPosStruct);
+                labelProps = mergeStruct(labelStringStruct,labelPosStruct);
                 
                 colorStruct = obj.accelObj.getColor(curStructType);
+                colorStruct = appendKeyToStruct(colorStruct,'color');
                 
                 visibleStruct = obj.accelObj.getVisible(curStructType);
                 
                 % Keep everything invisible at this point - so ovewrite the
                 % visibility property before we merge it together.
                 visibleStruct = structEval('overwrite',visibleStruct,visibleStruct,'off');
-                
+                visibleStruct = appendKeyToStruct(visibleStruct,'visible');
                 allStruct = mergeStruct(colorStruct,visibleStruct);
                 
                 labelProps = mergeStruct(labelProps,allStruct);
@@ -1014,9 +1025,7 @@ classdef PASingleStudyController < PAViewController
             
             axesProps.primary.XTick = xTick;            
             obj.initAxesHandles(axesProps);
-
         end
-        
 
         % --------------------------------------------------------------------
         % Wear states
@@ -1371,9 +1380,10 @@ classdef PASingleStudyController < PAViewController
             % update label text positions based on the axes position.
             % So the axes range must be set above this!
             % link the x position with the axis x-position ...
-            labelProps = obj.accelObj.getLabel(structFieldName);
-            labelPosStruct = obj.getLabelhandlePosition();            
-            labelProps = mergeStruct(labelProps,labelPosStruct);             
+            labelStruct = obj.accelObj.getLabel(structFieldName);
+            labelStringStruct = appendKeyToStruct(labelStruct,'string');
+            labelPosStruct = obj.getLabelhandlePosition();
+            labelProps = mergeStruct(labelStringStruct,labelPosStruct);             
             recurseHandleSetter(obj.labelhandle.(structFieldName),labelProps);
             
         end
@@ -2636,7 +2646,7 @@ classdef PASingleStudyController < PAViewController
         %> - @c signalTagLine
         function pStruct = getDefaults()
             
-            pStruct = PASensorData.getDefaults();
+            % pStruct = PASensorData.getDefaults();
             
             pStruct.pathname = PAPathParam('default',getDocumentsPath(),'Description','Directory of accelerometer sensor data');
             pStruct.filename = PAFilenameParam('default','','Description','Accelerometer filename','help','Name of file containing accelerometer data that is loaded.');
@@ -2658,6 +2668,8 @@ classdef PASingleStudyController < PAViewController
                 end
             end
             
+            % There is also an 'exportPathname' at this point from
+            % PASensorData.getDefaults()
             pStruct.outputPath = PAPathParam('default',outputPath,'description','Output save path');
             
             [tagLines,~] = PASensorData.getDefaultTagLineLabels();
@@ -2674,7 +2686,7 @@ classdef PASingleStudyController < PAViewController
             %> @li @c Features
             displayStruct = PASensorData.getStructTypes();
             displayTypes = fieldnames(displayStruct);
-            pStruct.displayType = PAEnumParam('default','timeseries','categories',displayTypes,'description','Top panel display');
+            pStruct.displayType = PAEnumParam('default',displayTypes{1},'categories',displayTypes,'description','Top panel display');
             
             %> Boolean value:
             %> - @c true : Apply line smoothing when presenting features on the
@@ -2685,7 +2697,6 @@ classdef PASingleStudyController < PAViewController
                 'false : Do not apply line smoothing when presenting features on the secondary axes (show them in original form).'
                 };
             pStruct.useSmoothing = PABoolParam('default',true,'description','Line smoothing','help',helpTxt);
-            
             
             %> Boolean value:
             %> - @c true : Highlight nonwear in second secondary axes (Default).
@@ -2698,7 +2709,7 @@ classdef PASingleStudyController < PAViewController
 %             pStruct.featureFcnName = featureFcnNames{1};
 %             pStruct.signalTagLine = tagLines{1};
 %             
-%             pStruct.viewMode = 'timeseries';
+%             pStruct.viewMode = 'timeSeries';
 %             pStruct.useSmoothing = true;
 %             pStruct.highlightNonwear = true;
         end

@@ -32,7 +32,7 @@
 %> @note
 % ======================================================================
 function ltStruct = mergeStruct(ltStruct,rtStruct)
-
+    try
     if(isstruct(rtStruct))
         fnames = fieldnames(rtStruct);
         for f=1:numel(fnames)
@@ -51,5 +51,9 @@ function ltStruct = mergeStruct(ltStruct,rtStruct)
                 end
             end
         end
+    end
+    catch me
+        showME(me);
+        rethrow(me);
     end
 end
