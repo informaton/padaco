@@ -722,6 +722,7 @@ classdef PASensorData < PAData
         % --------------------------------------------------------------------
         function visibleOut = getVisible(obj,varargin)
             visibleOut = obj.getSetting('visible',varargin{:});
+            visibleOut = appendKeyToStruct(visibleOut, 'visible');
         end
 
         % --------------------------------------------------------------------
@@ -742,6 +743,7 @@ classdef PASensorData < PAData
         % --------------------------------------------------------------------
         function colorOut = getColor(obj,varargin)
             colorOut = obj.getSetting('color',varargin{:});
+            colorOut = appendKeyToStruct(colorOut,'color');
         end
 
         % --------------------------------------------------------------------
@@ -752,11 +754,12 @@ classdef PASensorData < PAData
         %> @li @c timeSeries (default)
         %> @li @c features
         %> @li @c bins
-        %> @retval scaleStruct A struct of scalar values correspodning to the time series
-        %> fields of obj.scale.
+        %> @retval scaleStruct A struct of scalar values corresponding to the time series
+        %> fields of obj.settings.scale or possible a scalar value
+        %> corresponding to the specified field if given as an argument.
         % --------------------------------------------------------------------
         function scaleOut = getScale(obj,varargin)
-            scaleOut = obj.getSetting('scale',varargin{:});
+            scaleOut = obj.getSetting('scale',varargin{:});            
         end
 
         % --------------------------------------------------------------------
@@ -767,11 +770,11 @@ classdef PASensorData < PAData
         %> @li @c timeSeries (default)
         %> @li @c features
         %> @li @c bins
-        %> @retval offsetStruct A struct of scalar values correspodning to the struct type
+        %> @retval offsetStruct A struct of scalar values corresponding to the struct type
         %> fields of obj.offset.
         % --------------------------------------------------------------------
         function offsetOut = getOffset(obj,varargin)
-            offsetOut = obj.getSetting('offset',varargin{:});
+            offsetOut = obj.getSetting('offset',varargin{:});            
         end
 
         % --------------------------------------------------------------------
@@ -787,6 +790,7 @@ classdef PASensorData < PAData
         % --------------------------------------------------------------------
         function labelOut = getLabel(obj,varargin)
             labelOut = obj.getSetting('label',varargin{:});
+            labelOut = appendKeyToStruct(labelOut,'string');
         end
 
         % --------------------------------------------------------------------
@@ -820,7 +824,6 @@ classdef PASensorData < PAData
                     % field name to retrieve.
                     value = value.(fieldToGet);
                 end
-
             else
                 value = obj.getSettingStruct(fieldToGet,structTypeOrTag);
             end
@@ -897,7 +900,7 @@ classdef PASensorData < PAData
         %> @param newOffset y-axis offset to set obj.offset.(fieldName) to.
         % --------------------------------------------------------------------
         function varargout = setOffset(obj,fieldName,newOffset)
-            eval(['obj.offset.',fieldName,' = ',num2str(newOffset),';']);
+            eval(['obj.settings.offset.',fieldName,' = ',num2str(newOffset),';']);
             if(nargout>0)
                 varargout = cell(1,nargout);
             end
@@ -915,7 +918,7 @@ classdef PASensorData < PAData
         function varargout = setScale(obj,fieldName,newScale)
             evtData = LinePropertyChanged_EventData(fieldName,'scale',newScale,obj.getScale(fieldName));
 
-            eval(['obj.scale.',fieldName,'.scale = ',num2str(newScale),';']);
+            eval(['obj.settings.scale.',fieldName,' = ',num2str(newScale),';']);
             if(nargout>0)
                 varargout = cell(1,nargout);
             end
@@ -934,7 +937,7 @@ classdef PASensorData < PAData
         % --------------------------------------------------------------------
         function varargout = setColor(obj,fieldName,newColor)
             evtData = LinePropertyChanged_EventData(fieldName,'color',newColor,obj.getColor(fieldName));
-            eval(['obj.color.',fieldName,'.color = [',num2str(newColor),']',';']);
+            eval(['obj.settings.color.',fieldName,' = [',num2str(newColor),']',';']);
             if(nargout>0)
                 varargout = cell(1,nargout);
             end
@@ -950,7 +953,7 @@ classdef PASensorData < PAData
         function varargout = setLabel(obj,fieldName,newLabel)
             evtData = LinePropertyChanged_EventData(fieldName,'label',newLabel,obj.getLabel(fieldName));
 
-            eval(['obj.label.',fieldName,'.string = ''',newLabel,''';']);
+            eval(['obj.settings.label.',fieldName,' = ''',newLabel,''';']);
             if(nargout>0)
                 varargout = cell(1,nargout);
             end
@@ -970,7 +973,7 @@ classdef PASensorData < PAData
         function varargout = setVisible(obj,fieldName,newVisibilityStr)
             if(strcmpi(newVisibilityStr,'on')||strcmpi(newVisibilityStr,'off'))
                 evtData = LinePropertyChanged_EventData(fieldName,'visible',newVisibilityStr,obj.getVisible(fieldName));
-                eval(['obj.settings.visible.',fieldName,'.visible = ''',newVisibilityStr,''';']);
+                eval(['obj.settings.visible.',fieldName,' = ''',newVisibilityStr,''';']);
                 obj.notify('LinePropertyChanged',evtData);
             else
                 fprintf('An invaled argument was passed for the visibility (i.e. visible) parameter.  (%s)\n',newVisibilityStr);
@@ -988,13 +991,15 @@ classdef PASensorData < PAData
         %> @param fieldName Dynamic field name to set in the propertyName struct.
         %> @param propertyValueStr String value of property to set fieldName
         %> to.
+        %>
+        %> @example setSettingValue('color','timeSeries.count.x','r')
         % --------------------------------------------------------------------
-        function varargout = setProperty(obj,propertyName,fieldName,propertyValueStr)
-            eval(['obj.',propertyName,'.',fieldName,'.',propertyName,' = ',propertyValueStr,';']);
+        function varargout = setSettingValue(obj,settingName,fieldName,valueStr)
+            eval(['obj.settings.',settingName,'.',fieldName,' = ',valueStr,';']);
             
             % Not sure about the [] argument here.  Untested @hyatt4
             % 8/4/2019
-            evtData = LinePropertyChanged_EventData(fieldName,propertyName,propertyValueStr,[]);
+            evtData = LinePropertyChanged_EventData(fieldName,settingName,valueStr,[]);
             obj.notify('LinePropertyChanged',evtData);                
             if(nargout>0)
                 varargout = cell(1,nargout);
@@ -1842,7 +1847,7 @@ classdef PASensorData < PAData
                 samplerate = obj.getSampleRate();
             end
             if(nargin<3)
-                windowDurSec = obj.windowDurSec;
+                windowDurSec = obj.getSetting('windowDurSec');
             end
             window = ceil(sample/(windowDurSec*samplerate));
         end

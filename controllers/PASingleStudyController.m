@@ -934,20 +934,17 @@ classdef PASingleStudyController < PAViewController
             for f=1:numel(fnames)
                 curStructType = fnames{f};
                 
-                labelStruct = obj.accelObj.getLabel(curStructType);
-                labelStringStruct = appendKeyToStruct(labelStruct,'string');
+                labelStringStruct = obj.accelObj.getLabel(curStructType);                
                 labelPosStruct = obj.getLabelhandlePosition(curStructType);
                 labelProps = mergeStruct(labelStringStruct,labelPosStruct);
                 
                 colorStruct = obj.accelObj.getColor(curStructType);
-                colorStruct = appendKeyToStruct(colorStruct,'color');
                 
                 visibleStruct = obj.accelObj.getVisible(curStructType);
                 
                 % Keep everything invisible at this point - so ovewrite the
                 % visibility property before we merge it together.
                 visibleStruct = structEval('overwrite',visibleStruct,visibleStruct,'off');
-                visibleStruct = appendKeyToStruct(visibleStruct,'visible');
                 allStruct = mergeStruct(colorStruct,visibleStruct);
                 
                 labelProps = mergeStruct(labelProps,allStruct);
@@ -1380,8 +1377,7 @@ classdef PASingleStudyController < PAViewController
             % update label text positions based on the axes position.
             % So the axes range must be set above this!
             % link the x position with the axis x-position ...
-            labelStruct = obj.accelObj.getLabel(structFieldName);
-            labelStringStruct = appendKeyToStruct(labelStruct,'string');
+            labelStringStruct = obj.accelObj.getLabel(structFieldName);            
             labelPosStruct = obj.getLabelhandlePosition();
             labelProps = mergeStruct(labelStringStruct,labelPosStruct);             
             recurseHandleSetter(obj.labelhandle.(structFieldName),labelProps);
@@ -2115,10 +2111,12 @@ classdef PASingleStudyController < PAViewController
             % default_scale_handle = child_menu_handles(find(~cellfun('isempty',strfind(get(child_menu_handles,'tag'),'defaultScale')),1));
             default_scale_handle = child_menu_handles(find(contains(get(child_menu_handles,'tag'),'defaultScale'),1));
             
-            allScale = obj.accelObj.getScale(); %#ok<NASGU>
+            % lineTag options are returned as scalars
+            lineScale = obj.accelObj.getScale(lineTag);
+            
+            % Default values are returned with scalars at end
             pStruct = PASensorData.getDefaults(); %#ok<NASGU>
-
-            curScale = eval(['allScale.',lineTag]);
+            
             defaultScale = eval(strcat('pStruct.scale.',lineTag));
 % 
 %             if verLessThan('matlab','9.3')
@@ -2129,11 +2127,11 @@ classdef PASingleStudyController < PAViewController
 %                 defaultScale = pStruct.scale.(lineTag);
 %             end
             
-            if(curScale==defaultScale)
-                set(default_scale_handle,'Label',sprintf('Default Scale (%0.2f)',defaultScale))
+            if(lineScale==defaultScale)
+                set(default_scale_handle,'Label',sprintf('Default Scale (%0.2f)',lineScale))
                 set(default_scale_handle,'checked','on');
             else
-                set(default_scale_handle,'Label',sprintf('Use Default Scale (%0.2f)',defaultScale))
+                set(default_scale_handle,'Label',sprintf('Use Default Scale (%0.2f)',lineScale))
                 set(default_scale_handle,'checked','off');
             end
 
@@ -2191,8 +2189,8 @@ classdef PASingleStudyController < PAViewController
                 {@obj.resizeWindowScrollWheelFcnCb,...
                 lineTag,obj.texthandle.status});
             
-            allScale = obj.accelObj.getScale();
-            curScale = eval(['allScale.',lineTag]);
+            curScale = obj.accelObj.getScale(lineTag);
+            % curScale = eval(['allScale.',lineTag]);
             
             %show the current scale
             click_str = sprintf('Scale: %0.2f',curScale);
@@ -2214,8 +2212,9 @@ classdef PASingleStudyController < PAViewController
                 set(hObject,'checked','on');
                 lineTag = get(gco,'tag');
                 
-                pStruct = PASensorData.getDefaults;
-                defaultScale = pStruct.scale.(lineTag); % eval(strcat('pStruct.scale.',lineTag));
+                pStruct = PASensorData.getDefaults(); %#ok<NASGU>
+                % defaultScale = pStruct.scale.(lineTag); %
+                defaultScale = eval(strcat('pStruct.scale.',lineTag));
                 
                 obj.accelObj.setScale(lineTag,defaultScale);
                 %obj.draw();
@@ -2274,8 +2273,8 @@ classdef PASingleStudyController < PAViewController
             lowerbound = 0.01;
             
             %kind of hacky
-            allScale = obj.accelObj.getScale();
-            curScale = eval(['allScale.',lineTag]);
+            curScale = obj.accelObj.getScale(lineTag);
+            % curScale = eval(['allScale.',lineTag]);
             
             
             newScale = max(lowerbound,curScale-eventdata.VerticalScrollCount*scroll_step);
