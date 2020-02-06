@@ -158,40 +158,9 @@ classdef PACluster < PAData
         % nonwear.
         nonwearRows;
     end
-    
             
-    methods        
-        function didSet =  setShapeTimes(this, cellOfTimes)
-            didSet = false;
-            if(iscell(cellOfTimes) && size(cellOfTimes,2)==size(this.loadShapes,2))
-                this.loadShapeTimes = cellOfTimes;
-                didSet = true;                
-            end
-        end
-        
-        function didSet = setNonwearRows(this, nonwearRows)            
-            if(size(nonwearRows,1)==size(this.loadShapes,1))
-                this.nonwearRows = nonwearRows;
-                didSet = true;                
-            else
-                this.nonwearRows = [];
-                didSet = false;
-            end
-        end
-         
-        % returns the popularity of each cluster, ordered by original
-        % index.  Nx1 array with popularity(1) referring to the popularity
-        % of cluster index 1.
-        function popularity = getPopularityOrder(this)
-            popularity = this.coiIndex2SortOrder;
-        end
-        
-        function index = popularity2index(this, sortOrder)
-            index = this.coiSortOrder2Index;
-            if(nargin>1 && ~isempty(sortOrder))
-                index = index(sortOrder);
-            end
-        end        
+    methods
+
         % ======================================================================
         %> @param loadShapes NxM matrix to  be clustered (Each row represents an M dimensional value).
         %> @param settings  Optional struct with following fields [and
@@ -229,7 +198,7 @@ classdef PACluster < PAData
         %> obj = PACluster(loadShapes,settings,[],[],loadShapeIDs,loadShapeDayOfWeek)
         % ======================================================================        
         function this = PACluster(loadShapes,settings,axesOrLineH,textHandle,loadShapeIDs,loadShapeDayOfWeek, delayedStart)
-            this = PAData(loadShapes, settings);
+            this@PAData(loadShapes, settings);
             this.init();
             if(nargin<7)
                 delayedStart = false;
@@ -282,8 +251,8 @@ classdef PACluster < PAData
             
             %/ Do not let K start off higher than 
             % And don't let it fall to less than 1.
-            this.settings.minClusters = max(1,min(floor(size(loadShapes,1)/2),settings.minClusters));
-            this.settings.maxClusters = ceil(size(loadShapes,1)/2);
+            this.setSetting('minClusters', max(1,min(floor(size(loadShapes,1)/2),settings.minClusters)));
+            this.setSetting('maxClusters', ceil(size(loadShapes,1)/2));
             
             this.loadShapes = loadShapes;
             this.loadShapeIDs = loadShapeIDs;
@@ -296,8 +265,40 @@ classdef PACluster < PAData
             end
         end
         
+        function didSet =  setShapeTimes(this, cellOfTimes)
+            didSet = false;
+            if(iscell(cellOfTimes) && size(cellOfTimes,2)==size(this.loadShapes,2))
+                this.loadShapeTimes = cellOfTimes;
+                didSet = true;                
+            end
+        end
+        
+        function didSet = setNonwearRows(this, nonwearRows)            
+            if(size(nonwearRows,1)==size(this.loadShapes,1))
+                this.nonwearRows = nonwearRows;
+                didSet = true;                
+            else
+                this.nonwearRows = [];
+                didSet = false;
+            end
+        end
+         
+        % returns the popularity of each cluster, ordered by original
+        % index.  Nx1 array with popularity(1) referring to the popularity
+        % of cluster index 1.
+        function popularity = getPopularityOrder(this)
+            popularity = this.coiIndex2SortOrder;
+        end
+        
+        function index = popularity2index(this, sortOrder)
+            index = this.coiSortOrder2Index;
+            if(nargin>1 && ~isempty(sortOrder))
+                index = index(sortOrder);
+            end
+        end     
+
         function configID = getConfigID(this)
-            durationHours= this.settings.clusterDurationHours;
+            durationHours= this.getSetting('clusterDurationHours');
             if(durationHours == 24)
                 durID = 'D'; % day
             elseif(durationHours == 24* 7)
@@ -305,9 +306,9 @@ classdef PACluster < PAData
             else
                 durID = 'O'; % other
             end
-            if(this.settings.chunkShapes)
-                segID = sprintf('S-%d',this.settings.numChunks);
-            elseif(this.settings.preclusterReductionSelection==1)
+            if(this.getSetting('chunkShapes'))
+                segID = sprintf('S-%d',this.getSetting('numChunks'));
+            elseif(this.getSetting('preclusterReductionSelection')==1)
                 segID = 'U';
             else
                 segID = 'S-1';
@@ -1030,29 +1031,31 @@ classdef PACluster < PAData
                 end
             end
             
+            inputSettings = paparamsToValues(inputSettings);
+            
             %             inputSettings.clusterMethod = 'kmedians';
             % inputSettings.clusterMethod = 'kmedoids';
             if(strcmpi(inputSettings.clusterMethod,'kmedians'))
                 if(ishandle(this.statusTextHandle))
-                    set(this.statusTextHandle ,'string',{sprintf('Performing accelerated k-medians clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.clusterThreshold)});
+                    set(this.statusTextHandle ,'string',{sprintf('Performing accelerated k-medians clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.getSetting('clusterThreshold'))});
                 end
                 [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression, this.sumD] = deal([],[],[],[],[]);
                 fprintf(1,'Empty results given.  Use ''kemedoids'' instead.\n');
             else
                 if(ishandle(this.statusTextHandle))
-                    set(this.statusTextHandle ,'string',{sprintf('Performing %s clustering of %u loadshapes with a threshold of %0.3f',inputSettings.clusterMethod,this.numLoadShapes(),this.settings.clusterThreshold)});
+                    set(this.statusTextHandle ,'string',{sprintf('Performing %s clustering of %u loadshapes with a threshold of %0.3f',inputSettings.clusterMethod,this.numLoadShapes(),this.getSetting('clusterThreshold'))});
                 end
                 [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression, this.sumD] = this.adaptiveKclusters(inputLoadShapes,inputSettings,this.performanceAxesHandle,this.statusTextHandle);
             end
             %             elseif(strcmpi(inputSettings.clusterMethod,'kmedoids'))
             %                 if(ishandle(this.statusTextHandle))
-            %                     set(this.statusTextHandle ,'string',{sprintf('Performing adaptive k-medoids clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.clusterThreshold)});
+            %                     set(this.statusTextHandle ,'string',{sprintf('Performing adaptive k-medoids clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.getSetting('clusterThreshold)});
             %                 end
             %                 [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression, this.sumD] = this.adaptiveKmedoids(inputLoadShapes,inputSettings,this.performanceAxesHandle,this.statusTextHandle);
             %             elseif(strcmpi(inputSettings.clusterMethod,'kmeans'))
             %
             %                 if(ishandle(this.statusTextHandle))
-            %                     set(this.statusTextHandle ,'string',{sprintf('Performing adaptive k-means clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.settings.clusterThreshold)});
+            %                     set(this.statusTextHandle ,'string',{sprintf('Performing adaptive k-means clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.getSetting('clusterThreshold)});
             %                 end
             %                 [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression, this.sumD] = this.adaptiveKmeans(inputLoadShapes,inputSettings,this.performanceAxesHandle,this.statusTextHandle);
             %             end
@@ -1295,6 +1298,7 @@ classdef PACluster < PAData
         %> each iteration of k means.
         % ======================================================================
         function [idx, clusters, performanceIndex, performanceProgression, sumD] = adaptiveKclusters(this,loadShapes,settings,performanceAxesH,textStatusH)
+            
             performanceIndex = [];
             X = [];
             Y = [];
@@ -1656,6 +1660,7 @@ classdef PACluster < PAData
         function settings = getDefaults()
             settings = PAData.getDefaults();
             settings.minClusters = PAIndexParam('default',10,'min',1,'description','Starting value for K','help','Starting value of K to begin clustering with.');
+            settings.maxClusters = PAIndexParam('default',100,'min',2,'description','Maximum K allowed','help','Maximum value of K allowed.');
             
             settings.clusterThreshold = PANumericParam('default',1.0,'min',0,...
                 'help','Higher threshold equates to fewer clusters.  Enter ''inf'' to converge using the set value of K',...

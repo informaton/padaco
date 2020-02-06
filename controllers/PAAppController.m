@@ -649,39 +649,39 @@ classdef PAAppController < PAFigureController
             initialPath = obj.getResultsPathname();
             resultsPath = uigetfulldir(initialPath, 'Select path containing PADACO''s features directory');
             try
-            if(~isempty(resultsPath))
-                % Say good bye to your old stat tool if you selected a
-                % directory.  This ensures that if a breakdown occurs in
-                % the following steps, we do not have a previous StatTool
-                % hanging around showing results and the user unaware that
-                % a problem occurred (i.e. no change took place).
-                % obj.StatTool = [];
-                obj.setResultsPathname(resultsPath);
-                
-                if(~strcmpi(obj.getViewMode(),'results'))
-                    obj.showBusy('Switching to results view');
-                    obj.setViewMode('results');
-                end
-                
-                obj.showBusy('Initializing results view','all');
-                if(obj.initResultsView())
-                    obj.showReady('all');
+                if(~isempty(resultsPath))
+                    % Say good bye to your old stat tool if you selected a
+                    % directory.  This ensures that if a breakdown occurs in
+                    % the following steps, we do not have a previous StatTool
+                    % hanging around showing results and the user unaware that
+                    % a problem occurred (i.e. no change took place).
+                    % obj.StatTool = [];
+                    
+                    
+                    if(~strcmpi(obj.getViewMode(),'results'))
+                        obj.showBusy('Switching to results view');
+                        obj.setViewMode('results');
+                    end                    
+                    obj.showBusy('Initializing results view','all');
+                    obj.setResultsPathname(resultsPath);
+                    if(obj.initResultsView())
+                        obj.StatTool.showReady('all');
+                    else
+                        f=warndlg('I could not find any feature files in the directory you selected.  Check the editor window for further information','Load error','modal');
+                        waitfor(f);
+                        obj.StatTool.showReady();
+                    end
                 else
-                    f=warndlg('I could not find any feature files in the directory you selected.  Check the editor window for further information','Load error','modal');
-                    waitfor(f);
-                    obj.showReady();
+                    % switch back to other mode?
+                    % No - maybe we already were in a results view
+                    % Yes - maybe we were not in a results view
                 end
-            else
-                % switch back to other mode?
-                % No - maybe we already were in a results view
-                % Yes - maybe we were not in a results view                
-            end
-            
+                
             catch me
                 showME(me);
                 f=warndlg('An error occurred while trying to load the feature set.  See the console log for details.');
                 waitfor(f);
-                obj.showReady();                
+                obj.showReady();
             end
         end
         
@@ -1179,11 +1179,14 @@ classdef PAAppController < PAFigureController
         % --------------------------------------------------------------------
         function success = initResultsView(this)
             success = false;
-            StatToolResultsPath = this.StatTool.getResultsDirectory();
+            resultsPath = this.getResultsPathname();
           
-            if(isdir(this.getResultsPathname()))
+            if(isdir(resultsPath))
                 refreshPath = false;
-                if(~strcmpi(StatToolResultsPath,this.resultsPathname))
+                % Skip this part for now.  It was in here earlier when you
+                % could rerun cluster data and that would change the output
+                % directory per chance.
+                if(refreshPath && ~strcmpi(resultsPath,this.resultsPathname))
                     msgStr = sprintf('There has been a change to the results path.\nWould you like to load features from the updated path?\n%s',this.getResultsPathname());
                     titleStr = 'Refresh results path?';
                     buttonName = questdlg(msgStr,titleStr,'Yes','No','Yes');
@@ -1566,69 +1569,7 @@ classdef PAAppController < PAFigureController
                 didInit = true;
             end
         end
-        
-        function initToolbar(this)  
-            toolbarHandles.cluster = {
-                'toggle_backgroundColor'
-                'toggle_holdPlots'
-                'toggle_yLimit'
-                'toggle_membership'
-                'toggle_summary'
-                'toggle_analysisFigure'
-                'push_right'
-                'push_left'
-                };
-            
-            fnames = fieldnames(toolbarHandles);
-            this.toolbarH = mkstruct(fnames);
-            for f=1:numel(fnames)
-                fname = fnames{f};
-                %                 this.toolbarH.(fname) = mkstruct(toolbarHandles.(fname));
-                for h=1:numel(toolbarHandles.(fname))
-                    hname = toolbarHandles.(fname){h};
-                    tH = tmpHandles.(hname);
-                    this.toolbarH.(fname).(hname) = tH;
-                    
-                    if(isa(tH,'matlab.ui.container.toolbar.ToggleTool'))
-                        cdata.Off = get(tH,'cdata');
-                        cdata.On = max(cdata.Off-0.2,0);
-                        cdata.On(isnan(cdata.Off)) = nan;
-                        set(tH,'userdata',cdata,'oncallback',@this.toggleOnOffCb,'offcallback',@this.toggleOnOffCb,'state','Off');
-                    end
-                end
-            end
-            
-            %             cdata.Off = get(this.toolbarH.cluster.toggle_membership,'cdata');
-            %             cdata.On = cdata.Off;
-            %             cdata.On(cdata.Off==1) = 0.7;
-            %             set(this.toolbarH.cluster.toggle_membership,'userdata',cdata,'oncallback',@this.toggleOnOffCb,'offcallback',@this.toggleOnOffCb);
-            %             sethandles(this.handles.toolbar_results,'handlevisibility','callback');
-            %             set(this.toolbarH.cluster.toggle_backgroundColor,'handlevisibility','off');
-            %             set(this.handles.toolbar_results,'handlevisibility','off');
-            
-            set(this.toolbarH.cluster.toggle_membership,'clickedcallback',@this.checkShowClusterMembershipCallback);
-            set(this.toolbarH.cluster.toggle_summary,'clickedcallback',@this.plotCb);
-            
-            set(this.toolbarH.cluster.toggle_holdPlots,'clickedcallback',@this.checkHoldPlotsCallback);
-            set(this.toolbarH.cluster.toggle_yLimit,'clickedcallback',@this.togglePrimaryAxesYCb);
-            set(this.toolbarH.cluster.toggle_analysisFigure,'clickedcallback',@this.toggleAnalysisFigureCb);
-            set(this.toolbarH.cluster.toggle_backgroundColor,'ClickedCallback',@this.plotCb); %'OffCallback',@this.toggleBgColorCb,'OnCallback',@this.toggleBgColorCb);
-            
-            set(this.toolbarH.cluster.push_right,'clickedcallback',@this.showNextClusterCallback);
-            set(this.toolbarH.cluster.push_left,'clickedcallback',@this.showPreviousClusterCallback);
-            
-            
-            this.logStatus('Need to add toolbar callbacks');
-            % Refactoring for toolbars
-            offOnState = {'off','on'}; % 0 -> 'off', 1 -> 'on'  and then +1 to get matlab 1-based so that 1-> 'off' and 2-> 'on'
-            
-            %             set(this.toolbarH.cluster.toggle_holdPlots,'state',offOnState{this.holdPlots+1});
-            %             set(this.toolbarH.cluster.toggle_yLimit,'state',offOnState{strcmpi(this.getSetting('primaryAxis_yLimMode'),'manual')+1});
-            %             set(this.toolbarH.cluster.toggle_analysisFigure,'state',offOnState{this.getSetting('showAnalysisFigure')+1});
-            %             set(this.toolbarH.cluster.toggle_backgroundColor,'state',offOnState{this.getSetting('showTimeOfDayAsBackgroundColor')+1}); %'OffCallback',@this.toggleBgColorCb,'OnCallback',@this.toggleBgColorCb);
-            %
-        end        
-        
+                
         function showBusy(obj, varargin)
             obj.SingleStudy.showBusy(varargin{:});
         end            
