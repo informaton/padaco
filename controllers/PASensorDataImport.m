@@ -50,10 +50,23 @@ classdef PASensorDataImport < handle
             
             this.initWidgets();            
             this.initCallbacks();
-            this.setFile(this.settings.filename);
+            this.setFile(this.getSetting('filename'));
             set(this.figureH,'visible','on');
             uiwait(this.figureH);
         end 
+        
+        function value = getSetting(this, settingName)
+            narginchk(2,2);
+            if isfield(this.settings,settingName)
+                value = this.settings.(settingName);
+                if isa(value,'PAParam')
+                    value = value.value;
+                end
+            else
+                fprintf(2,'Unrecognized setting name');
+                value = [];
+            end
+        end
         
         function settings = getSettings(this)
             settings = this.settings;
@@ -83,17 +96,17 @@ classdef PASensorDataImport < handle
                 try
                     this.settings.filename = fullfilename;
                     set(this.handles.text_filename,'string',fullfilename,'enable','on');
-                    fid = fopen(this.settings.filename,'r');
+                    fid = fopen(this.getSetting('filename'),'r');
                     strings = textscan(fid,'%[^\n]',this.MAX_LINES);
                     strings = strings{1};
                     this.lines = strings;
                     this.numLinesScanned = numel(strings);
                     
                     lineNums = num2str((0:this.numLinesScanned-1)');
-                    if(this.settings.headerLineNum>this.numLinesScanned)
+                    if(this.getSetting('headerLineNum')>this.numLinesScanned)
                         this.settings.headerLineNum = 0;
                     end
-                    set(this.handles.menu_headerLineNum,'string',lineNums,'value',this.settings.headerLineNum+1);
+                    set(this.handles.menu_headerLineNum,'string',lineNums,'value',this.getSetting('headerLineNum')+1);
 
                     
                     %strcat({'Line '},num2str(transpose(1:numLinesScanned)),{': '},strings)
@@ -101,7 +114,7 @@ classdef PASensorDataImport < handle
                     dispStr = strcat(num2str(transpose(1:this.numLinesScanned)),{':    '},strings);
                     set(this.handles.edit_fileContents,'string',dispStr,'enable','inactive');  % make it look nicer now.
                     set(this.handles.table_headerRow,'enable','on');
-                    if(this.settings.headerLineNum>0)
+                    if(this.getSetting('headerLineNum')>0)
                         
                     end
                     fclose(fid);
@@ -118,7 +131,7 @@ classdef PASensorDataImport < handle
         
         function resizeGUI(this)
             fileContentWidth = size(char(get(this.handles.edit_fileContents,'string')),2);
-            resizeWidth = max([numel(this.settings.filename) - this.MIN_FILENAME_WIDTH_CHARS
+            resizeWidth = max([numel(this.getSetting('filename')) - this.MIN_FILENAME_WIDTH_CHARS
                 fileContentWidth - this.MIN_CONTENTS_WIDTH_CHARS]);
             
             if(resizeWidth>0)
@@ -146,7 +159,7 @@ classdef PASensorDataImport < handle
         function updateGUI(this)
             h = this.handles.table_headerRow;
             values = this.getColumnValues();
-            if(this.settings.headerLineNum>0)
+            if(this.getSetting('headerLineNum')>0)
                 fields = this.getColumnNames();
                 numFields = numel(fields);
                 if(numFields~=numel(values))                    
@@ -216,14 +229,14 @@ classdef PASensorDataImport < handle
             fields = {};
             headerLine = this.getHeaderLine();            
             if(~isempty(headerLine))
-                fields = strtrim(strsplit(headerLine,this.settings.separator));
+                fields = strtrim(strsplit(headerLine,this.getSetting('separator')));
             end
         end
         function values = getColumnValues(this)
             values = {};
             valueLine = this.getValueLine();
             if(~isempty(valueLine))
-                values = strtrim(strsplit(valueLine,this.settings.separator));
+                values = strtrim(strsplit(valueLine,this.getSetting('separator')));
             end
         end
         function [fields, values] = parseHeaderLine(this)
@@ -232,16 +245,16 @@ classdef PASensorDataImport < handle
         end
         function curLine = getHeaderLine(this)
             curLine = [];
-            if(~isempty(this.lines) && this.settings.headerLineNum>0)                
-                curLine = this.lines{this.settings.headerLineNum};
+            if(~isempty(this.lines) && this.getSetting('headerLineNum')>0)                
+                curLine = this.lines{this.getSetting('headerLineNum')};
             end
         end
         function curLine = getValueLine(this)
            curLine = [];
            if(~isempty(this.lines) && ...
-                   this.settings.headerLineNum>0 ...
-                   && this.settings.headerLineNum>0)
-               curLine = this.lines{this.settings.headerLineNum+1};
+                   this.getSetting('headerLineNum')>0 ...
+                   && this.getSetting('headerLineNum')>0)
+               curLine = this.lines{this.getSetting('headerLineNum')+1};
            end           
         end
         
@@ -287,11 +300,10 @@ classdef PASensorDataImport < handle
                 'fontName','default','fontsize',12,'enable','off'); % don't allow editing.
             
             lineNums = num2str((0:this.MAX_LINES-1)');
-            set(this.handles.menu_headerLineNum,'string',lineNums,'value',this.settings.headerLineNum+1);
+            set(this.handles.menu_headerLineNum,'string',lineNums,'value',this.getSetting('headerLineNum')+1);
             
             set(this.handles.menu_separator,'string',this.SEPARATORS);
-            setMenuSelection(this.handles.menu_separator,this.settings.separator);
-            
+            setMenuSelection(this.handles.menu_separator,this.getSetting('separator'));            
             set(this.handles.text_fieldCount,'string','');
             this.disableWidgets();
         end
@@ -318,7 +330,7 @@ classdef PASensorDataImport < handle
         
         function menuHeaderLineNumCallback(this, hMenu, ~)
             newValue = str2double(getMenuString(hMenu));
-            preValue = this.settings.headerLineNum;
+            preValue = this.getSetting('headerLineNum');
             try
                 if(~this.setHeaderLineNum(newValue))
                     set(hMenu,'value',preValue);
@@ -332,7 +344,7 @@ classdef PASensorDataImport < handle
 
         function menuSeparatorCallback(this, hMenu, evtData)
             newValue = getMenuString(hMenu);
-            preValue = this.settings.headerLineNum;
+            preValue = this.getSetting('separator');            
             try
                 if(~this.setSeparator(newValue))
                     set(hMenu,'value',preValue);
@@ -346,7 +358,7 @@ classdef PASensorDataImport < handle
         
         function selectFileCallback(this, hButton, evtData)
             f=uigetfullfile({'*.csv','Comma separated values (.csv)';'*.*','All files'},...
-                'Select a file',this.settings.filename);
+                'Select a file',this.getSetting('filename'));
             if(exist(f,'file'))
                 this.setFile(f);
             end
