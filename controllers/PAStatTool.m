@@ -266,8 +266,15 @@ classdef PAStatTool < PAViewController
                                 previousSettingsFromClusterObj.useDatabase = this.useDatabase;
                                 previousSettingsFromClusterObj.useOutcomes = this.useOutcomes;
                                 previousSettingsFromClusterObj.exportPathname = exportPathname;
-                                this.updateOriginalWidgetSettings(previousSettingsFromClusterObj); 
+                                this.updateOriginalWidgetSettings(previousSettingsFromClusterObj);
+                                
+                                this.setUseDatabase(this.getSetting('useDatabase'));  %sets this.useDatabase to false if it was initially true and then fails to open the database
+                                this.setUseOutcomesTable(this.getSetting('useOutcomes'));
+                                this.initWidgets(this.settings);  % want to refresh the current view as well...
+                                this.initCallbacks()
+
                                 didInit = true;
+                                
                                 this.clusterObj.setExportPath(exportPathname);
                                 this.clusterObj.addlistener('DefaultParameterChange',@this.clusterParameterChangeCb);
                             end
@@ -285,6 +292,9 @@ classdef PAStatTool < PAViewController
                 end
                 if(~didInit)
                     didInit = this.init(this.originalSettings);  %initializes previousstate.plotType on success and calls plot selection change cb for sync.                    
+                    if ~didInit
+                        this.logWarning('Unable to initialize using original settings');
+                    end
                 end
                 
                 this.clearPlots();                
@@ -477,10 +487,6 @@ classdef PAStatTool < PAViewController
             % callbacks which, e.g. buttons that rely on the
             % clusterDistributionType
             this.settings = mergeStruct(this.settings, this.originalSettings);
-            
-            this.setUseDatabase(this.getSetting('useDatabase'));  %sets this.useDatabase to false if it was initially true and then fails to open the database
-            this.setUseOutcomesTable(this.getSetting('useOutcomes'));
-            this.initWidgets(this.settings);  % want to refresh the current view as well...
         end
         
         % ======================================================================
@@ -735,7 +741,7 @@ classdef PAStatTool < PAViewController
                     else
                         % Otherwise, go off of what was passed in.
                         ind2keep = false(size(this.featureStruct.shapes,1),1);
-                        [c,iaFirst,ic] = unique(this.featureStruct.studyIDs,'first');
+                        [c,iaFirst,ic] = unique(this.featureStruct.studyIDs,'first'); %#ok<*ASGLU>
                         [c,iaLast,ic] = unique(this.featureStruct.studyIDs,'last');
                         dayInd = [iaFirst, min(iaLast, iaFirst+this.MAX_DAYS_PER_STUDY-1)];
                         for d=1:size(dayInd,1)
@@ -1316,7 +1322,7 @@ classdef PAStatTool < PAViewController
         %> @param lineH Handle to the scatterplot line.
         %> @param eventData Struct of 'hit' even data.
         % ======================================================================
-        function scatterplotButtonDownFcn(this,lineH,eventData)
+        function scatterplotButtonDownFcn(this,lineH,eventData) %#ok<*INUSL>
             xHit = eventData.IntersectionPoint(1);
             selectedSortOrder = round(xHit);
             this.toggleHistogramSelection(selectedSortOrder);        
@@ -1344,7 +1350,7 @@ classdef PAStatTool < PAViewController
             this.plotClusters();     
         end
         
-        function buttondownfcn(this, hobject, evtdata)
+        function buttondownfcn(this, hobject, evtdata) %#ok<*INUSD>
            this.logStatus('Button %s', get(hobject,'tag'));
         end
         
@@ -1865,11 +1871,11 @@ classdef PAStatTool < PAViewController
                 
         
         function bgColorClickOnCb(this, hToggle, e)
-            curState = get(hToggle,'state');
+            % curState = get(hToggle,'state');
             this.setStatus(e.EventName);
         end
         function bgColorClickOffCb(this, hToggle, e)
-            curState = get(hToggle,'state');
+            % curState = get(hToggle,'state');
             this.setStatus(e.EventName);
         end
 
@@ -1904,8 +1910,8 @@ classdef PAStatTool < PAViewController
             % or just check current settings versus last settings when it
             % is time to actually calculate again...
             if(this.isClusterMode())
-                bgColor = [0.2 0.8 0.1];
-                fgColor = [ 0 0 0];
+                % bgColor = [0.2 0.8 0.1];
+                % fgColor = [ 0 0 0];
                 
                 fgColor = get(0,'FactoryuicontrolForegroundColor');
                 bgColor = get(0,'FactoryuicontrolBackgroundColor');
@@ -2004,7 +2010,7 @@ classdef PAStatTool < PAViewController
             for p=1:numPlots()
                 subplot(numPlots,1,p);
                 field = fname{p};                
-                hist(pData.(field), numBins);                
+                hist(pData.(field), numBins);                 %#ok<*HIST>
                 fieldLabel = strrep(field,'_',' ');
                 ylabel('Subjects (n)');                
                 title(fieldLabel);
@@ -3572,7 +3578,7 @@ classdef PAStatTool < PAViewController
                                 coiDaysOfWeek = [coiDaysOfWeek;this.featureStruct.startDaysOfWeek(coi.memberIndices)+1];
                                 numMembers = numMembers+coi.numMembers;
                             end
-                            coiDaysOfWeekCount = histc(coiDaysOfWeek,daysofweekOrder);
+                            coiDaysOfWeekCount = histc(coiDaysOfWeek,daysofweekOrder); %#ok<*HISTC>
                             coiDaysOfWeekPct = coiDaysOfWeekCount/sum(coiDaysOfWeekCount(:));
                             h = bar(distributionAxes,coiDaysOfWeekPct);%,'buttonDownFcn',@this.clusterDayOfWeekHistogramButtonDownFcn);
                             barWidth = get(h,'barwidth');
@@ -3886,6 +3892,7 @@ classdef PAStatTool < PAViewController
                 
                 jViewPort = this.jhandles.table_clusterProfiles.getParent();
                 initViewPos = jViewPort.getViewPosition();
+                
                 %colNames = get(this.handles.table_clusterProfiles,'columnname');
                 %jTable = this.jhandles.table_clusterProfiles;
                 %this.jhandles.table_clusterProfiles.setModel(javax.swing.table.DefaultTableModel(this.profileTableData,colNames));
@@ -3894,8 +3901,7 @@ classdef PAStatTool < PAViewController
                 strData= cellfun(@num2str,this.profileTableData,'uniformoutput',false);
                 [R,C] = size(this.profileTableData);
                 for r=1:R
-                    for c=1:C
-                        
+                    for c=1:C                        
                         this.jhandles.table.setValueAt(strData{r,c},r-1,c-1);
                     end
                 end

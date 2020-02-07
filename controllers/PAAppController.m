@@ -136,11 +136,12 @@ classdef PAAppController < PAFigureController
             
             
             % May be necessary to show for resize behavior to work?
-            set(obj.figureH,'visible','on');
+            % set(obj.figureH,'visible','on');
             try
-                if ~isequal(obj.getViewMode(), lastViewMode)
-                    obj.setViewMode(lastViewMode);
-                end
+                %if ~isequal(obj.getViewMode(), lastViewMode)
+                %    obj.setViewMode(lastViewMode);
+                %end
+                obj.setViewMode(lastViewMode);
                 obj.initResize();
             catch me
                 showME(me);
@@ -910,7 +911,9 @@ classdef PAAppController < PAFigureController
                     end
                 case 'results'
                     obj.StatTool.refreshView();
-                    obj.initResultsView();
+                    if ~isempty( obj.StatTool.clusterObj)
+                        obj.initResultsView();
+                    end
             end
             
             figure(obj.figureH);  %redraw and place it on top
@@ -1187,8 +1190,7 @@ classdef PAAppController < PAFigureController
            this.setSetting('featuresPathname',featuresPath);
            didSet = this.StatTool.setFeaturesDirectory(featuresPath); 
         end
-        
-        
+                
         % --------------------------------------------------------------------
         %> @brief Initializes widgets for results view mode.  Widgets are
         %> disabled if the featuresPathname does not exist or cannot be
