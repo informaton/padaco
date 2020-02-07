@@ -56,4 +56,6 @@ if(~isempty(contextmenuH))
     % set(contextmenuH,'userdata',overlayVector);
 end
 
+% Sometimes the yLim jumps
+set(axesH,'ylim',yLim);
 end

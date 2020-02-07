@@ -2415,16 +2415,14 @@ classdef PAStatTool < PAViewController
             set(this.toolbarH.cluster.push_right,'clickedcallback',@this.showNextClusterCallback);
             set(this.toolbarH.cluster.push_left,'clickedcallback',@this.showPreviousClusterCallback);
             
-            
-            this.logStatus('Need to add toolbar callbacks');
             % Refactoring for toolbars
             offOnState = {'off','on'}; % 0 -> 'off', 1 -> 'on'  and then +1 to get matlab 1-based so that 1-> 'off' and 2-> 'on'
             
-            %             set(this.toolbarH.cluster.toggle_holdPlots,'state',offOnState{this.holdPlots+1});
-            %             set(this.toolbarH.cluster.toggle_yLimit,'state',offOnState{strcmpi(this.getSetting('primaryAxis_yLimMode'),'manual')+1});
-            %             set(this.toolbarH.cluster.toggle_analysisFigure,'state',offOnState{this.getSetting('showAnalysisFigure')+1});
-            %             set(this.toolbarH.cluster.toggle_backgroundColor,'state',offOnState{this.getSetting('showTimeOfDayAsBackgroundColor')+1}); %'OffCallback',@this.toggleBgColorCb,'OnCallback',@this.toggleBgColorCb);
-            %
+            set(this.toolbarH.cluster.toggle_holdPlots,'state',offOnState{this.holdPlots+1});
+            set(this.toolbarH.cluster.toggle_yLimit,'state',offOnState{strcmpi(this.getSetting('primaryAxis_yLimMode'),'manual')+1});
+            set(this.toolbarH.cluster.toggle_analysisFigure,'state',offOnState{this.getSetting('showAnalysisFigure')+1});
+            set(this.toolbarH.cluster.toggle_backgroundColor,'state',offOnState{this.getSetting('showTimeOfDayAsBackgroundColor')+1}); %'OffCallback',@this.toggleBgColorCb,'OnCallback',@this.toggleBgColorCb);
+            
         end 
         
         
