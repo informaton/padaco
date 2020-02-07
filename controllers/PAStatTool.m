@@ -270,10 +270,7 @@ classdef PAStatTool < PAViewController
                                 
                                 this.setUseDatabase(this.getSetting('useDatabase'));  %sets this.useDatabase to false if it was initially true and then fails to open the database
                                 this.setUseOutcomesTable(this.getSetting('useOutcomes'));
-                                this.initWidgets(this.settings);  % want to refresh the current view as well...
-                                this.initCallbacks()
-
-                                didInit = true;
+                                didInit = this.initWidgets(this.settings);  % want to refresh the current view as well...
                                 
                                 this.clusterObj.setExportPath(exportPathname);
                                 this.clusterObj.addlistener('DefaultParameterChange',@this.clusterParameterChangeCb);
@@ -290,8 +287,8 @@ classdef PAStatTool < PAViewController
                         showME(me);
                     end
                 end
-                if(~didInit)
-                    didInit = this.init(this.originalSettings);  %initializes previousstate.plotType on success and calls plot selection change cb for sync.                    
+                if(~didInit)                    
+                    didInit = this.initWidgets(this.originalSettings);  %initializes previousstate.plotType on success and calls plot selection change cb for sync.
                     if ~didInit
                         this.logWarning('Unable to initialize using original settings');
                     end
@@ -524,7 +521,7 @@ classdef PAStatTool < PAViewController
             this.setUseOutcomesTable(this.getSetting('useOutcomes'));
 
             if(initializeOnSet)
-                this.init(this.originalSettings);                
+                this.initWidgets();
             end
         end
         
@@ -919,11 +916,18 @@ classdef PAStatTool < PAViewController
         % ======================================================================        
         function didInit = init(this, initSettings)
             if(nargin<2 || isempty(initSettings))
-                initSettings = this.getPlotSettings();
+                % initSettings = this.getPlotSettings();
             end
-            didInit = this.initWidgets(initSettings); 
-            this.initCallbacks();
+            this.logWarning('init() is deprecated');
+            didInit = false;
+            % didInit = this.initWidgets(initSettings); 
+            % this.initCallbacks();
         end        
+        
+        function updateWidgets(this, varargin)
+            this.updateWidgets@PAViewController(varargin{:});
+            this.initWidgets();
+        end
         
         % ======================================================================
         %> @brief Clears the primary and secondary axes.
@@ -1556,12 +1560,30 @@ classdef PAStatTool < PAViewController
             end
         end
         
+        function enablePrimaryContextMenus(this)
+            set(this.handles.axes_primary,'uicontextmenu', this.handles.contextmenu.primaryAxes.uicontextmenu);
+        end
+        
+        function disablePrimaryContextMenus(this)
+            set(this.handles.axes_primary,'uicontextmenu', []);
+        end
+
+        function enableSecondaryContextMenus(this)
+            set(this.handles.axes_primary,'uicontextmenu', this.handles.contextmenu.secondaryAxes.uicontextmenu);
+        end
+        
+        function disableSecondaryContextMenus(this)
+            set(this.handles.axes_secondary,'uicontextmenu', []);
+        end
+        
+        
         function didInit = initCallbacks(this)
             
             didInit = false;
             %% set callbacks
             if(ishandle(this.figureH))
-                this.initToolbar();
+                
+                this.initToolbar();     
                 
                 set(this.handles.btngrp_clusters,'SelectionChangedFcn',@this.distributionChangeCb);
 
@@ -1604,18 +1626,34 @@ classdef PAStatTool < PAViewController
                     this.handles.edit_minClusters
                     this.handles.edit_clusterConvergenceThreshold
                     this.handles.menu_duration
-                    ],'callback',@this.enableClusterRecalculation);
+                    ],'callback',@this.enableClusterRecalculation);                
                 
+                % add a context menu now to primary axes 
+                contextmenu_primaryAxes = uicontextmenu('parent',this.figureH);
+                this.handles.contextmenu.primaryAxes = struct('uicontextmenu', contextmenu_primaryAxes);
                 
-                % add a context menu now to secondary axes
+                horizontalGridMenu = uimenu(contextmenu_primaryAxes,'Label','Horizontal grid','callback',@this.primaryAxesHorizontalGridContextmenuCallback);
+                this.handles.contextmenu.horizontalGridLines.on = uimenu(horizontalGridMenu,'Label','On','callback',{@this.primaryAxesHorizontalGridCallback,'on'});
+                this.handles.contextmenu.horizontalGridLines.off = uimenu(horizontalGridMenu,'Label','Off','callback',{@this.primaryAxesHorizontalGridCallback,'off'});
+                
+                axesScalingMenu = uimenu(contextmenu_primaryAxes,'Label','y-Axis scaling','callback',@this.primaryAxesScalingContextmenuCallback);
+                this.handles.contextmenu.axesYLimMode.auto = uimenu(axesScalingMenu,'Label','Auto','callback',{@this.primaryAxesScalingCallback,'auto'});
+                this.handles.contextmenu.axesYLimMode.manual = uimenu(axesScalingMenu,'Label','Manual','callback',{@this.primaryAxesScalingCallback,'manual'});
+                
+                nextPlotmenu = uimenu(contextmenu_primaryAxes,'Label','Next plot','callback',@this.primaryAxesNextPlotContextmenuCallback);
+                this.handles.contextmenu.nextPlot.add = uimenu(nextPlotmenu,'Label','Add','callback',{@this.primaryAxesNextPlotCallback,'add'});
+                this.handles.contextmenu.nextPlot.replace = uimenu(nextPlotmenu,'Label','Replace','callback',{@this.primaryAxesNextPlotCallback,'replace'});
+                this.handles.contextmenu.nextPlot.replacechildren = uimenu(nextPlotmenu,'Label','Replace children','callback',{@this.primaryAxesNextPlotCallback,'replacechildren'});
+                
+                % create a context menu now for the secondary axes
                 contextmenu_secondaryAxes = uicontextmenu('callback',@this.contextmenu_secondaryAxesCallback,'parent',this.figureH);
+                this.handles.contextmenu.secondaryAxes.uicontextmenu = contextmenu_secondaryAxes;
                 this.handles.contextmenu.secondaryAxes.loadshape_membership = uimenu(contextmenu_secondaryAxes,'Label','Loadshapes per cluster','callback',{@this.clusterDistributionCb,'loadshape_membership'});
                 this.handles.contextmenu.secondaryAxes.participant_membership = uimenu(contextmenu_secondaryAxes,'Label','Participants per cluster','callback',{@this.clusterDistributionCb,'participant_membership'});
                 this.handles.contextmenu.secondaryAxes.nonwear_membership = uimenu(contextmenu_secondaryAxes,'Label','Nonwear per cluster','callback',{@this.clusterDistributionCb,'nonwear_membership'});
                 this.handles.contextmenu.secondaryAxes.weekday_scores = uimenu(contextmenu_secondaryAxes,'Label','Weekday scores by cluster','callback',{@this.clusterDistributionCb,'weekday_scores'},'separator','on');
                 this.handles.contextmenu.secondaryAxes.performance_progression = uimenu(contextmenu_secondaryAxes,'Label','Adaptive separation performance progression','callback',{@this.clusterDistributionCb,'performance_progression'},'separator','on');
                 this.handles.contextmenu.secondaryAxes.weekday_membership = uimenu(contextmenu_secondaryAxes,'Label','Current cluster''s weekday distribution','callback',{@this.clusterDistributionCb,'weekday_membership'});
-                set(this.handles.axes_secondary,'uicontextmenu',contextmenu_secondaryAxes);
                 didInit = true;
             end
         end
@@ -1870,21 +1908,18 @@ classdef PAStatTool < PAViewController
         end
                 
         
-        function bgColorClickOnCb(this, hToggle, e)
-            % curState = get(hToggle,'state');
-            this.setStatus(e.EventName);
-        end
-        function bgColorClickOffCb(this, hToggle, e)
-            % curState = get(hToggle,'state');
-            this.setStatus(e.EventName);
-        end
-
-        function showBg = displayBgColor(this)
-            showBg = istoggled(this.toolbarH.cluster.toggle_backgroundColor);
-        end
+%         function bgColorClickOnCb(this, hToggle, e)
+%             % curState = get(hToggle,'state');
+%             this.setStatus(e.EventName);
+%         end
+%         function bgColorClickOffCb(this, hToggle, e)
+%             % curState = get(hToggle,'state');
+%             this.setStatus(e.EventName);
+%         end
         
         function showBg = isBgColorDisplayOn(this)
-            showBg = this.displayBgColor();
+            showBg = istoggled(this.toolbarH.cluster.toggle_backgroundColor);
+            
         end
         
         % Called by something that wants a refreshed plot.  If it is done
@@ -2121,12 +2156,18 @@ classdef PAStatTool < PAViewController
             set(this.handles.contextmenu.horizontalGridLines.(get(this.handles.axes_primary,'ygrid')),'checked','on');
         end
         
-        function primaryAxesHorizontalGridCallback(this,hObject,~,gridState)
+        function primaryAxesHorizontalGridCallback(this,hObject,~,gridState)            
+            this.setPrimaryAxesHorizontalGrid(gridState);
+        end
+        function setPrimaryAxesHorizontalGrid(this, gridState)
             if(~isempty(intersect(lower(gridState),{'on','off'})))
+                this.setSetting('primaryAxis_horizontalGrid', gridState);
                 set(this.handles.axes_primary,'ygrid',gridState);
             end
         end        
         
+        % This is a parent contextmenu callback which updates check marks
+        % for submenus
         function primaryAxesScalingContextmenuCallback(this,hObject,~)
             set(get(hObject,'children'),'checked','off');            
             set(this.handles.contextmenu.axesYLimMode.(get(this.handles.axes_primary,'ylimmode')),'checked','on');
@@ -2141,10 +2182,21 @@ classdef PAStatTool < PAViewController
             else
                 %manual selection means do not auto adjust
             end
+            this.setSetting('primaryAxis_yLimMode', yScalingMode);
         end
         
         function primaryAxesScalingCallback(this,hObject,~,yScalingMode)
             this.setPrimaryAxesYMode(yScalingMode);
+        end
+        
+        function toggleBackgroundColorCb(this, hObject, ~)
+            this.setTimeOfDayAsBackgroundColor(istoggled(hObject));
+        end
+        
+        function setTimeOfDayAsBackgroundColor(this, shouldSet)
+            narginchk(2,2);
+            this.setSetting('showTimeOfDayAsBackgroundColor', shouldSet);
+            this.plotClusters();
         end
         
         %> @brief A 'checked' "Hold y-axis" checkbox infers 'manual'
@@ -2168,13 +2220,14 @@ classdef PAStatTool < PAViewController
         
         function setNextPlotBehavior(this, nextPlot)            
             set(this.handles.axes_primary,'nextplot',nextPlot);
+            this.setSetting('primaryAxis_nextPlot', nextPlot);
         end
         
         function primaryAxesNextPlotCallback(this,hObject,~,nextPlot)
             this.setNextPlotBehavior(nextPlot);
         end
         
-        function checkHoldPlotsCallback(this,hObject,~)            
+        function checkHoldPlotsCb(this,hObject,~)            
             % Is it checked?
             if(istoggled(hObject))
                 nextPlot = 'add';
@@ -2182,8 +2235,7 @@ classdef PAStatTool < PAViewController
                 nextPlot = 'replaceChildren';
             end
             this.setNextPlotBehavior(nextPlot);
-        end        
-
+        end
         
         function contextmenu_secondaryAxesCallback(this,varargin)
             % This may be easier to maintain ... 
@@ -2422,10 +2474,10 @@ classdef PAStatTool < PAViewController
             set(this.toolbarH.cluster.toggle_membership,'clickedcallback',@this.checkShowClusterMembershipCallback);
             set(this.toolbarH.cluster.toggle_summary,'clickedcallback',@this.plotCb);
             
-            set(this.toolbarH.cluster.toggle_holdPlots,'clickedcallback',@this.checkHoldPlotsCallback);
+            set(this.toolbarH.cluster.toggle_holdPlots,'clickedcallback',@this.checkHoldPlotsCb);
             set(this.toolbarH.cluster.toggle_yLimit,'clickedcallback',@this.togglePrimaryAxesYCb);
             set(this.toolbarH.cluster.toggle_analysisFigure,'clickedcallback',@this.toggleAnalysisFigureCb);
-            set(this.toolbarH.cluster.toggle_backgroundColor,'ClickedCallback',@this.plotCb); %'OffCallback',@this.toggleBgColorCb,'OnCallback',@this.toggleBgColorCb);
+            set(this.toolbarH.cluster.toggle_backgroundColor,'ClickedCallback',@this.toggleBackgroundColorCb); %'OffCallback',@this.toggleBgColorCb,'OnCallback',@this.toggleBgColorCb);
             
             set(this.toolbarH.cluster.push_right,'clickedcallback',@this.showNextClusterCallback);
             set(this.toolbarH.cluster.push_left,'clickedcallback',@this.showPreviousClusterCallback);
@@ -3287,8 +3339,9 @@ classdef PAStatTool < PAViewController
                 set(this.handles.panel_results,'position',containerPos);
             end
             
-            % remove anycontext menu on the primary axes
+            % remove anycontext menu on the primary and secondary axes
             set(this.handles.axes_primary,'uicontextmenu',[]);
+            this.disableSecondaryContextMenus();
         end
         
         function toggleLegendCallback(this, hObject,eventData, axesHandle)
@@ -3329,25 +3382,10 @@ classdef PAStatTool < PAViewController
             enableHandles([
                 this.handles.panel_results                            
                 this.handles.toolbar_results
-                this.handles.btngrp_clusters]);                       
-            
-            % add a context menu now to primary axes            
-            contextmenu_primaryAxes = uicontextmenu('parent',this.figureH);
+                this.handles.btngrp_clusters]);
 
-            horizontalGridMenu = uimenu(contextmenu_primaryAxes,'Label','Horizontal grid','callback',@this.primaryAxesHorizontalGridContextmenuCallback);
-            this.handles.contextmenu.horizontalGridLines.on = uimenu(horizontalGridMenu,'Label','On','callback',{@this.primaryAxesHorizontalGridCallback,'on'});
-            this.handles.contextmenu.horizontalGridLines.off = uimenu(horizontalGridMenu,'Label','Off','callback',{@this.primaryAxesHorizontalGridCallback,'off'});
-            
-            axesScalingMenu = uimenu(contextmenu_primaryAxes,'Label','y-Axis scaling','callback',@this.primaryAxesScalingContextmenuCallback);
-            this.handles.contextmenu.axesYLimMode.auto = uimenu(axesScalingMenu,'Label','Auto','callback',{@this.primaryAxesScalingCallback,'auto'});
-            this.handles.contextmenu.axesYLimMode.manual = uimenu(axesScalingMenu,'Label','Manual','callback',{@this.primaryAxesScalingCallback,'manual'});
-            
-
-            nextPlotmenu = uimenu(contextmenu_primaryAxes,'Label','Next plot','callback',@this.primaryAxesNextPlotContextmenuCallback);
-            this.handles.contextmenu.nextPlot.add = uimenu(nextPlotmenu,'Label','Add','callback',{@this.primaryAxesNextPlotCallback,'add'});
-            this.handles.contextmenu.nextPlot.replace = uimenu(nextPlotmenu,'Label','Replace','callback',{@this.primaryAxesNextPlotCallback,'replace'});
-            this.handles.contextmenu.nextPlot.replacechildren = uimenu(nextPlotmenu,'Label','Replace children','callback',{@this.primaryAxesNextPlotCallback,'replacechildren'});
-            set(this.handles.axes_primary,'uicontextmenu',contextmenu_primaryAxes);            
+            this.enablePrimaryContextMenus();
+            this.enableSecondaryContextMenus();            
             
             % --------
             % I don't think this does anything anymore @hyatt 5/11/2017
@@ -3377,14 +3415,14 @@ classdef PAStatTool < PAViewController
             
             set(this.handles.panel_clusterInfo,'visible','off');
             set(this.handles.text_clusterResultsOverlay,'enable','on');
-            % add a context menu now to primary axes           
-            set(this.handles.axes_primary,'uicontextmenu',[]);
+            % add a context menu now to primary axes  
+            this.disablePrimaryContextMenus();
+            this.disableSecondaryContextMenus();
+
             this.clearPlots();
             set([this.handles.axes_primary
                 this.handles.axes_secondary],'color',[0.75 0.75 0.75]);
         end
-        
-        
         
         % ======================================================================
         %> @brief Displays most recent cluster data according to gui
@@ -4369,6 +4407,7 @@ classdef PAStatTool < PAViewController
                 paramStruct.numDataSegmentsSelection = PAIndexParam('default',1,'description','Data chunk size selection');
                 paramStruct.numChunks.setValue(baseSettings.numDataSegments(paramStruct.numDataSegmentsSelection));
             end
+            
             paramStruct.preclusterReductionSelection = PAIndexParam('default',1,'description','Preclustering data reduction method'); % defaults to 'none'
             
             paramStruct.processedTypeSelection = PAIndexParam('default',1,'description','Processed type');
@@ -4392,6 +4431,9 @@ classdef PAStatTool < PAViewController
             
             paramStruct.primaryAxis_nextPlot =          PAEnumParam('default','replace','categories',{{'replace','hold'}},'description','Next plot');
             
+            paramStruct.primaryAxis_horizontalGrid =    PAEnumParam('default','on','categories',{{'on','off'}},'description','Horizontal grid lines');
+            
+            
             % plots clusters id's (sorted by membership in ascending order) on x-axis
             % and the count of loadshapes (i.e. membership count) on the y-axis.
             %> @brief Cluster distribution mode, which is updated from the ui
@@ -4407,7 +4449,6 @@ classdef PAStatTool < PAViewController
             paramStruct.databaseClass = PAStringParam('default','CLASS_database_goals','description','Database classname');
             paramStruct.profileFieldSelection = PAIndexParam('default',1,'description','Profile field selection');    
             paramStruct.profileFieldIndex =     PAIndexParam('default',1,'description','Profile field index'); % is one for database and the other for outcomes table?  looks redundant.
-
             
             paramStruct.bootstrapIterations = PANumericParam('default',100,'description','Bootstrap iterations');
             paramStruct.bootstrapSampleName = PAEnumParam('default','studyID','categories',{'studyID','days'},'description','Bootstrap sample name');

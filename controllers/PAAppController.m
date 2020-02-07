@@ -1231,7 +1231,7 @@ classdef PAAppController < PAFigureController
                 else
                     % Make sure the featuresPath is up to date (e.g. when
                     % switching back from a batch mode.
-                    this.StatTool.init();  %calls a plot refresh
+                    this.StatTool.updateWidgets();  %calls a plot refresh
                 end
                 success = this.StatTool.getCanPlot();
             end
