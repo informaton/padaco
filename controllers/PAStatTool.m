@@ -499,8 +499,10 @@ classdef PAStatTool < PAViewController
             if(nargin<3 || isempty(initializeOnSet) || ~islogical(initializeOnSet))
                 initializeOnSet = true;
             end
-            if(~isequal(this.originalSettings,widgetSettings))
+            % Original settings are in value form already @hyatt 2/7/2020
+            if(~isequal(this.originalSettings,paparamsToValues(widgetSettings)))
                 this.clusterObj = [];
+                this.logWarning('Cluster results were just cleared.');
             end
             this.setSettings( widgetSettings );
             
@@ -567,10 +569,8 @@ classdef PAStatTool < PAViewController
                             
                         otherwise
                             fprintf(1,'Unknown indices flag for refreshClustersAndPlot: ''%s''\n',indicesToUse);
-                            indicesToUse = [];
-                            
-                    end
-                    
+                            indicesToUse = [];                            
+                    end                    
                 end
             end
             
@@ -669,10 +669,7 @@ classdef PAStatTool < PAViewController
                 if(stopTimeSelection== startTimeSelection)
 
                     if(this.isClusterMode())
-                        % Not sure why this is happening in some cases when
-                        % loading a new data file with different time
-                        % interval. - also occurs when starting from a new
-                        % settings file.
+                        % 
                         warndlg('Only one time epoch selected - defaulting to all epochs instead.');
                     end
 
@@ -1874,6 +1871,10 @@ classdef PAStatTool < PAViewController
 
         function showBg = displayBgColor(this)
             showBg = istoggled(this.toolbarH.cluster.toggle_backgroundColor);
+        end
+        
+        function showBg = isBgColorDisplayOn(this)
+            showBg = this.displayBgColor();
         end
         
         % Called by something that wants a refreshed plot.  If it is done
@@ -3174,13 +3175,14 @@ classdef PAStatTool < PAViewController
                     this.initRefreshClusterButton('off');                    
                 end
                 
-                this.plotClusters(pSettings); 
-                this.enableClusterControls();
-                this.logStatus('Used to be a call to updateOriginalWidgetSettings here, but it appeared to be redundant');
-%                 this.updateOriginalWidgetSettings(pSettings);
-                
-                dissolve(resultsTextH,2.5);
-                
+                if this.isBgColorDisplayOn()
+                    dissolveIn = 0;
+                else
+                    dissolveIn = 2.5;                    
+                end
+                dissolve(resultsTextH,dissolveIn);
+                this.plotClusters(pSettings);
+                this.enableClusterControls();                
             else
                 set(resultsTextH,'visible','off');
                 this.initRefreshClusterButton('on');  % want to initialize the button again so they can try again perhaps.
