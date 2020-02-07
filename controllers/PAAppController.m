@@ -107,8 +107,14 @@ classdef PAAppController < PAFigureController
             % Create a SingleStudy class
             obj.SingleStudy = PASingleStudyController(obj.figureH, obj.AppSettings.SingleStudy);
             
-            % Create a results class
-            obj.StatTool = PAStatTool(obj.figureH, obj.AppSettings.StatTool); % obj.featuresPathname
+            % Create a results class            
+            
+            % Load last path on startup?
+            if(obj.getSetting('startWithLastPath'))
+                obj.StatTool = PAStatTool(obj.figureH, obj.AppSettings.StatTool, obj.getSetting('featuresPathname'));
+            else
+                obj.StatTool = PAStatTool(obj.figureH, obj.AppSettings.StatTool);
+            end
             obj.StatTool.setIcon(obj.iconFilename);
            
             fprintf(1,'Need to return to outcomes table data refactor\n');
@@ -118,9 +124,7 @@ classdef PAAppController < PAFigureController
 
             obj.showBusy([],'all');
             set(obj.figureH,'CloseRequestFcn',{@obj.figureCloseCallback,guidata(obj.figureH)});
-            set(obj.figureH,'visible','on');            
             
-
             
             % set(obj.figureH,'scrollable','on'); - not supported
             % for guide figures (figure)
@@ -129,12 +133,19 @@ classdef PAAppController < PAFigureController
             
             % attempt to load the last set of results
             lastViewMode = obj.getSetting('viewMode');
+            
+            
+            % May be necessary to show for resize behavior to work?
+            set(obj.figureH,'visible','on');
             try
-                obj.setViewMode(lastViewMode);
+                if ~isequal(obj.getViewMode(), lastViewMode)
+                    obj.setViewMode(lastViewMode);
+                end
                 obj.initResize();
             catch me
                 showME(me);
             end
+            set(obj.figureH,'visible','on');
         end
         
         %% Shutdown functions
@@ -1174,7 +1185,7 @@ classdef PAAppController < PAFigureController
         
         function didSet = setFeaturesPathname(this, featuresPath)
            this.setSetting('featuresPathname',featuresPath);
-           didSet = this.StatTool.setResultsDirectory(featuresPath); 
+           didSet = this.StatTool.setFeaturesDirectory(featuresPath); 
         end
         
         
@@ -1188,7 +1199,7 @@ classdef PAAppController < PAFigureController
         function success = initResultsView(this)
             success = false;
             featuresPath = this.getFeaturesPathname();
-            currentFeaturesPath = this.StatTool.resultsDirectory;
+            currentFeaturesPath = this.StatTool.featuresDirectory;
           
             if(isdir(featuresPath))
                 if ~isdir(currentFeaturesPath) && isdir(featuresPath)
@@ -1647,16 +1658,15 @@ classdef PAAppController < PAFigureController
             %> String identifying Padaco's current view mode.  Values include
             %> - @c timeseries
             %> - @c results
-            
-            
             pStruct.viewMode = PAEnumParam('default','timeseries','categories',{'timeseries','results'},'description','Current View','help','String identifying Padaco''s current view mode.');
-
-            %> Foldername of most recent screenshot.        
-            pStruct.screenshotPathname = PAPathParam('default',getSavePath(),'description','Screenshot save path','help','Foldername of most recent screenshot');
             
-            %> Foldername of most recent screenshot.        
+            %> Foldername of last features path selected
             pStruct.featuresPathname = PAPathParam('default','','description','Feature-set path','help','Foldername of featurized dataset');
             
+            pStruct.startWithLastPath = PABoolParam('default',false,'description','Start with last used feature set');
+            %> Foldername of most recent screenshot.        
+            pStruct.screenshotPathname = PAPathParam('default',getSavePath(),'description','Screenshot save path','help','Foldername of most recent screenshot');
+           
             % pStruct.filter_inf_file = PAFilenameParam('default','filter.inf','description','Filter configuration file');
             % pStruct.database_inf_file = PAFilenameParam('default','database.inf','description','Database configuration file');
             

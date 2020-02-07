@@ -207,10 +207,12 @@ classdef PAStatTool < PAViewController
         end
 
         
-        function didSet = setFesultsDirectory(this, featuresPath)
-            if(isdir(featuresPath))
-                this.featuresDirectory = featuresPath;
-                featuresPath = fullfile(featuresPath,'features');
+        function didSet = setFeaturesDirectory(this, resultsPath)
+            if(~isdir(resultsPath))
+                this.logWarning('Not a valid directory');
+                didSet = false;
+            else                
+                featuresPath = fullfile(resultsPath,'features');
                 
                 % We are allowing user to pick a folder that contains
                 % 'features' as a subfolder, or the folder whose subfolders
@@ -218,10 +220,11 @@ classdef PAStatTool < PAViewController
                 % little more flexibility to the user and hopefully hide
                 % some of the more mundane parts of loading a path.
                 if(~isdir(featuresPath))
-                    featuresPath = featuresPath;
+                    featuresPath = resultsPath;
                     % fprintf('Assuming features pathFeatures pathname (%s) does not exist!\n',featuresPath);
                 end
-                this.featuresDirectory = featuresPath;                
+                
+                this.featuresDirectory = featuresPath;            
                 
                 didInit = false;
                 if(exist(this.getFullClusterCacheFilename(),'file') && this.useCache)
@@ -281,8 +284,7 @@ classdef PAStatTool < PAViewController
                     end
                 end
                 if(~didInit)
-                    this.init(this.originalSettings);  %initializes previousstate.plotType on success and calls plot selection change cb for sync.
-                    didInit = true;
+                    didInit = this.init(this.originalSettings);  %initializes previousstate.plotType on success and calls plot selection change cb for sync.                    
                 end
                 
                 this.clearPlots();                
@@ -294,9 +296,7 @@ classdef PAStatTool < PAViewController
                         this.switchFromClustering();
                     end
                 end     
-                didSet = true;
-            else
-                didSet = false; 
+                didSet = true;           
             end    
         end
         
@@ -477,7 +477,10 @@ classdef PAStatTool < PAViewController
             % callbacks which, e.g. buttons that rely on the
             % clusterDistributionType
             this.settings = mergeStruct(this.settings, this.originalSettings);
-            this.setWidgetSettings(this.settings);
+            
+            this.setUseDatabase(this.getSetting('useDatabase'));  %sets this.useDatabase to false if it was initially true and then fails to open the database
+            this.setUseOutcomesTable(this.getSetting('useOutcomes'));
+            this.initWidgets(this.settings);  % want to refresh the current view as well...
         end
         
         % ======================================================================
@@ -502,7 +505,7 @@ classdef PAStatTool < PAViewController
                 end
             end
             
-            % Also updates originalSettings ...
+            % Also updates originalSettings ... :( <> :)
             this.setSettings( widgetSettings );
             
             % Merge the defaults with what is here otherwise.
@@ -908,14 +911,13 @@ classdef PAStatTool < PAViewController
         %> refreshes the view.
         %> @param this Instance of PAStatTool
         % ======================================================================        
-        function init(this, initSettings)
+        function didInit = init(this, initSettings)
             if(nargin<2 || isempty(initSettings))
                 initSettings = this.getPlotSettings();
             end
-            this.initWidgets(initSettings); 
+            didInit = this.initWidgets(initSettings); 
             this.initCallbacks();
-        end
-        
+        end        
         
         % ======================================================================
         %> @brief Clears the primary and secondary axes.
@@ -953,8 +955,7 @@ classdef PAStatTool < PAViewController
                 
                 set(this.handles.axes_primary,'xlimmode','manual');
                 set(this.handles.axes_primary,'ylimmode','manual');
-                set(this.handles.axes_primary,'nextplot','replacechildren');
-                
+                set(this.handles.axes_primary,'nextplot','replacechildren');                
                 
                 delete(currentChildren);
                 title(this.handles.axes_primary,'');
@@ -963,8 +964,7 @@ classdef PAStatTool < PAViewController
                 
                 set(this.handles.axes_primary,'ylimmode',currentYLimMode);
                 set(this.handles.axes_primary,'xlimmode',currentXLimMode);                
-                set(this.handles.axes_primary,'nextplot',currentNextPlot);
-                
+                set(this.handles.axes_primary,'nextplot',currentNextPlot);                
             end                
         end
      
@@ -1015,9 +1015,7 @@ classdef PAStatTool < PAViewController
             else
                 fprintf('PAStatTool.m cannot plot (refreshPlot)\n');
             end
-        end
-
-        
+        end        
         
         function fullFilename = getFullClusterCacheFilename(this)
             fullFilename = fullfile(this.cacheDirectory,this.RESULTS_CACHE_FILENAME);
@@ -1033,8 +1031,7 @@ classdef PAStatTool < PAViewController
         function isValid = hasValidCluster(this)
             isValid = ~(isempty(this.clusterObj) || this.clusterObj.failedToConverge());
         end 
-        
-        
+                
         function didSet = setIcon(this, iconFilename)
             if(nargin>1 && exist(iconFilename,'file'))
                 this.iconFilename = iconFilename;
@@ -1121,7 +1118,8 @@ classdef PAStatTool < PAViewController
             if(nargin>1)
                 this.useDatabase = willSet && true;
                 % Convoluted way of doing this, but it works out, see
-                % initDatabaseObj below ...
+                % initDatabaseObj below ... which shows that the database
+                % object is actually cleared if not to be used.
                 this.useDatabase = this.initDatabaseObj();% initDatabase returns false if it fails to initialize and is supposed to.
                 didSet = true;
             else
@@ -1154,7 +1152,7 @@ classdef PAStatTool < PAViewController
                 visibility = 'off';
             end
             this.logStatus('Analysis figure availability is: %s',visibility);
-            % set(this.toolbarH.cluster.toggle_analysisFigure,'visible',visibility);
+            set(this.toolbarH.cluster.toggle_analysisFigure,'visible',visibility);
         end
         
         function hasIt = hasProfileData(this)
@@ -1523,8 +1521,8 @@ classdef PAStatTool < PAViewController
             didInit = initFigure@PAViewController(this); % calls: obj.designateHandles(); obj.initWidgets();  obj.initCallbacks(); 
             if(didInit)
                 try
-                    initializeOnSet = false;
-                    this.setWidgetSettings(this.settings, initializeOnSet);
+                    % initializeOnSet = false;
+                    % this.setWidgetSettings(this.settings, initializeOnSet);
                     this.initScatterPlotFigure();
                     
                     % Create property/event listeners
@@ -1533,9 +1531,13 @@ classdef PAStatTool < PAViewController
                     addlistener(this.handles.menu_number_of_data_segments,'Enable','PostSet',@this.checkSegmentPropertyChgCallback);
                     
                     % Profile Summary and analysis figure
-                    if(this.useDatabase || this.useOutcomes)
-                        this.initProfileTable(this.getSetting('profileFieldSelection'));
-                    end
+                    this.setUseDatabase(this.getSetting('useDatabase'));  %sets this.useDatabase to false if it was initially true and then fails to open the database
+                    this.setUseOutcomesTable(this.getSetting('useOutcomes'));
+                    
+                    % if(this.useDatabase || this.useOutcomes)
+                    %     this.initProfileTable(this.getSetting('profileFieldSelection'));
+                    % end
+                    
                     % Now check and update whether we make the option available
                     this.refreshAnalysisFigureAvailability();
                     
@@ -1614,7 +1616,7 @@ classdef PAStatTool < PAViewController
         
         % ======================================================================
         %> @brief Initialize gui handles using input parameter or default
-        %> parameters.  Initalizes callbacks where applicable.
+        %> parameters.  Does not initalize callbacks (see initCallbacks)
         %> @param this Instance of PAStatTool
         %> @param widgetSettings GUI setting parameters (optional).  If
         %> this is not included or is empty, then the default parameters are
@@ -2291,7 +2293,11 @@ classdef PAStatTool < PAViewController
             profileColumnNames = {'n','mx','sem','n (global)','mx (global)','sem (global)'};
             %{'Mean (global)','Mean (cluster)','p'};
             rowNames = this.profileFields;
-            if(nargin<2 || isempty(profileFieldSelection) || profileFieldSelection>numel(this.profileFields))
+            if(nargin<2 || isempty(profileFieldSelection))
+                profileFieldSelection = this.getSetting('profileFieldSelection');
+            end
+            
+            if isempty(profileFieldSelection) || profileFieldSelection>numel(this.profileFields)
                 profileFieldSelection = 1;
             end
             
@@ -4333,7 +4339,7 @@ classdef PAStatTool < PAViewController
             
             baseSettings = PAStatTool.getBaseSettings();  
             % Prime with cluster parameters.
-            paramStruct = PACluster.getDefaults();
+            paramStruct = PACluster.getDefaults();            
  
             paramStruct.maxNumDaysAllowed = PANumericParam('default',0,'Description','Maximum number of days allowed per subject.','help','Leave 0 to include all days.','min',0);
             paramStruct.minNumDaysAllowed = PANumericParam('default',0,'Description','Minimum number of days allowed per subject.','help','Leave 0 for no minimum.  Currently variable has no effect at all.','min',0);
