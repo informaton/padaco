@@ -130,7 +130,8 @@ classdef PAStatTool < PAViewController
         %> the constructor (and is empty otherwise).  This is used to
         %> 'reset' parameters and keep track of time start and stop
         %> selection fields which are not initialized until after data has
-        %> been load (i.e. and populates the dropdown menus.
+        %> been load (i.e. and populates the dropdown menus.  These are the
+        %> settings that were applied to the most recently cluster object.
         originalSettings;
     end
     
@@ -206,9 +207,9 @@ classdef PAStatTool < PAViewController
             delete@PAViewController(this);
         end
 
-        function resultsPath = getResultsDirectory(this)
-            resultsPath = this.resultsDirectory;
-        end
+        % function resultsPath = getResultsDirectory(this)
+        %    resultsPath = this.resultsDirectory;
+        % end
         
         function didSet = setResultsDirectory(this, resultsPath)
             if(isdir(resultsPath))
@@ -414,8 +415,8 @@ classdef PAStatTool < PAViewController
         end
         
         function clusterParameterChangeCb(this, clusterObj, paramEventData)
-            if(isfield(this.originalSettings,paramEventData.fieldName))
-                this.originalSettings.setSetting(paramEventData.fieldName, paramEventData.changedTo);
+            if(isfield(this.settings,paramEventData.fieldName))
+                this.setSetting(paramEventData.fieldName, paramEventData.changedTo);
             end
         end
         
@@ -467,13 +468,21 @@ classdef PAStatTool < PAViewController
         %         end
         
         function updateOriginalWidgetSettings(this, updatedSettings)
-            % Updating original widget settings like ensures that the
+            % Updating original widget settings ensures that the
             % cluster object is not emptied if it exists, which is helpful
-            % since this method was made when tyring to synce cahed cluster
+            % since this method was made when trying to synce cached cluster
             % results, where a cluster exists and may have been loaded already,
             % but the settings have not been updated in this class yet.
             this.originalSettings = mergeStruct(this.originalSettings,updatedSettings); % keep a record of our most recent settings.
-            this.setWidgetSettings(this.originalSettings);
+            
+            % Convoluted somewhere - but originalSettings do not have the
+            % PAParam classes for the most part, and so we cannot simply
+            % pass original widget settings to the setWidgetSettings()
+            % method below as is because it throws off many of the
+            % callbacks which, e.g. buttons that rely on the
+            % clusterDistributionType
+            this.settings = mergeStruct(this.settings, this.originalSettings);
+            this.setWidgetSettings(this.settings);
         end
         
         % ======================================================================
@@ -505,7 +514,7 @@ classdef PAStatTool < PAViewController
             this.setUseOutcomesTable(this.getSetting('useOutcomes'));
 
             if(initializeOnSet)
-                this.initWidgets(this.originalSettings);
+                this.init(this.originalSettings);                
             end
         end
         
@@ -907,7 +916,8 @@ classdef PAStatTool < PAViewController
             if(nargin<2 || isempty(initSettings))
                 initSettings = this.getPlotSettings();
             end
-            this.initWidgets(initSettings);            
+            this.initWidgets(initSettings); 
+            this.initCallbacks();
         end
         
         
@@ -1514,7 +1524,7 @@ classdef PAStatTool < PAViewController
             this.featureInputFilePattern = ['%s',filesep,'%s',filesep,'features.%s.accel.%s.%s.txt'];
             this.featureInputFileFieldnames = {'inputPathname','displaySeletion','processType','curSignal'};
             
-            didInit = initFigure@PAViewController(this);
+            didInit = initFigure@PAViewController(this); % calls: obj.designateHandles(); obj.initWidgets();  obj.initCallbacks(); 
             if(didInit)
                 try
                     initializeOnSet = false;
@@ -1582,8 +1592,6 @@ classdef PAStatTool < PAViewController
                 
                 drawnow();
                 
-       
-                
                 set([
                     this.handles.menu_clusterStartTime
                     this.handles.menu_clusterStopTime
@@ -1599,8 +1607,8 @@ classdef PAStatTool < PAViewController
                 this.handles.contextmenu.secondaryAxes.participant_membership = uimenu(contextmenu_secondaryAxes,'Label','Participants per cluster','callback',{@this.clusterDistributionCb,'participant_membership'});
                 this.handles.contextmenu.secondaryAxes.nonwear_membership = uimenu(contextmenu_secondaryAxes,'Label','Nonwear per cluster','callback',{@this.clusterDistributionCb,'nonwear_membership'});
                 this.handles.contextmenu.secondaryAxes.weekday_scores = uimenu(contextmenu_secondaryAxes,'Label','Weekday scores by cluster','callback',{@this.clusterDistributionCb,'weekday_scores'},'separator','on');
-                this.handles.contextmenu.secondaryAxes.weekday_membership = uimenu(contextmenu_secondaryAxes,'Label','Current cluster''s weekday distribution','callback',{@this.clusterDistributionCb,'weekday_membership'});
                 this.handles.contextmenu.secondaryAxes.performance_progression = uimenu(contextmenu_secondaryAxes,'Label','Adaptive separation performance progression','callback',{@this.clusterDistributionCb,'performance_progression'},'separator','on');
+                this.handles.contextmenu.secondaryAxes.weekday_membership = uimenu(contextmenu_secondaryAxes,'Label','Current cluster''s weekday distribution','callback',{@this.clusterDistributionCb,'weekday_membership'});
                 set(this.handles.axes_secondary,'uicontextmenu',contextmenu_secondaryAxes);
                 didInit = true;
             end
@@ -2775,7 +2783,7 @@ classdef PAStatTool < PAViewController
             if(istoggled(hObject))
                 set(this.handles.axes_primary,'ygrid','on');
                 [~, uniqueIDs] = this.clusterObj.getClustersOfInterestMemberIDs();
-                disp(uniqueIDs);
+                %disp(uniqueIDs);
             else
                 set(this.handles.axes_primary,'ygrid','off');                
             end
@@ -2784,7 +2792,6 @@ classdef PAStatTool < PAViewController
     end
     
     methods
-            
                 
         %> @brief Creates a matlab struct with pertinent fields related to
         %> the current cluster and its calculation, and then saves the
@@ -3385,7 +3392,6 @@ classdef PAStatTool < PAViewController
                     % clear everything and give a warning that the cluster is empty
                     this.logWarning('Clustering results were empty');
                 else
-                    
                   
                     numClusters = this.clusterObj.numClusters();
  
@@ -3506,9 +3512,9 @@ classdef PAStatTool < PAViewController
                                            
                         datenumVec = datenum(this.getStartTimesCell,'HH:MM');
                         numShades = 1;
-                        daylight = getDaylightEstimate(numShades,datenumVec);
+                        daylightOverlay = getDaylightEstimate(numShades,datenumVec);
                         
-                        xdata = linspace(1,this.featureStruct.totalCount,numel(daylight)+1);
+                        xdata = linspace(1,this.featureStruct.totalCount,numel(daylightOverlay)+1);
                         
                         % use a proxy for the actual start stop date nums,
                         % since we don't actually use it for display in
@@ -3517,7 +3523,7 @@ classdef PAStatTool < PAViewController
                         % our axes handle.
                         startStopXData = [xdata(1:end-1);xdata(2:end)]';
                       
-                        [~, overlayPatchH] = PAView.addOverlayToAxes(daylight, startStopXData, height, verticalOffset,maxDaylight,axesH);
+                        [~, overlayPatchH] = addOverlayToAxes(axesH, daylightOverlay, startStopXData, height, verticalOffset,maxDaylight);
                         set(overlayPatchH,'hittest','off');
                         uistack(overlayPatchH,'bottom');
                     end
@@ -4381,7 +4387,7 @@ classdef PAStatTool < PAViewController
             %> - @c weekday
             %> - @c membership [default]
             
-            paramStruct.clusterDistributionType = PAEnumParam('default','loadshape_membership','categories',{{'loadshape_membership','participant_membership','performance_progression','membership','weekday_membership'}},'description','Cluster distribution selection');
+            paramStruct.clusterDistributionType = PAEnumParam('default','loadshape_membership','categories',{{'loadshape_membership','participant_membership','nonwear_membership','weekday_scores','performance_progression','weekday_membership'}},'description','Cluster distribution selection');
             
             paramStruct.useOutcomes = PABoolParam('default',false,'description','Use outcomes table');
             paramStruct.useDatabase = PABoolParam('default',false,'description','Use MySQL database');

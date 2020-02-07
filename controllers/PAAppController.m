@@ -91,6 +91,12 @@ classdef PAAppController < PAFigureController
             
             %create/intilize the settings object
             obj.AppSettings = PAAppSettings(configPath,parameters_filename);
+            
+            % Because in this case I don't have settings coming in to the
+            % constructor, so  I have to make sure the settings are
+            % synchronized here.
+            obj.setSettings(mergeStruct(obj.settings, obj.AppSettings.Main));
+            
             obj.OutcomesTableData = PAOutcomesTableData(obj.AppSettings.OutcomesTableData);
             obj.OutcomesTableData.addlistener('LoadSuccess',@obj.outcomesLoadCb);
             obj.OutcomesTableData.addlistener('LoadFail',@obj.outcomesLoadCb);
@@ -1162,10 +1168,12 @@ classdef PAAppController < PAFigureController
         end
         
         function resultsPath = getResultsPathname(this)
-           resultsPath = this.StatTool.getResultsDirectory(); 
+            resultsPath = this.getSetting('featuresPathname');
+            % resultsPath = this.StatTool.getResultsDirectory(); 
         end
         
         function didSet = setResultsPathname(this, resultsPath)
+           this.setSetting('featuresPathname',resultsPath);
            didSet = this.StatTool.setResultsDirectory(resultsPath); 
         end
         
@@ -1180,13 +1188,12 @@ classdef PAAppController < PAFigureController
         function success = initResultsView(this)
             success = false;
             resultsPath = this.getResultsPathname();
+            currentResultsPath = this.StatTool.resultsDirectory;
           
             if(isdir(resultsPath))
-                refreshPath = false;
-                % Skip this part for now.  It was in here earlier when you
-                % could rerun cluster data and that would change the output
-                % directory per chance.
-                if(refreshPath && ~strcmpi(resultsPath,this.resultsPathname))
+                if ~isdir(currentResultsPath) && isdir(resultsPath)
+                    refreshPath = true;
+                elseif ~strcmpi(resultsPath,currentResultsPath)
                     msgStr = sprintf('There has been a change to the results path.\nWould you like to load features from the updated path?\n%s',this.getResultsPathname());
                     titleStr = 'Refresh results path?';
                     buttonName = questdlg(msgStr,titleStr,'Yes','No','Yes');
@@ -1202,15 +1209,16 @@ classdef PAAppController < PAFigureController
                         otherwise
                             refreshPath = false;
                     end
+                else
+                    refreshPath = false;
                 end
                 
                 if(refreshPath)
-                    this.StatTool.setResultsDirectory(resultsPathname);
+                    this.setResultsPathname(resultsPath);                    
                 else
                     % Make sure the resultsPath is up to date (e.g. when
                     % switching back from a batch mode.
                     this.StatTool.init();  %calls a plot refresh
-                    
                 end
                 success = this.StatTool.getCanPlot();
             end
@@ -1646,6 +1654,8 @@ classdef PAAppController < PAFigureController
             %> Foldername of most recent screenshot.        
             pStruct.screenshotPathname = PAPathParam('default',getSavePath(),'description','Screenshot save path','help','Foldername of most recent screenshot');
             
+            %> Foldername of most recent screenshot.        
+            pStruct.featuresPathname = PAPathParam('default','','description','Feature-set path','help','Foldername of featurized dataset');
             
             % pStruct.filter_inf_file = PAFilenameParam('default','filter.inf','description','Filter configuration file');
             % pStruct.database_inf_file = PAFilenameParam('default','database.inf','description','Database configuration file');

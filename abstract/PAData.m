@@ -102,7 +102,9 @@ classdef PAData < PABaseWithSettings
                 oldPath = this.exportPathname;
                 this.exportPathname = newPath;
                 didSet = true;
-                this.notify('DefaultParameterChange',EventData_ParameterChange('exportPathname',newPath, oldPath));
+                if ~isequal(oldPath, newPath)
+                    this.notify('DefaultParameterChange',EventData_ParameterChange('exportPathname',newPath, oldPath));
+                end
             catch me
                 showME(me);
                 didSet = false;
@@ -116,7 +118,9 @@ classdef PAData < PABaseWithSettings
                 if(ismember(newFmt, this.EXPORT_FORMATS))
                     this.exportFormat = newFmt;
                     didSet = true;
-                    this.notify('DefaultParameterChange',EventData_ParameterChange('exportFormat',newFmt, oldFmt));
+                    if ~isequal(oldFmt, newFmt)
+                        this.notify('DefaultParameterChange',EventData_ParameterChange('exportFormat',newFmt, oldFmt));
+                    end
                 else
                     didSet = false;
                 end

@@ -227,12 +227,23 @@ classdef(Abstract) PAViewController < PAFigureController
         
         function refreshView(obj)
             
-            set(obj.figureH,'WindowKeyPressFcn',[]);
-            set(obj.axeshandle.secondary,'uicontextmenu',[]);
-            
+            obj.clearCallbacks();
             obj.initAxesHandles();
             obj.clearTextHandles();
             obj.updateWidgets();
+        end
+        
+        function didClear = clearCallbacks(obj)
+            didClear = true;
+            figH = obj.figureH;            
+            % mouse and keyboard callbacks
+            set(figH,'WindowKeyPressFcn',[]);
+            set(figH,'KeyPressFcn',[]);
+            set(figH,'KeyReleaseFcn',[]);
+            set(figH,'WindowButtonDownFcn',[]);
+            set(figH,'WindowButtonUpFcn',[]);
+            
+            set(obj.axeshandle.secondary,'uicontextmenu',[]);
         end
         
         function axesProps = getPadacoAxesProps(obj,optionalView)
@@ -297,6 +308,7 @@ classdef(Abstract) PAViewController < PAFigureController
     end
     methods(Abstract,Access=protected)
         didInit = initWidgets(obj)
+        didInit = initCallbacks(obj);
     end
         
     methods(Access=protected)
@@ -305,8 +317,7 @@ classdef(Abstract) PAViewController < PAFigureController
             if(ishandle(obj.figureH))
                 obj.designateHandles();
                 didInit = obj.initWidgets();
-                obj.initCallbacks(); %initialize callbacks now that we have some data we can interact with.
-                
+                obj.initCallbacks(); %initialize callbacks now that we have some data we can interact with.       
             else
                 didInit = false;
             end
@@ -355,116 +366,7 @@ classdef(Abstract) PAViewController < PAFigureController
             end
         end
         
-        % --------------------------------------------------------------------
-        %> @brief  Executes on key press with focus on figure and no controls selected.
-        %> @param obj Instance of PAAppController
-        %> @param hObject    handle to figure (gcf)
-        %> @param eventdata Structure of key press information.
-        % --------------------------------------------------------------------
-        function keyPressCallback(obj,hObject, eventdata)
-            % key=double(get(hObject,'CurrentCharacter')); % compare the values to the list
-            key=eventdata.Key;
-            %             handles = guidata(hObject);
-            window = obj.getCurWindow();
-            
-            if(strcmp(key,'add'))
-                
-            elseif(strcmp(key,'subtract'))
-                
-            elseif(strcmp(key,'leftarrow')||strcmp(key,'pagedown'))
-                %go backward 1 window
-                obj.setCurWindow(window-1);
-            elseif(strcmp(key,'rightarrow')||strcmp(key,'pageup'))
-                %go forward 1 window
-                obj.setCurWindow(window+1);
-            elseif(strcmp(key,'uparrow'))
-                %go forward 10 windows
-                obj.setCurWindow(window+10);
-            elseif(strcmp(key,'downarrow'))
-                %go back 10 windows
-                obj.setCurWindow(window-10);
-            end
-            
-            if(strcmp(eventdata.Key,'shift'))
-                set(obj.figureH,'pointer','ibeam');
-            end
-            if(strcmp(eventdata.Modifier,'control'))
-                %kill the program
-                if(strcmp(eventdata.Key,'x'))
-                    delete(hObject);
-                    %take screen capture of figure
-                elseif(strcmp(eventdata.Key,'f'))
-                    obj.figureScreenshot();
-                    %take screen capture of main axes
-                elseif(strcmp(eventdata.Key,'s'))
-                    if(isa(obj.SingleStudy,'PASingleStudyController') &&ishandle(obj.axeshandle.secondary))
-                        obj.screenshotPathname = screencap(obj.axeshandle.secondary,[],obj.screenshotPathname);
-                    end
-                elseif(strcmp(eventdata.Key,'p'))
-                    if(isa(obj.SingleStudy,'PASingleStudyController') &&ishandle(obj.axeshandle.primary))
-                        obj.screenshotPathname = screencap(obj.axeshandle.primary,[],obj.screenshotPathname);
-                    end
-                end
-            end
-        end
-        
-        % --------------------------------------------------------------------
-        %> @brief  Executes on key press with focus on figure and no controls selected.
-        %> @param obj Instance of PAAppController
-        %> @param hObject    handle to figure (gcf), unused
-        %> @param eventdata Structure of key press information.
-        % --------------------------------------------------------------------
-        function keyReleaseCallback(obj,~, eventdata)            
-            key=eventdata.Key;
-            if(strcmp(key,'shift'))
-                set(obj.figureH,'pointer','arrow');
-            end
-        end
-        
-        % --------------------------------------------------------------------
-        %> @brief  Executes when user releases mouse click
-        %> If the currentObject selected is the secondary axes, then
-        %> the current window is set to the closest window corresponding to
-        %> the mouse's x-position.
-        %> @param obj Instance of PAAppController
-        %> @param hObject    handle to figure (gcf), unused
-        %> @param eventData Structure of mouse press information; unused
-        % --------------------------------------------------------------------
-        function windowButtonUpCallback(obj,hObject,~)
-            selected_obj = get(hObject,'CurrentObject');
-            if(~isempty(selected_obj) && ~strcmpi(get(hObject,'SelectionType'),'alt'))   % Dont get confused with mouse button up due to contextmenu call
-                if(selected_obj==obj.axeshandle.secondary)
-                    pos = get(selected_obj,'currentpoint');
-                    clicked_datenum = pos(1);
-                    cur_window = obj.accelObj.datenum2window(clicked_datenum,obj.getDisplayType());
-                    obj.setCurWindow(cur_window);
-                end
-            end
-        end
-        
-        % --------------------------------------------------------------------
-        %> @brief  Executes when user first clicks the mouse.
-        %> @param obj Instance of PAAppController
-        %> @param hObject    handle to figure (gcf), unused
-        %> @param eventData Structure of mouse press information; unused
-        %> @param Note - this turns off all other mouse movement and mouse
-        %> wheel callback methods.
-        % --------------------------------------------------------------------
-        function windowButtonDownCallback(obj,varargin)
-            if(ishandle(obj.current_linehandle))
-                set(obj.figureH,'windowbuttonmotionfcn',[]);
-                
-                obj.deactivateLineHandle();
-            end
-        end
-        
-        function deactivateLineHandle(obj)
-            set(obj.current_linehandle,'selected','off');
-            obj.current_linehandle = [];
-            obj.showReady();
-            set(obj.figureH,'windowbuttonmotionfcn',[],'WindowScrollWheelFcn',[]);
-        end
-       
+
         % --------------------------------------------------------------------
         %> @brief Shows ready status (mouse becomes the default pointer).
         %> @param axesTag Optional tag, that if set will set the axes tag's
@@ -540,21 +442,7 @@ classdef(Abstract) PAViewController < PAFigureController
             axesProps.secondary.(labelField) = labels;
             obj.initAxesHandles(axesProps);
         end
-        
-        % --------------------------------------------------------------------
-        %> @brief Configure callbacks for the figure, menubar, and widets.
-        %> Called internally during class construction.
-        %> @param obj Instance of PAAppController
-        % --------------------------------------------------------------------
-        function initCallbacks(obj)
-            figH = obj.figureH;
-            
-            % mouse and keyboard callbacks
-            set(figH,'KeyPressFcn',@obj.keyPressCallback);
-            set(figH,'KeyReleaseFcn',@obj.keyReleaseCallback);
-            set(figH,'WindowButtonDownFcn',@obj.windowButtonDownCallback);
-            set(figH,'WindowButtonUpFcn',@obj.windowButtonUpCallback);            
-        end
+       
         
         % =================================================================
         %> @brief Copy the selected (feature) linehandle's ydata to the system
