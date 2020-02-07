@@ -108,7 +108,7 @@ classdef PAAppController < PAFigureController
             obj.SingleStudy = PASingleStudyController(obj.figureH, obj.AppSettings.SingleStudy);
             
             % Create a results class
-            obj.StatTool = PAStatTool(obj.figureH, obj.AppSettings.StatTool); % obj.resultsPathname
+            obj.StatTool = PAStatTool(obj.figureH, obj.AppSettings.StatTool); % obj.featuresPathname
             obj.StatTool.setIcon(obj.iconFilename);
            
             fprintf(1,'Need to return to outcomes table data refactor\n');
@@ -116,10 +116,11 @@ classdef PAAppController < PAFigureController
 %                 obj.StatTool.setOutcomesTable(obj.OutcomesTableData);
 %             end
 
-            obj.showBusy([],'all')
+            obj.showBusy([],'all');
+            set(obj.figureH,'CloseRequestFcn',{@obj.figureCloseCallback,guidata(obj.figureH)});
             set(obj.figureH,'visible','on');            
             
-            set(obj.figureH,'CloseRequestFcn',{@obj.figureCloseCallback,guidata(obj.figureH)});
+
             
             % set(obj.figureH,'scrollable','on'); - not supported
             % for guide figures (figure)
@@ -220,7 +221,7 @@ classdef PAAppController < PAFigureController
             
             %  open
             safeset(figHandles,'menu_file_open','callback',@obj.menuFileOpenCallback);
-            safeset(figHandles,'menu_file_open_resultspath','callback',@obj.menuFileOpenResultsPathCallback);
+            safeset(figHandles,'menu_file_open_featurespath','callback',@obj.menuFileOpenFeaturesPathCallback);
             
             % import
             safeset(figHandles,'menu_file_openVasTrac','callback',@obj.menuFileOpenVasTracCSVCallback,'enable','off','visible','off');
@@ -651,11 +652,11 @@ classdef PAAppController < PAFigureController
         %> @param hObject  handle to menu_file_open (see GCBO)
         %> @param eventdata Required by MATLAB, but not used.
         % --------------------------------------------------------------------
-        function menuFileOpenResultsPathCallback(obj,varargin)
-            initialPath = obj.getResultsPathname();
-            resultsPath = uigetfulldir(initialPath, 'Select path containing PADACO''s features directory');
+        function menuFileOpenFeaturesPathCallback(obj,varargin)
+            initialPath = obj.getFeaturesPathname();
+            featuresPath = uigetfulldir(initialPath, 'Select path containing PADACO''s features directory');
             try
-                if(~isempty(resultsPath))
+                if(~isempty(featuresPath))
                     % Say good bye to your old stat tool if you selected a
                     % directory.  This ensures that if a breakdown occurs in
                     % the following steps, we do not have a previous StatTool
@@ -669,7 +670,7 @@ classdef PAAppController < PAFigureController
                         obj.setViewMode('results');
                     end                    
                     obj.showBusy('Initializing results view','all');
-                    obj.setResultsPathname(resultsPath);
+                    obj.setFeaturesPathname(featuresPath);
                     if(obj.initResultsView())
                         obj.StatTool.showReady('all');
                     else
@@ -961,9 +962,9 @@ classdef PAAppController < PAFigureController
         function updateBatchToolSettingsCallback(obj,batchToolObj,eventData)
             obj.AppSettings.BatchMode = eventData.settings;
             try
-                resultsPath = obj.AppSettings.BatchMode.outputDirectory.value;
-                if(isdir(resultsPath))
-                    obj.resultsPathname = resultsPath;
+                featuresPath = obj.AppSettings.BatchMode.outputDirectory.value;
+                if(isdir(featuresPath))
+                    obj.featuresPathname = featuresPath;
                 end
             catch me
                 showME(me);
@@ -1167,34 +1168,33 @@ classdef PAAppController < PAFigureController
             obj.SingleStudy.initWithAccelData(obj.SensorData);
         end
         
-        function resultsPath = getResultsPathname(this)
-            resultsPath = this.getSetting('featuresPathname');
-            % resultsPath = this.StatTool.getResultsDirectory(); 
+        function featuresPath = getFeaturesPathname(this)
+            featuresPath = this.getSetting('featuresPathname');             
         end
         
-        function didSet = setResultsPathname(this, resultsPath)
-           this.setSetting('featuresPathname',resultsPath);
-           didSet = this.StatTool.setResultsDirectory(resultsPath); 
+        function didSet = setFeaturesPathname(this, featuresPath)
+           this.setSetting('featuresPathname',featuresPath);
+           didSet = this.StatTool.setResultsDirectory(featuresPath); 
         end
         
         
         % --------------------------------------------------------------------
         %> @brief Initializes widgets for results view mode.  Widgets are
-        %> disabled if the resultsPathname does not exist or cannot be
+        %> disabled if the featuresPathname does not exist or cannot be
         %> found.
         %> @param this Instance of PAAppController
-        %> @retval success A boolean value (true on successful initialization of the resultsPathname into padaco's view
+        %> @retval success A boolean value (true on successful initialization of the featuresPathname into padaco's view
         % --------------------------------------------------------------------
         function success = initResultsView(this)
             success = false;
-            resultsPath = this.getResultsPathname();
-            currentResultsPath = this.StatTool.resultsDirectory;
+            featuresPath = this.getFeaturesPathname();
+            currentFeaturesPath = this.StatTool.resultsDirectory;
           
-            if(isdir(resultsPath))
-                if ~isdir(currentResultsPath) && isdir(resultsPath)
+            if(isdir(featuresPath))
+                if ~isdir(currentFeaturesPath) && isdir(featuresPath)
                     refreshPath = true;
-                elseif ~strcmpi(resultsPath,currentResultsPath)
-                    msgStr = sprintf('There has been a change to the results path.\nWould you like to load features from the updated path?\n%s',this.getResultsPathname());
+                elseif ~strcmpi(featuresPath,currentFeaturesPath)
+                    msgStr = sprintf('There has been a change to the results path.\nWould you like to load features from the updated path?\n%s',this.getFeaturesPathname());
                     titleStr = 'Refresh results path?';
                     buttonName = questdlg(msgStr,titleStr,'Yes','No','Yes');
                     switch(buttonName)
@@ -1205,7 +1205,7 @@ classdef PAAppController < PAFigureController
                             %make it so we do not ask the quesiton
                             %again by matching the pathname to the one
                             %the user wants to use.
-                            % resultsPathname = StatToolResultsPath;
+                            % featuresPathname = StatTool.featuresPath;
                         otherwise
                             refreshPath = false;
                     end
@@ -1214,9 +1214,9 @@ classdef PAAppController < PAFigureController
                 end
                 
                 if(refreshPath)
-                    this.setResultsPathname(resultsPath);                    
+                    this.setFeaturesPathname(featuresPath);                    
                 else
-                    % Make sure the resultsPath is up to date (e.g. when
+                    % Make sure the featuresPath is up to date (e.g. when
                     % switching back from a batch mode.
                     this.StatTool.init();  %calls a plot refresh
                 end
@@ -1226,11 +1226,11 @@ classdef PAAppController < PAFigureController
             if(~success)
                 this.StatTool.disable();
                 this.notify('StatToolCreationFailure');
-                checkToOpenResultsPath = false; % can be a user setting.
-                if(checkToOpenResultsPath)
+                checkToOpenFeaturesPath = false; % can be a user setting.
+                if(checkToOpenFeaturesPath)
                     responseButton = questdlg('Results output pathname is either not set or was not found.  Would you like to choose one now?','Find results output path?');
                     if(strcmpi(responseButton,'yes'))
-                        this.menuFileOpenResultsPathCallback();
+                        this.menuFileOpenFeaturesPathCallback();
                     end
                 end
 
@@ -1661,7 +1661,7 @@ classdef PAAppController < PAFigureController
             % pStruct.database_inf_file = PAFilenameParam('default','database.inf','description','Database configuration file');
             
             % batchSettings = PABatchTool.getDefaults();
-            % pStruct.resultsPathname = batchSettings.outputDirectory;
+            % pStruct.featuresPathname = batchSettings.outputDirectory;
         end
     end
     

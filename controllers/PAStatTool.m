@@ -99,7 +99,6 @@ classdef PAStatTool < PAViewController
         useOutcomes;
         holdPlots;  
 
-        resultsDirectory;
         featuresDirectory;
         cacheDirectory;
         
@@ -149,7 +148,7 @@ classdef PAStatTool < PAViewController
         % ======================================================================
         %> @brief Constructor for PAStatTool
         %> @param padaco_fig_h Handle to figure to be instantiated with
-        %> @param resultsPathname
+        %> @param featuresPathname
         %> @param optional struct with field value pairs for initializing
         %> user settings.  See getSaveParameters
         %> @retval this Instance of PAStatTool
@@ -166,11 +165,11 @@ classdef PAStatTool < PAViewController
             this.allProfiles = [];
             
             if nargin > 2
-                resultsPathname = varargin{3};
-                if(isdir(resultsPathname))
-                    this.setResultsDirectory(resultsPathname); % a lot of initialization code in side this call.
+                featuresPathname = varargin{3};
+                if(isdir(featuresPathname))
+                    this.setFeaturesDirectory(featuresPathname); % a lot of initialization code in side this call.
                 else
-                    fprintf('%s does not exist!\n',resultsPathname);
+                    fprintf('%s does not exist!\n',featuresPathname);
                 end
             end
         end
@@ -207,14 +206,11 @@ classdef PAStatTool < PAViewController
             delete@PAViewController(this);
         end
 
-        % function resultsPath = getResultsDirectory(this)
-        %    resultsPath = this.resultsDirectory;
-        % end
         
-        function didSet = setResultsDirectory(this, resultsPath)
-            if(isdir(resultsPath))
-                this.resultsDirectory = resultsPath;
-                featuresPath = fullfile(resultsPath,'features');
+        function didSet = setFesultsDirectory(this, featuresPath)
+            if(isdir(featuresPath))
+                this.featuresDirectory = featuresPath;
+                featuresPath = fullfile(featuresPath,'features');
                 
                 % We are allowing user to pick a folder that contains
                 % 'features' as a subfolder, or the folder whose subfolders
@@ -222,7 +218,7 @@ classdef PAStatTool < PAViewController
                 % little more flexibility to the user and hopefully hide
                 % some of the more mundane parts of loading a path.
                 if(~isdir(featuresPath))
-                    featuresPath = resultsPath;
+                    featuresPath = featuresPath;
                     % fprintf('Assuming features pathFeatures pathname (%s) does not exist!\n',featuresPath);
                 end
                 this.featuresDirectory = featuresPath;                
@@ -235,13 +231,12 @@ classdef PAStatTool < PAViewController
                             'featureStruct';
                             'originalFeatureStruct'
                             'usageStateStruct'
-                            'resultsDirectory'
                             'featuresDirectory'
                             'nonwear'};
                         tmpStruct = load(this.getFullClusterCacheFilename(),'-mat',validFields{:});
                         
                         % Double check that the cached data is still there in
-                        % the expected results directory. We give results and
+                        % the expected features directory. We give the
                         % features directory of the current object precendence
                         % over that found in the cache (e.g. we don't overwrite
                         % this.featuresDirectory with tmpStruct.featuresDirectory
@@ -470,7 +465,7 @@ classdef PAStatTool < PAViewController
         function updateOriginalWidgetSettings(this, updatedSettings)
             % Updating original widget settings ensures that the
             % cluster object is not emptied if it exists, which is helpful
-            % since this method was made when trying to synce cached cluster
+            % since this method was made when trying to sync cached cluster
             % results, where a cluster exists and may have been loaded already,
             % but the settings have not been updated in this class yet.
             this.originalSettings = mergeStruct(this.originalSettings,updatedSettings); % keep a record of our most recent settings.
@@ -499,11 +494,15 @@ classdef PAStatTool < PAViewController
             if(nargin<3 || isempty(initializeOnSet) || ~islogical(initializeOnSet))
                 initializeOnSet = true;
             end
-            % Original settings are in value form already @hyatt 2/7/2020
-            if(~isequal(this.originalSettings,paparamsToValues(widgetSettings)))
-                this.clusterObj = [];
-                this.logWarning('Cluster results were just cleared.');
+           
+            if(~isequal(paparamsToValues(this.originalSettings),paparamsToValues(widgetSettings)))                
+                if(~isempty(this.clusterObj))
+                    this.clusterObj = [];
+                    this.logWarning('Cluster results were just cleared.');
+                end
             end
+            
+            % Also updates originalSettings ...
             this.setSettings( widgetSettings );
             
             % Merge the defaults with what is here otherwise.
@@ -551,7 +550,7 @@ classdef PAStatTool < PAViewController
         end
         
         % ======================================================================
-        %> @brief Loads feature struct from disk using results feature
+        %> @brief Loads feature struct from disk using the current features
         %> directory.
         %> @param this Instance of PAStatTool
         %> @retval success Boolean: true if features are loaded from file.  False if they are not.
@@ -1555,6 +1554,8 @@ classdef PAStatTool < PAViewController
             %% set callbacks
             if(ishandle(this.figureH))
                 this.initToolbar();
+                
+                set(this.handles.btngrp_clusters,'SelectionChangedFcn',@this.distributionChangeCb);
 
                 set(this.handles.menu_weekdays,'callback',@this.menuWeekdaysCallback);
                 
@@ -1620,9 +1621,7 @@ classdef PAStatTool < PAViewController
         %> used to initialize the gui (See getDefaults).
         % ======================================================================        
         function didInit = initWidgets(this, widgetSettings)
-            if(nargin<2 || isempty(widgetSettings))
-                widgetSettings = this.getSettings(); 
-            else
+            if(nargin>1)
                 this.logError([],'settings are not used in initialization!');
             end
             try
@@ -1650,8 +1649,11 @@ classdef PAStatTool < PAViewController
                     this.buttongroup.cluster.(label) = h;
                 end
                 
-                set(this.handles.btngrp_clusters,'SelectionChangedFcn',@this.distributionChangeCb);
+                % Select the last one in our list to be the SelectedObject
+                % for this.handles.btngrp_clusters  
                 set(h,'value',1);
+
+                
                 
                 this.handles.panels_sansClusters = [
                     this.handles.panel_shapeSettings
@@ -2798,8 +2800,7 @@ classdef PAStatTool < PAViewController
         %> - clusterObj (sans handle references)
         %> - featureStruct
         %> - originalFeatureStruct
-        %> - usageStateStruct
-        %> - resultsDirectory
+        %> - usageStateStruct        
         %> - featuresDirectory
         function didCache = cacheCluster(this)
             didCache = false;
@@ -2810,8 +2811,7 @@ classdef PAStatTool < PAViewController
                         tmpStruct.clusterObj.removeHandleReferences();
                         tmpStruct.featureStruct = this.featureStruct;
                         tmpStruct.originalFeatureStruct = this.originalFeatureStruct;
-                        tmpStruct.usageStateStruct = this.usageStateStruct;
-                        tmpStruct.resultsDirectory = this.resultsDirectory;
+                        tmpStruct.usageStateStruct = this.usageStateStruct;                        
                         tmpStruct.featuresDirectory = this.featuresDirectory;
                         tmpStruct.nonwear = this.nonwear;
                         fnames = fieldnames(tmpStruct);
