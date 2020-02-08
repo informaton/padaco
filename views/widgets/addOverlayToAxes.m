@@ -18,7 +18,7 @@ function [overlayLineH, overlayPatchH] = addOverlayToAxes(axesH, overlayVector, 
 if(nargin<7)
     contextmenuH = [];
 end
-
+yLimMode = get(axesH,'ylimmode');
 yLim = get(axesH,'ylim');
 yLim = yLim*overlayHeight+overlayOffset;
 minColor = [0.0 0.0 0.0];
@@ -58,4 +58,5 @@ end
 
 % Sometimes the yLim jumps
 set(axesH,'ylim',yLim);
+set(axesH,'ylimmode',yLimMode);
 end

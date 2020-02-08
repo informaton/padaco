@@ -97,7 +97,7 @@ classdef PAStatTool < PAViewController
         useCache;
         useDatabase;
         useOutcomes;
-        holdPlots;  
+        % holdPlots;  --> refactored to a method
 
         featuresDirectory;
         cacheDirectory;
@@ -226,7 +226,7 @@ classdef PAStatTool < PAViewController
                 
                 this.featuresDirectory = featuresPath;            
                 
-                didInit = false;
+                didUpdate = false;
                 if(exist(this.getFullClusterCacheFilename(),'file') && this.useCache)
 
                     try
@@ -270,7 +270,7 @@ classdef PAStatTool < PAViewController
                                 
                                 this.setUseDatabase(this.getSetting('useDatabase'));  %sets this.useDatabase to false if it was initially true and then fails to open the database
                                 this.setUseOutcomesTable(this.getSetting('useOutcomes'));
-                                didInit = this.initWidgets(this.settings);  % want to refresh the current view as well...
+                                didUpdate = this.updateWidgets();  % want to refresh the current view as well...
                                 
                                 this.clusterObj.setExportPath(exportPathname);
                                 this.clusterObj.addlistener('DefaultParameterChange',@this.clusterParameterChangeCb);
@@ -287,9 +287,9 @@ classdef PAStatTool < PAViewController
                         showME(me);
                     end
                 end
-                if(~didInit)                    
-                    didInit = this.initWidgets(this.originalSettings);  %initializes previousstate.plotType on success and calls plot selection change cb for sync.
-                    if ~didInit
+                if(~didUpdate)                    
+                    this.updateWidgets(this.originalSettings);  %initializes previousstate.plotType on success and calls plot selection change cb for sync.
+                    if ~didUpdate
                         this.logWarning('Unable to initialize using original settings');
                     end
                 end
@@ -496,9 +496,9 @@ classdef PAStatTool < PAViewController
         %> When true, initWidgets() is called using the input widgetSettings.
         %> When false, initWidgets is not called (helpful on construction)
         % ======================================================================
-        function setWidgetSettings(this,widgetSettings, initializeOnSet)
-            if(nargin<3 || isempty(initializeOnSet) || ~islogical(initializeOnSet))
-                initializeOnSet = true;
+        function setWidgetSettings(this,widgetSettings, updateOnSet)
+            if(nargin<3 || isempty(updateOnSet) || ~islogical(updateOnSet))
+                updateOnSet = true;
             end
            
             if(~isequal(paparamsToValues(this.originalSettings),paparamsToValues(widgetSettings)))                
@@ -520,8 +520,8 @@ classdef PAStatTool < PAViewController
             this.setUseDatabase(this.getSetting('useDatabase'));  %sets this.useDatabase to false if it was initially true and then fails to open the database
             this.setUseOutcomesTable(this.getSetting('useOutcomes'));
 
-            if(initializeOnSet)
-                this.initWidgets();
+            if(updateOnSet)
+                this.updateWidgets();
             end
         end
         
@@ -924,9 +924,162 @@ classdef PAStatTool < PAViewController
             % this.initCallbacks();
         end        
         
-        function updateWidgets(this, varargin)
-            this.updateWidgets@PAViewController(varargin{:});
-            this.initWidgets();
+        % didUpdate will be false in the event of an exception.
+        function didUpdate = updateWidgets(this, varargin)
+            try
+                this.updateWidgets@PAViewController(varargin{:});
+                featuresPathname = this.featuresDirectory;
+                % this.hideClusterControls();
+                
+                this.canPlot = false;    %changes to true if we find data that can be processed in featuresPathname
+                set([
+                    this.handles.check_normalizevalues
+                    this.handles.menu_feature
+                    this.handles.menu_signalsource
+                    this.handles.menu_plottype
+                    this.handles.menu_weekdays
+                    this.handles.menu_clusterMethod
+                    this.handles.menu_clusterStartTime
+                    this.handles.menu_clusterStopTime
+                    this.handles.menu_duration
+                    this.handles.push_refreshClusters
+                    this.handles.check_trim
+                    this.handles.edit_trimToPercent
+                    this.handles.check_cull
+                    this.handles.check_discardNonwear
+                    this.handles.edit_cullToValue
+                    this.handles.check_segment
+                    this.handles.menu_precluster_reduction
+                    this.handles.menu_number_of_data_segments],'units','normalized',...% had been : 'points',...
+                    'enable','off');
+                
+                clusterMethods = PACluster.getClusterMethods();
+                cmIndex = find(strcmpi(clusterMethods,this.getSetting('clusterMethod')),1);
+                if(isempty(cmIndex))
+                    cmIndex = 1;
+                end
+                set(this.handles.menu_clusterMethod,'string',clusterMethods,'value',cmIndex);
+                if(isdir(featuresPathname))
+                    % find allowed features which are in our base parameter and
+                    % also get their description.
+                    featureNames = getPathnames(featuresPathname);
+                    if(~isempty(featureNames))
+                        [this.featureTypes,~,ib] = intersect(featureNames,this.base.featureTypes);
+                        
+                        if(~isempty(this.featureTypes))
+                            % clear results text
+                            set(this.handles.text_clusterResultsOverlay,'string',[]);
+                            
+                            % Use to enable everything and then shut things down as needed.
+                            % set(findall(this.handles.panels_sansClusters,'enable','off'),'enable','on');
+                            
+                            % now disable and then enable as eeded
+                            this.disable();
+                            this.canPlot = true;
+                            
+                            this.featureDescriptions = this.base.featureDescriptions(ib);
+                            set(this.handles.menu_feature,'string',this.featureDescriptions,'userdata',this.featureTypes,'value',this.getSetting('baseFeatureSelection'));
+                            
+                            % Checkboxes
+                            % This is good for a true false checkbox value
+                            % Checked state has a value of 1
+                            % Unchecked state has a value of 0
+                            set(this.handles.check_discardNonwear,'min',0,'max',1,'value',this.getSetting('discardNonwearFeatures'));
+                            set(this.handles.check_segment,'min',0,'max',1,'value',this.getSetting('chunkShapes'));
+                            set(this.handles.check_trim,'min',0,'max',1,'value',this.getSetting('trimResults'));
+                            set(this.handles.check_cull,'min',0,'max',1,'value',this.getSetting('cullResults'));
+                            set(this.handles.check_normalizevalues,'min',0,'max',1,'value',this.getSetting('normalizeValues'));
+                            
+                            % This should be updated to parse the actual output feature
+                            % directories for signal type (count) or raw and the signal
+                            % source (vecMag, x, y, z)
+                            set(this.handles.menu_signalsource,'string',this.base.signalDescriptions,'userdata',this.base.signalTypes,'value',this.getSetting('signalSelection'));
+                            set(this.handles.menu_plottype,'userdata',this.base.plotTypes,'string',this.base.plotTypeDescriptions,'value',this.getSetting('plotTypeSelection'));
+                            
+                            % Cluster widgets
+                            set(this.handles.menu_precluster_reduction,'string',this.base.preclusterReductionDescriptions,'userdata',this.base.preclusterReductions,'value',this.getSetting('preclusterReductionSelection'));
+                            set(this.handles.menu_number_of_data_segments,'string',this.base.numDataSegmentsDescriptions,'userdata',this.base.numDataSegments,'value',this.getSetting('numDataSegmentsSelection'));
+                            
+                            if(strcmpi(this.base.weekdayTags{this.getSetting('weekdaySelection')},'custom'))
+                                customIndex = this.getSetting('weekdaySelection');
+                                tooltipString = cell2str(this.base.daysOfWeekDescriptions(this.base.weekdayValues{customIndex}+1));
+                            elseif(strcmpi(this.base.weekdayTags{this.getSetting('weekdaySelection')},'weeklong'))
+                                tooltipString = 'Concatenates days, Sunday through Saturday, into a single week';
+                            else
+                                tooltipString = '';
+                            end
+                            
+                            set(this.handles.menu_weekdays,'string',this.base.weekdayDescriptions,'userdata',this.base.weekdayTags,...
+                                'value',this.getSetting('weekdaySelection'),'tooltipstring',tooltipString);
+                            
+                            set(this.handles.menu_duration,'string',this.base.clusterDurationDescriptions,'value',this.getSetting('clusterDurationSelection'));
+                            set(this.handles.edit_minClusters,'string',num2str(this.getSetting('minClusters')));
+                            set(this.handles.edit_clusterConvergenceThreshold,'string',num2str(this.getSetting('clusterThreshold')));
+                            
+                            % Trim results
+                            if(this.getSetting('trimResults'))
+                                enableState = 'on';
+                            else
+                                enableState = 'off';
+                            end
+                            set(this.handles.edit_trimToPercent,'string',num2str(this.getSetting('trimToPercent')),'enable',enableState);
+                            
+                            % Cull results
+                            if(this.getSetting('cullResults'))
+                                enableState = 'on';
+                            else
+                                enableState = 'off';
+                            end
+                            set(this.handles.edit_cullToValue,'string',num2str(this.getSetting('cullToValue')),'enable',enableState);
+                            
+                            % Check results
+                            if(this.getSetting('chunkShapes'))
+                                enableState = 'on';
+                            else
+                                enableState = 'off';
+                            end
+                            set(this.handles.menu_number_of_data_segments,'enable',enableState);
+                            
+                            this.setClusterDistributionType(this.getSetting('clusterDistributionType'));
+                        end
+                    end
+                end
+                
+                customIndex = strcmpi(this.base.weekdayTags,'custom');
+                this.base.weekdayValues{customIndex} = this.getSetting('customDaysOfWeek');
+                
+                
+                
+                
+                % These are required by follow-on calls, regardless if the gui
+                % can be shown or not.
+                
+                % Previous state initialization - set to current state.
+                this.previousState.normalizeValues = this.getSetting('normalizeValues');
+                this.previousState.weekdaySelection = this.getSetting('weekdaySelection');
+                
+                % Set previous plot type to 'clustering' which is how it look
+                % in the guide figure on startup, and is dynamically when
+                % switching from clustering.
+                if(~isfield(this.previousState,'plotType') || isempty(this.previousState.plotType))
+                    this.previousState.plotType = 'clustering';  % don't refresh here, as we may want to use a cached result.
+                else
+                    this.refreshPlotType();
+                end
+                
+                % disable everything
+                if(~this.canPlot)
+                    set(findall(this.handles.panel_results,'enable','on'),'enable','off');
+                end
+                didUpdate = true;
+            catch me
+                this.logError(me, 'Display update failed');
+                didUpdate = false;
+            end
+        end
+        
+        function shouldIt = holdPlots(this)
+            shouldIt = strcmpi(this.getSetting('primaryAxis_nextPlot'),'add');
         end
         
         % ======================================================================
@@ -1161,7 +1314,7 @@ classdef PAStatTool < PAViewController
             else
                 visibility = 'off';
             end
-            this.logStatus('Analysis figure availability is: %s',visibility);
+            this.logStatus('Analysis figure availability: %s',visibility);
             set(this.toolbarH.cluster.toggle_analysisFigure,'visible',visibility);
         end
         
@@ -1346,7 +1499,7 @@ classdef PAStatTool < PAViewController
         end
         
         function toggleHistogramSelection(this, selectedIndex)
-            if(~this.holdPlots && strcmpi(get(this.figureH,'selectiontype'),'normal'))
+            if(~this.holdPlots() && strcmpi(get(this.figureH,'selectiontype'),'normal'))
                 this.clusterObj.setCOISortOrder(selectedIndex);
             else
                 this.clusterObj.toggleCOISortOrder(selectedIndex);                
@@ -1531,6 +1684,9 @@ classdef PAStatTool < PAViewController
             didInit = initFigure@PAViewController(this); % calls: obj.designateHandles(); obj.initWidgets();  obj.initCallbacks(); 
             if(didInit)
                 try
+                                    
+                    this.initToolbar();
+
                     % initializeOnSet = false;
                     % this.setWidgetSettings(this.settings, initializeOnSet);
                     this.initScatterPlotFigure();
@@ -1551,7 +1707,10 @@ classdef PAStatTool < PAViewController
                     % Now check and update whether we make the option available
                     this.refreshAnalysisFigureAvailability();
                     
-                    
+                    % update our text handle so it has the same background
+                    % colors as the figure.  
+                    figColor = get(this.figureH,'color');
+                    set(this.handles.text_clusterResultsOverlay,'backgroundcolor',figColor);
                     didInit = true;
                 catch me
                     this.logError(me);
@@ -1569,21 +1728,18 @@ classdef PAStatTool < PAViewController
         end
 
         function enableSecondaryContextMenus(this)
-            set(this.handles.axes_primary,'uicontextmenu', this.handles.contextmenu.secondaryAxes.uicontextmenu);
+            set(this.handles.axes_secondary,'uicontextmenu', this.handles.contextmenu.secondaryAxes.uicontextmenu);
         end
         
         function disableSecondaryContextMenus(this)
             set(this.handles.axes_secondary,'uicontextmenu', []);
-        end
-        
+        end        
         
         function didInit = initCallbacks(this)
             
             didInit = false;
             %% set callbacks
             if(ishandle(this.figureH))
-                
-                this.initToolbar();     
                 
                 set(this.handles.btngrp_clusters,'SelectionChangedFcn',@this.distributionChangeCb);
 
@@ -1627,6 +1783,12 @@ classdef PAStatTool < PAViewController
                     this.handles.edit_clusterConvergenceThreshold
                     this.handles.menu_duration
                     ],'callback',@this.enableClusterRecalculation);                
+                                                
+                % add a context menu now to figureH in order to use with cluster load
+                % shape line handles.
+                this.handles.contextmenu.clusterLineMember = uicontextmenu('parent',this.figureH);
+                uimenu(this.handles.contextmenu.clusterLineMember,'Label','Show all from this subject',...
+                    'callback',@this.showSelectedMemberShapesCallback);
                 
                 % add a context menu now to primary axes 
                 contextmenu_primaryAxes = uicontextmenu('parent',this.figureH);
@@ -1670,8 +1832,8 @@ classdef PAStatTool < PAViewController
             if(nargin>1)
                 this.logError([],'settings are not used in initialization!');
             end
+            
             try
-                
                 
                 btnProps = {'loadshape_membership','Loadshapes per cluster'
                     'participant_membership','Participants per cluster'
@@ -1693,171 +1855,16 @@ classdef PAStatTool < PAViewController
                     cdata.label = label;
                     set(h,'tooltipstring',tip,'userdata',cdata);
                     this.buttongroup.cluster.(label) = h;
-                end
-                
-                % Select the last one in our list to be the SelectedObject
-                % for this.handles.btngrp_clusters  
-                set(h,'value',1);
-
-                
-                
-                this.handles.panels_sansClusters = [
-                    this.handles.panel_shapeSettings
-                    ];
-                
-                
-                % add a context menu now to figureH in order to use with cluster load
-                % shape line handles.
-                this.handles.contextmenu.clusterLineMember = uicontextmenu('parent',this.figureH);
-                uimenu(this.handles.contextmenu.clusterLineMember,'Label','Show all from this subject','callback',@this.showSelectedMemberShapesCallback);
-                
-                customIndex = strcmpi(this.base.weekdayTags,'custom');
-                this.base.weekdayValues{customIndex} = this.getSetting('customDaysOfWeek');
-                
-                this.holdPlots = strcmpi(this.getSetting('primaryAxis_nextPlot'),'add'); % boolean
-                
-                set(this.handles.edit_clusterConvergenceThreshold,'tooltipstring','Hint: Enter ''inf'' to fix the number of clusters to the min value');
-                
-                featuresPathname = this.featuresDirectory;
-                % this.hideClusterControls();
-                
-                this.canPlot = false;    %changes to true if we find data that can be processed in featuresPathname
-                set([
-                    this.handles.check_normalizevalues
-                    this.handles.menu_feature
-                    this.handles.menu_signalsource
-                    this.handles.menu_plottype
-                    this.handles.menu_weekdays
-                    this.handles.menu_clusterMethod
-                    this.handles.menu_clusterStartTime
-                    this.handles.menu_clusterStopTime
-                    this.handles.menu_duration
-                    this.handles.push_refreshClusters
-                    this.handles.check_trim
-                    this.handles.edit_trimToPercent
-                    this.handles.check_cull
-                    this.handles.check_discardNonwear
-                    this.handles.edit_cullToValue
-                    this.handles.check_segment
-                    this.handles.menu_precluster_reduction
-                    this.handles.menu_number_of_data_segments],'units','normalized',...% had been : 'points',...
-                    'callback',[],...
-                    'enable','off');
-                
-                clusterMethods = PACluster.getClusterMethods();
-                cmIndex = find(strcmpi(clusterMethods,this.getSetting('clusterMethod')),1);
-                if(isempty(cmIndex))
-                    cmIndex = 1;
-                end
-                set(this.handles.menu_clusterMethod,'string',clusterMethods,'value',cmIndex);
-                if(isdir(featuresPathname))
-                    % find allowed features which are in our base parameter and
-                    % also get their description.
-                    featureNames = getPathnames(featuresPathname);
-                    if(~isempty(featureNames))
-                        [this.featureTypes,~,ib] = intersect(featureNames,this.base.featureTypes);
-                        
-                        if(~isempty(this.featureTypes))
-                            % clear results text
-                            set(this.handles.text_clusterResultsOverlay,'string',[]);
-                            
-                            % Use to enable everything and then shut things down as needed.
-                            % set(findall(this.handles.panels_sansClusters,'enable','off'),'enable','on');
-                            
-                            % now disable and then enable as eeded
-                            this.disable();
-                            this.canPlot = true;
-                            
-                            this.featureDescriptions = this.base.featureDescriptions(ib);
-                            set(this.handles.menu_feature,'string',this.featureDescriptions,'userdata',this.featureTypes,'value',this.getSetting('baseFeatureSelection'));
-                            
-                            % Checkboxes
-                            % This is good for a true false checkbox value
-                            % Checked state has a value of 1
-                            % Unchecked state has a value of 0
-                            set(this.handles.check_discardNonwear,'min',0,'max',1,'value',this.getSetting('discardNonwearFeatures'));
-                            set(this.handles.check_segment,'min',0,'max',1,'value',this.getSetting('chunkShapes'));
-                            set(this.handles.check_trim,'min',0,'max',1,'value',this.getSetting('trimResults'));
-                            set(this.handles.check_cull,'min',0,'max',1,'value',this.getSetting('cullResults'));
-                            set(this.handles.check_normalizevalues,'min',0,'max',1,'value',this.getSetting('normalizeValues'));
-                            
-                            % This should be updated to parse the actual output feature
-                            % directories for signal type (count) or raw and the signal
-                            % source (vecMag, x, y, z)
-                            set(this.handles.menu_signalsource,'string',this.base.signalDescriptions,'userdata',this.base.signalTypes,'value',this.getSetting('signalSelection'));
-                            set(this.handles.menu_plottype,'userdata',this.base.plotTypes,'string',this.base.plotTypeDescriptions,'value',this.getSetting('plotTypeSelection'));
-                            
-                            % Cluster widgets
-                            set(this.handles.menu_precluster_reduction,'string',this.base.preclusterReductionDescriptions,'userdata',this.base.preclusterReductions,'value',this.getSetting('preclusterReductionSelection'));
-                            set(this.handles.menu_number_of_data_segments,'string',this.base.numDataSegmentsDescriptions,'userdata',this.base.numDataSegments,'value',this.getSetting('numDataSegmentsSelection'));
-                            
-                            if(strcmpi(this.base.weekdayTags{this.getSetting('weekdaySelection')},'custom'))
-                                customIndex = this.getSetting('weekdaySelection');
-                                tooltipString = cell2str(this.base.daysOfWeekDescriptions(this.base.weekdayValues{customIndex}+1));
-                            elseif(strcmpi(this.base.weekdayTags{this.getSetting('weekdaySelection')},'weeklong'))
-                                tooltipString = 'Concatenates days, Sunday through Saturday, into a single week';
-                            else
-                                tooltipString = '';
-                            end
-                            
-                            set(this.handles.menu_weekdays,'string',this.base.weekdayDescriptions,'userdata',this.base.weekdayTags,...
-                                'value',this.getSetting('weekdaySelection'),'tooltipstring',tooltipString);
-                            
-                            set(this.handles.menu_duration,'string',this.base.clusterDurationDescriptions,'value',this.getSetting('clusterDurationSelection'));
-                            set(this.handles.edit_minClusters,'string',num2str(this.getSetting('minClusters')));
-                            set(this.handles.edit_clusterConvergenceThreshold,'string',num2str(this.getSetting('clusterThreshold')));
-                            
-                            % Trim results
-                            if(this.getSetting('trimResults'))
-                                enableState = 'on';
-                            else
-                                enableState = 'off';
-                            end
-                            set(this.handles.edit_trimToPercent,'string',num2str(this.getSetting('trimToPercent')),'enable',enableState);
-                            
-                            % Cull results
-                            if(this.getSetting('cullResults'))
-                                enableState = 'on';
-                            else
-                                enableState = 'off';
-                            end
-                            set(this.handles.edit_cullToValue,'string',num2str(this.getSetting('cullToValue')),'enable',enableState);
-                            
-                            % Check results
-                            if(this.getSetting('chunkShapes'))
-                                enableState = 'on';
-                            else
-                                enableState = 'off';
-                            end
-                            set(this.handles.menu_number_of_data_segments,'enable',enableState);
-                            
-                            
-                            this.setClusterDistributionType(this.getSetting('clusterDistributionType'));
-                            
-                        end
+                    
+                    if row==1
+                        % Select the first item to be the SelectedObject
+                        % for this.handles.btngrp_clusters
+                        set(h,'value',1);
                     end
                 end
                 
-                % These are required by follow-on calls, regardless if the gui
-                % can be shown or not.
-                
-                % Previous state initialization - set to current state.
-                this.previousState.normalizeValues = this.getSetting('normalizeValues');
-                this.previousState.weekdaySelection = this.getSetting('weekdaySelection');
-                
-                % Set previous plot type to 'clustering' which is how it look
-                % in the guide figure on startup, and is dynamically when
-                % switching from clustering.
-                if(~isfield(this.previousState,'plotType') || isempty(this.previousState.plotType))
-                    this.previousState.plotType = 'clustering';  % don't refresh here, as we may want to use a cached result.
-                else
-                    this.refreshPlotType();
-                end
+                set(this.handles.edit_clusterConvergenceThreshold,'tooltipstring','Hint: Enter ''inf'' to fix the number of clusters to the min value');
 
-                % disable everything
-                if(~this.canPlot)
-                    set(findall(this.handles.panel_results,'enable','on'),'enable','off');
-                end
                 didInit = true;
             catch me
                 showME(me);
@@ -2177,12 +2184,13 @@ classdef PAStatTool < PAViewController
             set(this.handles.axes_primary,'ylimmode',yScalingMode,...
                 'ytickmode',yScalingMode,...
                 'yticklabelmode',yScalingMode);
+            
+            this.setSetting('primaryAxis_yLimMode', yScalingMode);            
             if(strcmpi(yScalingMode,'auto'))
                 this.plotClusters();
             else
                 %manual selection means do not auto adjust
             end
-            this.setSetting('primaryAxis_yLimMode', yScalingMode);
         end
         
         function primaryAxesScalingCallback(this,hObject,~,yScalingMode)
@@ -2485,7 +2493,7 @@ classdef PAStatTool < PAViewController
             % Refactoring for toolbars
             offOnState = {'off','on'}; % 0 -> 'off', 1 -> 'on'  and then +1 to get matlab 1-based so that 1-> 'off' and 2-> 'on'
             
-            set(this.toolbarH.cluster.toggle_holdPlots,'state',offOnState{this.holdPlots+1});
+            set(this.toolbarH.cluster.toggle_holdPlots,'state',offOnState{this.holdPlots()+1});
             set(this.toolbarH.cluster.toggle_yLimit,'state',offOnState{strcmpi(this.getSetting('primaryAxis_yLimMode'),'manual')+1});
             set(this.toolbarH.cluster.toggle_analysisFigure,'state',offOnState{this.getSetting('showAnalysisFigure')+1});
             set(this.toolbarH.cluster.toggle_backgroundColor,'state',offOnState{this.getSetting('showTimeOfDayAsBackgroundColor')+1}); %'OffCallback',@this.toggleBgColorCb,'OnCallback',@this.toggleBgColorCb);
@@ -2787,7 +2795,7 @@ classdef PAStatTool < PAViewController
         % ======================================================================
         function showNextCluster(this,toggleOn)
             if(nargin<2 || ~islogical(toggleOn))
-                toggleOn = this.holdPlots; %0/1
+                toggleOn = this.holdPlots(); %0/1
             end
             if(~isempty(this.clusterObj))
                 if(toggleOn)
@@ -2821,7 +2829,7 @@ classdef PAStatTool < PAViewController
         % ======================================================================
         function showPreviousCluster(this,toggleOn)
             if(nargin<2 || ~islogical(toggleOn))
-                toggleOn = this.holdPlots;
+                toggleOn = this.holdPlots();
             end
             if(toggleOn)
                 didChange = this.clusterObj.toggleOnPreviousCOI();
@@ -3242,8 +3250,9 @@ classdef PAStatTool < PAViewController
                 if this.isBgColorDisplayOn()
                     dissolveIn = 0;
                 else
-                    dissolveIn = 2.5;                    
+                    
                 end
+                dissolveIn = 2.5;                    
                 dissolve(resultsTextH,dissolveIn);
                 this.plotClusters(pSettings);
                 this.enableClusterControls();                
