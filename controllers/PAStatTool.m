@@ -279,7 +279,6 @@ classdef PAStatTool < PAViewController
                             % updates our features and start/stop times
                             this.setStartTimes(this.originalFeatureStruct.startTimes);
                             
-                            
                             % Updates our scatter plot as applicable.
                             this.refreshGlobalProfile();                            
                         end
@@ -922,7 +921,7 @@ classdef PAStatTool < PAViewController
             didInit = false;
             % didInit = this.initWidgets(initSettings); 
             % this.initCallbacks();
-        end        
+        end  
         
         % didUpdate will be false in the event of an exception.
         function didUpdate = updateWidgets(this, varargin)
@@ -932,26 +931,8 @@ classdef PAStatTool < PAViewController
                 % this.hideClusterControls();
                 
                 this.canPlot = false;    %changes to true if we find data that can be processed in featuresPathname
-                set([
-                    this.handles.check_normalizevalues
-                    this.handles.menu_feature
-                    this.handles.menu_signalsource
-                    this.handles.menu_plottype
-                    this.handles.menu_weekdays
-                    this.handles.menu_clusterMethod
-                    this.handles.menu_clusterStartTime
-                    this.handles.menu_clusterStopTime
-                    this.handles.menu_duration
-                    this.handles.push_refreshClusters
-                    this.handles.check_trim
-                    this.handles.edit_trimToPercent
-                    this.handles.check_cull
-                    this.handles.check_discardNonwear
-                    this.handles.edit_cullToValue
-                    this.handles.check_segment
-                    this.handles.menu_precluster_reduction
-                    this.handles.menu_number_of_data_segments],'units','normalized',...% had been : 'points',...
-                    'enable','off');
+                
+                set(this.handles.result_widgets_selection,'enable','off');
                 
                 clusterMethods = PACluster.getClusterMethods();
                 cmIndex = find(strcmpi(clusterMethods,this.getSetting('clusterMethod')),1);
@@ -984,11 +965,11 @@ classdef PAStatTool < PAViewController
                             % This is good for a true false checkbox value
                             % Checked state has a value of 1
                             % Unchecked state has a value of 0
-                            set(this.handles.check_discardNonwear,'min',0,'max',1,'value',this.getSetting('discardNonwearFeatures'));
-                            set(this.handles.check_segment,'min',0,'max',1,'value',this.getSetting('chunkShapes'));
-                            set(this.handles.check_trim,'min',0,'max',1,'value',this.getSetting('trimResults'));
-                            set(this.handles.check_cull,'min',0,'max',1,'value',this.getSetting('cullResults'));
-                            set(this.handles.check_normalizevalues,'min',0,'max',1,'value',this.getSetting('normalizeValues'));
+                            set(this.handles.check_discardNonwear,'value',this.getSetting('discardNonwearFeatures'));
+                            set(this.handles.check_segment,'value',this.getSetting('chunkShapes'));
+                            set(this.handles.check_trim,'value',this.getSetting('trimResults'));
+                            set(this.handles.check_cull,'value',this.getSetting('cullResults'));
+                            set(this.handles.check_normalizevalues,'value',this.getSetting('normalizeValues'));
                             
                             % This should be updated to parse the actual output feature
                             % directories for signal type (count) or raw and the signal
@@ -1047,9 +1028,6 @@ classdef PAStatTool < PAViewController
                 
                 customIndex = strcmpi(this.base.weekdayTags,'custom');
                 this.base.weekdayValues{customIndex} = this.getSetting('customDaysOfWeek');
-                
-                
-                
                 
                 % These are required by follow-on calls, regardless if the gui
                 % can be shown or not.
@@ -1668,6 +1646,7 @@ classdef PAStatTool < PAViewController
     
     methods(Access=protected)
         
+        
         % Called from constructor.
         function didInit = initFigure(this) 
             this.originalFeatureStruct = [];
@@ -1718,6 +1697,35 @@ classdef PAStatTool < PAViewController
                 end
             end
         end
+        
+        function designateHandles(this)
+            this.designateHandles@PAViewController();
+            
+            this.handles.panels_sansClusters = [
+                this.handles.panel_shapeSettings
+                ];
+            
+            this.handles.result_widgets_selection = [
+                    this.handles.check_normalizevalues
+                    this.handles.menu_feature
+                    this.handles.menu_signalsource
+                    this.handles.menu_plottype
+                    this.handles.menu_weekdays
+                    this.handles.menu_clusterMethod
+                    this.handles.menu_clusterStartTime
+                    this.handles.menu_clusterStopTime
+                    this.handles.menu_duration
+                    this.handles.push_refreshClusters
+                    this.handles.check_trim
+                    this.handles.edit_trimToPercent
+                    this.handles.check_cull
+                    this.handles.check_discardNonwear
+                    this.handles.edit_cullToValue
+                    this.handles.check_segment
+                    this.handles.menu_precluster_reduction
+                    this.handles.menu_number_of_data_segments];                
+        end
+        
         
         function enablePrimaryContextMenus(this)
             set(this.handles.axes_primary,'uicontextmenu', this.handles.contextmenu.primaryAxes.uicontextmenu);
@@ -1833,8 +1841,7 @@ classdef PAStatTool < PAViewController
                 this.logError([],'settings are not used in initialization!');
             end
             
-            try
-                
+            try                
                 btnProps = {'loadshape_membership','Loadshapes per cluster'
                     'participant_membership','Participants per cluster'
                     'nonwear_membership','Nonwear per cluster'
@@ -1864,6 +1871,14 @@ classdef PAStatTool < PAViewController
                 end
                 
                 set(this.handles.edit_clusterConvergenceThreshold,'tooltipstring','Hint: Enter ''inf'' to fix the number of clusters to the min value');
+                
+                set(this.handles.result_widgets_selection,'units','normalized'); % had been : 'points',...
+                
+                set(this.handles.check_discardNonwear,'min',0,'max',1,'value',this.getSetting('discardNonwearFeatures'));
+                set(this.handles.check_segment,'min',0,'max',1,'value',this.getSetting('chunkShapes'));
+                set(this.handles.check_trim,'min',0,'max',1,'value',this.getSetting('trimResults'));
+                set(this.handles.check_cull,'min',0,'max',1,'value',this.getSetting('cullResults'));
+                set(this.handles.check_normalizevalues,'min',0,'max',1,'value',this.getSetting('normalizeValues'));
 
                 didInit = true;
             catch me
@@ -3277,6 +3292,7 @@ classdef PAStatTool < PAViewController
                'showTimeOfDayAsBackgroundColor'
                'showClusterSummary'
                'plotTypeSelection'
+               'clusterDistributionType'
                };
            allFields = fieldnames(pSettings);
            fieldsToRemove = intersect(plotOnlyFields,allFields);
@@ -3420,8 +3436,14 @@ classdef PAStatTool < PAViewController
         %> to included them in a follow-on calculation.
         function disableClusterControls(this)
             disableHandles([this.handles.toolbar_results
-                this.handles.btngrp_clusters]);
-            
+                this.handles.btngrp_clusters
+                % this.handles.panel_results -> don't want to disable the
+                % cancel button, nor want it to flash though ... see
+                % designateHandles for alias that could be used instead if
+                % you really want, otherwise solution is handled already
+                % @hyatt 2/8/2020
+                ]);
+                
             set(this.handles.panel_clusterInfo,'visible','off');
             set(this.handles.text_clusterResultsOverlay,'enable','on');
             % add a context menu now to primary axes  

@@ -225,8 +225,7 @@ classdef(Abstract) PAViewController < PAFigureController
             set(obj.handles.panel_clusterInfo,'visible','off');            
         end          
         
-        function refreshView(obj)
-            
+        function refreshView(obj)            
             obj.clearCallbacks();
             obj.initAxesHandles();
             obj.clearTextHandles();
@@ -337,10 +336,6 @@ classdef(Abstract) PAViewController < PAFigureController
             
             obj.axeshandle.primary = obj.handles.axes_primary;
             obj.axeshandle.secondary = obj.handles.axes_secondary; 
-            
-            obj.handles.panels_sansClusters = [
-                obj.handles.panel_shapeSettings
-                ];
             
             obj.setStatusHandle(obj.handles.text_status);
         end        
