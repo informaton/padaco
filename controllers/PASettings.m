@@ -266,7 +266,13 @@ classdef  PASettings < handle
             
             if(~isempty(fopen(fid)))
                 file_open = true;
-                pat = '^([^\.\s]+)|\.([^\.\s]+)|\s+(.*)+$';
+                % \s+$               corresponds to empty value
+                % \s+(.*[^\s]+)\s*$  corresponds to nonempty value.  Also trims any white space to the right of the value.
+                %
+                % Alternatively, we could trim the last token instead, but
+                % whatever.
+                %
+                pat = '^([^\.\s]+)|\.([^\.\s]+)|\s+(.*[^\s]+)\s*$|\s+$';
             else
                 file_open = false;
             end

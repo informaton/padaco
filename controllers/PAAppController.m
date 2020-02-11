@@ -79,7 +79,7 @@ classdef PAAppController < PAFigureController
             obj.rootpathname = rootPathname;
             %check to see if a settings file exists
             if(nargin<3)                
-                parameters_filename = PASettings.parameters_filename; % '.pasettings'
+                parameters_filename = PAAppSettings().parameters_filename; % '.pasettings'
             end
             
             configPath = getSavePath();
@@ -116,12 +116,8 @@ classdef PAAppController < PAFigureController
                 obj.StatTool = PAStatTool(obj.figureH, obj.AppSettings.StatTool);
             end
             obj.StatTool.setIcon(obj.iconFilename);
+            obj.StatTool.setOutcomesTable(obj.OutcomesTableData);
            
-            fprintf(1,'Need to return to outcomes table data refactor\n');
-%             if(~isempty(obj.OutcomesTableData) && obj.OutcomesTableData.importOnStartup && obj.StatTool.useOutcomes)
-%                 obj.StatTool.setOutcomesTable(obj.OutcomesTableData);
-%             end
-
             obj.showBusy([],'all');
             set(obj.figureH,'CloseRequestFcn',{@obj.figureCloseCallback,guidata(obj.figureH)});
             
@@ -330,11 +326,11 @@ classdef PAAppController < PAFigureController
         
         function importOutcomesFileCb(this, varargin)
             %f=getOutcomeFiles();
-            a = PAOutcomesTableSetup(this.settings.OutcomesTableSetup);
+            a = PAOutcomesTableSetup(this.AppSettings.OutcomesTableSetup);
             if(~isempty(a.outcomesFileStruct))
-                this.settings.OutcomesTableSetup = a.getSaveParameters();
+                this.AppSettings.OutcomesTableSetup = a.getSaveParameters();
                 showLoadStatus = true;
-                this.OutcomesTableData.import(showLoadStatus);
+                this.OutcomesTableData.importWithSettings(this.AppSettings.OutcomesTableSetup, showLoadStatus);                
             else
                 this.logStatus('User cancelled');
             end

@@ -1188,7 +1188,8 @@ classdef PAStatTool < PAViewController
             didSet = false;
             if(isa(outcomesController,'PAOutcomesTable'))
                 this.outcomesObj = outcomesController;
-                didSet = this.setUseOutcomesTable(true);
+                % refresh it ...
+                this.setUseOutcomesTable(this.getSetting('useOutcomesTable'));
             end
         end
     end
@@ -1264,6 +1265,7 @@ classdef PAStatTool < PAViewController
                 % object is actually cleared if not to be used.
                 this.useDatabase = this.initDatabaseObj();% initDatabase returns false if it fails to initialize and is supposed to.
                 didSet = true;
+                this.refreshAnalysisFigureAvailability();
             else
                 didSet = false;
             end
@@ -1278,6 +1280,8 @@ classdef PAStatTool < PAViewController
                     this.initProfileTable(this.outcomesObj.getSelectedIndex());                    
                 end                
                 didSet = true;
+                this.refreshAnalysisFigureAvailability();
+
             else
                 didSet = false;
             end
@@ -1293,7 +1297,7 @@ classdef PAStatTool < PAViewController
             else
                 visibility = 'off';
             end
-            this.logStatus('Analysis figure availability: %s',visibility);
+            % this.logStatus('Analysis figure availability: %s',visibility);
             set(this.toolbarH.cluster.toggle_analysisFigure,'visible',visibility);
         end
         
@@ -1665,8 +1669,7 @@ classdef PAStatTool < PAViewController
             
             didInit = initFigure@PAViewController(this); % calls: obj.designateHandles(); obj.initWidgets();  obj.initCallbacks(); 
             if(didInit)
-                try
-                    
+                try                    
                     set([this.handles.panel_results
                         this.handles.panel_shapeSettings
                         this.handles.panel_clusterSettings],'units','pixels');
@@ -1689,9 +1692,6 @@ classdef PAStatTool < PAViewController
                     if(this.useDatabase || this.useOutcomes)
                         this.initProfileTable();
                     end
-                    
-                    % Now check and update whether we make the option available
-                    this.refreshAnalysisFigureAvailability();
                     
                     % update our text handle so it has the same background
                     % colors as the figure.  

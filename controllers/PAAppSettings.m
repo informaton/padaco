@@ -272,7 +272,6 @@ classdef  PAAppSettings < PASettings
             
             x.titleStr = {'Title string'};
             
-            
             % SingleStudy
             % x.filter_inf_file = 'Filter settings file';
             x.database_inf_file = 'Database credentials file';
@@ -280,9 +279,6 @@ classdef  PAAppSettings < PASettings
             obj.dictionary = x;
             
         end
-        
-        
-
 
         % --------------------------------------------------------------------
         %> @brief sets default values for the class parameters listed in
@@ -304,13 +300,14 @@ classdef  PAAppSettings < PASettings
             end
             
             for f = 1:numel(fieldNames)
+                fname = fieldNames{f};
                 switch fieldNames{f}
                     case 'Importing'
                         obj.Importing = PASensorDataImport.getDefaults();
                     case 'StatTool'
                         obj.StatTool = PAStatTool.getDefaults();                    
                     case 'OutcomesTableData'
-                        obj.OutcomesTableSetup = PAOutcomesTableData.getDefaults();
+                        obj.(fname) = PAOutcomesTableData.getDefaults();
                     case 'OutcomesTableSetup'
                         obj.OutcomesTableSetup = PAOutcomesTableSetup.getDefaults();
                     case 'SensorData'

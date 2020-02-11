@@ -71,33 +71,21 @@ classdef PAOutcomesTableSetup < PAFigureController
         % Check all required categories have a filename for import 
         function canIt = canImport(this)            
             canIt = all(cellfun(@(x)exist(this.settings.filenames.(x),'file') && ~isdir(this.settings.filenames.(x)),setdiff(this.categories,this.optionalCategory)));
-        end
-        
-        function pStruct = getSaveParameters(obj)
-            % update our settings 
-            throw(MException('a:out','agh'));
-            %             obj.setSetting('filenames',obj.filenames
-            pStruct = struct('filenames',obj.settings.filenames,...
-                'importOnStartup',obj.importOnStartup,...
-                'selectedField',obj.selectedField);
-        end
-        
+        end        
     end
     
     methods(Access=protected)
-        function didInit = initFigure(this)
+        function didInit = initFigure(this)            
             didInit = this.initHandles();
-            if(didInit)
-                this.outcomesFileStruct = [];
-                this.importOnStartup = [];
-                set(this.figureH,'visible','on');
-                waitfor(this.figureH,'visible','off');
-                if(ishandle(this.figureH))
-                    this.outcomesFileStruct = this.getSetting('filenames');
-                    this.importOnStartup = get(this.handles.check_importOnStartup,'value');
-                    delete(this.figureH);
-                end
-            end            
+            this.outcomesFileStruct = [];
+            this.importOnStartup = [];
+            set(this.figureH,'visible','on');
+            waitfor(this.figureH,'visible','off');
+            if(ishandle(this.figureH))
+                this.outcomesFileStruct = this.getSetting('filenames');
+                this.importOnStartup = get(this.handles.check_importOnStartup,'value');
+                delete(this.figureH);
+            end
         end
         
         function didInit = initHandles(this)
@@ -112,14 +100,15 @@ classdef PAOutcomesTableSetup < PAFigureController
                     set(editH,'enable','inactive','string','');
                     set(pushH,'callback',{@this.getFileCb,category});
                     
-                    %filename = this.settings.filenames.(category);
-                    filename = this.getSetting('fillenames',category);
+                    filename = this.getSetting('filenames',category);
+                    % filename = char(this.settings.filenames.(category));
                     if(exist(filename,'file') && ~isdir(filename))
                         set(editH,'string',filename);
-                    end
+                    end                    
                 end
                 
-                set(this.handles.check_importOnStartup,'value',this.getSetting('importOnStartup'));
+                set(this.handles.check_importOnStartup,'value',this.getSetting('importOnStartup'),...
+                    'callback',@this.check_importOnStartupCb);
                 set(this.handles.push_import,'callback', @this.hideFigureCb);
                 set(this.handles.push_cancel,'callback', 'closereq');
                 
@@ -128,29 +117,6 @@ classdef PAOutcomesTableSetup < PAFigureController
             else
                 didInit = false;
             end
-        end
-        
-        function hideFigureCb(this, varargin)
-            set(this.figureH,'visible','off');
-        end
-        
-        function getFileCb(this, hObject, ~, category)
-            % this.logStatus('Import outcome file');
-            fileExt = {'*.csv;*.txt','Comma Separated Values';
-                '*.*','All (only csv supported)'};
-            promptStr = sprintf('Select %s file',category);
-            locationGuess = this.settings.filenames.(category);
-            
-            if(isempty(locationGuess) || ~exist(locationGuess,'file'))
-                locationGuess = this.getSetting('lastPathChecked');
-            end
-            
-            f=uigetfullfile(fileExt, promptStr, locationGuess);            
-            if(~isempty(f) && ~isdir(f) && exist(f,'file'))
-                this.setFilename(category, f);                
-            else
-                this.logStatus('User cancelled');
-            end            
         end
         
         function [pushH, editH] = getCategoryHandles(this, categoryString)
@@ -170,21 +136,42 @@ classdef PAOutcomesTableSetup < PAFigureController
             end
             didSet = setFigureHandle@PAFigureController(obj,figHandle);
         end
+        
+        function hideFigureCb(this, varargin)
+            set(this.figureH,'visible','off');
+        end
+        
+        function checkImportOnStartupCb(this, hObject, varargin)
+            this.setSetting('importOnStartup',get(hObject,'value'));
+        end
+        
+        function getFileCb(this, hObject, ~, category)
+            % this.logStatus('Import outcome file');
+            fileExt = {'*.csv;*.txt','Comma Separated Values';
+                '*.*','All (only csv supported)'};
+            promptStr = sprintf('Select %s file',category);
+            % char converst PAFilename to string
+            locationGuess = char(this.settings.filenames.(category));
+            
+            if(isempty(locationGuess) || ~exist(locationGuess,'file'))
+                locationGuess = this.getSetting('lastPathChecked');
+            end
+            
+            f=uigetfullfile(fileExt, promptStr, locationGuess);
+            if(~isempty(f) && ~isdir(f) && exist(f,'file'))
+                this.setFilename(category, f);
+            else
+                this.logStatus('User cancelled');
+            end
+        end
     end    
     
     methods(Static)
         
        function pStruct = getDefaults()
-           filenameCats = PAOutcomesTableData.categories;
-           pStruct.filenames = mkstruct(filenameCats);
-           
-           for f = 1:numel(filenameCats)
-               cat = filenameCats{f};
-               pStruct.filenames.(cat) = PAFilenameParam('default','','Description',sprintf('%s file',cat));
-           end
-           
+           pStruct = PAOutcomesTableData.getDefaults();          
+           pStruct = rmfield(pStruct, 'selectedField');
            pStruct.lastPathChecked = PAPathnameParam('default',getSavePath(),'Description','Pathname of study files to check first');
-           pStruct.importOnStartup = PABoolParam('default',true,'description','Import On startup');
        end 
     end
 end

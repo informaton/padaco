@@ -33,28 +33,20 @@ classdef PAOutcomesTableData < PAData
                     this.importFiles();
                 end                
             catch me
-                this.logError('Constructor exception',me);
+                this.logError(me, 'Constructor exception');
             end
         end
         
-        function importWithSettings(this, newSettings)
+        % varargin is optional argument to show status updates of which
+        % files are being loaded.  default is false when not included - see
+        % importFiles() method for more detail
+        function importWithSettings(this, newSettings, varargin)
             if(this.setSettings(newSettings))
                if(this.canImport())
-                   this.importFiles();
+                   this.importFiles(varargin{:});
                end
             end
-        end
-        
-%         function didSet = setSettings(this, varargin)
-%             didSet = setSettings@PAData(this, varargin{:});
-%             if didSet
-%                 this.filenames = this.settings.filenames; %mkstruct(this.categories);
-%                 this.importOnStartup= this.settings.importOnStartup;
-%                 this.setFilenames(this.settings.filenames);
-%                 this.importOnStartup = this.settings.importOnStartup;
-%                 this.selectedField = this.settings.selectedField;
-%             end
-%         end
+        end        
         
         function didExport = exportToDisk(this)
             didExport = false;
@@ -132,21 +124,19 @@ classdef PAOutcomesTableData < PAData
             end
         end
         
-        %         function importFilesFromDlg(this)
-        %             if this.confirmFilenamesDlg() % make them go through the dialog successfully first.
-        %                 this.importFiles(true);
-        %             end
-        %         end
+        % Check all required categories have a filename for import
+        function canIt = canImport(this)
+            canIt = all(cellfun(@(x)exist(this.getSetting('filenames',x),'file') && ~isdir(this.getSetting('filenames',x)),setdiff(this.categories,this.optionalCategory)));
+        end
         
-        % Show message box is flag ([false]) indicating whether to show a
-        % message box to the user with feedback of which file category is
-        % being loaded.
-        function importFiles(this, showMsgBox)
-            if(nargin<2 || isempty(showMsgBox))
-                showMsgBox = false;
+        % showLoadStatus is boolean flag [false] indicating whether to show a
+        % message box with updates of which file category being loaded.
+        function importFiles(this, showLoadStatus)
+            if(nargin<2 || isempty(showLoadStatus))
+                showLoadStatus = false;
             end
             if(~this.canImport())
-                this.importFilesFromDlg();
+                this.logWarning('Cannot import all files because not all of them exist or could be found.  Consider using PAOutcomesTableSetup to locate them.');
             else
                 didImportAll = true;
                 makeModal = false;
@@ -155,7 +145,7 @@ classdef PAOutcomesTableData < PAData
                 for f=1:numel(this.categories)
                     category = this.categories{f};
                     msg = sprintf('Loading %s table data',category);
-                    if(showMsgBox)
+                    if(showLoadStatus)
                         if f==1
                             h=pa_msgbox(msg,'Loading',makeModal);
                         elseif(~isempty(h))
@@ -227,49 +217,36 @@ classdef PAOutcomesTableData < PAData
             this.importFile('studyinfo',varargin{:})            
         end
         
-        %% Import dialog and functionality
-        function didConfirmUpdate = confirmFilenamesDlg(this)
-            
-            % figFile = 'importOutcomesDlg.fig';
-            % x = load(figFile,'-mat');
-            outcomeFileStruct = [];
-            this.figureH = this.figFcn('visible','off','name','Select outcome files');               
-            if(this.initHandles())
-                set(this.figureH,'visible','on');                
-                waitfor(this.figureH,'visible','off');
-                if(ishandle(this.figureH))
-                    outcomeFileStruct = this.getSetting('filenames');
-                    this.setSetting('importOnStartup', get(this.handles.check_importOnStartup,'value'));
-                    delete(this.figureH);
-                end
-            end
-            didConfirmUpdate = ~isempty(outcomeFileStruct);
-        end
-        
         function loadOn = getLoadOnStartup(this)
             loadOn = this.getSetting('importOnStartup');
         end
-        
-        function updateCanImport(this)
-            if(this.canImport())
-                set(this.handles.push_import,'enable','on');
-            else
-                set(this.handles.push_import,'enable','off');
-            end
-        end
-        
-        % Check all required categories have a filename for import 
-        function canIt = canImport(this)            
-            canIt = all(cellfun(@(x)exist(this.getSetting('filenames',x),'file') && ~isdir(this.getSetting('filenames',x)),setdiff(this.categories,this.optionalCategory)));
-        end
-        
-        
-        %         function pStruct = getSaveParameters(obj)
-        %             pStruct = struct('filenames',obj.filenames,...
-        %                 'importOnStartup',obj.importOnStartup,...
-        %                 'selectedField',obj.selectedField);
+    end
+    
+    methods(Access=protected)
+        %% Import dialog and functionality - refactored to PAOutcomesTableSetup
+        %         function importFilesFromDlg(this)
+        %             if this.confirmFilenamesDlg() % make them go through the dialog successfully first.
+        %                 this.importFiles(true);
+        %             end
         %         end
-        
+        %
+        %         function didConfirmUpdate = confirmFilenamesDlg(this)
+        %
+        %             % figFile = 'importOutcomesDlg.fig';
+        %             % x = load(figFile,'-mat');
+        %             outcomeFileStruct = [];
+        %             this.figureH = this.figFcn('visible','off','name','Select outcome files');
+        %             if(this.initHandles())
+        %                 set(this.figureH,'visible','on');
+        %                 waitfor(this.figureH,'visible','off');
+        %                 if(ishandle(this.figureH))
+        %                     outcomeFileStruct = this.getSetting('filenames');
+        %                     this.setSetting('importOnStartup', get(this.handles.check_importOnStartup,'value'));
+        %                     delete(this.figureH);
+        %                 end
+        %             end
+        %             didConfirmUpdate = ~isempty(outcomeFileStruct);
+        %         end
     end
     
     methods(Static)
