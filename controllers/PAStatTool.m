@@ -1663,6 +1663,10 @@ classdef PAStatTool < PAViewController
             didInit = initFigure@PAViewController(this); % calls: obj.designateHandles(); obj.initWidgets();  obj.initCallbacks(); 
             if(didInit)
                 try
+                    
+                    set([this.handles.panel_results
+                        this.handles.panel_shapeSettings
+                        this.handles.panel_clusterSettings],'units','pixels');
                                     
                     this.initToolbar();
 
@@ -2407,7 +2411,7 @@ classdef PAStatTool < PAViewController
             %             curStack = dbstack;
             %             fprintf(1,'Skipping cluster profile table initialization on line %u of %s\n',curStack(1).line,curStack(1).file);
             set(this.handles.table_clusterProfiles,'rowName',rowNames,'columnName',profileColumnNames,...
-                'units','points','fontname','arial','fontsize',12,'fontunits','pixels','visible','on',...
+                'units','pixels','fontname','arial','fontsize',12,'fontunits','pixels','visible','on',...
                 'backgroundColor',backgroundColor,'rowStriping','on',...
                 'userdata',userData,'CellSelectionCallback',@this.analysisTableCellSelectionCallback);
 
@@ -2593,8 +2597,6 @@ classdef PAStatTool < PAViewController
         function initBase(this)
             this.base = this.getBaseSettings();
         end
-        
-        
 
         % ======================================================================
         %> @brief Display a selection of results organized by day of the
@@ -2710,8 +2712,6 @@ classdef PAStatTool < PAViewController
                     plot(axesHandle,rollingMap(:));                    
                     weekdayticks = linspace(0,24*6,7);
                     set(axesHandle,'ygrid','on');
-                    
-                
                     
                 otherwise
                     disp Oops!;
@@ -3340,7 +3340,7 @@ classdef PAStatTool < PAViewController
                 this.handles.panel_clusterInfo
                 this.handles.axes_secondary
                 this.handles.btngrp_clusters
-                ],'visible','off'); 
+                ],'visible','off');
             
             % Also in disableClusterControls, but the whole figure changes
             % size when the toolbar's visibility changes, so decided to
@@ -3348,9 +3348,9 @@ classdef PAStatTool < PAViewController
             % swapping between time series and results views.
             disableHandles(this.handles.toolbar_results);
             
-            containerPos = get(this.handles.panel_results,'position');
-            clusterPos = get(this.handles.panel_clusterSettings,'position');
-            shapePos = get(this.handles.panel_shapeSettings,'position');
+            containerPos = get(this.handles.panel_results,'position');  % contains shape and cluster panels
+            shapePos = get(this.handles.panel_shapeSettings,'position');  % shape panel sits above the cluster panel on screen
+            clusterPos = get(this.handles.panel_clusterSettings,'position'); %             
             
             hDelta = sum(clusterPos([2,4]));
             
@@ -3374,7 +3374,6 @@ classdef PAStatTool < PAViewController
         end
         
         function showClusterControls(this)
-
             
             containerPos = get(this.handles.panel_results,'position');
             shapePos = get(this.handles.panel_shapeSettings,'position');
