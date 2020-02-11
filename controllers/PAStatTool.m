@@ -20,7 +20,7 @@ classdef PAStatTool < PAViewController
     end
     
     properties(SetAccess=protected)
-                %> Structure of original loaded features, that are a direct
+        %> Structure of original loaded features, that are a direct
         %> replication of the data obtained from disk (i.e. without further
         %> filtering).
         originalFeatureStruct;
@@ -1305,7 +1305,9 @@ classdef PAStatTool < PAViewController
             didInit = false;
             try
                 if(this.useDatabase)
-                    this.databaseObj = feval(this.originalSettings.databaseClass.value);
+                    databaseValue = this.getSetting('databaseClass');
+                    this.databaseObj = feval(databaseValue);
+                    %this.databaseObj = feval(this.originalSettings.databaseClass.value);
                     this.profileFields = this.databaseObj.getColumnNames('subjectInfo_t');
                     didInit = true;
                 else
@@ -1684,9 +1686,9 @@ classdef PAStatTool < PAViewController
                     this.setUseDatabase(this.getSetting('useDatabase'));  %sets this.useDatabase to false if it was initially true and then fails to open the database
                     this.setUseOutcomesTable(this.getSetting('useOutcomes'));
                     
-                    % if(this.useDatabase || this.useOutcomes)
-                    %     this.initProfileTable(this.getSetting('profileFieldSelection'));
-                    % end
+                    if(this.useDatabase || this.useOutcomes)
+                        this.initProfileTable();
+                    end
                     
                     % Now check and update whether we make the option available
                     this.refreshAnalysisFigureAvailability();
@@ -3966,14 +3968,21 @@ classdef PAStatTool < PAViewController
                 %jTable = this.jhandles.table_clusterProfiles;
                 %this.jhandles.table_clusterProfiles.setModel(javax.swing.table.DefaultTableModel(this.profileTableData,colNames));
                 %set(this.handles.table_clusterProfiles,'data',this.profileTableData);
+     
                 
-                strData= cellfun(@num2str,this.profileTableData,'uniformoutput',false);
+                strData= cellfun(@num2str,this.profileTableData,'uniformoutput',false);                
                 [R,C] = size(this.profileTableData);
+                set(this.handles.table_clusterProfiles,'columnEditable',true(1,C));
                 for r=1:R
-                    for c=1:C                        
-                        this.jhandles.table.setValueAt(strData{r,c},r-1,c-1);
+                    for c=1:C
+                        strValue = strData{r,c};
+                        if isempty(strValue)
+                            strValue = ' ';
+                        end
+                        this.jhandles.table.setValueAt(strValue,r-1,c-1);
                     end
                 end
+                set(this.handles.table_clusterProfiles,'columnEditable',false(1,C));
                 %
                 %             colNames = get(this.handles.table_clusterProfiles,'columnname');
                 %             this.jhandles.table_clusterProfiles.getModel.setDataVector(this.profileTableData, colNames); % data = java.util.Vector
@@ -4102,8 +4111,6 @@ classdef PAStatTool < PAViewController
             end
         end
         
-        
-        
         function [fieldIndex, fieldName] = getProfileFieldIndex(this)
             fieldIndex = 1;
             fieldName = '';
@@ -4125,7 +4132,6 @@ classdef PAStatTool < PAViewController
             else
                 dataStruct = struct();
             end
-            
         end
         
         % ======================================================================
@@ -4165,8 +4171,7 @@ classdef PAStatTool < PAViewController
                 coiProfile = [];
             else
                 coiProfile = PAStatTool.profile2cell(dataSummaryStruct);
-            end
-                
+            end 
         end
         
         %> @brief Listening and checking for changes to the split checkbox.
@@ -4181,10 +4186,8 @@ classdef PAStatTool < PAViewController
                 enableState = 'off';
             end
             set(this.handles.menu_number_of_data_segments,'enable',enableState);
-        end
-                 
+        end      
     end
-    
     
     methods (Static)
         
