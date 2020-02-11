@@ -288,11 +288,28 @@ classdef  PASettings < handle
                     if(~ischar(curline))
                         file_open = false;
                     else
-                        tok = regexp(strtrim(curline),pat,'tokens');
-                        if(numel(tok)>1 && ~strcmpi(tok{1},'-last') && isempty(strfind(tok{1}{1},'#')))
+                        % calling strtrim creates problems when settings
+                        % are empty - which happens with pathnames or
+                        % initial field selections for example
+                        %tok = regexp(strtrim(curline),pat,'tokens');
+                        
+                        tok = regexp(curline,pat,'tokens');
+                        numtok = numel(tok);
+                        if(numtok>1 && ~strcmpi(tok{1},'-last') && isempty(strfind(tok{1}{1},'#')))
                             %hack/handle the empty case
-                            if(numel(tok)==2)
+                            if(numtok==2)
                                 tok{3} = {''};
+                            end
+                            % Curiousily, and fortunately in this case, MATLAB 
+                            % evaluates the above isempty(tok{3}) as false.
+                            % tok{3} is not empty, rather it contains a
+                            % cell of size [1 1] which contains nothing.
+                            %  Sometimes we get a cell of size [1 0] which
+                            %  cannot contain anything either, but causes
+                            %  problems with our tokens2struct call next if
+                            %  not dealt with here.
+                            if isempty(tok{numtok})
+                                tok{numtok} = {''};
                             end
                             pstruct = PASettings.tokens2struct(pstruct,tok);
                         end

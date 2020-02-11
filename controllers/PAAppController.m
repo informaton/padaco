@@ -121,7 +121,6 @@ classdef PAAppController < PAFigureController
             obj.showBusy([],'all');
             set(obj.figureH,'CloseRequestFcn',{@obj.figureCloseCallback,guidata(obj.figureH)});
             
-            
             % set(obj.figureH,'scrollable','on'); - not supported
             % for guide figures (figure)
             %configure the menu bar callbacks.
@@ -129,7 +128,6 @@ classdef PAAppController < PAFigureController
             
             % attempt to load the last set of results
             lastViewMode = obj.getSetting('viewMode');
-            
             
             % May be necessary to show for resize behavior to work?
             % set(obj.figureH,'visible','on');

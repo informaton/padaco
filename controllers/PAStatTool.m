@@ -1186,10 +1186,10 @@ classdef PAStatTool < PAViewController
         
         function didSet = setOutcomesTable(this, outcomesController)
             didSet = false;
-            if(isa(outcomesController,'PAOutcomesTable'))
+            if(isa(outcomesController,'PAOutcomesTableData'))
                 this.outcomesObj = outcomesController;
                 % refresh it ...
-                this.setUseOutcomesTable(this.getSetting('useOutcomesTable'));
+                this.setUseOutcomesTable(this.getSetting('useOutcomes'));
             end
         end
     end
@@ -1273,9 +1273,9 @@ classdef PAStatTool < PAViewController
         
         %> @brief Database functionality
         function didSet = setUseOutcomesTable(this, willSet)
-            if(nargin>1)
+            if nargin>1 && ~isempty(willSet)
                 this.useOutcomes = willSet && true;                
-                if(this.useOutcomes && isa(this.outcomesObj,'PAOutcomesTable'))                    
+                if(this.useOutcomes && isa(this.outcomesObj,'PAOutcomesTableData') && this.outcomesObj.isValid)                    
                     this.profileFields = this.outcomesObj.getColumnNames('subjects');                    
                     this.initProfileTable(this.outcomesObj.getSelectedIndex());                    
                 end                
@@ -2297,7 +2297,7 @@ classdef PAStatTool < PAViewController
             figSource = 'unset';
             if(this.useDatabase)
                 figSource = 'MySQL';
-            elseif(this.useOutcomesTable)
+            elseif(this.useOutcomes)
                 figSource = 'Outcome .txt files';
             end
             set(this.analysisFigureH,'name',sprintf('Cluster Analysis (%s)',figSource));
@@ -2416,6 +2416,7 @@ classdef PAStatTool < PAViewController
             set(this.handles.table_clusterProfiles,'rowName',rowNames,'columnName',profileColumnNames,...
                 'units','pixels','fontname','arial','fontsize',12,'fontunits','pixels','visible','on',...
                 'backgroundColor',backgroundColor,'rowStriping','on',...
+                'data',tableData,...
                 'userdata',userData,'CellSelectionCallback',@this.analysisTableCellSelectionCallback);
 
             
@@ -3967,7 +3968,7 @@ classdef PAStatTool < PAViewController
                 %colNames = get(this.handles.table_clusterProfiles,'columnname');
                 %jTable = this.jhandles.table_clusterProfiles;
                 %this.jhandles.table_clusterProfiles.setModel(javax.swing.table.DefaultTableModel(this.profileTableData,colNames));
-                %set(this.handles.table_clusterProfiles,'data',this.profileTableData);
+                % set(this.handles.table_clusterProfiles,'data',this.profileTableData);
      
                 
                 strData= cellfun(@num2str,this.profileTableData,'uniformoutput',false);                

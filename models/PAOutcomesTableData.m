@@ -12,8 +12,8 @@ classdef PAOutcomesTableData < PAData
         optionalCategory = 'dictionary';
     end
     properties(SetAccess=protected)        
-        tables;
-         
+        isValid = false;
+        tables;         
         studyinfo;
         dictionary;
         subjects;  % outcomes, this will be study info...
@@ -95,10 +95,15 @@ classdef PAOutcomesTableData < PAData
             this.setSetting('selectedField',fName);            
         end
         
-        function index = getSelectedIndex(this)
-            index = find(strcmpi(this.subjects.Properties.VariableNames,this.getSetting('selectedField')));
-            if(isempty(index))
+        function index = getSelectedIndex(this)            
+            if isempty(this.subjects)
                 index = 1;
+            else
+                selectedField = this.getSetting('selectedField');
+                index = find(strcmpi(this.subjects.Properties.VariableNames,selectedField));
+                if(isempty(index))
+                    index = 1;
+                end
             end
         end
         
@@ -169,9 +174,12 @@ classdef PAOutcomesTableData < PAData
                 end
                 
                 if(didImportAll)
+                    this.isValid = true;
                     this.notify('LoadSuccess',EventData_Update('Files loaded'));%,'File does not exist')
+                    
                 else
-                    this.notify('LoadFail',msg);
+                    this.isValid = false;
+                    this.notify('LoadFail',msg);                    
                 end
             end
         end
