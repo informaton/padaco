@@ -286,11 +286,12 @@ classdef PAStatTool < PAViewController
                         showME(me);
                     end
                 end
-                if(~didUpdate)                    
-                    this.updateWidgets(this.originalSettings);  %initializes previousstate.plotType on success and calls plot selection change cb for sync.
-                    if ~didUpdate
-                        this.logWarning('Unable to initialize using original settings');
-                    end
+                
+                % This happens most often when we are switching to a new
+                % directory for the first time which has not been cached
+                % yet.
+                if ~didUpdate && ~this.updateWidgets()  %initializes previousstate.plotType on success and calls plot selection change cb for sync.
+                    this.logWarning('Unable to update controls');                
                 end
                 
                 this.clearPlots();                
