@@ -1,1 +1,1 @@
-/Users/unknown/git/matlab/analysis/getLiteSummary.m
+/Users/known/git/matlab/stats/getLiteSummary.m

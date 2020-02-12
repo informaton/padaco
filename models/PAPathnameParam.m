@@ -1,0 +1,2 @@
+classdef PAPathnameParam < PAPathParam
+end

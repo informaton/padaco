@@ -4,7 +4,8 @@
 %> is itself a struct with similar organization as the first
 %> argument.
 %> @param ltStruct A structure whose fields are to be appended by the other.
-%> @param rtStruct A structure whose fields are will be appened to the other.
+%> @param rtStruct A structure whose fields will be appended to the left structure, or overwrite 
+%  same named fields.
 %> @retval ltStruct The result of merging rtStruct with ltStruct.
 %> @note For example:
 %> @note ltStruct =
@@ -25,14 +26,13 @@
 %> @note     accel: [1x1 struct]
 %> @note              [x]: 1.0
 %> @note              [y]: 1
-%> @note            [pos]: [0.5000, 1, 0]
+%> @note              [pos]: [0.5000, 1, 0]
 %> @note     lux: [1x1 struct]
 %> @note            [z]: 0.5000
-%> @note            [pos]: [0.5000, 1, 0]
 %> @note
 % ======================================================================
 function ltStruct = mergeStruct(ltStruct,rtStruct)
-
+    try
     if(isstruct(rtStruct))
         fnames = fieldnames(rtStruct);
         for f=1:numel(fnames)
@@ -44,8 +44,16 @@ function ltStruct = mergeStruct(ltStruct,rtStruct)
                     ltStruct.(curField) = rtStruct.(curField);
                 end
             else
-                ltStruct.(curField) = rtStruct.(curField);
+                if(isfield(ltStruct,curField) && isa(ltStruct.(curField),'PAParam') && ~(isa(rtStruct.(curField),'PAParam')))
+                    ltStruct.(curField).setValue(rtStruct.(curField));
+                else
+                    ltStruct.(curField) = rtStruct.(curField);
+                end
             end
         end
+    end
+    catch me
+        showME(me);
+        rethrow(me);
     end
 end

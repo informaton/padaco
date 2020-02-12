@@ -1,1 +1,1 @@
-/Users/unknown/git/matlab/analysis/summarizeStruct.m
+/Users/known/git/matlab/stats/summarizeStruct.m

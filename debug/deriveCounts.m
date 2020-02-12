@@ -2,7 +2,7 @@
 %> their processed files are derived from the raw sensor readings found in
 %> their .raw files.
 function [countData, rawData, filter_rawData, filtfilt_rawData, acti_ubit12, rawData_ubit12] = deriveCounts()
-    % Load a .raw file within a PAData object.  This ensures that both .raw and
+    % Load a .raw file within a PASensorData object.  This ensures that both .raw and
     % count values are read in.
     
     testingPath = '/Users/unknown/Data/GOALS/Temp';
@@ -11,8 +11,8 @@ function [countData, rawData, filter_rawData, filtfilt_rawData, acti_ubit12, raw
     bin_testFile = 'activity.bin';  %firmware version 2.5.0
     raw_filename = fullfile(testingPath,bin_testFile);
     count_filename = fullfile(testingPath,csv_testFile);
-    raw_dataObject = PAData(raw_filename);
-    count_dataObject = PAData(count_filename);
+    raw_dataObject = PASensorData(raw_filename);
+    count_dataObject = PASensorData(count_filename);
     
     %raw - sampled at 40 Hz
     %count - 1 Hz -> though upsampled from file to 40Hz during data object
@@ -126,7 +126,7 @@ end
 
 function rawData_ubit12 = double2ubit12(raw_double)
     % Learning point:  The raw data was already packed in 12 bit before
-    % converted to double (see PAData loadRawBinActivityFile())
+    % converted to double (see PASensorData loadRawBinActivityFile())
     % Creating a quantizer here should not be adding value, other than
     % returning ourselves back to the original raw ubit12 data.
     num_bits = 12;

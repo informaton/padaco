@@ -51,7 +51,7 @@
 %> @note                   [x].ydata: [10.5000 10.5000 2.5000]
 %> @note                   [y].ydata: [2 3 4]
 %> @note
-%> @note PAData.structEval('passthrough',ltStruct,ltStruct,'string')
+%> @note PASensorData.structEval('passthrough',ltStruct,ltStruct,'string')
 %> @note ans =
 %> @note         x.string: 2
 %> @note            accel: [1x1 struct]

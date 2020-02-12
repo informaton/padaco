@@ -75,3 +75,6 @@ resources/icons/.DS_Store
 *.DS_Store
 
 */.DS_Store
+*.log~
+*.dtd~
+*.html~

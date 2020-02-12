@@ -23,34 +23,7 @@ classdef CLASS_database_goals < CLASS_database
         end        
     end
     
-    
     methods
-        
-        function [dataSummaryStruct, statStruct, dataStruct] = getSubjectInfoSummary(this, primaryKeys, fieldNames, stat)
-            
-            wherePrimaryKeysIn = this.makeWhereInString(primaryKeys,'numeric');
-            if(nargin<3)
-                stat = [];
-            end
-            
-            % This calculates summary stats directly within MySQL server
-            selectStatFieldsStr = this.cellstr2statcsv(fieldNames,stat);
-            sqlStatStr = sprintf('SELECT %s FROM %s WHERE %s in %s',selectStatFieldsStr,this.tableNames.subjectInfo,this.primaryKeys.subjectInfo, wherePrimaryKeysIn);
-            statStruct = this.query(sqlStatStr);
-            
-            
-            % This calculates summary stats directly within MySQL server
-            selectFieldsStr  = this.cellstr2csv(fieldNames);
-            sqlStr = sprintf('SELECT %s FROM %s WHERE %s in %s',selectFieldsStr,this.tableNames.subjectInfo,this.primaryKeys.subjectInfo, wherePrimaryKeysIn);
-            dataStruct = this.query(sqlStr);
-            
-            if(isfield(dataStruct,'sex') && iscell(dataStruct.sex))
-                dataStruct.sex = str2double(dataStruct.sex);
-            end
-            
-            dataSummaryStruct = summarizeStruct(dataStruct);
-            
-        end
         
         %> @brief Class constructor.
         %> @retval obj Instance of CLASS_database.
@@ -64,6 +37,37 @@ classdef CLASS_database_goals < CLASS_database
             this.primaryKeys.subjectInfo = 'kidid';  % Note:  subjectInfo table actually has two primary keys; not a problem for now because study num is always 1.
             this.primaryKeys.dictionary = 'short_name';  % Note:  subjectInfo table actually has two primary keys; not a problem for now because study num is always 1.
         end
+        
+        function [dataSummaryStruct, statStruct, dataStruct] = getSubjectInfoSummary(this, primaryKeys, fieldNames, stat)
+            
+            wherePrimaryKeysIn = this.makeWhereInString(primaryKeys,'numeric');
+            if(nargin<4)
+                stat = [];
+            end
+            
+            if(~iscell(fieldNames))
+                fieldNames = {fieldNames};
+            end
+            if(isempty(stat))
+                statStruct = struct();
+            else
+                % This calculates summary stats directly within MySQL server
+                selectStatFieldsStr = this.cellstr2statcsv(fieldNames,stat);
+                sqlStatStr = sprintf('SELECT %s FROM %s WHERE %s in %s',selectStatFieldsStr,this.tableNames.subjectInfo,this.primaryKeys.subjectInfo, wherePrimaryKeysIn);
+                statStruct = this.query(sqlStatStr);
+            end            
+
+            selectFieldsStr  = this.cellstr2csv(fieldNames);
+            sqlStr = sprintf('SELECT %s FROM %s WHERE %s in %s',selectFieldsStr,this.tableNames.subjectInfo,this.primaryKeys.subjectInfo, wherePrimaryKeysIn);
+            dataStruct = this.query(sqlStr);
+            
+            if(isfield(dataStruct,'sex') && iscell(dataStruct.sex))
+                dataStruct.sex = str2double(dataStruct.sex);
+            end
+            
+            dataSummaryStruct = summarizeStruct(dataStruct);
+        end
+        
 
         % ======== ABSTRACT implementations for database_goals =========
         % ======================================================================

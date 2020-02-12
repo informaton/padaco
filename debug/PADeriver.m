@@ -62,8 +62,8 @@ classdef PADeriver < handle
         figureH;
         handles;
         %> Struct with fields
-        %> - raw Instance of PAData
-        %> - count Instance of PAData
+        %> - raw Instance of PASensorData
+        %> - count Instance of PASensorData
         dataObject;
         
         %> Struct with fields

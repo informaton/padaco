@@ -1,0 +1,2 @@
+classdef PAFilenameParam < PAPathParam
+end

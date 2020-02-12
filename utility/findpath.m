@@ -10,19 +10,34 @@ function pathname = findpath(pathKey)
     narginchk(1,1);
     
     switch(lower(pathKey))
+        case {'home'}
+            if(ispc)
+                pathname = getenv('USERPROFILE');                                
+            else
+                pathname = getenv('HOME');                
+                if(isempty(pathname))
+                    pathname = '~/';
+                end                
+            end
+            
         case {'document','docs','documents'}
             if(ispc)
+                % Could try this also..
+                %   pathname = fullfile(findpath('home'),'My Documents');
+                
+                
                 % Sorry :(  
                 % Finding a 'My Documents' equivalent is not possible for
                 % all Windows version from registry queries.
                 % So, rather than write some .NET code, I'm just going to
-                % throw back the peronsal path of the user.
+                % throw back the personal path of the user.
                 pathname = winqueryreg('HKEY_CURRENT_USER',...
                     ['Software\Microsoft\Windows\CurrentVersion\' ...
                     'Explorer\Shell Folders'],'Personal');
             else
-                pathname = '~/Documents';
+                pathname = fullfile(findpath('home'),'Documents');
             end
+            
         case {'user','users'}
             if(ispc)
                 pathname = winqueryreg('HKEY_CURRENT_USER',...
