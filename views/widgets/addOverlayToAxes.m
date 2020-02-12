@@ -19,8 +19,8 @@ if(nargin<7)
     contextmenuH = [];
 end
 yLimMode = get(axesH,'ylimmode');
-yLim = get(axesH,'ylim');
-yLim = yLim*overlayHeight+overlayOffset;
+yLimInit = get(axesH,'ylim');
+yLim = yLimInit*overlayHeight+overlayOffset;
 minColor = [0.0 0.0 0.0];
 
 nFaces = numel(overlayVector);
@@ -57,6 +57,6 @@ if(~isempty(contextmenuH))
 end
 
 % Sometimes the yLim jumps
-set(axesH,'ylim',yLim);
+set(axesH,'ylim',yLimInit);
 set(axesH,'ylimmode',yLimMode);
 end

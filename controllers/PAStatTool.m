@@ -3969,8 +3969,7 @@ classdef PAStatTool < PAViewController
                 %jTable = this.jhandles.table_clusterProfiles;
                 %this.jhandles.table_clusterProfiles.setModel(javax.swing.table.DefaultTableModel(this.profileTableData,colNames));
                 % set(this.handles.table_clusterProfiles,'data',this.profileTableData);
-     
-                
+
                 strData= cellfun(@num2str,this.profileTableData,'uniformoutput',false);                
                 [R,C] = size(this.profileTableData);
                 set(this.handles.table_clusterProfiles,'columnEditable',true(1,C));
