@@ -671,7 +671,7 @@ classdef PAStatTool < PAViewController
                 
                 % Do nothing; this means, that we started at rayday and
                 % will go 24 hours
-                if(stopTimeSelection== startTimeSelection)
+                if(stopTimeSelection == startTimeSelection)
 
                     if(this.isClusterMode())
                         % 
@@ -720,7 +720,7 @@ classdef PAStatTool < PAViewController
                     minDaysAllowed = this.minNumDaysAllowed;
                 end
                 
-                % min and max days allowed interpeted in one of three weeks
+                % min and max days allowed interpeted in one of three ways
                 % 1.  both exactly 7
                 % 2.  either more than 0
                 % 3.  both exactly 0
@@ -751,8 +751,15 @@ classdef PAStatTool < PAViewController
                         fname = fieldsToParse{f};
                         this.featureStruct.(fname)(~ind2keep,:)=[];
                     end
-                end
-                
+                    
+                    try
+                        if ~pSettings.discardNonwearFeatures
+                            this.nonwear.rows(~ind2keep)=[];
+                        end
+                    catch me
+                        showME(me);
+                    end
+                end                
                 
                 loadFeatures = this.featureStruct.shapes;
 
@@ -856,10 +863,8 @@ classdef PAStatTool < PAViewController
                             this.featureStruct.totalCount = 1;
                             indicesToUse = 1;
                         end
-                        this.featureStruct.startTimes = this.featureStruct.startTimes(indicesToUse);
-                        
-                    end
-                    
+                        this.featureStruct.startTimes = this.featureStruct.startTimes(indicesToUse);                        
+                    end                    
                 end
                 
                 if(pSettings.trimResults)
@@ -1171,7 +1176,7 @@ classdef PAStatTool < PAViewController
         %> PACluster) exists and converged; False otherwise
         % ======================================================================
         function isValid = hasValidCluster(this)
-            isValid = ~(isempty(this.clusterObj) || this.clusterObj.failedToConverge());
+            isValid = ~(isempty(this.clusterObj) || this.clusterObj.failedToConverge());           
         end 
                 
         function didSet = setIcon(this, iconFilename)
@@ -1264,6 +1269,9 @@ classdef PAStatTool < PAViewController
                 % initDatabaseObj below ... which shows that the database
                 % object is actually cleared if not to be used.
                 this.useDatabase = this.initDatabaseObj();% initDatabase returns false if it fails to initialize and is supposed to.
+                if(this.canUseDatabase())                   
+                    this.initProfileTable();                    
+                end
                 didSet = true;
                 this.refreshAnalysisFigureAvailability();
             else
@@ -1688,10 +1696,12 @@ classdef PAStatTool < PAViewController
                     % Profile Summary and analysis figure
                     this.setUseDatabase(this.getSetting('useDatabase'));  %sets this.useDatabase to false if it was initially true and then fails to open the database
                     this.setUseOutcomesTable(this.getSetting('useOutcomes'));
-                    
-                    if(this.useDatabase || this.useOutcomes)
-                        this.initProfileTable();
-                    end
+
+                    % Now handled inside of the calls to setUseDatabase and
+                    % setUseOutcomesTable()
+                    % if(this.useDatabase || this.useOutcomes)
+                    %    this.initProfileTable();
+                    % end                    
                     
                     % update our text handle so it has the same background
                     % colors as the figure.  
@@ -3176,6 +3186,20 @@ classdef PAStatTool < PAViewController
                         this.featureStruct.startTimes = repmat(this.featureStruct.startTimes,1,7);
                         
                         this.featureStruct.features = reshape(this.featureStruct.features',this.featureStruct.totalCount,[])';% [] should result to sum(this.featureStruct.numDays==7)
+                        
+                        try
+                            if ~pSettings.discardNonwearFeatures
+                                this.nonwear.rows = reshape(this.nonwear.rows',7,[])';
+                                this.nonwear.num_days = sum(this.nonwear.rows,2);
+                                this.nonwear.rows = this.nonwear.num_days>0;
+                                
+                                % 53 of 268 had a week with 0 nonwear days.
+                                % 15 had nonwear each day of 7.
+                            end
+                            
+                        catch me
+                            showME(me);                            
+                        end
                     end                    
                 end                
                
@@ -3979,7 +4003,11 @@ classdef PAStatTool < PAViewController
                         if isempty(strValue)
                             strValue = ' ';
                         end
-                        this.jhandles.table.setValueAt(strValue,r-1,c-1);
+                        try
+                            this.jhandles.table.setValueAt(strValue,r-1,c-1);
+                        catch me
+                            showME(me);
+                        end
                     end
                 end
                 set(this.handles.table_clusterProfiles,'columnEditable',false(1,C));
@@ -4160,9 +4188,9 @@ classdef PAStatTool < PAViewController
             end
 
             statOfInterest = 'AVG';
-            if(~isempty(this.outcomesObj))
+            if(this.canUseOutcomes())
                 [dataSummaryStruct, ~]=this.outcomesObj.getSubjectInfoSummary(primaryKeys,fieldsOfInterest,statOfInterest);
-            elseif(~isempty(this.databaseObj))
+            elseif(this.canUseDatabase())
                 [dataSummaryStruct, ~]=this.databaseObj.getSubjectInfoSummary(primaryKeys,fieldsOfInterest,statOfInterest);
             else
                 dataSummaryStruct = [];

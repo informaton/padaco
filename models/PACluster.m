@@ -299,10 +299,10 @@ classdef PACluster < PAData
 
         function configID = getConfigID(this)
             durationHours= this.getSetting('clusterDurationHours');
-            if(durationHours == 24)
-                durID = 'D'; % day
-            elseif(durationHours == 24* 7)
+            if(durationHours == 24* 7 || strcmpi(this.getSetting('weekdayTag'),'weeklong'))
                 durID = 'W'; % week
+            elseif(durationHours == 24)
+                durID = 'D'; % day            
             else
                 durID = 'O'; % other
             end
