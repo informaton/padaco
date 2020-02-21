@@ -3992,19 +3992,21 @@ classdef PAStatTool < PAViewController
                 %colNames = get(this.handles.table_clusterProfiles,'columnname');
                 %jTable = this.jhandles.table_clusterProfiles;
                 %this.jhandles.table_clusterProfiles.setModel(javax.swing.table.DefaultTableModel(this.profileTableData,colNames));
-                % set(this.handles.table_clusterProfiles,'data',this.profileTableData);
+                
+                set(this.handles.table_clusterProfiles,'data',this.profileTableData);
 
-                strData= cellfun(@num2str,this.profileTableData,'uniformoutput',false);                
+                strData= cellfun(@num2str,this.profileTableData,'uniformoutput',false);  
+                set(this.handles.
                 [R,C] = size(this.profileTableData);
                 set(this.handles.table_clusterProfiles,'columnEditable',true(1,C));
                 for r=1:R
                     for c=1:C
                         strValue = strData{r,c};
                         if isempty(strValue)
-                            strValue = ' ';
+                            strValue = 'n/a';
                         end
                         try
-                            this.jhandles.table.setValueAt(strValue,r-1,c-1);
+                            % this.jhandles.table.setValueAt(strValue,r-1,c-1);
                         catch me
                             showME(me);
                         end
