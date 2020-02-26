@@ -1482,7 +1482,8 @@ classdef PAAppController < PAFigureController
                 % on (Which requires certain initializations to complete).
                 set(hFigure,'closeRequestFcn','delete(gcbo)');
                 set(obj.figureH,'renderer','zbuffer'); %  set(obj.figureH,'renderer','OpenGL');
-
+                
+                set(obj.figureH, 'name', 'Padaco');
 
                 figColor = get(hFigure,'color');
                 defaultUnits = 'pixels';

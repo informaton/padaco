@@ -36,6 +36,7 @@ classdef PASettingsEditor < PAFigureFcnController
                     set(this.figureH,'visible','on');
                     
                     if(isa(this.settings,'PASettings'))
+                        set(this.figureH,'WindowScrollWheelFcn',@this.scrollWheelCb);
                         tabs = this.settings.fieldNames;
                         labelProps.style = 'text';
                         labelProps.fontsize = 14;
@@ -88,10 +89,10 @@ classdef PASettingsEditor < PAFigureFcnController
                                 lowestY = (1-0.125) - yDelta*(numVisibleKeys-1);
 
                                 heightScale = [1 1 1 1];
-                                scrollScale = [1 1 1 1];
+                                scrollScale = [1 1 1 1];                                
+                                newH = 1;                                
                                 
-                                newH = 1;
-                                if( lowestY< 0) 
+                                if( lowestY< 0)                                     
                                     %parent.Scrollable = 'on';
                                     oldH = 1;
                                     newH = oldH+abs(lowestY);
@@ -109,12 +110,21 @@ classdef PASettingsEditor < PAFigureFcnController
                                         minPos = 0;
                                     end
 
-                                    uicontrol('style','slider',...
+                                    hSlider = uicontrol('style','slider',...
                                         'callback',{@this.scrollPanelCb,hPanel},...
                                         'units','normalized','position',[0.98 0 0.02 1],...
                                         'parent',parent,...
                                         'max',maxPos,'min',minPos,'value',maxPos);
+                                    
+                                    userdata = struct('isScrollable',true,...
+                                        'scrollPanelH',hPanel,...
+                                        'sliderH', hSlider);
+                                    set(parent,'userdata', userdata)
+                                    
                                     parent = hPanel;
+                                else
+                                    userdata = struct('isScrollable',false);
+                                    set(parent,'userdata',userdata);
                                 end
                                 
                                 labelProps.parent = parent;
@@ -229,6 +239,17 @@ classdef PASettingsEditor < PAFigureFcnController
             end
         end
         
+        function [curTab, curTabUserData] = getCurrentTab(this)
+            try
+                curTab = get(this.handles.tabgroup,'SelectedTab');
+                curTabUserData = get(curTab,'userdata');
+            catch me
+                showME(me);
+                curTab = [];
+                curTabUserData = [];
+            end                
+        end
+        
         function valueWidgetCb(this, hObject, evtData)
             
             param = get(hObject,'userdata');
@@ -254,6 +275,24 @@ classdef PASettingsEditor < PAFigureFcnController
                     param.setValue(str);
             end
         end
+        function scrollWheelCb(this, hObject, eventData)
+            [~, tabData] = this.getCurrentTab();
+            if ~isempty(tabData) && tabData.isScrollable
+                % count < 0 is up   (rolling wheel away from self)
+                % count > 0 is down (rolling wheel toward self)
+                scrollPanelH = tabData.scrollPanelH;
+                sliderH = tabData.sliderH;
+                stepSize = eventData.VerticalScrollAmount*sliderH.SliderStep(1);
+                requestedValue = sliderH.Value-stepSize*eventData.VerticalScrollCount;
+                minAllowed = sliderH.Min;
+                maxAllowed = sliderH.Max;
+                newValue = max(min(requestedValue,maxAllowed),minAllowed);
+                set(sliderH,'value',newValue);
+                scrollPanelH.Position(2) = -newValue;
+                fprintf(1,'Scroll count: %d\tamount: %d\n', eventData.VerticalScrollCount, eventData.VerticalScrollAmount) ;
+            end
+        end
+        
         function scrollPanelCb(this, hObject, eventData, panelH)
             %arrayfun(@(a)set(a,'Position',get(a,'Position')),allchild(panelH));
             %arrayfun(@(a)set(a,'Position',get(a,'Position')+[0 -hObject.Value 0 0]),allchild(panelH));
