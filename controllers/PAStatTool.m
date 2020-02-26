@@ -3996,7 +3996,7 @@ classdef PAStatTool < PAViewController
                 set(this.handles.table_clusterProfiles,'data',this.profileTableData);
 
                 strData= cellfun(@num2str,this.profileTableData,'uniformoutput',false);  
-                set(this.handles.
+                % set(this.handles.
                 [R,C] = size(this.profileTableData);
                 set(this.handles.table_clusterProfiles,'columnEditable',true(1,C));
                 for r=1:R
