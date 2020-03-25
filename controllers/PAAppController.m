@@ -229,6 +229,7 @@ classdef PAAppController < PAFigureController
             safeset(figHandles,'menu_file_open','callback',@obj.menuFileOpenCallback);
             safeset(figHandles,'menu_file_open_featurespath','callback',@obj.menuFileOpenFeaturesPathCallback);
             
+            safeset(figHandles,'menu_file_openGENEActiv','callback',@obj.openGENEActivFileCb);
             % import
             safeset(figHandles,'menu_file_openVasTrac','callback',@obj.menuFileOpenVasTracCSVCallback,'enable','off','visible','off');
             safeset(figHandles,'menu_file_openFitBit','callback',@obj.menuFileOpenFitBitCallback,'enable','off','visible','off');
@@ -472,6 +473,46 @@ classdef PAAppController < PAFigureController
         %function loadSettingsCb(obj, varargin)
         %    obj.StatTool.loadSettings();
         % end
+        
+        % --------------------------------------------------------------------
+        %> @brief Menubar callback for opening a GENEActiv device file
+        %> @param obj Instance of PAAppController
+        %> @param hObject  handle to menu_file_open (see GCBO)
+        %> @param eventdata Required by MATLAB, but not used.
+        % --------------------------------------------------------------------
+        function openGENEActivFileCb(obj, varargin)
+            f=uigetfullfile({'*_1sec.csv;*_raw.csv','1 second or raw data';
+                '*.csv','Comma Separated Values'},...
+                'Select a file',fullfile(obj.SingleStudy.getSetting('pathname'),obj.SingleStudy.getSetting('filename')));
+            try
+                if(~isempty(f))                    
+                    obj.showBusy('Loading','all');
+                    obj.SingleStudy.disableWidgets();
+                    [pathname,basename, baseext] = fileparts(f);
+                    obj.SingleStudy.setSetting('pathname', pathname);
+                    obj.SingleStudy.setSetting('filename', strcat(basename,baseext));
+                    
+                    obj.SensorData = PASensorData(f,obj.AppSettings.SensorData);
+                    
+                    if(~strcmpi(obj.getViewMode(),'timeseries'))
+                        obj.setViewMode('timeseries');  % Call initAccelDataView as well 
+                    else
+                        %initialize the PASensorData object's visual properties
+                        obj.initAccelDataView(); %calls show obj.SingleStudy.showReady() Ready...                        
+                    end
+                    
+                    % For testing/debugging
+                    %                     featureFcn = 'mean';
+                    %                     elapsedStartHour = 0;
+                    %                     intervalDurationHours = 24;
+                    %                     signalTagLine = obj.getSignalSelection(); %'accel.count.x';
+                    %                     obj.SensorData.getAlignedFeatureVecs(featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours);
+                end
+            catch me
+                showME(me);
+                obj.SingleStudy.showReady('all');
+            end
+        end
         
         % --------------------------------------------------------------------
         %> @brief Menubar callback for opening a file.
