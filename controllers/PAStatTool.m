@@ -3123,6 +3123,7 @@ classdef PAStatTool < PAViewController
             resultsTextH = this.handles.text_clusterResultsOverlay; % an alias
             % clear the analysis figure
             
+            
             if(this.calcFeatureStruct(varargin{:}))            
                 % does not converge well if not normalized as we are no longer looking at the shape alone
                 
@@ -3533,7 +3534,7 @@ classdef PAStatTool < PAViewController
                     % coiMarkers = '+o*xv^.';
                     
                     % Clever ...
-                    coiColors = 'kbgrycm';
+                    coiColors = 'kbgrykm';
                     coiMarkers= '+o*.xv^';
                     coiStyles = repmat('-:',size(coiColors));
                     coiColors = [coiColors, fliplr(coiColors)];
