@@ -6,9 +6,11 @@
 classdef PACluster < PAData
     properties(Constant)
         WEEKDAY_ORDER = 0:6;  % for Sunday through Saturday
-        WEEKDAY_LABELS = {'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'};            
+        WEEKDAY_LABELS = {'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'}; 
+        WEEKDAY_SHORT_LABELS = {'Sun','Mon','Tue','Wed','Thur','Fri','Sat'}; 
+        
         WEEKDAY_SCORE = [-1, 0, 1, 1, 1, 0, -1];  % for Sunday through Saturday
-        WEEKDAY_WEIGHT = [1.5, 1.5, 1, 1, 1, 1.5, 1.5]
+        WEEKDAY_WEIGHT = [1.5, 1.5, 1, 1, 1, 1.5, 1.5]     
     end
     
     %> @brief The sort order can be difficult to understand.  First, the
@@ -620,7 +622,7 @@ classdef PACluster < PAData
         %> - @c false - The clustering succeeded.
         % ======================================================================
         function failedState = failedToConverge(this)
-            failedState = isempty(this.centroidShapes);
+            failedState = isempty(this.centroidShapes) || this.calculationState==1;
         end        
         
         
@@ -941,14 +943,23 @@ classdef PACluster < PAData
             coi.numUniqueParticipants = this.histogram.participants(coi.sortOrder);
             coi.weekdayScore = this.weekdayScores(coi.index);
             coi.dayOfWeek.memberIndices = coi.memberIndices  & ismember(this.loadShapeDayOfWeek,this.WEEKDAY_ORDER(this.daysOfInterest));
+            
+            % sometimes we have columns for the days of interest; e.g. looking at an entire week
+            % in which case we are interested in any shape that contains
+            % this day of the week and will apply 'any' to each row.
+            % @hyatt4            % H
+            coi.dayOfWeek.memberIndices = any(coi.dayOfWeek.memberIndices,2);
             coi.dayOfWeek.memberShapes = this.loadShapes(coi.dayOfWeek.memberIndices,:);
             coi.dayOfWeek.memberIDs = this.loadShapeIDs(coi.dayOfWeek.memberIndices,:);
             coi.dayOfWeek.numMembers = size(coi.dayOfWeek.memberShapes,1);
-            coi.dayOfWeek.startDays = this.loadShapeDayOfWeek(coi.memberIndices);
-            coi.dayOfWeek.count = histc(coi.dayOfWeek.startDays,this.WEEKDAY_ORDER);
-
-%              coi.dayOfWeek.score = this.WEEKDAY_WEIGHT*coi.dayOfWeek.count(:)/sum(coi.dayOfWeek.count);
-             coi.dayOfWeek.score = (this.WEEKDAY_SCORE.*this.WEEKDAY_WEIGHT*coi.dayOfWeek.count(:))/(this.WEEKDAY_WEIGHT*coi.dayOfWeek.count(:));
+            %coi.dayOfWeek.value = this.loadShapeDayOfWeek(coi.memberIndices,1);
+            %coi.dayOfWeek.count = histc(coi.dayOfWeek.value,this.WEEKDAY_ORDER);
+            % coi.dayOfWeek.score = (this.WEEKDAY_SCORE.*this.WEEKDAY_WEIGHT*coi.dayOfWeek.count(:))/(this.WEEKDAY_WEIGHT*coi.dayOfWeek.count(:));
+             
+            coi.dayOfWeek.value = this.loadShapeDayOfWeek(coi.memberIndices,:);
+            coi.dayOfWeek.count = histc(coi.dayOfWeek.value(:),this.WEEKDAY_ORDER);
+            coi.dayOfWeek.score = (this.WEEKDAY_SCORE.*this.WEEKDAY_WEIGHT*coi.dayOfWeek.count(:))/(this.WEEKDAY_WEIGHT*coi.dayOfWeek.count(:));
+                        
         end
 
         %> @brief Returns the loadshape IDs.  These are the identifiers number of centroids that are currently of
@@ -1024,140 +1035,153 @@ classdef PACluster < PAData
         % ======================================================================
         function calculateClusters(this, inputLoadShapes, inputSettings)
             this.calculationState = 1;  % Calculating centroid
-            if(nargin<3)
-                inputSettings = this.settings;
-                if(nargin<2)
-                    inputLoadShapes = this.loadShapes;
+            try
+                if(nargin<3)
+                    inputSettings = this.settings;
+                    if(nargin<2)
+                        inputLoadShapes = this.loadShapes;
+                    end
                 end
-            end
-            
-            inputSettings = paparamsToValues(inputSettings);
-            
-            %             inputSettings.clusterMethod = 'kmedians';
-            % inputSettings.clusterMethod = 'kmedoids';
-            if(strcmpi(inputSettings.clusterMethod,'kmedians'))
-                if(ishandle(this.statusTextHandle))
-                    set(this.statusTextHandle ,'string',{sprintf('Performing accelerated k-medians clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.getSetting('clusterThreshold'))});
-                end
-                [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression, this.sumD] = deal([],[],[],[],[]);
-                fprintf(1,'Empty results given.  Use ''kemedoids'' instead.\n');
-            else
-                if(ishandle(this.statusTextHandle))
-                    set(this.statusTextHandle ,'string',{sprintf('Performing %s clustering of %u loadshapes with a threshold of %0.3f',inputSettings.clusterMethod,this.numLoadShapes(),this.getSetting('clusterThreshold'))});
-                end
-                [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression, this.sumD] = this.adaptiveKclusters(inputLoadShapes,inputSettings,this.performanceAxesHandle,this.statusTextHandle);
-            end
-            %             elseif(strcmpi(inputSettings.clusterMethod,'kmedoids'))
-            %                 if(ishandle(this.statusTextHandle))
-            %                     set(this.statusTextHandle ,'string',{sprintf('Performing adaptive k-medoids clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.getSetting('clusterThreshold)});
-            %                 end
-            %                 [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression, this.sumD] = this.adaptiveKmedoids(inputLoadShapes,inputSettings,this.performanceAxesHandle,this.statusTextHandle);
-            %             elseif(strcmpi(inputSettings.clusterMethod,'kmeans'))
-            %
-            %                 if(ishandle(this.statusTextHandle))
-            %                     set(this.statusTextHandle ,'string',{sprintf('Performing adaptive k-means clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.getSetting('clusterThreshold)});
-            %                 end
-            %                 [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression, this.sumD] = this.adaptiveKmeans(inputLoadShapes,inputSettings,this.performanceAxesHandle,this.statusTextHandle);
-            %             end
-            
-            if(~isempty(this.centroidShapes))          
                 
-                % It is possible that we overdid it and have unassigned
-                % clusters here.  
-                uniqueIndices = unique(this.loadshapeIndex2centroidIndexMap);
-                possibleIndices = 1:size(this.centroidShapes,1);
-                % Return values that are possible but not found;  Note, the order matters here; need possible to go first
-                unassignedIndices = setdiff(possibleIndices,uniqueIndices); 
-                numUnassigned = numel(unassignedIndices);
+                inputSettings = paparamsToValues(inputSettings);
                 
-                % Potential problem here: if unassigned indices are not the last
-                % row indices of centroid shapes and we remove them,
-                % then the unique indices are no longer going to be valid,
-                % but point to indices outside the now consolidated
-                % centroid shapes matrix.  Catch this possibility with an
-                % if statement for now, and *perhaps* come back later and
-                % more robustly handle this case with a remapping of the
-                % centroid shapes and load shape map vector.
-                if(numUnassigned>0 && min(unassignedIndices)>max(uniqueIndices))
-                    this.centroidShapes(unassignedIndices,:)=[];
-                    msg = sprintf('Removing %d unassigned centroids.', numUnassigned);
+                %             inputSettings.clusterMethod = 'kmedians';
+                % inputSettings.clusterMethod = 'kmedoids';
+                if(strcmpi(inputSettings.clusterMethod,'kmedians'))
                     if(ishandle(this.statusTextHandle))
-                        set(this.statusTextHandle ,'string',{msg});
+                        set(this.statusTextHandle ,'string',{sprintf('Performing accelerated k-medians clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.getSetting('clusterThreshold'))});
                     end
-                    fprintf(1,'%s\n',msg);
-                end
-                [this.histogram.loadshapes, this.centroidSortMap] = this.calculateAndSortDistribution(this.loadshapeIndex2centroidIndexMap);%  was -->       calculateAndSortDistribution(this.loadshapeIndex2centroidIndexMap);
-                
-                this.histogram.participants = zeros(size(this.histogram.loadshapes));
-                this.histogram.nonwear = zeros(size(this.histogram.loadshapes));
-                
-                this.coiSortOrder2Index = this.centroidSortMap;  % coiSortOrder2Index(c) contains the original centroid index that corresponds to the c_th most popular position 
-                [~,this.coiIndex2SortOrder] = sort(this.centroidSortMap,1,'ascend');
-                
-                K = this.getNumClusters();
-                % May need to look into a sparse matrix at some point here ...
-                this.clusterMemberIndices = false(K,this.getNumLoadShapes());
-                this.weekdayScores = nan(K,1);
-                for k = 1:K
-                    this.clusterMemberIndices(k,:) = k==this.loadshapeIndex2centroidIndexMap;
-                    dayOfWeek.startDays = this.loadShapeDayOfWeek(this.clusterMemberIndices(k,:));
-                    dayOfWeek.count = histc(dayOfWeek.startDays,this.WEEKDAY_ORDER);
-                    
-                    %                     this.weekdayScores(k) = this.WEEKDAY_WEIGHT*dayOfWeek.count(:)/sum(dayOfWeek.count);
-                    this.weekdayScores(k) = (this.WEEKDAY_SCORE.*this.WEEKDAY_WEIGHT*dayOfWeek.count(:))/(this.WEEKDAY_WEIGHT*dayOfWeek.count(:));
-                    
-                    dayOfWeek.memberIDs = this.loadShapeIDs(this.clusterMemberIndices(k,:));
-                    
-                    % Keep it in the same order as histogram.loadshapes
-                    this.histogram.participants(this.coiIndex2SortOrder(k)) = numel(unique(dayOfWeek.memberIDs));
-                    
-                    if(~isempty(this.nonwearRows))
-                        % Keep it in the same order as histogram.loadshapes
-                        this.histogram.nonwear(this.coiIndex2SortOrder(k)) = sum(this.nonwearRows(this.clusterMemberIndices(k,:)));
-                    end
-                end
-                
-                %this.weekdayScores =
-                
-                % Consider
-                % original centroid index, centroid count, (sort order ,/= coiSortOrder2Index)
-                % 1, 404, 1, 1
-                % 2, 233, 3, 3
-                % 3, 50, 4, 4
-                % 4, 354, 2, 2
-                
-                % sorted order, centroid count, original centroid index, coiSortOrder2Index   
-                % 1, 404, 1, 1 
-                % 2, 354, 4, 4
-                % 3, 233, 2, 2
-                % 4, 50, 3, 3
-
-                %  [a,b]=sort([1,23,5,6],'ascend');
-                %  [c,d] = sort(b,'ascend');  %for testings
-                if(~this.setCOISortOrder(1))  % Modified on 1/17/2017 from  ~this.setCOISortOrder(this.numClusters()))
-                    fprintf(1,'Warning - could not set the centroid of interest sort order to %u\n',this.numClusters);
-                end
-                
-                if(~this.getUserCancelled())
-                    this.calculationState = 2;  % finished calculation.  
-                end
-                
-                idx = this.loadshapeIndex2centroidIndexMap;
-                if(strcmpi(this.performanceCriterion,'silhouette'))
-                    this.calinskiIndex = this.getCalinskiHarabaszIndex(idx,this.centroidShapes,this.sumD);
-                    this.silhouetteIndex = this.performanceMeasure;            
-                    fprintf('Calinski Index = %0.2f\n',this.calinskiIndex);
+                    [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression, this.sumD] = deal([],[],[],[],[]);
+                    fprintf(1,'Empty results given.  Use ''kemedoids'' instead.\n');
                 else
-                    this.calinskiIndex = this.performanceMeasure;
-                    this.silhouetteIndex = mean(silhouette(this.loadShapes,idx));                    
-                    fprintf('Silhouette Index = %0.4f\n',this.silhouetteIndex);
+                    if(ishandle(this.statusTextHandle))
+                        set(this.statusTextHandle ,'string',{sprintf('Performing %s clustering of %u loadshapes with a threshold of %0.3f',inputSettings.clusterMethod,this.numLoadShapes(),this.getSetting('clusterThreshold'))});
+                    end
+                    [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression, this.sumD] = this.adaptiveKclusters(inputLoadShapes,inputSettings,this.performanceAxesHandle,this.statusTextHandle);
                 end
-            else
-                fprintf('Clustering failed!  No clusters found!\n');
+                %             elseif(strcmpi(inputSettings.clusterMethod,'kmedoids'))
+                %                 if(ishandle(this.statusTextHandle))
+                %                     set(this.statusTextHandle ,'string',{sprintf('Performing adaptive k-medoids clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.getSetting('clusterThreshold)});
+                %                 end
+                %                 [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression, this.sumD] = this.adaptiveKmedoids(inputLoadShapes,inputSettings,this.performanceAxesHandle,this.statusTextHandle);
+                %             elseif(strcmpi(inputSettings.clusterMethod,'kmeans'))
+                %
+                %                 if(ishandle(this.statusTextHandle))
+                %                     set(this.statusTextHandle ,'string',{sprintf('Performing adaptive k-means clustering of %u loadshapes with a threshold of %0.3f',this.numLoadShapes(),this.getSetting('clusterThreshold)});
+                %                 end
+                %                 [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression, this.sumD] = this.adaptiveKmeans(inputLoadShapes,inputSettings,this.performanceAxesHandle,this.statusTextHandle);
+                %             end
+                
+                if(~isempty(this.centroidShapes))
+                    
+                    % It is possible that we overdid it and have unassigned
+                    % clusters here.
+                    uniqueIndices = unique(this.loadshapeIndex2centroidIndexMap);
+                    possibleIndices = 1:size(this.centroidShapes,1);
+                    % Return values that are possible but not found;  Note, the order matters here; need possible to go first
+                    unassignedIndices = setdiff(possibleIndices,uniqueIndices);
+                    numUnassigned = numel(unassignedIndices);
+                    
+                    % Potential problem here: if unassigned indices are not the last
+                    % row indices of centroid shapes and we remove them,
+                    % then the unique indices are no longer going to be valid,
+                    % but point to indices outside the now consolidated
+                    % centroid shapes matrix.  Catch this possibility with an
+                    % if statement for now, and *perhaps* come back later and
+                    % more robustly handle this case with a remapping of the
+                    % centroid shapes and load shape map vector.
+                    if(numUnassigned>0 && min(unassignedIndices)>max(uniqueIndices))
+                        this.centroidShapes(unassignedIndices,:)=[];
+                        msg = sprintf('Removing %d unassigned centroids.', numUnassigned);
+                        if(ishandle(this.statusTextHandle))
+                            set(this.statusTextHandle ,'string',{msg});
+                        end
+                        fprintf(1,'%s\n',msg);
+                    end
+                    [this.histogram.loadshapes, this.centroidSortMap] = this.calculateAndSortDistribution(this.loadshapeIndex2centroidIndexMap);%  was -->       calculateAndSortDistribution(this.loadshapeIndex2centroidIndexMap);
+                    
+                    this.histogram.participants = zeros(size(this.histogram.loadshapes));
+                    this.histogram.nonwear = zeros(size(this.histogram.loadshapes));
+                    
+                    this.coiSortOrder2Index = this.centroidSortMap;  % coiSortOrder2Index(c) contains the original centroid index that corresponds to the c_th most popular position
+                    [~,this.coiIndex2SortOrder] = sort(this.centroidSortMap,1,'ascend');
+                    
+                    K = this.getNumClusters();
+                    % May need to look into a sparse matrix at some point here ...
+                    this.clusterMemberIndices = false(K,this.getNumLoadShapes());
+                    this.weekdayScores = nan(K,1);
+                    for k = 1:K
+                        this.clusterMemberIndices(k,:) = k==this.loadshapeIndex2centroidIndexMap;
+                        startDay.value = this.loadShapeDayOfWeek(this.clusterMemberIndices(k,:),1);
+                        startDay.count = histc(startDay.value,this.WEEKDAY_ORDER);
+                        %                     this.weekdayScores(k) = this.WEEKDAY_WEIGHT*dayOfWeek.count(:)/sum(dayOfWeek.count);
+                        this.weekdayScores(k) = (this.WEEKDAY_SCORE.*this.WEEKDAY_WEIGHT*startDay.count(:))/(this.WEEKDAY_WEIGHT*startDay.count(:));
+                        
+                        startDay.memberIDs = this.loadShapeIDs(this.clusterMemberIndices(k,:));
+                        
+                        % Keep it in the same order as histogram.loadshapes
+                        this.histogram.participants(this.coiIndex2SortOrder(k)) = numel(unique(startDay.memberIDs));
+                        if(~isempty(this.nonwearRows))
+                            % Keep it in the same order as histogram.loadshapes
+                            this.histogram.nonwear(this.coiIndex2SortOrder(k)) = sum(this.nonwearRows(this.clusterMemberIndices(k,:)));
+                        end
+
+                        dayOfWeek.values = this.loadShapeDayOfWeek(this.clusterMemberIndices(k,:),:);
+                        dayOfWeek.counts = histc(dayOfWeek.values(:),this.WEEKDAY_ORDER);
+                        this.weekdayScores(k) = (this.WEEKDAY_SCORE.*this.WEEKDAY_WEIGHT*dayOfWeek.counts(:))/(this.WEEKDAY_WEIGHT*dayOfWeek.counts(:));
+                        
+                    end
+                    
+                    %this.weekdayScores =
+                    
+                    % Consider
+                    % original centroid index, centroid count, (sort order ,/= coiSortOrder2Index)
+                    % 1, 404, 1, 1
+                    % 2, 233, 3, 3
+                    % 3, 50, 4, 4
+                    % 4, 354, 2, 2
+                    
+                    % sorted order, centroid count, original centroid index, coiSortOrder2Index
+                    % 1, 404, 1, 1
+                    % 2, 354, 4, 4
+                    % 3, 233, 2, 2
+                    % 4, 50, 3, 3
+                    
+                    %  [a,b]=sort([1,23,5,6],'ascend');
+                    %  [c,d] = sort(b,'ascend');  %for testings
+                    if(~this.setCOISortOrder(1))  % Modified on 1/17/2017 from  ~this.setCOISortOrder(this.numClusters()))
+                        fprintf(1,'Warning - could not set the centroid of interest sort order to %u\n',this.numClusters);
+                    end
+                    
+                    if(~this.getUserCancelled())
+                        this.calculationState = 2;  % finished calculation.
+                    end
+                    
+                    idx = this.loadshapeIndex2centroidIndexMap;
+                    if(strcmpi(this.performanceCriterion,'silhouette'))
+                        this.calinskiIndex = this.getCalinskiHarabaszIndex(idx,this.centroidShapes,this.sumD);
+                        this.silhouetteIndex = this.performanceMeasure;
+                        fprintf('Calinski Index = %0.2f\n',this.calinskiIndex);
+                    else
+                        this.calinskiIndex = this.performanceMeasure;
+                        this.silhouetteIndex = mean(silhouette(this.loadShapes,idx));
+                        fprintf('Silhouette Index = %0.4f\n',this.silhouetteIndex);
+                    end
+                else
+                    fprintf('Clustering failed!  No clusters found!\n');
+                    this.calculationState = -1;  % Calculation failed
+                    this.calinskiIndex = nan;
+                    this.silhouetteIndex = nan;
+                    this.init();
+                end
+            catch me
+                fprintf('Clustering failed!  Exception caught: %s\n', me.message);
+                showME(me);
                 this.calculationState = -1;  % Calculation failed
                 this.calinskiIndex = nan;
                 this.silhouetteIndex = nan;
-                this.init();     
+                this.init();
+                
             end
         end
         

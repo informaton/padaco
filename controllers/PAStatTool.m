@@ -3092,7 +3092,7 @@ classdef PAStatTool < PAViewController
         
         function refreshClustersAndPlotCb(this, varargin)
             enableUserCancel = true;
-           this.refreshClustersAndPlot(enableUserCancel); 
+            this.refreshClustersAndPlot(enableUserCancel);
         end
         
         % ======================================================================
@@ -3167,7 +3167,7 @@ classdef PAStatTool < PAViewController
                         % at this point, as of 25APR2019.  However, a more
                         % complex rule and sorting approach may need to be
                         % employed if changes are made to the code above
-                        % (@hyatt)
+                        % (@hyatt) % days may not be in order however.
                         for k=1:7:numel(this.featureStruct.studyIDs) % size(this.featureStruct.features,1)
                             curRange = k:k+6;
                             [~,sortInd] = sort(this.featureStruct.startDaysOfWeek(curRange),'ascend');
@@ -3182,9 +3182,21 @@ classdef PAStatTool < PAViewController
                         % tmp = [tmp;tmp];
                         % reshape(tmp',8,[])'
                         this.featureStruct.totalCount = 7*this.featureStruct.totalCount;
+                        
+                        this.featureStruct.daysOfWeek = reshape(this.featureStruct.startDaysOfWeek',7,[])'; % should be all 0 - 6
                         this.featureStruct.startDaysOfWeek = this.featureStruct.startDaysOfWeek(1:7:end); % should be all 0 (sunday)
+                        % this.featureStruct.startDaysOfWeek = 0:6;
+                        this.featureStruct.startDaysOfWeek = this.featureStruct.daysOfWeek;
                         this.featureStruct.studyIDs = this.featureStruct.studyIDs(1:7:end);
+                        
+                        % Make it into rows
+                        numStartTimes = numel(this.featureStruct.startTimes);
                         this.featureStruct.startTimes = repmat(this.featureStruct.startTimes,1,7);
+                        for day_index=1:7
+                            day_label = PACluster.WEEKDAY_SHORT_LABELS{day_index};
+                            update_index = (day_index-1)*numStartTimes+1;
+                            this.featureStruct.startTimes{1,update_index} = sprintf('%s %s',day_label,this.featureStruct.startTimes{1,update_index});
+                        end                       
                         
                         this.featureStruct.features = reshape(this.featureStruct.features',this.featureStruct.totalCount,[])';% [] should result to sum(this.featureStruct.numDays==7)
                         
@@ -3334,7 +3346,11 @@ classdef PAStatTool < PAViewController
         end
         
         function drawClusterXTicksAndLabels(this)
-            xTicks = 1:6:this.featureStruct.totalCount;
+            if numel(this.featureStruct.totalCount)>18
+                xTicks = 1:6:this.featureStruct.totalCount;
+            else
+                xTicks = 1:this.featureStruct.totalCount;            
+            end
             
             % This is nice to place a final tick matching the end time on
             % the graph, but it sometimes gets too busy and the tick
@@ -3344,16 +3360,24 @@ classdef PAStatTool < PAViewController
             %             end
             
             xTickLabels = this.featureStruct.startTimes(xTicks);
+            featureLen = this.featureStruct.totalCount;
+            xlimit = [1, featureLen];
             if(numel(xTicks)>70)
                 xLabelRot = -90;                
                 xTicks = xTicks(1:10:end);
                 xTickLabels = xTickLabels(1:10:end);
             elseif(numel(xTicks)>10)
                 xLabelRot = -45;
-            else
+            else                
                 xLabelRot = 0;
+                
+                if featureLen<2
+                    % Prevents xlimit errors being raised about otherwise non increasing
+                    xlimit = [featureLen-1, featureLen+1];
+                end
             end
-            set(this.handles.axes_primary,'xlim',[1,this.featureStruct.totalCount],'xtick',xTicks,'xticklabel',xTickLabels,...
+            
+            set(this.handles.axes_primary,'xlim',xlimit,'xtick',xTicks,'xticklabel',char(xTickLabels(:)),...
                 'XTickLabelRotation',xLabelRot);%,...
             
 %                 'fontsize',11); 
@@ -4637,9 +4661,9 @@ classdef PAStatTool < PAViewController
             baseSettings.processedTypes = {'count','raw'};            
             baseSettings.numShades = 1000;
             
-            baseSettings.weekdayDescriptions = {'All days','Mon-Fri','Weekend','Custom','One week (Sunday-Saturday)'};            
-            baseSettings.weekdayTags = {'all','weekdays','weekends','custom','weeklong'};
-            baseSettings.weekdayValues = {0:6,1:5,[0,6],[],0:6};
+            baseSettings.weekdayDescriptions = {'All days','Sun-Sat (week)','Mon-Fri','Weekend','Custom'};            
+            baseSettings.weekdayTags = {'all','weeklong','weekdays','weekends','custom'};
+            baseSettings.weekdayValues = {0:6,0:6,1:5,[0,6],[]};
             baseSettings.daysOfWeekShortDescriptions = {'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
             baseSettings.daysOfWeekDescriptions = {'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'};
             baseSettings.daysOfWeekOrder = 1:7;
