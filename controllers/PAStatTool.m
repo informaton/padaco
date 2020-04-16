@@ -4663,7 +4663,7 @@ classdef PAStatTool < PAViewController
             
             baseSettings.preclusterReductions = {'none','sort','sum','mean','median','max','above_100','above_50'};
             baseSettings.preclusterReductionDescriptions = {'None','Sort (high->low)','Sum','Mean','Median','Maximum','Occurrences > 100','Occurrences > 50'};
-            baseSettings.numDataSegments = [2,3,4,6,8,12,24]';
+            baseSettings.numDataSegments = [1,2,3,4,6,8,12,24]';
             baseSettings.numDataSegmentsDescriptions = cellstr(num2str(baseSettings.numDataSegments(:)));
             
             baseSettings.plotTypes = {'clustering','dailyaverage','dailytally','morningheatmap','heatmap','rolling','morningrolling'};
