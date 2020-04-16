@@ -160,6 +160,11 @@ classdef PACluster < PAData
         % nonwear.
         nonwearRows;
     end
+    
+    properties
+        featureStruct;
+        
+    end
             
     methods
 

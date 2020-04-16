@@ -205,7 +205,6 @@ classdef PAStatTool < PAViewController
             % call the parent/superclass method
             delete@PAViewController(this);
         end
-
         
         function didSet = setFeaturesDirectory(this, resultsPath)
             if(~isdir(resultsPath))
@@ -309,8 +308,7 @@ classdef PAStatTool < PAViewController
         
         function clearStatus(this)
            this.setStatus('');
-        end
-        
+        end        
         
         %> @brief Returns boolean indicator if the current plot type is 
         %> is showing clusters or not.        
@@ -321,8 +319,7 @@ classdef PAStatTool < PAViewController
                 plotType = this.getPlotType();
             end
             isMode = strcmpi(plotType,'clustering');
-        end
-            
+        end            
         
         function plotType = getPlotType(this)
             plotType = getMenuUserData(this.handles.menu_plottype);
@@ -1554,7 +1551,11 @@ classdef PAStatTool < PAViewController
             
             if(this.getCanPlot())
                 if(this.hasValidCluster())                    
-                    
+                    try
+                        this.featureStruct = this.clusterObj.featureStruct;
+                    catch me
+                        showME(me);
+                    end
                     % Need this because we will skip our x tick and
                     % labels refresh otherwise.
                     this.drawClusterXTicksAndLabels();
@@ -2623,7 +2624,8 @@ classdef PAStatTool < PAViewController
             axesHandle = this.handles.axes_primary;
             daysofweek = this.featureStruct.startDaysOfWeek;
                         
-            daysofweekStr = this.base.daysOfWeekShortDescriptions; %{'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
+            % daysofweekStr = this.base.daysOfWeekShortDescriptions; %{'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
+            daysofweekStr = this.base.daysOfWeekDescriptions; %{'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
             daysofweekOrder = this.base.daysOfWeekOrder; %1:7;
             features = this.featureStruct.shapes;  % this.featureStruct.features;
             divisionsPerDay = size(features,2);
@@ -3193,7 +3195,8 @@ classdef PAStatTool < PAViewController
                         numStartTimes = numel(this.featureStruct.startTimes);
                         this.featureStruct.startTimes = repmat(this.featureStruct.startTimes,1,7);
                         for day_index=1:7
-                            day_label = PACluster.WEEKDAY_SHORT_LABELS{day_index};
+                            % day_label = PACluster.WEEKDAY_SHORT_LABELS{day_index};
+                            day_label = PACluster.WEEKDAY_LABELS{day_index};                            
                             update_index = (day_index-1)*numStartTimes+1;
                             this.featureStruct.startTimes{1,update_index} = sprintf('%s %s',day_label,this.featureStruct.startTimes{1,update_index});
                         end                       
@@ -3277,6 +3280,7 @@ classdef PAStatTool < PAViewController
                 else
                     this.refreshGlobalProfile();
                     this.cacheCluster();
+                    this.clusterObj.featureStruct = this.featureStruct;
                 end
             else
                 inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);                
@@ -3346,21 +3350,31 @@ classdef PAStatTool < PAViewController
         end
         
         function drawClusterXTicksAndLabels(this)
-            if numel(this.featureStruct.totalCount)>18
-                xTicks = 1:6:this.featureStruct.totalCount;
+            plotSettings = this.getPlotSettings();
+            isShowingWeekLong = strcmpi(plotSettings.weekdayTag, 'weeklong');
+            %isShowingWeekLong = strcmpi(this.originalSettings.weekdayTag,'weeklong');
+            featureS = this.featureStruct;
+            if isShowingWeekLong
+                segmentsPerDay = plotSettings.stopTimeSelection-plotSettings.startTimeSelection+1;
+                everyNthTick = segmentsPerDay;
             else
-                xTicks = 1:this.featureStruct.totalCount;            
+                everyNthTick = 6;
+            end
+            if featureS.totalCount>18
+                xTicks = 1:everyNthTick:featureS.totalCount;
+            else
+                xTicks = 1:featureS.totalCount;
             end
             
             % This is nice to place a final tick matching the end time on
             % the graph, but it sometimes gets too busy and the tick
             % separation distance is non-linear which can be an eye soar.
-            %             if(xTicks(end)~=this.featureStruct.totalCount)
-            %                 xTicks(end+1)=this.featureStruct.totalCount;
+            %             if(xTicks(end)~=featureS.totalCount)
+            %                 xTicks(end+1)=featureS.totalCount;
             %             end
             
-            xTickLabels = this.featureStruct.startTimes(xTicks);
-            featureLen = this.featureStruct.totalCount;
+            xTickLabels = featureS.startTimes(xTicks);
+            featureLen = featureS.totalCount;
             xlimit = [1, featureLen];
             if(numel(xTicks)>70)
                 xLabelRot = -90;                
@@ -3524,8 +3538,7 @@ classdef PAStatTool < PAViewController
                 if(isempty(this.clusterObj)|| this.clusterObj.failedToConverge())
                     % clear everything and give a warning that the cluster is empty
                     this.logWarning('Clustering results were empty');
-                else
-                  
+                else                  
                     numClusters = this.clusterObj.numClusters();
  
                     distributionAxes = this.handles.axes_secondary;
