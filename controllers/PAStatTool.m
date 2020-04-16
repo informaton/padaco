@@ -552,6 +552,13 @@ classdef PAStatTool < PAViewController
             set(this.handles.menu_clusterStopTime,'string',stopTimeCellStr,'value',stopTimeSelection);
         end
         
+        function isIt = isShowingWeekLong(this, pSettings)
+            if nargin < 2 || isempty(pSettings)
+                pSettings = this.getPlotSettings();
+            end
+            isIt = strcmpi(pSettings.weekdayTag,'weeklong');
+        end
+        
         % ======================================================================
         %> @brief Loads feature struct from disk using the current features
         %> directory.
@@ -709,7 +716,7 @@ classdef PAStatTool < PAViewController
                     this.nonwear.featureStruct = [];
                 end
                 
-                if(strcmpi(pSettings.weekdayTag,'weeklong'))
+                if this.isShowingWeekLong()                
                     maxDaysAllowed = 7;
                     minDaysAllowed = 7;
                 else
@@ -3163,7 +3170,7 @@ classdef PAStatTool < PAViewController
                         fname = fieldsOfInterest{f};
                         this.featureStruct.(fname) = this.featureStruct.(fname)(rowsOfInterest,:);                        
                     end
-                    if(strcmpi(pSettings.weekdayTag,'weeklong'))
+                    if this.isShowingWeekLong(pSettings)
                         % CAUTION - This works because we are guaranteed to
                         % have 7 days per study, and studies are in order
                         % at this point, as of 25APR2019.  However, a more
@@ -3351,7 +3358,7 @@ classdef PAStatTool < PAViewController
         
         function drawClusterXTicksAndLabels(this)
             plotSettings = this.getPlotSettings();
-            isShowingWeekLong = strcmpi(plotSettings.weekdayTag, 'weeklong');
+            
             %isShowingWeekLong = strcmpi(this.originalSettings.weekdayTag,'weeklong');
             featureS = this.featureStruct;
             if isempty(featureS)
@@ -3359,7 +3366,7 @@ classdef PAStatTool < PAViewController
                 featureS.startTimes = this.clusterObj.loadShapeTimes;
                 featureS.totalCount = numel(this.clusterObj.loadShapeTimes);
             end
-            if isShowingWeekLong
+            if this.isShowingWeekLong(plotSettings)
                 segmentsPerDay = plotSettings.stopTimeSelection-plotSettings.startTimeSelection+1;
                 everyNthTick = segmentsPerDay;
             else
