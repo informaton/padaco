@@ -849,8 +849,9 @@ classdef PAStatTool < PAViewController
                         end
                         loadFeatures = splitLoadFeatures;
                     else
-                        loadFeatures = PAStatTool.featureSetAdjustment(loadFeatures,pSettings.preclusterReduction);                            
-                       
+                        if ~strcmpi(pSettings.preclusterReduction,'sort') || pSettings.chunkShapes
+                            loadFeatures = PAStatTool.featureSetAdjustment(loadFeatures,pSettings.preclusterReduction);                            
+                        end
                     end
                     
                     % Account for new times.
@@ -896,6 +897,8 @@ classdef PAStatTool < PAViewController
                     loadFeatures(culledInd) = 0;                    
                 end
                 
+
+                
                 if(pSettings.normalizeValues)
                     [loadFeatures, nzi] = PAStatTool.normalizeLoadShapes(loadFeatures);
                     removeZeroSums = false;
@@ -909,7 +912,7 @@ classdef PAStatTool < PAViewController
                     end
                 else
                     this.featureStruct.features = loadFeatures;    
-                end
+                end                
                 
                 didCalc = true;
             else
@@ -3135,7 +3138,7 @@ classdef PAStatTool < PAViewController
             
             if(this.calcFeatureStruct(varargin{:}))            
                 % does not converge well if not normalized as we are no longer looking at the shape alone
-                
+
                 % @b weekdayTag String to identify how/if data should be
                 % filtered according to when it was recorded during the week.
                 % Values include
@@ -3209,6 +3212,12 @@ classdef PAStatTool < PAViewController
                         end                       
                         
                         this.featureStruct.features = reshape(this.featureStruct.features',this.featureStruct.totalCount,[])';% [] should result to sum(this.featureStruct.numDays==7)
+                        
+                        % Special case to sort the entire week - b/c too
+                        % difficult to place into calcFeatureStruct()
+                        if strcmpi(pSettings.preclusterReduction,'sort') && ~pSettings.chunkShapes
+                            this.featureStruct.features = sort(this.featureStruct.features,2,'descend'); %sort rows from high to low
+                        end
                         
                         try
                             if ~pSettings.discardNonwearFeatures

@@ -162,8 +162,7 @@ classdef PACluster < PAData
     end
     
     properties
-        featureStruct;
-        
+        featureStruct;        
     end
             
     methods
