@@ -3279,8 +3279,8 @@ classdef PAStatTool < PAViewController
                     this.clusterObj = [];
                 else
                     this.refreshGlobalProfile();
-                    this.cacheCluster();
                     this.clusterObj.featureStruct = this.featureStruct;
+                    this.cacheCluster();
                 end
             else
                 inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);                
@@ -3354,6 +3354,11 @@ classdef PAStatTool < PAViewController
             isShowingWeekLong = strcmpi(plotSettings.weekdayTag, 'weeklong');
             %isShowingWeekLong = strcmpi(this.originalSettings.weekdayTag,'weeklong');
             featureS = this.featureStruct;
+            if isempty(featureS)
+                featureS = struct();
+                featureS.startTimes = this.clusterObj.loadShapeTimes;
+                featureS.totalCount = numel(this.clusterObj.loadShapeTimes);
+            end
             if isShowingWeekLong
                 segmentsPerDay = plotSettings.stopTimeSelection-plotSettings.startTimeSelection+1;
                 everyNthTick = segmentsPerDay;
