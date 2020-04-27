@@ -2294,6 +2294,12 @@ classdef PAStatTool < PAViewController
             if(isfield(contextMenus,'nextPlot'))
                 contextMenus = rmfield(contextMenus,'nextPlot');
             end
+            
+            %Not sure how this one got in here.  @hyatt 4/27/2020
+            if(isfield(contextMenus,'uicontextmenu'))
+                contextMenus = rmfield(contextMenus,'uicontextmenu');
+            end
+            
             set(struct2array(contextMenus),'checked','off');
             set(contextMenus.(this.getSetting('clusterDistributionType')),'checked','on');
             
@@ -4462,10 +4468,49 @@ classdef PAStatTool < PAViewController
                     featureSet = median(featureSet,2);
                 case 'max'
                     featureSet = max(featureSet,[],2);
+                case 'above_50'
+                    featureSet = sum(featureSet>50,2);    
                 case 'above_100'
                     featureSet = sum(featureSet>100,2);
-                case 'above_50'
-                    featureSet = sum(featureSet>50,2);                    
+                case 'above_500'
+                    featureSet = sum(featureSet>500,2);
+                case 'above_1000'
+                    featureSet = sum(featureSet>1000,2);
+                case 'hours_to_80pct'
+                    c = cumsum(featureSet,2);
+                    total = c(:,end);
+                    p_thresh = total*0.8;        
+                    num_features = size(featureSet,2);
+                    p_index = repmat(num_features, size(p_thresh));                    
+                    for k=1:numel(p_thresh)
+                        p_index(k) = find(c(k,:)>=p_thresh(k),1,'first');
+                    end
+                    hrs_per_index = 24/num_features;
+                    featureSet = p_index*hrs_per_index;
+                case 'hours_to_50pct'
+                    c = cumsum(featureSet,2);
+                    total = c(:,end);
+                    p_thresh = total*0.5;        
+                    num_features = size(featureSet,2);
+                    p_index = repmat(num_features, size(p_thresh));                    
+                    for k=1:numel(p_thresh)
+                        p_index(k) = find(c(k,:)>=p_thresh(k),1,'first');
+                    end
+                    hrs_per_index = 24/num_features;
+                    featureSet = p_index*hrs_per_index;
+                case 'hours_until_50000'
+                    c = cumsum(featureSet,2);
+                    c_thresh = 50000;
+                    num_features = size(featureSet,2);
+                    p_index = repmat(num_features, size(featureSet,1),1);
+                    for k=1:numel(p_index)
+                        ind_k = find(c(k,:)>=c_thresh,1,'first');
+                        if ~isempty(ind_k)
+                            p_index(k) = ind_k;
+                        end
+                    end
+                    hrs_per_index = 24/num_features;
+                    featureSet = p_index*hrs_per_index;
                 case 'none'
                 otherwise
             end
@@ -4661,8 +4706,23 @@ classdef PAStatTool < PAViewController
             baseSettings.signalTypes = {'x','y','z','vecMag'};
             baseSettings.signalDescriptions = {'X','Y','Z','VecMag'};
             
-            baseSettings.preclusterReductions = {'none','sort','sum','mean','median','max','above_100','above_50'};
-            baseSettings.preclusterReductionDescriptions = {'None','Sort (high->low)','Sum','Mean','Median','Maximum','Occurrences > 100','Occurrences > 50'};
+            reduction_dictionary = {'none','None';
+             'sort','Sort (high->low)';
+             'sum','Sum';
+             'mean','Mean';
+             'median','Median';
+             'max','Maximum';
+             'above_1000','Occurrences > 1000';
+             'above_500','Occurrences > 500';
+             'above_100','Occurrences > 100';
+             'above_50','Occurrences > 50';
+             'hours_to_80pct','Hours until 80%';
+             'hours_to_50pct','Hours until 50%';
+             'hours_until_50000','Hours until 50000 counts';
+             };
+         
+            baseSettings.preclusterReductions = reduction_dictionary(:,1);
+            baseSettings.preclusterReductionDescriptions = reduction_dictionary(:,2);
             baseSettings.numDataSegments = [1,2,3,4,6,8,12,24]';
             baseSettings.numDataSegmentsDescriptions = cellstr(num2str(baseSettings.numDataSegments(:)));
             

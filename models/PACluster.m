@@ -360,15 +360,21 @@ classdef PACluster < PAData
                     timeStamp = datestr(now,'DDmmmYYYY');
                     
                     if(strcmpi(exportFmt,'xls'))
-                        
                         % default is to export as csv files (with a txt config file)
                     else
-                        
+                        % Timestamps
                         cov2Filename = fullfile(exportPath,sprintf('cluster_by_weekday_%s.csv',timeStamp));
                         covFilename = fullfile(exportPath,sprintf('cluster_frequency_%s.csv',timeStamp));
                         shapesFilename = fullfile(exportPath,sprintf('cluster_shapes_%s.csv',timeStamp));
                         summaryFilename = fullfile(exportPath,sprintf('cluster_summary_%s.csv',timeStamp));
                         settingsFilename = fullfile(exportPath,sprintf('padaco_config_%s.txt',timeStamp));
+                        
+                        % No timestamps
+                        cov2Filename = fullfile(exportPath,sprintf('cluster_by_weekday.csv'));
+                        covFilename = fullfile(exportPath,sprintf('cluster_frequency.csv'));
+                        shapesFilename = fullfile(exportPath,sprintf('cluster_shapes.csv'));
+                        summaryFilename = fullfile(exportPath,sprintf('cluster_summary.csv'));
+                        settingsFilename = fullfile(exportPath,sprintf('padaco_config.txt'));
                         
                         covFid = fopen(covFilename,'w');
                         
@@ -468,7 +474,6 @@ classdef PACluster < PAData
                 colName = cs.(frequencyOf).colnames{c};
                 headerStr = sprintf('%s, %s', headerStr, colName);
             end
-
             
             %id (index) or popularity;
             allData = [cs.memberIDs,cs.(frequencyOf).values];
