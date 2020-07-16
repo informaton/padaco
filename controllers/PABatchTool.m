@@ -990,7 +990,8 @@ classdef PABatchTool < PAFigureFcnController
             
             startDateTime = datestr(now,'ddmmmyyyy_HHMM');
             
-            summaryFilename = strrep(settings.summaryFilename,'@TIMESTAMP',startDateTime);
+            summaryFilename = settings.summaryFilename.value(); %convert from a PAStringParam
+            summaryFilename = strrep(summaryFilename,'@TIMESTAMP',startDateTime);
             
             isormkdir(featurePathname);
             isormkdir(unalignedFeaturePathname);
@@ -1004,28 +1005,29 @@ classdef PABatchTool < PAFigureFcnController
             end
             fprintf(summaryFID,'studyID, study_filename, total day count, complete day count, incomplete day count, counts per minute (x), counts per minute (y), counts per minute (z), counts per minute (vec magnitude)\n');
             
-            logFilename = strrep(settings.logFilename,'@TIMESTAMP',startDateTime);
-            logFullFilename = fullfile(settings.outputDirectory,logFilename);
+            logFilename = settings.logFilename.value();
+            logFilename = strrep(logFilename,'@TIMESTAMP',startDateTime);
+            logFullFilename = fullfile(settings.outputDirectory.value(),logFilename);
             
             logFID = fopen(logFullFilename,'w');
             if(logFID<0)
                 fprintf(1,'Cannot open or create the log file: %s\nSending log output to the console.\n',logFullFilename);
                 logFID = 1;
             end
-            versionStr = PAController.getVersionInfo('num');
+            versionStr = PAAppController.getVersionInfo('num');
             fprintf(logFID,'Padaco batch processing log\nStart time:\t%s\n',startDateTime);
             fprintf(logFID,'Padaco version %s\n',versionStr);
-            fprintf(logFID,'Source directory:\t%s\n',settings.sourceDirectory);
-            fprintf(logFID,'Output directory:\t%s\n',settings.outputDirectory);
+            fprintf(logFID,'Source directory:\t%s\n',settings.sourceDirectory.value());
+            fprintf(logFID,'Output directory:\t%s\n',settings.outputDirectory.value());
             fprintf(logFID,'Aligned features (for clustering):\t%s\n',featurePathname);
             fprintf(logFID,'Original features (for clustering):\t%s\n',unalignedFeaturePathname);
             
             fprintf(logFID,'Features:\t%s\n',settings.featureLabel);
-            fprintf(logFID,'Frame duration (minutes):\t%0.2f\n',settings.frameDurationMinutes);
+            fprintf(logFID,'Frame duration (minutes):\t%0.2f\n',settings.frameDurationMinutes.value());
             
             fprintf(logFID,'Alignment settings:\n');
-            fprintf(logFID,'\tElapsed start (hours):\t%u\n',settings.alignment.elapsedStartHours);
-            fprintf(logFID,'\tInterval length (hours):\t%u\n',settings.alignment.intervalLengthHours);
+            fprintf(logFID,'\tElapsed start (hours):\t%u\n',settings.alignment.elapsedStartHours.value());
+            fprintf(logFID,'\tInterval length (hours):\t%u\n',settings.alignment.intervalLengthHours.value());
             fprintf(logFID,'Summary file:\t%s\n',summaryFullFilename);
         end 
         
