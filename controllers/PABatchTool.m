@@ -419,12 +419,12 @@ classdef PABatchTool < PAFigureFcnController
                 % signal, place groupings into feature function directories
                 
                 
-                this.setSetting('alignment.elapsedStartHours',0); %when to start the first measurement
-                this.setSetting('alignment.intervalLengthHours',24);  %duration of each interval (in hours) once started
+                this.setSetting('alignment','elapsedStartHours',0); %when to start the first measurement
+                this.setSetting('alignment','intervalLengthHours',24);  %duration of each interval (in hours) once started
                 
                 % setup developer friendly variable names
-                elapsedStartHour  = this.getSetting('alignment.elapsedStartHours');
-                intervalDurationHours = this.getSetting('alignment.intervalLengthHours');
+                elapsedStartHour  = this.getSetting('alignment','elapsedStartHours');
+                intervalDurationHours = this.getSetting('alignment','intervalLengthHours');
                 maxNumIntervals = 24/intervalDurationHours*maximumDaysAllowed;  %set maximum to a week
                 %this.setSetting('alignment.singalName = 'X';
                 
