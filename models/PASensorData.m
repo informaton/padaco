@@ -1450,8 +1450,7 @@ classdef PASensorData < PAData
                     obj.accelType = 'raw';
                     % I think everything is inivislbe at this point
                     % already.  
-                    %                     obj.
-                    e('timeSeries.lux','off');
+                    %                     obj.setVisible('timeSeries.lux','off');
                     %                     obj.setVisible('timeSeries.steps','off');
                     %                     obj.setVisible('timeSeries.inclinometer.standing','off');
                     %                     obj.setVisible('timeSeries.inclinometer.sitting','off');

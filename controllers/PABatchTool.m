@@ -951,7 +951,7 @@ classdef PABatchTool < PAFigureFcnController
                     featureFcns = fieldnames(PASensorData.getFeatureDescriptionStruct()); %spits field-value pairs of feature names and feature description strings
                     featureDesc = PASensorData.getExtractorDescriptions();  %spits out the string values
                     
-                    featureFcns = [featureFcns; 'all_sans_psd';'all_sans_psd_usagestate','all'];
+                    featureFcns = [featureFcns; 'all_sans_psd';'all_sans_psd_usagestate';'all'];
                     featureLabels = [featureDesc;'All (sans PSD)';'All (sans PSD and activity categories)'; 'All'];
                     
                     

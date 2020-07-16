@@ -839,7 +839,7 @@ classdef PAAppController < PAFigureController
         % --------------------------------------------------------------------
         function menu_file_export_sensorDataObj_callback(obj,varargin)
             SensorData = obj.SensorData; %#ok<PROPLC>
-            varName = 'SensorDataect';
+            varName = 'SensorData';
             makeModal = true;
             titleStr = 'Data Export';
             try
@@ -1011,9 +1011,11 @@ classdef PAAppController < PAFigureController
         function updateBatchToolSettingsCallback(obj,batchToolObj,eventData)
             obj.AppSettings.BatchMode = eventData.settings;
             try
-                featuresPath = obj.AppSettings.BatchMode.outputDirectory.value;
-                if(isdir(featuresPath))
-                    obj.featuresPathname = featuresPath;
+                featuresPath = obj.AppSettings.BatchMode.outputDirectory.value;                
+                if(isormkdir(featuresPath))
+                    obj.setFeaturesPathname(featuresPath);
+                else
+                    fprintf('Features pathname does not exist nor could it be created: %s', featuresPath);
                 end
             catch me
                 showME(me);

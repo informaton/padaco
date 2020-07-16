@@ -620,7 +620,7 @@ classdef PAStatTool < PAViewController
                     end    
                 end
                 
-                loadFileRequired = isempty(this.originalFeatureStruct) || ~strcmpi(inputFilename,this.originalFeatureStruct.filename);
+                loadFileRequired = isempty(this.originalFeatureStruct) || ~strcmpi(inputFilename,this.originalFeatureStruct.filename);                
                 if(loadFileRequired)
                     this.originalFeatureStruct = this.loadAlignedFeatures(inputFilename);    
                     if(isfield(this.originalFeatureStruct,'studyIDs'))
@@ -637,8 +637,8 @@ classdef PAStatTool < PAViewController
                         for d=1:size(dayInd,1)
                             ind2keep(dayInd(d,1):dayInd(d,2))= true;  % could be less than a week, but not more
                             if(this.originalFeatureStruct.numDays(d)>=7) 
-                                ind2keepExactly1Week(dayInd(d,1):dayInd(d,2))= true;
                                 % exactly 1 week
+                                ind2keepExactly1Week(dayInd(d,1):dayInd(d,2)) = true;                                
                             end
                         end
                         this.originalFeatureStruct.ind2keep1Week = ind2keep;  % logical index for subject days that are part of 1 week or less.
@@ -662,6 +662,40 @@ classdef PAStatTool < PAViewController
                     tmpUsageStateStruct.filename = '';
                 end
                 
+                % update to here to make sure we are covered for the one
+                % week case now.  So we can exclude based on the days
+                % collected.
+                if(loadFileRequired)
+                    ind2keepExactly1WeekAndNonwearExcluded = ind2keepExactly1Week;
+                    ind2keepAndNonwearExcluded = ind2keep;
+                    nonwear_rows = this.getNonwearRows('padaco', tmpUsageStateStruct);
+                    
+                    % This sets all of the days of a study to true (up to
+                    % first 7 days) for a participant if any one of their
+                    % days has nonwear in it.  This allows us to discard
+                    % the entire week of nonwear at once later on if
+                    % need be.
+                    this.nonwear.week_exactly_rows = false(size(nonwear_rows));
+                    % go through our indices of first and last days of week
+                    % again, and check if there are discards here.
+                    
+                    individualsMissingCompleteWeekAfterNonWearExclusion = 0;
+                    for d=1:size(dayInd,1)
+                        if any(nonwear_rows(dayInd(d,1):dayInd(d,2)))
+                            day_ind = dayInd(d,1):dayInd(d,2);
+                            ind2keepAndNonwearExcluded(day_ind) = false;
+                            if(this.originalFeatureStruct.numDays(d)>=7)
+                                ind2keepExactly1WeekAndNonwearExcluded(day_ind) = false;
+                                individualsMissingCompleteWeekAfterNonWearExclusion = individualsMissingCompleteWeekAfterNonWearExclusion + 1;
+                            end                            
+                            this.nonwear.week_rows(day_ind) = true;
+                        end
+                    end
+                    this.originalFeatureStruct.ind2keepAndNonwearExcluded = ind2keepAndNonwearExcluded;
+                    this.originalFeatureStruct.ind2keepExactly1WeekAndNonwearExcluded = ind2keepExactly1WeekAndNonwearExcluded;             
+                    fprintf(1, 'Number of individuals who will be removed from weeklong analysis if discarding nonwear: %d\n', individualsMissingCompleteWeekAfterNonWearExclusion);
+                end
+                
                 if(~isempty(indicesToUse))
                    fieldsToParse = {'studyIDs','startDatenums','startDaysOfWeek','shapes'};
                     for f=1:numel(fieldsToParse)
@@ -676,12 +710,9 @@ classdef PAStatTool < PAViewController
                 % Do nothing; this means, that we started at rayday and
                 % will go 24 hours
                 if(stopTimeSelection == startTimeSelection)
-
-                    if(this.isClusterMode())
-                        % 
+                    if(this.isClusterMode())                         
                         warndlg('Only one time epoch selected - defaulting to all epochs instead.');
                     end
-
                     
                 elseif(startTimeSelection < stopTimeSelection)
                     
@@ -700,21 +731,14 @@ classdef PAStatTool < PAViewController
                     tmpFeatureStruct.shapes = [tmpFeatureStruct.shapes(:,startTimeSelection:end),tmpFeatureStruct.shapes(:,1:stopTimeSelection)];
                     tmpFeatureStruct.totalCount = numel(tmpFeatureStruct.startTimes);
                 
-                    tmpUsageStateStruct.startTimes = [tmpUsageStateStruct.startTimes(startTimeSelection:end),tmpUsageStateStruct.startTimes(1:stopTimeSelection)];
-                    tmpUsageStateStruct.shapes = [tmpUsageStateStruct.shapes(:,startTimeSelection:end),tmpUsageStateStruct.shapes(:,1:stopTimeSelection)];
+                    tmpUsageStateStruct.startTimes = [tmpUsageStateStruct.startTimes(startTimeSelection:end), tmpUsageStateStruct.startTimes(1:stopTimeSelection)];
+                    tmpUsageStateStruct.shapes = [tmpUsageStateStruct.shapes(:,startTimeSelection:end), tmpUsageStateStruct.shapes(:,1:stopTimeSelection)];
                     tmpUsageStateStruct.totalCount = numel(tmpUsageStateStruct.startTimes);
                 else
                     warndlg('Well this is unexpected.');
                 end
                 
-                this.nonwear.rows = this.getNonwearRows(this.nonwear.method,tmpUsageStateStruct); 
-                
-                if(pSettings.discardNonwearFeatures)
-                    [this.featureStruct, this.nonwear.featureStruct] = this.discardNonwearFeatures(tmpFeatureStruct,this.nonwear.rows);
-                else
-                    this.featureStruct = tmpFeatureStruct;   
-                    this.nonwear.featureStruct = [];
-                end
+                this.nonwear.rows = this.getNonwearRows(this.nonwear.method, tmpUsageStateStruct); 
                 
                 if this.isShowingWeekLong()                
                     maxDaysAllowed = 7;
@@ -722,6 +746,22 @@ classdef PAStatTool < PAViewController
                 else
                     maxDaysAllowed = this.maxNumDaysAllowed;
                     minDaysAllowed = this.minNumDaysAllowed;
+                end
+                
+                if(pSettings.discardNonwearFeatures)
+                    if (maxDaysAllowed>0 || minDaysAllowed>0) && isempty(indicesToUse)
+                        %[this.featureStruct, this.nonwear.featureStruct] = this.discardNonwearFeatures(tmpFeatureStruct, this.nonwear.week_rows);
+                        
+                        % will handle this case below actually
+                        this.featureStruct = tmpFeatureStruct;
+                        this.nonwear.featureStruct = [];
+                        
+                    else
+                        [this.featureStruct, this.nonwear.featureStruct] = this.discardNonwearFeatures(tmpFeatureStruct, this.nonwear.rows);
+                    end
+                else
+                    this.featureStruct = tmpFeatureStruct;   
+                    this.nonwear.featureStruct = [];
                 end
                 
                 % min and max days allowed interpeted in one of three ways
@@ -732,18 +772,26 @@ classdef PAStatTool < PAViewController
                     if(isempty(indicesToUse))
                         % Handling exactly 1 week
                         if(maxDaysAllowed==7 && minDaysAllowed==7)
-                            ind2keep = this.originalFeatureStruct.ind2keepExactly1Week;
+                            if pSettings.discardNonwearFeatures
+                                ind2keep = this.originalFeatureStruct.ind2keepExactly1WeekAndNonwearExcluded;
+                            else
+                                ind2keep = this.originalFeatureStruct.ind2keepExactly1Week;
+                            end
                         
                         % otherwise, universally handling the case of 1
                         % week or less.
                         else
-                            ind2keep = this.originalFeatureStruct.ind2keep1Week;
+                            if pSettings.discardNonwearFeatures
+                                ind2keep = this.originalFeatureStruct.ind2keepAndNonwearExcluded;
+                            else                            
+                                ind2keep = this.originalFeatureStruct.ind2keep1Week;
+                            end
                         end
                     else
                         % Otherwise, go off of what was passed in.
                         ind2keep = false(size(this.featureStruct.shapes,1),1);
-                        [c,iaFirst,ic] = unique(this.featureStruct.studyIDs,'first'); %#ok<*ASGLU>
-                        [c,iaLast,ic] = unique(this.featureStruct.studyIDs,'last');
+                        [c, iaFirst,ic] = unique(this.featureStruct.studyIDs,'first'); %#ok<*ASGLU>
+                        [c, iaLast, ic] = unique(this.featureStruct.studyIDs,'last');
                         dayInd = [iaFirst, min(iaLast, iaFirst+this.MAX_DAYS_PER_STUDY-1)];
                         for d=1:size(dayInd,1)
                             ind2keep(dayInd(d,1):dayInd(d,2))= true;
@@ -896,8 +944,6 @@ classdef PAStatTool < PAViewController
                 if(pSettings.cullResults)
                     loadFeatures(culledInd) = 0;                    
                 end
-                
-
                 
                 if(pSettings.normalizeValues)
                     [loadFeatures, nzi] = PAStatTool.normalizeLoadShapes(loadFeatures);
@@ -1836,7 +1882,8 @@ classdef PAStatTool < PAViewController
                 
                 axesScalingMenu = uimenu(contextmenu_primaryAxes,'Label','y-Axis scaling','callback',@this.primaryAxesScalingContextmenuCallback);
                 this.handles.contextmenu.axesYLimMode.auto = uimenu(axesScalingMenu,'Label','Auto','callback',{@this.primaryAxesScalingCallback,'auto'});
-                this.handles.contextmenu.axesYLimMode.manual = uimenu(axesScalingMenu,'Label','Manual','callback',{@this.primaryAxesScalingCallback,'manual'});
+                this.handles.contextmenu.axesYLimMode.manual = uimenu(axesScalingMenu,'Label','Hold','callback',{@this.primaryAxesScalingCallback,'manual'});
+                this.handles.contextmenu.axesYLimMode.manual = uimenu(axesScalingMenu,'Label','User Set','callback',{@this.primaryAxesScalingCallback,'user'});
                 
                 nextPlotmenu = uimenu(contextmenu_primaryAxes,'Label','Next plot','callback',@this.primaryAxesNextPlotContextmenuCallback);
                 this.handles.contextmenu.nextPlot.add = uimenu(nextPlotmenu,'Label','Add','callback',{@this.primaryAxesNextPlotCallback,'add'});
@@ -2224,19 +2271,45 @@ classdef PAStatTool < PAViewController
         end
             
         function setPrimaryAxesYMode(this, yScalingMode)
-            set(this.handles.axes_primary,'ylimmode',yScalingMode,...
-                'ytickmode',yScalingMode,...
-                'yticklabelmode',yScalingMode);
-            
-            this.setSetting('primaryAxis_yLimMode', yScalingMode);            
-            if(strcmpi(yScalingMode,'auto'))
-                this.plotClusters();
+            if strcmpi(yScalingMode, 'user')                
+                y_limits = ylim(this.handles.axes_primary);
+                prompt={'Enter y-min:','Enter y-max:'};
+                name='Set y-axis limits';
+                numlines=1;
+                defaultanswer={num2str(y_limits(1)),num2str(y_limits(2))};
+                options.Resize='on';
+                options.WindowStyle='normal';
+                options.Interpreter='tex';
+                answer=inputdlg(prompt,name,numlines,defaultanswer, options);                
+                if ~isempty(answer)
+                    y_min = str2double(answer{1});
+                    y_max = str2double(answer{2});
+                    try 
+                        set(this.handles.axes_primary,'ylim',[y_min, y_max], 'ylimmode','manual',...
+                            'ytickmode','auto',...
+                            'yticklabelmode','auto');                        
+                        this.plotClusters();
+                    catch me
+                       showME(me); 
+                    end
+                    
+                end
             else
-                %manual selection means do not auto adjust
+            
+                set(this.handles.axes_primary,'ylimmode',yScalingMode,...
+                    'ytickmode',yScalingMode,...
+                    'yticklabelmode',yScalingMode);
+                
+                this.setSetting('primaryAxis_yLimMode', yScalingMode);
+                if(strcmpi(yScalingMode,'auto'))
+                    this.plotClusters();
+                else
+                    %manual selection means do not auto adjust
+                end
             end
         end
         
-        function primaryAxesScalingCallback(this,hObject,~,yScalingMode)
+        function primaryAxesScalingCallback(this,hObject,~,yScalingMode)            
             this.setPrimaryAxesYMode(yScalingMode);
         end
         
