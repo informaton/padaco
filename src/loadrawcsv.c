@@ -1,5 +1,5 @@
 /*
- * loadrawcsv.c - load raw actigrap acceleration values from a .csv formated file.
+ * loadrawcsv.c - load raw actigraph acceleration values from a .csv formated file.
  *
  *
  * The calling syntax is:

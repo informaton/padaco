@@ -109,7 +109,9 @@ classdef PAAppController < PAFigureController
             
             % Create a results class            
             
-            % Load last path on startup?
+            % Load last path on startup? 
+            % @issue This is problematic when path has changed or been
+            % moved since before, or is not longer valid
             if(obj.getSetting('startWithLastPath'))
                 obj.StatTool = PAStatTool(obj.figureH, obj.AppSettings.StatTool, obj.getSetting('featuresPathname'));
             else
@@ -717,7 +719,7 @@ classdef PAAppController < PAFigureController
                         obj.setViewMode('results');
                     end                    
                     obj.showBusy('Initializing results view','all');
-                    obj.setFeaturesPathname(featuresPath);
+                    obj.setFeaturesPathnameAndUpdate(featuresPath);
                     if(obj.initResultsView())
                         obj.StatTool.showReady('all');
                     else
@@ -1014,6 +1016,8 @@ classdef PAAppController < PAFigureController
                 featuresPath = obj.AppSettings.BatchMode.outputDirectory.value;                
                 if(isormkdir(featuresPath))
                     obj.setFeaturesPathname(featuresPath);
+                    % obj.setFeaturesPathnameAndUpdate(featuresPath);
+
                 else
                     fprintf('Features pathname does not exist nor could it be created: %s', featuresPath);
                 end
@@ -1222,6 +1226,11 @@ classdef PAAppController < PAFigureController
         function featuresPath = getFeaturesPathname(this)
             featuresPath = this.getSetting('featuresPathname');             
         end
+
+        function didSet = setFeaturesPathnameAndUpdate(this, featuresPath)
+           this.setSetting('featuresPathname',featuresPath);
+           didSet = this.StatTool.setFeaturesDirectoryAndUpdate(featuresPath); 
+        end
         
         function didSet = setFeaturesPathname(this, featuresPath)
            this.setSetting('featuresPathname',featuresPath);
@@ -1264,7 +1273,7 @@ classdef PAAppController < PAFigureController
                 end
                 
                 if(refreshPath)
-                    this.setFeaturesPathname(featuresPath);                    
+                    this.setFeaturesPathnameAndUpdate(featuresPath);                    
                 else
                     % Make sure the featuresPath is up to date (e.g. when
                     % switching back from a batch mode.

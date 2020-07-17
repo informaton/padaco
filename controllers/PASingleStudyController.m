@@ -890,6 +890,8 @@ classdef PASingleStudyController < PAViewController
             axesProps.primary.xlim = obj.accelObj.getCurWindowRange();
             axesProps.primary.ylim = obj.accelObj.getDisplayMinMax();
             
+            % Show this regardless of whether we have something to show or
+            % not
             if(strcmpi(obj.accelObj.getAccelType(),'raw'))
                 ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Daylight'};
             else

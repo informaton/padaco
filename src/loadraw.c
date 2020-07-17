@@ -37,7 +37,7 @@ mxArray * mxParseRawCSVFile(const char * csvFilename, bool loadFastOption){
  	unsigned int linesRead = 0, curRead = 0;
  	const int lineSize = 100;
  	char buffer[lineSize],delimiter = ',';
-    const char * scanStr = "%f/%f/%f %f:%f:%f,%f,%f,%f";
+    const char * scanStr =     "%f/%f/%f %f:%f:%f,%f,%f,%f";
     const char * fastScanStr = "%*f/%*f/%*f %*f:%*f:%*f,%f,%f,%f";
     const char *scanStrPtr = loadFastOption? fastScanStr: scanStr;
  	header_t fileHeader;

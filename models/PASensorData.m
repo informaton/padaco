@@ -1320,8 +1320,9 @@ classdef PASensorData < PAData
                 if(numMissing>0)
                     fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullFilename,samplesFound+numMissing,numMissing,num2str(obj.getSetting('missingValue')));
                 else
-                    fprintf('This case is not handled yet.\n');
-                    fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullFilename,samplesFound+numMissing,numMissing,num2str(obj.getSetting('missingValue')));
+                    obj.logWarning(['This case is not handled yet.\n%d rows loaded from %s.  However %u rows were expected.\n',...
+                        'Most likely %u samples were removed during loading because they did not have valid timestamps.',...
+                        '\nSee log for more information.'],samplesFound,fullFilename,samplesFound-numMissing,-numMissing);
                 end
             end
         end
@@ -1367,6 +1368,7 @@ classdef PASensorData < PAData
                              obj.loadFileHeader(fullfilename);
                         end
                         loadFast = true;
+                        % loadFast = false;
                         didLoad = obj.loadRawCSVFile(fullfilename,loadFast);
                         obj.hasRaw = didLoad;
                     elseif(strcmpi(ext,'.bin'))
@@ -1613,6 +1615,7 @@ classdef PASensorData < PAData
             if(nargin<3 || isempty(loadFastOption))
                 loadFastOption = false;
             end
+            loadFastOption = true;
             if(exist(fullFilename,'file'))
                 try
                     if(exist('loadrawcsv','file')==3) % If the mex file exists and is compiled
@@ -1672,6 +1675,24 @@ classdef PASensorData < PAData
                         obj.dateTimeNum = datespace(startDateNum,stopDateNum,windowDateNumDelta);
                         obj.dateTimeNum(end)=[];  %remove the very last sample, since it is not actually recorded in the dataset, but represents when the data was downloaded, which happens one sample after the device stops.
                     else
+                        zeroTimes = sum(dateVecFound,2)==0;
+                        numZero = sum(zeroTimes);
+                        % Some files end up with zero values here at the
+                        % end, which is curious.
+                        if numZero>0
+                            obj.logWarning('%d samples had a timestamp of 0.', numZero);
+                            dateVecFound(zeroTimes, :) = [];
+                            tmpDataCell{1}(zeroTimes) = [];
+                            tmpDataCell{2}(zeroTimes) = [];
+                            tmpDataCell{3}(zeroTimes) = [];
+                        end
+                        dateVecFound(:,end) = round(dateVecFound(:,end), 4);  % avoid some numerical round off so we can keep it to 40 Hz resolution as derived synthetically
+                        % otherwise I run into issues like
+                        % 0.003725000000000 (synthetic value) versus
+                        % 0.003724999904633 (sampled value)
+                        % Or 
+                        % 16.575001000000000 (sampled) versus
+                        % 16.574999999999999 (synthetic)
                         stopDateNum = datenum(dateVecFound(end,:));
                         [tmpDataCell, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,obj.getSetting('missingValue'));
                     end
@@ -3402,6 +3423,7 @@ classdef PASensorData < PAData
             %This takes 2.0 seconds!
             sampledDateNum = datenum(sampledDateVec);
             [~,IA,~] = intersect(synthDateNum,sampledDateNum);
+            % c = setdiff(synthDateNum,sampledDateNum);
 
             %This takes 153.7 seconds! - 'rows' option is not as helpful
             %here.

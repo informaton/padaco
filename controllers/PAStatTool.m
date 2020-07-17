@@ -167,7 +167,8 @@ classdef PAStatTool < PAViewController
             if nargin > 2
                 featuresPathname = varargin{3};
                 if(isdir(featuresPathname))
-                    this.setFeaturesDirectory(featuresPathname); % a lot of initialization code in side this call.
+                    this.setFeaturesDirectoryAndUpdate(featuresPathname); % a lot of initialization code in side this call.
+                    % this.setFeaturesDirectory(featuresPathname); % not a lot of initialization code in side this call.
                 else
                     fprintf('%s does not exist!\n',featuresPathname);
                 end
@@ -206,6 +207,7 @@ classdef PAStatTool < PAViewController
             delete@PAViewController(this);
         end
         
+
         function didSet = setFeaturesDirectory(this, resultsPath)
             if(~isdir(resultsPath))
                 this.logWarning('Not a valid directory');
@@ -224,7 +226,12 @@ classdef PAStatTool < PAViewController
                 end
                 
                 this.featuresDirectory = featuresPath;            
-                
+                didSet = true;
+            end
+        end
+        function didSet = setFeaturesDirectoryAndUpdate(this, resultsPath)
+            didSet = false;
+            if (this.setFeaturesDirectory(resultsPath))
                 didUpdate = false;
                 if(exist(this.getFullClusterCacheFilename(),'file') && this.useCache)
 
@@ -279,7 +286,9 @@ classdef PAStatTool < PAViewController
                             this.setStartTimes(this.originalFeatureStruct.startTimes);
                             
                             % Updates our scatter plot as applicable.
-                            this.refreshGlobalProfile();                            
+                            this.refreshGlobalProfile();    
+                        else
+                            this.logWarning('The cached features path (%s) is different than the one currently one (%s).', tmpStruct.featuresDirectory,this.featuresDirectory);
                         end
                     catch me
                         showME(me);
@@ -3355,9 +3364,9 @@ classdef PAStatTool < PAViewController
                 this.clusterObj.calculateClusters();
                 
                 if(this.clusterObj.failedToConverge())
-                    warnMsg = {'Failed to converge',[]};
+                    warnMsg = {'Failed to converge.',[]};
                     if(isempty(this.featureStruct.features))
-                        warnMsg = {[warnMsg{1}, 'No features found.'];
+                        warnMsg = {[warnMsg{1}, ' No features found.'];
                                 '';
                                 '  Hint: Try altering input settings:';
                                 '';
