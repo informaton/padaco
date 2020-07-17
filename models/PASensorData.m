@@ -2033,7 +2033,7 @@ classdef PASensorData < PAData
 
             switch(lower(method))
                 case 'none'
-                case 'all_sans_psd'
+                case {'all', 'all_sans_psd', 'all_sans_psd_usagestate'}
                     obj.features.rms = sqrt(mean(data.^2))';
                     obj.features.mean = mean(data)';
                     obj.features.meanad = mad(data,0)';
@@ -2043,19 +2043,12 @@ classdef PASensorData < PAData
                     obj.features.var = var(data)';
                     obj.features.std = std(data)';
                     obj.features.mode = mode(data)';
-                    obj.features.usagestate = mode(obj.usageFrames)';
-                case 'all'
-                    obj.features.rms = sqrt(mean(data.^2))';
-                    obj.features.mean = mean(data)';
-                    obj.features.meanad = mad(data,0)';
-                    obj.features.medianad = mad(data,1)';
-                    obj.features.median = median(data)';
-                    obj.features.sum = sum(data)';
-                    obj.features.var = var(data)';
-                    obj.features.std = std(data)';
-                    obj.features.mode = mode(data)';
-                    obj.features.usagestate = mode(obj.usageFrames)';
-                    obj.calculatePSD(signalTagLine);
+                    if ~strcmpi(method, 'all_sans_psd_usagestate')
+                        obj.features.usagestate = mode(obj.usageFrames)';
+                    end
+                    if strcmpi(method, 'all')
+                        obj.calculatePSD(signalTagLine);
+                    end
                     %                    obj.features.count = obj.getCount(data)';
                 case 'psd'
                     obj.calculatePSD(signalTagLine);
