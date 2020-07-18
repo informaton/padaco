@@ -666,11 +666,20 @@ classdef PASensorData < PAData
         %> window count is rounded down (floor).  For example, if the frame duration 1 min, and the study is 1.5 minutes long, then
         %> the frame count is 1.
         % --------------------------------------------------------------------
-        function frameCount = getFrameCount(obj)
+        function [frameCount, frameableSamples] = getFrameCount(obj)
             [frameDurationMinutes, frameDurationHours] = obj.getFrameDuration();
             frameDurationSeconds = frameDurationMinutes*60+frameDurationHours*60*60;
             frameCount = floor(obj.durationSec/frameDurationSeconds);
+            frameableSamples = frameCount*frameDurationSeconds*obj.getSampleRate();
         end
+        
+        function frameableSamples = getFrameableSampleCount(obj)            
+            % [frameDurMinutes, frameDurHours ] = obj.getFrameDuration();
+            % frameDurSeconds = frameDurMinutes*60+frameDurHours*60*60;
+            % frameCount = obj.getFrameCount();
+            % frameableSamples = frameCount*frameDurSeconds*obj.getSampleRate();
+            [~, frameableSamples] = obj.getFrameCount();            
+        end        
 
         % --------------------------------------------------------------------
         %> @brief Returns the number of samples contained in the time series data.
@@ -1409,7 +1418,6 @@ classdef PASensorData < PAData
 
                                     end
 
-
                                     didLoad = obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
 
                                     obj.durationSec = floor(obj.getDurationSamples()/obj.sampleRate);
@@ -1615,11 +1623,10 @@ classdef PASensorData < PAData
             if(nargin<3 || isempty(loadFastOption))
                 loadFastOption = false;
             end
-            loadFastOption = true;
             if(exist(fullFilename,'file'))
                 try
-                    if(exist('loadrawcsv','file')==3) % If the mex file exists and is compiled
-                    %if(exist('loadrawcsv','file')==-3) % If the mex file exists and is compiled
+                    if(~exist('loadrawcsv','file')==3) % If the mex file exists and is compiled
+                    
                         tic
                         rawMat = loadrawcsv(fullFilename, loadFastOption)';  %loadrawcsv loads rows as columns so we need to transpose the results.
                         toc
@@ -1671,9 +1678,10 @@ classdef PASensorData < PAData
                     windowDateNumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
 
                     if(loadFastOption)
-                        stopDateNum = datenum(strcat(obj.stopDate,{' '},obj.stopTime),'mm/dd/yyyy HH:MM:SS');
+                        %stopDateNum = datenum(strcat(obj.stopDate,{' '},obj.stopTime),'mm/dd/yyyy HH:MM:SS');
+                        stopDateNum = startDateNum + samplesFound/obj.sampleRate/24/3600; % or startDateNum+windowDateNumDelta*samplesFound
                         obj.dateTimeNum = datespace(startDateNum,stopDateNum,windowDateNumDelta);
-                        obj.dateTimeNum(end)=[];  %remove the very last sample, since it is not actually recorded in the dataset, but represents when the data was downloaded, which happens one sample after the device stops.
+                        %obj.dateTimeNum(end)=[];  %remove the very last sample, since it is not actually recorded in the dataset, but represents when the data was downloaded, which happens one sample after the device stops. %actually, that is not the case in practice.                        
                     else
                         zeroTimes = sum(dateVecFound,2)==0;
                         numZero = sum(zeroTimes);
@@ -1695,11 +1703,11 @@ classdef PASensorData < PAData
                         % 16.574999999999999 (synthetic)
                         stopDateNum = datenum(dateVecFound(end,:));
                         [tmpDataCell, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,obj.getSetting('missingValue'));
+                        
                     end
 
                     obj.durSamples = numel(obj.dateTimeNum);
-                    obj.durationSec = floor(obj.getDurationSamples()/obj.sampleRate);
-
+                    obj.durationSec = floor(obj.durSamples/obj.sampleRate);                    
 
                     obj.setRawXYZ(tmpDataCell{1},tmpDataCell{2},tmpDataCell{3});
 
@@ -1939,13 +1947,6 @@ classdef PASensorData < PAData
             end
         end
 
-        function frameableSamples = getFrameableSampleCount(obj)
-            [frameDurMinutes, frameDurHours ] = obj.getFrameDuration();
-            frameDurSeconds = frameDurMinutes*60+frameDurHours*60*60;
-            frameCount = obj.getFrameCount();
-            frameableSamples = frameCount*frameDurSeconds*obj.getSampleRate();
-        end
-
         % ======================================================================
         %> @brief Extracts features from the identified signal using the
         %> given method.
@@ -1986,8 +1987,8 @@ classdef PASensorData < PAData
                 rethrow(me);  %this is just for debugging.
             end
 
-            currentNumFrames = obj.getFrameCount();
-            frameableSamples = obj.getFrameableSampleCount();
+            [currentNumFrames, frameableSamples] = obj.getFrameCount();
+            %frameableSamples = obj.getFrameableSampleCount();
 
             % recalculate based on a change in frame size ...
             if(currentNumFrames~=obj.numFrames)

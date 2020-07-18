@@ -29,8 +29,6 @@ typedef struct csv_header_t {
 	unsigned int duration_sec;
 } csv_header_t;
 
-
-
 typedef struct bin_header_t{
     uint16_t samplerate;
     char startTimeStr[SZ_TIME_STR];
