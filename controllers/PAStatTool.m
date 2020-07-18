@@ -957,6 +957,7 @@ classdef PAStatTool < PAViewController
                 if(pSettings.normalizeValues)
                     [loadFeatures, nzi] = PAStatTool.normalizeLoadShapes(loadFeatures);
                     removeZeroSums = false;
+                    removeZeroSums = true;
                     if(removeZeroSums)
                         this.featureStruct.features = loadFeatures(nzi,:);
                         this.featureStruct.studyIDs(~nzi) = [];
@@ -3679,8 +3680,9 @@ classdef PAStatTool < PAViewController
                     
                     % coiMarkers = '+o*xv^.';
                     
-                    % Clever ...
-                    coiColors = 'kbgrykm';
+                    % Clever ...ymcrgbwk  c and y are too hard for me to
+                    % see.
+                    coiColors = 'kbgrkbm';
                     coiMarkers= '+o*.xv^';
                     coiStyles = repmat('-:',size(coiColors));
                     coiColors = [coiColors, fliplr(coiColors)];
@@ -4516,11 +4518,37 @@ classdef PAStatTool < PAViewController
         %> sum(loadShapes(n,:)) is a zero sum.        
         % ======================================================================
         function [normalizedLoadShapes, nzi] = normalizeLoadShapes(loadShapes)
-            normalizedLoadShapes = loadShapes;            
+            % normalizedLoadShapes = loadShapes;            
+            % a= sum(loadShapes,2);
+            % %nzi = nonZeroIndices
+            %nzi = a~=0;
+            % normalizedLoadShapes(nzi,:) = loadShapes(nzi,:)./repmat(a(nzi),1,size(loadShapes,2));
+            
+            
+            filterOrder = 10;
+            if filterOrder>0
+                n = filterOrder;
+                b = repmat(1/n,1,n);
+                % Sometimes 'single' data is loaded, particularly with raw
+                % accelerations.  We need to convert to double in such
+                % cases for filtfilt to work.
+                if(~isa(loadShapes,'double'))
+                    loadShapes = double(loadShapes);
+                end
+
+                % ensure we are filtering along the individual loadshapes
+                % which are organized by row.  filtfilt works down columns
+                % however so need to transpose, filter, and transpose back.
+                loadShapes = filtfilt(b,1,loadShapes')';
+            end
+            
+            % normalize our results...
+            loadShapes = loadShapes-min(loadShapes,[],2);
             a= sum(loadShapes,2);
-            %nzi = nonZeroIndices
             nzi = a~=0;
-            normalizedLoadShapes(nzi,:) = loadShapes(nzi,:)./repmat(a(nzi),1,size(loadShapes,2));            
+            loadShapes(nzi,:) = loadShapes(nzi,:)./max(loadShapes(nzi,:),[],2);
+            normalizedLoadShapes = loadShapes;
+
         end
         
         % ======================================================================

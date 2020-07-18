@@ -252,8 +252,7 @@ classdef PACluster < PAData
             this.performanceCriterion = 'CalinskiHarabasz';
             this.performanceCriterion = 'silhouette';
             
-            this.performanceMeasure = [];
-            
+            this.performanceMeasure = [];            
             
             %/ Do not let K start off higher than 
             % And don't let it fall to less than 1.
@@ -326,8 +325,7 @@ classdef PACluster < PAData
             if(nargin>4)
                 this.setExportFormat(exportFmt);
             else
-                exportFmt = this.getExportFormat();
-                
+                exportFmt = this.getExportFormat();                
             end
             if(nargin>3)
                 if(isdir(exportPath))
@@ -568,8 +566,7 @@ classdef PACluster < PAData
                 else
                     silh = silhouette(this.loadShapes, this.loadshapeIndex2centroidIndexMap,this.distanceMetric);
                 end
-                    % silhouette(X, idx,'distance','sqEuclidean');
-                    % 
+                    % silhouette(X, idx,'distance','sqEuclidean'); 
             end
         end        
                 
