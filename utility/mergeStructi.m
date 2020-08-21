@@ -32,6 +32,10 @@
 %> @note     lux: [1x1 struct]
 %> @note            [z]: 0.5000
 %> @note
+%> @note 
+%> @note  structEval(defaultStruct, updatingStruct)
+%> @note
+
 % ======================================================================
 function ltStruct = mergeStructi(ltStruct,rtStruct)
     if(isstruct(rtStruct))

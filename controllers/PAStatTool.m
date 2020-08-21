@@ -358,9 +358,14 @@ classdef PAStatTool < PAViewController
             canPlotValue = this.canPlot;
         end
         
+        
         function didExport = exportClusters(this, exportFmt)
             if(nargin<2)
                 exportFmt = 'csv';
+            end
+            
+            if nargin<3 || isempty(loadShapesOnly)
+                loadShapesOnly = false;
             end
             
             didExport = false;
@@ -379,7 +384,7 @@ classdef PAStatTool < PAViewController
                     % separate gui                    
                     exportNonwearFeatures = this.getSetting('exportShowNonwear');
                     if(exportNonwearFeatures)
-                        nonwearFeatures = this.nonwear;                        
+                        nonwearFeatures = this.nonwear;                    
                     else
                         nonwearFeatures = [];
                     end
@@ -390,8 +395,7 @@ classdef PAStatTool < PAViewController
                         %                         pa_msgbox();
                     else
                         [didExport, msg] = curCluster.exportToDisk(lastClusterSettings, nonwearFeatures);
-                    end
-                    
+                    end                    
 
                     %                     if(~lastClusterSettings.discardNonwearFeatures)
                     %                         [didExport, msg] = curCluster.exportToDisk(exportPath, lastClusterSettings, nonwearFeatures{:});

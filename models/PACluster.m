@@ -352,7 +352,9 @@ classdef PACluster < PAData
                     
                     [covHeader, covDataStr] = this.exportFrequencyCovariates();
                     [weekdayCovHeader, weekdayCovDataStr] = this.exportWeekDayCovariates(nonwearStruct);
-                    [shapesHeaderStr, shapesStr] = this.exportClusterShapes();
+                    [clusterShapesHeaderStr, clusterShapesStr] = this.exportClusterShapes();
+                    [loadShapesHeaderStr, loadShapesStr] = this.exportClusterShapes();
+                    
                     [summaryHeaderStr, summaryStr] = this.exportClusterSummary();
                     
                     timeStamp = datestr(now,'DDmmmYYYY');
@@ -363,14 +365,17 @@ classdef PACluster < PAData
                         % Timestamps
                         cov2Filename = fullfile(exportPath,sprintf('cluster_by_weekday_%s.csv',timeStamp));
                         covFilename = fullfile(exportPath,sprintf('cluster_frequency_%s.csv',timeStamp));
-                        shapesFilename = fullfile(exportPath,sprintf('cluster_shapes_%s.csv',timeStamp));
+                        clusterShapesFilename = fullfile(exportPath,sprintf('cluster_shapes_%s.csv',timeStamp));
+                        loadShapesFilename = fullfile(exportPath,sprintf('load_shapes_%s.csv',timeStamp));
                         summaryFilename = fullfile(exportPath,sprintf('cluster_summary_%s.csv',timeStamp));
                         settingsFilename = fullfile(exportPath,sprintf('padaco_config_%s.txt',timeStamp));
                         
                         % No timestamps
                         cov2Filename = fullfile(exportPath,sprintf('cluster_by_weekday.csv'));
                         covFilename = fullfile(exportPath,sprintf('cluster_frequency.csv'));
-                        shapesFilename = fullfile(exportPath,sprintf('cluster_shapes.csv'));
+                        clusterShapesFilename = fullfile(exportPath,sprintf('cluster_shapes.csv'));
+                        loadShapesFilename = fullfile(exportPath,sprintf('load_shapes.csv'));
+
                         summaryFilename = fullfile(exportPath,sprintf('cluster_summary.csv'));
                         settingsFilename = fullfile(exportPath,sprintf('padaco_config.txt'));
                         
@@ -396,14 +401,23 @@ classdef PACluster < PAData
                             msg = sprintf('%sCluster by weekday data NOT saved.  Could not open file (%s) for writing!\n ',msg,cov2Filename);
                         end
                         
-                        shapesFid = fopen(shapesFilename,'w');
-                        if(shapesFid>1)
-                            fprintf(shapesFid,'%s\n%s',shapesHeaderStr,shapesStr);
-                            msg = sprintf('%sCluster shapes saved to:\n\t%s\n',msg,shapesFilename);
-                            fclose(shapesFid);
+                        clusterShapesFid = fopen(clusterShapesFilename,'w');
+                        if(clusterShapesFid>1)
+                            fprintf(clusterShapesFid,'%s\n%s',clusterShapesHeaderStr,clusterShapesStr);
+                            msg = sprintf('%sCluster shapes saved to:\n\t%s\n',msg,clusterShapesFilename);
+                            fclose(clusterShapesFid);
                         else
-                            msg = sprintf('%sCluster shapes NOT saved.  Could not open file (%s) for writing!\n ',msg,shapesFilename);
+                            msg = sprintf('%sCluster shapes NOT saved.  Could not open file (%s) for writing!\n ',msg,clusterShapesFilename);
                         end
+                        
+                        loadShapesFid = fopen(loadShapesFilename,'w');
+                        if(loadShapesFid>1)
+                            fprintf(loadShapesFid,'%s\n%s',loadShapesHeaderStr,loadShapesStr);
+                            msg = sprintf('%sLosf shapes saved to:\n\t%s\n',msg,loadShapesFilename);
+                            fclose(loadShapesFid);
+                        else
+                            msg = sprintf('%sLoad shapes NOT saved.  Could not open file (%s) for writing!\n ',msg,loadShapesFilename);
+                        end                       
                         
                         summaryFid = fopen(summaryFilename,'w');
                         if(summaryFid>1)
@@ -504,6 +518,31 @@ classdef PACluster < PAData
                 end                
             end
         end
+        
+        %> @brief Returns load shapes (features) in comma separated value (csv) format.
+        %> @param this Instance of PACluster
+        %> @retval headerStr Header line; helpful to place at the top of a
+        %> file.  Contains centroid index and popularity followed by
+        %> time stamps corresponding to centroid shape values.
+        %> @retval shapesStr String containg N lines for N load shapes.
+        %> The nth line describes the nth centroid
+        function [headerStr, shapeStr] = exportLoadShapes(this)
+            shapeStr = '';
+            
+            if(this.getNumClusters<=0)
+                headerStr = '# No clusters found!';
+            else
+                shapeTimesInCSV = cell2str(this.loadShapeTimes,',');
+                headerStr = sprintf('# studyID, Start day (0 = Sunday), %s',shapeTimesInCSV);
+                nRows = size(this.shapes,1);
+                for r=1:nRows
+                    headerStr = sprintf('%i, %i', this.studyIDs(r), this.startDaysOfWeek(r));
+                    curShapeStr = sprintf(', %f',this.shapes(r,:));
+                    shapeStr = sprintf('%s%s%s\n',shapeStr,shapeStr,curShapeStr);
+                end                
+            end
+        end        
+                
         
         %> @brief Returns text summarizing centroid membership distributions
         %> in a comma separated value (csv) format.

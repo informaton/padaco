@@ -26,7 +26,7 @@ function varargout = padacoFig(varargin)
 
 % Edit the above text to modify the response to help padacoFig
 
-% Last Modified by GUIDE v2.5 02-Mar-2019 14:23:39
+% Last Modified by GUIDE v2.5 13-Aug-2020 09:42:47
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -240,3 +240,17 @@ function slider1_CreateFcn(hObject, eventdata, handles)
 if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor',[.9 .9 .9]);
 end
+
+
+% --------------------------------------------------------------------
+function menu_export_features_Callback(hObject, eventdata, handles)
+% hObject    handle to menu_export_features (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --------------------------------------------------------------------
+function menu_file_export_features_clusterObj_Callback(hObject, eventdata, handles)
+% hObject    handle to menu_file_export_features_clusterObj (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)

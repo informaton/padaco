@@ -259,7 +259,7 @@ classdef PAAppController < PAFigureController
             % version.  There is no 'workspace'.
             else
                 safeset(figHandles,'menu_file_export_sensorDataObj','visible','off');
-                safeset(figHandles,'menu_file_export_clusterObj','visible','off');
+                safeset(figHandles,'menu_file_export_clusterObj','visible','off');                
             end
             
             safeset(figHandles,'menu_file_export_clusters_to_csv','callback',{@obj.exportClustersCb,'csv'});%, 'label','Cluster results to disk');
