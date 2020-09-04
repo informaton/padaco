@@ -1252,7 +1252,7 @@ classdef PAAppController < PAFigureController
             if(isdir(featuresPath))
                 if ~isdir(currentFeaturesPath) && isdir(featuresPath)
                     refreshPath = true;
-                elseif ~strcmpi(featuresPath,currentFeaturesPath)
+                elseif ~strcmpi(featuresPath,currentFeaturesPath) && ~strcmpi(fullfile(featuresPath,'features'), currentFeaturesPath)
                     msgStr = sprintf('There has been a change to the results path.\nWould you like to load features from the updated path?\n%s',this.getFeaturesPathname());
                     titleStr = 'Refresh results path?';
                     buttonName = questdlg(msgStr,titleStr,'Yes','No','Yes');
