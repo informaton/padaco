@@ -1,8 +1,8 @@
 function optimal_k = predictionStrength(features, varargin)
     narginchk(1, inf);
     defaults = struct('minK',2,'maxK',5,'M',100,'clusterMethod',@kmeans,...
-        'classification', 'centroid', 'centroidName', [], 'cutoff', 0.8,...
-        'nkk', 1, 'distances',[], 'showProgress', false, 'gui', false);    
+        'classification', 'centroid', 'cutoff', 0.8,...
+        'nkk', 1, 'distances',[], 'showProgress', false, 'gui', false);
     params = mergeStructi(defaults, struct(varargin{:}));
     
     minK = params.minK;
@@ -12,32 +12,41 @@ function optimal_k = predictionStrength(features, varargin)
     classification = params.classification;
     M = params.M;
     showProgress = params.showProgress;
-    centroidName = params.centroidName;
     clusterMethod = params.clusterMethod;
     nnk = params.nkk;
-    
-    
+        
     %     features <- as.matrix(features)
     nRows  = size(features,1);
-    
-    if params.gui
-        h = waitbar(0,'Determining K', 'name', sprintf('Evaluating prediction strength (max=%d)', maxK));
-    else
-        h = [];
+    shouldCancel = false;
+    pct = 0;
+    h = [];
+    function cancelFunc(varargin)
+        if ishandle(h)
+            waitbar(pct, h, 'Cancelling...');
+            shouldCancel = true;
+        end
     end
-
+    if params.gui        
+        figTitle = sprintf('Evaluating prediction strength (max=%d)', maxK);        
+        h = waitbar(pct,'Determining K', 'name', figTitle,'CreateCancelBtn',@cancelFunc);         
+        set(h,'closerequestfcn','delete(gcbo)');
+    end
+    
     
     % Split sizes
     nf = [floor(nRows/2), nRows-floor(nRows/2)];
-
+    
     % corrpred = zeros(maxK,M);
     corrpred = nan(maxK,M);
     
     num_evaluations = maxK-minK+1;
     
     for k=minK:maxK
+        if shouldCancel
+            break;
+        end
         if (showProgress)
-            fprintf('%d clusters\n',k)  
+            fprintf('%d clusters\n',k)
             if ishandle(h)
                 msg = sprintf('Evaluating K = %d',k);
                 pct = (k-minK)/num_evaluations;
@@ -45,8 +54,11 @@ function optimal_k = predictionStrength(features, varargin)
             end
         end
         for l = 1:M
+            if shouldCancel
+                break
+            end
             nperm = randperm(nRows);  % randomly, not repeating, indices selected from the data.
-            if (showProgress)                
+            if (showProgress)
                 fprintf(' Run %d\n',l);
             end
             if ishandle(h)
@@ -58,25 +70,25 @@ function optimal_k = predictionStrength(features, varargin)
             classifications = cell(2,1);
             jclusterings = repmat(-1, 2, nRows);
             clcenters = cell(2,1);
-
+            
             for i = 1:2
                 if (distances)
                     [clusterings{i}, clcenters{i}] = clusterMethod(as.dist(features(indvec{i}, indvec{i}), k));
                 else
                     [clusterings{i}, clcenters{i}] = clusterMethod(features(indvec{i}, :), k);
-                end                
+                end
                 % jclusterings(i, indvec{i}) = clusterings{i}$partition
                 centroids = clcenters{i};
                 jclusterings(i, indvec{i}) = clusterings{i};
-
+                
                 j = 3 - i;
                 if (distances)
-                    classifDist = classifdist(as.dist(features), jclusterings(i,:), classification, centroids, nnk);                    
+                    classifDist = classifdist(as.dist(features), jclusterings(i,:), classification, centroids, nnk);
                 else
                     classifDist = classifnp(features, jclusterings(i,:), classification, [], centroids, nnk);
                 end
                 classifications{j} = classifDist(indvec{j});
-            end            
+            end
             ps = zeros(2, k);
             for i = 1:2
                 %ctable = [clusterings{i}(:), classifications{i}(:)];  %ctable = table(clusterings{i}, classifications{i}, k);
@@ -89,7 +101,7 @@ function optimal_k = predictionStrength(features, varargin)
                     showME(me);
                 end
                 for kk = 1:k
-                    % cpik = clusterings{i}(:) == kk; %              cpik = clusterings{i}.partition == kk;                     
+                    % cpik = clusterings{i}(:) == kk; %              cpik = clusterings{i}.partition == kk;
                     % ps(i, kk) = sum(ctable.^2 - ctable(kk,:)); % ps(i, kk) = sum(ctable(kk, :)^2 - ctable(kk,:));
                     nik = sum(clusterings{i}(:) == kk);
                     if nik > 1
@@ -104,13 +116,8 @@ function optimal_k = predictionStrength(features, varargin)
         end
     end
     
-    % TODO
-    avg_prediction = mean(corrpred,2);
-    
-    %avg_prediction = nan(maxK,1);    
-    
 
-    %avg_prediction(minK:maxK) = mean(corrpred,2);
+    avg_prediction = mean(corrpred,2);
     if minK < 1
         avg_prediction(1) = 0;
     else
@@ -118,29 +125,41 @@ function optimal_k = predictionStrength(features, varargin)
         avg_prediction(2:minK-1) = nan;
     end
     
-    % for k = minK:maxK
-    %    avg_prediction(k) = mean(corrpred(k, :));        
-    % end
-    disp(avg_prediction');
+    if showProgress
+        disp(avg_prediction');
+        for k = 1:maxK
+            fprintf('%6d, ', k); 
+        end
+        fprintf('\b\b%c%c\n',127, 127); % two backspaces and possibly two deletes if backspace is not destructive
+        for k = 1:maxK
+            fprintf('%6.04f, ', avg_prediction(k));
+        end
+        fprintf('\b\b\n');
+    end
     optimal_k = find(avg_prediction> cutoff, 1, 'last');  %max(which(mean.pred > cutoff))
-    %out <- list(predcorr = corrpred, mean.pred = mean.pred, optimalk = optimalk, 
-    %    cutoff = cutoff, method = clusterings{1}$clustermethod, 
+    %out <- list(predcorr = corrpred, mean.pred = mean.pred, optimalk = optimalk,
+    %    cutoff = cutoff, method = clusterings{1}$clustermethod,
     %    maxK = maxK, M = M)
-    %class(out) = 'predstr'    
+    %class(out) = 'predstr'
     %out
     if params.gui
         if ishandle(h)
             delete(h)
         end
-        msg = sprintf('\nOptimal K is %d', optimal_k);
-        for k = 1:maxK            
-            if mod(k, 5)==1
-                msg = [msg, newline newline];
+        msg = sprintf('\n\tOptimal K is %d\n\n', optimal_k);
+        for k = 1:maxK
+            pred = avg_prediction(k);
+            msg = [msg, sprintf('\t(%02d): %6.04f', k, pred)];            
+            if mod(k, 5)==0
+                msg = [msg, '   _|', newline newline];
             end
-            msg = [msg, sprintf('\t(%02d): %0.04f', k, avg_prediction(k))];
         end
-        pa_msgbox(msg)
+        if shouldCancel
+            pa_msgbox(msg,'User canceled');
+        else
+            pa_msgbox(msg,'Predictive strength of K');
+        end
     end
     
-
+    
 end

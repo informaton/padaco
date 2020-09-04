@@ -26,7 +26,7 @@ function varargout = padacoFig(varargin)
 
 % Edit the above text to modify the response to help padacoFig
 
-% Last Modified by GUIDE v2.5 13-Aug-2020 09:42:47
+% Last Modified by GUIDE v2.5 03-Sep-2020 22:03:24
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -254,3 +254,19 @@ function menu_file_export_features_clusterObj_Callback(hObject, eventdata, handl
 % hObject    handle to menu_file_export_features_clusterObj (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+
+
+
+
+
+% --- Executes during object creation, after setting all properties.
+function edit_iterations_per_k_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit_iterations_per_k (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end

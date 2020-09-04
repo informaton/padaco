@@ -3380,7 +3380,11 @@ classdef PAStatTool < PAViewController
                 
 
                 if evaluateK
-                    predictionStrength(tmpClusterObj.loadShapes, 'mink', 2, 'maxk', 20, 'M', 20, 'showprogress', true,'gui',true); 
+                    minK = this.getSetting('predictionStrength_minK');
+                    maxK = this.getSetting('predictionStrength_maxK');
+                    iterations = this.getSetting('predictionStrength_iterations');
+                    showProgress = ~isdeployed;
+                    predictionStrength(tmpClusterObj.loadShapes, 'mink', minK, 'maxk', maxK, 'M', iterations, 'showprogress', showProgress,'gui',true); 
                 else
                     if(enableUserCancel)
                         this.enableClusterCancellation();
@@ -4761,6 +4765,14 @@ classdef PAStatTool < PAViewController
             
             paramStruct.useCache = PABoolParam('default',true,'description','Use file caching','help','Turn on file caching to improve startup times.');
             paramStruct.cacheDirectory = PAPathParam('default',fullfile(workingPath,'cache'),'description','Caching directory');
+            
+            
+            paramStruct.predictionStrength_minK = PANumericParam('default',2,'min',2,'description','Prediction strength: minimum K',...
+                'help','The initial value of K evaluated determining prediction strength for a range of K.');
+            paramStruct.predictionStrength_maxK = PANumericParam('default',10,'min',2,'description','Prediction strength: maximum K',...
+                'help','The final value of K evaluated when determining prediction strength for a range of K.');
+            paramStruct.predictionStrength_iterations = PANumericParam('default',20,'min',1,'description','Prediction strength: bootstrap iterations per K',...
+                'help','The number of iterations performed to evaluate the prediction strength for each value of K considered.');
             
             %             paramStruct.exportShowNonwear = true;
             %             paramStruct.cacheDirectory = fullfile(workingPath,'cache');
