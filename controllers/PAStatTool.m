@@ -31,7 +31,7 @@ classdef PAStatTool < PAViewController
         
         nonwear = struct('method','padaco','rows',[])
         
-        %> structure loaded features which is as current or as in sync with the gui settings 
+        %> structure loaded features which is as current or as in sync with the gui settings
         %> as of the last time the 'Calculate' button was
         %> pressed/manipulated.
         featureStruct;
@@ -44,44 +44,44 @@ classdef PAStatTool < PAViewController
         %> struct of handles that PAStatTool interacts with.  Inherited from PABase
         %>  See initHandles()
         %> Includes contextmenu
-        % handles; 
+        % handles;
         
-        %> struct of toolbar handles that PAStatTool interacts with. 
+        %> struct of toolbar handles that PAStatTool interacts with.
         toolbarH;
         
         buttongroup;
         %> Struct of java component peers to some graphic handles listed
         %> under @c handles.  Currently only table_profileFields (under the
-        %> analysis figure) is included.  
+        %> analysis figure) is included.
         jhandles;
         
         %> struct of base (all possible) parameter values that can be set
-        base;  
+        base;
         featureTypes;
         featureDescriptions;
         %> @brief boolean set to true if result data is found.
         canPlot;
         %> @brief Struct to keep track of settings from previous plot type
         %> selections to make transitioning back and forth between cluster
-        %> plotting and others easier to stomach.  Fields include:        
+        %> plotting and others easier to stomach.  Fields include:
         %> - @c normalizeValues The value of the check_normalizevalues widget
-        %> - @c plotType The tag of the current plot type 
+        %> - @c plotType The tag of the current plot type
         %> - @c colorMap - colormap of figure;
         %> These are initialized in the initWidgets() method.
         previousState;
         %> instance of PACluster class
-        clusterObj;  
+        clusterObj;
         
         %> @brief Struct with fields consisting of summary statistics for
         %> field names contained in the subject info table of the goals
-        %> database for all clusters. 
+        %> database for all clusters.
         %> @note Database must be developed and maintained externally
         %> to Padaco.
         globalProfile;
-
+        
         %> @brief Struct with fields consisting of summary statistics for
         %> field names contained in the subject info table of the goals
-        %> database for the cluster of interest. 
+        %> database for the cluster of interest.
         %> @note Database must be developed and maintained externally
         %> to Padaco.
         coiProfile;
@@ -98,7 +98,7 @@ classdef PAStatTool < PAViewController
         useDatabase;
         useOutcomes;
         % holdPlots;  --> refactored to a method
-
+        
         featuresDirectory;
         cacheDirectory;
         
@@ -107,11 +107,11 @@ classdef PAStatTool < PAViewController
         %> - @c useDefaultRandomizer = widgetSettings.useDefaultRandomizer;
         %> - @c initClusterWithPermutation = settings.initClusterWithPermutation;
         %> @note Initialized in the setWidgetSettings() method
-        clusterSettings;        
+        clusterSettings;
     end
     properties(Access=private)
-        %> @brief Bool (true: has icon/false: does not have icon)  
-        hasIcon; 
+        %> @brief Bool (true: has icon/false: does not have icon)
+        hasIcon;
         iconData;
         iconCMap;
         iconFilename;
@@ -154,8 +154,8 @@ classdef PAStatTool < PAViewController
         %> @retval this Instance of PAStatTool
         % ======================================================================
         function this = PAStatTool(varargin)
-            this@PAViewController(varargin{1:2});            
-              
+            this@PAViewController(varargin{1:2});
+            
             this.hasIcon = false;
             this.iconData = [];
             this.iconCMap = [];
@@ -174,7 +174,7 @@ classdef PAStatTool < PAViewController
                 end
             end
         end
-                
+        
         function didSet = setSettings(this, inputSettings)
             didSet = setSettings@PAFigureController(this, inputSettings);
             if(didSet)
@@ -207,12 +207,12 @@ classdef PAStatTool < PAViewController
             delete@PAViewController(this);
         end
         
-
+        
         function didSet = setFeaturesDirectory(this, resultsPath)
             if(~isdir(resultsPath))
                 this.logWarning('Not a valid directory');
                 didSet = false;
-            else                
+            else
                 featuresPath = fullfile(resultsPath,'features');
                 
                 % We are allowing user to pick a folder that contains
@@ -225,7 +225,7 @@ classdef PAStatTool < PAViewController
                     % fprintf('Assuming features pathFeatures pathname (%s) does not exist!\n',featuresPath);
                 end
                 
-                this.featuresDirectory = featuresPath;            
+                this.featuresDirectory = featuresPath;
                 didSet = true;
             end
         end
@@ -234,7 +234,7 @@ classdef PAStatTool < PAViewController
             if (this.setFeaturesDirectory(resultsPath))
                 didUpdate = false;
                 if(exist(this.getFullClusterCacheFilename(),'file') && this.useCache)
-
+                    
                     try
                         validFields = {'clusterObj';
                             'featureStruct';
@@ -286,7 +286,7 @@ classdef PAStatTool < PAViewController
                             this.setStartTimes(this.originalFeatureStruct.startTimes);
                             
                             % Updates our scatter plot as applicable.
-                            this.refreshGlobalProfile();    
+                            this.refreshGlobalProfile();
                         else
                             this.logWarning('The cached features path (%s) is different than the one currently one (%s).', tmpStruct.featuresDirectory,this.featuresDirectory);
                         end
@@ -299,10 +299,10 @@ classdef PAStatTool < PAViewController
                 % directory for the first time which has not been cached
                 % yet.
                 if ~didUpdate && ~this.updateWidgets()  %initializes previousstate.plotType on success and calls plot selection change cb for sync.
-                    this.logWarning('Unable to update controls');                
+                    this.logWarning('Unable to update controls');
                 end
                 
-                this.clearPlots();                
+                this.clearPlots();
                 
                 if(this.getCanPlot())
                     if(this.isClusterMode())
@@ -310,17 +310,17 @@ classdef PAStatTool < PAViewController
                     else
                         this.switchFromClustering();
                     end
-                end     
-                didSet = true;           
-            end    
+                end
+                didSet = true;
+            end
         end
         
         function clearStatus(this)
-           this.setStatus('');
-        end        
+            this.setStatus('');
+        end
         
-        %> @brief Returns boolean indicator if the current plot type is 
-        %> is showing clusters or not.        
+        %> @brief Returns boolean indicator if the current plot type is
+        %> is showing clusters or not.
         %> @brief or if the passed plotType matches the clustering mode
         %> label.
         function isMode = isClusterMode(this, plotType)
@@ -328,7 +328,7 @@ classdef PAStatTool < PAViewController
                 plotType = this.getPlotType();
             end
             isMode = strcmpi(plotType,'clustering');
-        end            
+        end
         
         function plotType = getPlotType(this)
             plotType = getMenuUserData(this.handles.menu_plottype);
@@ -358,9 +358,14 @@ classdef PAStatTool < PAViewController
             canPlotValue = this.canPlot;
         end
         
+        
         function didExport = exportClusters(this, exportFmt)
             if(nargin<2)
                 exportFmt = 'csv';
+            end
+            
+            if nargin<3 || isempty(loadShapesOnly)
+                loadShapesOnly = false;
             end
             
             didExport = false;
@@ -372,14 +377,14 @@ classdef PAStatTool < PAViewController
                 % If this is not true, then we can just leave this
                 % function since the user would have cancelled.
             elseif(curCluster.updateExportPath())
-                try 
+                try
                     lastClusterSettings.StatTool = this.getStateAtTimeOfLastClustering();
                     exportPath = curCluster.getExportPath();
                     % original widget settings are kept track of using a
-                    % separate gui                    
+                    % separate gui
                     exportNonwearFeatures = this.getSetting('exportShowNonwear');
                     if(exportNonwearFeatures)
-                        nonwearFeatures = this.nonwear;                        
+                        nonwearFeatures = this.nonwear;
                     else
                         nonwearFeatures = [];
                     end
@@ -392,7 +397,6 @@ classdef PAStatTool < PAViewController
                         [didExport, msg] = curCluster.exportToDisk(lastClusterSettings, nonwearFeatures);
                     end
                     
-
                     %                     if(~lastClusterSettings.discardNonwearFeatures)
                     %                         [didExport, msg] = curCluster.exportToDisk(exportPath, lastClusterSettings, nonwearFeatures{:});
                     %                     else
@@ -506,8 +510,8 @@ classdef PAStatTool < PAViewController
             if(nargin<3 || isempty(updateOnSet) || ~islogical(updateOnSet))
                 updateOnSet = true;
             end
-           
-            if(~isequal(paparamsToValues(this.originalSettings),paparamsToValues(widgetSettings)))                
+            
+            if(~isequal(paparamsToValues(this.originalSettings),paparamsToValues(widgetSettings)))
                 if(~isempty(this.clusterObj))
                     this.clusterObj = [];
                     this.logWarning('Cluster results were just cleared.');
@@ -525,7 +529,7 @@ classdef PAStatTool < PAViewController
             % to the outcomesTable.  2/14/2019 @hyatt
             this.setUseDatabase(this.getSetting('useDatabase'));  %sets this.useDatabase to false if it was initially true and then fails to open the database
             this.setUseOutcomesTable(this.getSetting('useOutcomes'));
-
+            
             if(updateOnSet)
                 this.updateWidgets();
             end
@@ -533,7 +537,7 @@ classdef PAStatTool < PAViewController
         
         % ======================================================================
         %> @brief Sets the start and stop time dropdown menu content and
-        %> returns the selection.  
+        %> returns the selection.
         %> @param this Instance of PAStatTool
         %> @param Cell string of times that can be selected to define a
         %> range of time to calculate cluster profiles from.
@@ -549,7 +553,7 @@ classdef PAStatTool < PAViewController
                 startTimeSelection = this.originalSettings.startTimeSelection;
                 if(startTimeSelection>numel(startTimeCellStr) || stopTimeSelection>numel(startTimeCellStr))
                     startTimeSelection = 1;
-                    stopTimeSelection = numel(startTimeCellStr);                
+                    stopTimeSelection = numel(startTimeCellStr);
                 end
             else
                 startTimeSelection = 1;
@@ -587,8 +591,8 @@ classdef PAStatTool < PAViewController
                             
                         otherwise
                             fprintf(1,'Unknown indices flag for refreshClustersAndPlot: ''%s''\n',indicesToUse);
-                            indicesToUse = [];                            
-                    end                    
+                            indicesToUse = [];
+                    end
                 end
             end
             
@@ -616,7 +620,7 @@ classdef PAStatTool < PAViewController
             if(isRawData || isCountData)
                 usageFeature = 'usagestate';
                 usageFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,usageFeature,usageFeature,'count','vecMag');
-
+                
                 % Usage state based on count data
                 if(isCountData)
                     % Double check that we haven't switched paths somewhere and
@@ -626,12 +630,12 @@ classdef PAStatTool < PAViewController
                         if(exist(usageFilename,'file'))
                             this.usageStateStruct = this.loadAlignedFeatures(usageFilename);
                         end
-                    end    
+                    end
                 end
                 
-                loadFileRequired = isempty(this.originalFeatureStruct) || ~strcmpi(inputFilename,this.originalFeatureStruct.filename);                
+                loadFileRequired = isempty(this.originalFeatureStruct) || ~strcmpi(inputFilename,this.originalFeatureStruct.filename);
                 if(loadFileRequired)
-                    this.originalFeatureStruct = this.loadAlignedFeatures(inputFilename);    
+                    this.originalFeatureStruct = this.loadAlignedFeatures(inputFilename);
                     if(isfield(this.originalFeatureStruct,'studyIDs'))
                         [this.originalFeatureStruct.uniqueIDs,iaFirst] = unique(this.originalFeatureStruct.studyIDs,'first');
                         [~,iaLast,~] = unique(this.originalFeatureStruct.studyIDs,'last');
@@ -640,21 +644,21 @@ classdef PAStatTool < PAViewController
                         
                         this.originalFeatureStruct.indFirstLast1Week = [iaFirst, min(iaLast, iaFirst+this.MAX_DAYS_PER_STUDY-1)];  % cannot be more than one week, but can be less ...
                         
-                        ind2keepExactly1Week = false(size(this.originalFeatureStruct.shapes,1),1);                        
+                        ind2keepExactly1Week = false(size(this.originalFeatureStruct.shapes,1),1);
                         ind2keep = false(size(this.originalFeatureStruct.shapes,1),1);
                         dayInd = this.originalFeatureStruct.indFirstLast1Week;
                         for d=1:size(dayInd,1)
                             ind2keep(dayInd(d,1):dayInd(d,2))= true;  % could be less than a week, but not more
-                            if(this.originalFeatureStruct.numDays(d)>=7) 
+                            if(this.originalFeatureStruct.numDays(d)>=7)
                                 % exactly 1 week
-                                ind2keepExactly1Week(dayInd(d,1):dayInd(d,2)) = true;                                
+                                ind2keepExactly1Week(dayInd(d,1):dayInd(d,2)) = true;
                             end
                         end
                         this.originalFeatureStruct.ind2keep1Week = ind2keep;  % logical index for subject days that are part of 1 week or less.
                         this.originalFeatureStruct.ind2keepExactly1Week = ind2keepExactly1Week; % logical index for subject days that are part of 1 week exactly (each day is covered).
                     end
                     
-                    % The call to setStartTimes here is necessary to 
+                    % The call to setStartTimes here is necessary to
                     % updating the start/stop GUI times just loaded.
                     [pSettings.startTimeSelection, pSettings.stopTimeSelection] = this.setStartTimes(this.originalFeatureStruct.startTimes);
                 end
@@ -665,7 +669,7 @@ classdef PAStatTool < PAViewController
                 if(isCountData && ~isempty(this.usageStateStruct))
                     tmpUsageStateStruct = this.usageStateStruct;
                 else
-                    tmpUsageStateStruct = this.originalFeatureStruct; 
+                    tmpUsageStateStruct = this.originalFeatureStruct;
                     tmpUsageStateStruct.shapes(:) = 7;%just make everything magically 7 for right now to avoid having refactor further.
                     tmpUsageStateStruct.method = 'usagestate';
                     tmpUsageStateStruct.filename = '';
@@ -696,21 +700,21 @@ classdef PAStatTool < PAViewController
                             if(this.originalFeatureStruct.numDays(d)>=7)
                                 ind2keepExactly1WeekAndNonwearExcluded(day_ind) = false;
                                 individualsMissingCompleteWeekAfterNonWearExclusion = individualsMissingCompleteWeekAfterNonWearExclusion + 1;
-                            end                            
+                            end
                             this.nonwear.week_rows(day_ind) = true;
                         end
                     end
                     this.originalFeatureStruct.ind2keepAndNonwearExcluded = ind2keepAndNonwearExcluded;
-                    this.originalFeatureStruct.ind2keepExactly1WeekAndNonwearExcluded = ind2keepExactly1WeekAndNonwearExcluded;             
+                    this.originalFeatureStruct.ind2keepExactly1WeekAndNonwearExcluded = ind2keepExactly1WeekAndNonwearExcluded;
                     fprintf(1, 'Number of individuals who will be removed from weeklong analysis if discarding nonwear: %d\n', individualsMissingCompleteWeekAfterNonWearExclusion);
                 end
                 
                 if(~isempty(indicesToUse))
-                   fieldsToParse = {'studyIDs','startDatenums','startDaysOfWeek','shapes'};
+                    fieldsToParse = {'studyIDs','startDatenums','startDaysOfWeek','shapes'};
                     for f=1:numel(fieldsToParse)
                         fname = fieldsToParse{f};
                         tmpUsageStateStruct.(fname) = tmpUsageStateStruct.(fname)(indicesToUse,:);
-                        tmpFeatureStruct.(fname) = tmpFeatureStruct.(fname)(indicesToUse,:);                        
+                        tmpFeatureStruct.(fname) = tmpFeatureStruct.(fname)(indicesToUse,:);
                     end
                 end
                 startTimeSelection = pSettings.startTimeSelection;
@@ -719,27 +723,27 @@ classdef PAStatTool < PAViewController
                 % Do nothing; this means, that we started at rayday and
                 % will go 24 hours
                 if(stopTimeSelection == startTimeSelection)
-                    if(this.isClusterMode())                         
+                    if(this.isClusterMode())
                         warndlg('Only one time epoch selected - defaulting to all epochs instead.');
                     end
                     
                 elseif(startTimeSelection < stopTimeSelection)
                     
                     tmpFeatureStruct.startTimes = tmpFeatureStruct.startTimes(startTimeSelection:stopTimeSelection);
-                    tmpFeatureStruct.shapes = tmpFeatureStruct.shapes(:,startTimeSelection:stopTimeSelection);      
+                    tmpFeatureStruct.shapes = tmpFeatureStruct.shapes(:,startTimeSelection:stopTimeSelection);
                     tmpFeatureStruct.totalCount = numel(tmpFeatureStruct.startTimes);
-                
+                    
                     tmpUsageStateStruct.startTimes = tmpUsageStateStruct.startTimes(startTimeSelection:stopTimeSelection);
-                    tmpUsageStateStruct.shapes = tmpUsageStateStruct.shapes(:,startTimeSelection:stopTimeSelection);      
+                    tmpUsageStateStruct.shapes = tmpUsageStateStruct.shapes(:,startTimeSelection:stopTimeSelection);
                     tmpUsageStateStruct.totalCount = numel(tmpUsageStateStruct.startTimes);
                     
-                % For example:  22:00 to 04:00 is ~ stopTimeSelection = 22 and
-                % startTimeSelection = 81
+                    % For example:  22:00 to 04:00 is ~ stopTimeSelection = 22 and
+                    % startTimeSelection = 81
                 elseif(stopTimeSelection < startTimeSelection)
                     tmpFeatureStruct.startTimes = [tmpFeatureStruct.startTimes(startTimeSelection:end),tmpFeatureStruct.startTimes(1:stopTimeSelection)];
                     tmpFeatureStruct.shapes = [tmpFeatureStruct.shapes(:,startTimeSelection:end),tmpFeatureStruct.shapes(:,1:stopTimeSelection)];
                     tmpFeatureStruct.totalCount = numel(tmpFeatureStruct.startTimes);
-                
+                    
                     tmpUsageStateStruct.startTimes = [tmpUsageStateStruct.startTimes(startTimeSelection:end), tmpUsageStateStruct.startTimes(1:stopTimeSelection)];
                     tmpUsageStateStruct.shapes = [tmpUsageStateStruct.shapes(:,startTimeSelection:end), tmpUsageStateStruct.shapes(:,1:stopTimeSelection)];
                     tmpUsageStateStruct.totalCount = numel(tmpUsageStateStruct.startTimes);
@@ -747,9 +751,9 @@ classdef PAStatTool < PAViewController
                     warndlg('Well this is unexpected.');
                 end
                 
-                this.nonwear.rows = this.getNonwearRows(this.nonwear.method, tmpUsageStateStruct); 
+                this.nonwear.rows = this.getNonwearRows(this.nonwear.method, tmpUsageStateStruct);
                 
-                if this.isShowingWeekLong()                
+                if this.isShowingWeekLong()
                     maxDaysAllowed = 7;
                     minDaysAllowed = 7;
                 else
@@ -769,7 +773,7 @@ classdef PAStatTool < PAViewController
                         [this.featureStruct, this.nonwear.featureStruct] = this.discardNonwearFeatures(tmpFeatureStruct, this.nonwear.rows);
                     end
                 else
-                    this.featureStruct = tmpFeatureStruct;   
+                    this.featureStruct = tmpFeatureStruct;
                     this.nonwear.featureStruct = [];
                 end
                 
@@ -786,13 +790,13 @@ classdef PAStatTool < PAViewController
                             else
                                 ind2keep = this.originalFeatureStruct.ind2keepExactly1Week;
                             end
-                        
-                        % otherwise, universally handling the case of 1
-                        % week or less.
+                            
+                            % otherwise, universally handling the case of 1
+                            % week or less.
                         else
                             if pSettings.discardNonwearFeatures
                                 ind2keep = this.originalFeatureStruct.ind2keepAndNonwearExcluded;
-                            else                            
+                            else
                                 ind2keep = this.originalFeatureStruct.ind2keep1Week;
                             end
                         end
@@ -820,10 +824,10 @@ classdef PAStatTool < PAViewController
                     catch me
                         showME(me);
                     end
-                end                
+                end
                 
                 loadFeatures = this.featureStruct.shapes;
-
+                
                 if(pSettings.clusterDurationHours~=24)
                     
                     % cluster duration hours will always be integer
@@ -837,15 +841,15 @@ classdef PAStatTool < PAViewController
                     
                     hoursPerCluster = pSettings.clusterDurationHours;
                     featuresPerCluster = featuresPerHour*hoursPerCluster;
-
+                    
                     clustersPerVec = floor(featuresPerVec/featuresPerCluster);
                     
                     excessFeatures = mod(featuresPerVec,featuresPerCluster);
                     if(excessFeatures>0)
                         loadFeatures = loadFeatures(:,1:clustersPerVec*featuresPerCluster);
-                        this.featureStruct.totalCount = this.featureStruct.totalCount - excessFeatures;                        
+                        this.featureStruct.totalCount = this.featureStruct.totalCount - excessFeatures;
                     end
-
+                    
                     this.featureStruct.totalCount = this.featureStruct.totalCount/clustersPerVec;
                     this.featureStruct.startTimes = this.featureStruct.startTimes(1:this.featureStruct.totalCount);  % use the first time series for any additional clusters created from the same feature vector reshaping.
                     
@@ -855,7 +859,7 @@ classdef PAStatTool < PAViewController
                     reshapeFields = {'startDaysOfWeek','startDatenums','studyIDs'};
                     for r= 1:numel(reshapeFields)
                         fname = reshapeFields{r};
-                        if(isfield(this.featureStruct,fname))                            
+                        if(isfield(this.featureStruct,fname))
                             tmp = repmat(this.featureStruct.(fname),1,clustersPerVec)';
                             this.featureStruct.(fname) = tmp(:);
                         end
@@ -874,7 +878,7 @@ classdef PAStatTool < PAViewController
                     % featuresPerCluster = hoursPerCluster*featuresPerHour;
                 end
                 % If there is precluster reduction
-                if(~strcmpi(pSettings.preclusterReduction,'none')) 
+                if(~strcmpi(pSettings.preclusterReduction,'none'))
                     
                     if(pSettings.chunkShapes && pSettings.numChunks>1)
                         % The other transformation will reduce the number
@@ -884,7 +888,7 @@ classdef PAStatTool < PAViewController
                             numCols = pSettings.numChunks;
                         end
                         splitLoadFeatures = nan(numRows,numCols);
-
+                        
                         % 1. Reshape the loadFeatures by segments
                         % 2. Sort the loadfeatures
                         % 3. Resahpe the load features back to the original
@@ -894,7 +898,7 @@ classdef PAStatTool < PAViewController
                         sections = round(linspace(0,size(loadFeatures,2),pSettings.numChunks+1));  %Round to give integer indices
                         for s=1:numel(sections)-1
                             sectionInd = sections(s)+1:sections(s+1); % Create consecutive, non-overlapping sections of column indices.
-                            if(numCols == pSettings.numChunks) 
+                            if(numCols == pSettings.numChunks)
                                 % Case 1: we are we reducing the output, so
                                 % only 1 column per s
                                 splitLoadFeatures(:,s) = PAStatTool.featureSetAdjustment(loadFeatures(:,sectionInd),pSettings.preclusterReduction);
@@ -907,7 +911,7 @@ classdef PAStatTool < PAViewController
                         loadFeatures = splitLoadFeatures;
                     else
                         if ~strcmpi(pSettings.preclusterReduction,'sort') || pSettings.chunkShapes
-                            loadFeatures = PAStatTool.featureSetAdjustment(loadFeatures,pSettings.preclusterReduction);                            
+                            loadFeatures = PAStatTool.featureSetAdjustment(loadFeatures,pSettings.preclusterReduction);
                         end
                     end
                     
@@ -916,7 +920,7 @@ classdef PAStatTool < PAViewController
                     if(~strcmpi(pSettings.preclusterReduction,'sort'))
                         
                         if(pSettings.chunkShapes)
-                            initialCount = this.featureStruct.totalCount;                        
+                            initialCount = this.featureStruct.totalCount;
                             this.featureStruct.totalCount = pSettings.numChunks;
                             indicesToUse = floor(linspace(1,initialCount,this.featureStruct.totalCount));
                             % intervalToUse = floor(initialCount/(pSettings.numChunks+1));
@@ -925,14 +929,14 @@ classdef PAStatTool < PAViewController
                             this.featureStruct.totalCount = 1;
                             indicesToUse = 1;
                         end
-                        this.featureStruct.startTimes = this.featureStruct.startTimes(indicesToUse);                        
-                    end                    
+                        this.featureStruct.startTimes = this.featureStruct.startTimes(indicesToUse);
+                    end
                 end
                 
                 if(pSettings.trimResults)
                     pctValues = prctile(loadFeatures,pSettings.trimToPercent);
                     pctValuesMat = repmat(pctValues,size(loadFeatures,1),1);
-                    adjustInd = loadFeatures>pctValuesMat;                 
+                    adjustInd = loadFeatures>pctValuesMat;
                 end
                 
                 % floor below
@@ -942,16 +946,16 @@ classdef PAStatTool < PAViewController
                     %                     pctValuesMat = repmat(pctValues,size(loadFeatures,1),1);
                     %                     culledInd = loadFeatures<pctValuesMat;
                 end
-                                
+                
                 % Trim values to a maximum ceiling
                 if(pSettings.trimResults)
-                    loadFeatures(adjustInd) = pctValuesMat(adjustInd);                    
+                    loadFeatures(adjustInd) = pctValuesMat(adjustInd);
                 end
-                 
+                
                 % Set values below a certain range to 0.  Not good for
                 % classification rules.
                 if(pSettings.cullResults)
-                    loadFeatures(culledInd) = 0;                    
+                    loadFeatures(culledInd) = 0;
                 end
                 
                 if(pSettings.normalizeValues)
@@ -967,30 +971,30 @@ classdef PAStatTool < PAViewController
                         this.featureStruct.features = loadFeatures;
                     end
                 else
-                    this.featureStruct.features = loadFeatures;    
-                end                
+                    this.featureStruct.features = loadFeatures;
+                end
                 
                 didCalc = true;
             else
                 this.featureStruct = [];
                 didCalc = false;
-            end               
+            end
         end
         
         % ======================================================================
         %> @brief Initializes widget using current plot settings and
         %> refreshes the view.
         %> @param this Instance of PAStatTool
-        % ======================================================================        
+        % ======================================================================
         function didInit = init(this, initSettings)
             if(nargin<2 || isempty(initSettings))
                 % initSettings = this.getPlotSettings();
             end
             this.logWarning('init() is deprecated');
             didInit = false;
-            % didInit = this.initWidgets(initSettings); 
+            % didInit = this.initWidgets(initSettings);
             % this.initCallbacks();
-        end  
+        end
         
         % didUpdate will be false in the event of an exception.
         function didUpdate = updateWidgets(this, varargin)
@@ -1132,7 +1136,7 @@ classdef PAStatTool < PAViewController
         % ======================================================================
         %> @brief Clears the primary and secondary axes.
         %> @param this Instance of PAStatTool
-        % ======================================================================        
+        % ======================================================================
         function clearPlots(this)
             if(~isempty(intersect(get(this.handles.axes_primary,'nextplot'),{'replacechildren','replace'})))
                 cla(this.handles.axes_primary);
@@ -1154,7 +1158,7 @@ classdef PAStatTool < PAViewController
         % ======================================================================
         %> @brief Clears the primary axes.
         %> @param this Instance of PAStatTool
-        % ======================================================================        
+        % ======================================================================
         function clearPrimaryAxes(this)
             if(~isempty(intersect(get(this.handles.axes_primary,'nextplot'),{'replacechildren','replace'})))
                 currentChildren = get(this.handles.axes_primary,'children');
@@ -1165,7 +1169,7 @@ classdef PAStatTool < PAViewController
                 
                 set(this.handles.axes_primary,'xlimmode','manual');
                 set(this.handles.axes_primary,'ylimmode','manual');
-                set(this.handles.axes_primary,'nextplot','replacechildren');                
+                set(this.handles.axes_primary,'nextplot','replacechildren');
                 
                 delete(currentChildren);
                 title(this.handles.axes_primary,'');
@@ -1173,15 +1177,15 @@ classdef PAStatTool < PAViewController
                 xlabel(this.handles.axes_primary,'');
                 
                 set(this.handles.axes_primary,'ylimmode',currentYLimMode);
-                set(this.handles.axes_primary,'xlimmode',currentXLimMode);                
-                set(this.handles.axes_primary,'nextplot',currentNextPlot);                
-            end                
+                set(this.handles.axes_primary,'xlimmode',currentXLimMode);
+                set(this.handles.axes_primary,'nextplot',currentNextPlot);
+            end
         end
-     
+        
         % ======================================================================
         %> @brief Clears the secondary axes.
         %> @param this Instance of PAStatTool
-        % ======================================================================        
+        % ======================================================================
         function clearSecondaryAxes(this)
             cla(this.handles.axes_secondary);
             title(this.handles.axes_secondary,'');
@@ -1189,7 +1193,7 @@ classdef PAStatTool < PAViewController
             xlabel(this.handles.axes_secondary,'');
             set(this.handles.axes_secondary,'xgrid','off','ygrid','off','xtick',[],'ytick',[]);
         end
-                   
+        
         % ======================================================================
         %> @brief Updates the plot according to gui settings.  The method
         %> is assigned as the callback function to most of the gui widgets,
@@ -1197,12 +1201,12 @@ classdef PAStatTool < PAViewController
         %> @param this Instance of PAStatTool
         %> @param varargin Handle of callback parent and associated event
         %> data.  Neither are used, but required by MATLAB gui callbacks
-        % ======================================================================        
+        % ======================================================================
         function refreshPlot(this,varargin)
             if(this.canPlot)
                 
                 pSettings = this.getPlotSettings();
-              
+                
                 switch(pSettings.plotType)
                     case 'clustering'
                         this.plotClusters(pSettings);
@@ -1225,7 +1229,7 @@ classdef PAStatTool < PAViewController
             else
                 fprintf('PAStatTool.m cannot plot (refreshPlot)\n');
             end
-        end        
+        end
         
         function fullFilename = getFullClusterCacheFilename(this)
             fullFilename = fullfile(this.cacheDirectory,this.RESULTS_CACHE_FILENAME);
@@ -1239,9 +1243,9 @@ classdef PAStatTool < PAViewController
         %> PACluster) exists and converged; False otherwise
         % ======================================================================
         function isValid = hasValidCluster(this)
-            isValid = ~(isempty(this.clusterObj) || this.clusterObj.failedToConverge());           
-        end 
-                
+            isValid = ~(isempty(this.clusterObj) || this.clusterObj.failedToConverge());
+        end
+        
         function didSet = setIcon(this, iconFilename)
             if(nargin>1 && exist(iconFilename,'file'))
                 this.iconFilename = iconFilename;
@@ -1249,7 +1253,7 @@ classdef PAStatTool < PAViewController
                 didSet = this.setIconData(icoData,icoMap);
             else
                 didSet = false;
-            end            
+            end
         end
         
         function didSet = setOutcomesTable(this, outcomesController)
@@ -1265,7 +1269,7 @@ classdef PAStatTool < PAViewController
     methods(Access=private)
         % Methods are interfacing with membershape lines of a cluster.
         %> @brief Selected membershape's contextmenu callback for drawing
-        %> all membershapes associated with the ID.        
+        %> all membershapes associated with the ID.
         function showSelectedMemberShapesCallback(this, ~,~)
             lineH = get(this.figureH,'currentObject');
             memberID = get(lineH,'userdata');
@@ -1282,14 +1286,14 @@ classdef PAStatTool < PAViewController
             else
                 plot(this.handles.axes_primary,memberLoadShapes','--','linewidth',1,'color', this.COLOR_MEMBERID);
             end
-
+            
             set(this.handles.axes_primary,'nextplot',nextPlot);
             this.setStatus('%d selected',get(lineH,'userdata'));
             
             %            msgbox(sprintf('Member ID: %u',memberID));
         end
         
-        %> @brief Selected membershape's line selection callback for when a user clicks 
+        %> @brief Selected membershape's line selection callback for when a user clicks
         %> on the line handle with the mouse.
         %> @param Instance of PAStatTool
         %> @param Handle to the line
@@ -1298,13 +1302,13 @@ classdef PAStatTool < PAViewController
         %> subject, or subjectID it is associated with).
         function memberLineButtonDownCallback(this,lineH,~, memberID)
             ax = get(lineH,'parent');
-            if(strcmpi(get(lineH,'selected'),'off'))                
+            if(strcmpi(get(lineH,'selected'),'off'))
                 set(findobj(get(ax,'children'),'flat','selected','on'),'selected','off','color',this.COLOR_MEMBERSHAPE,'linewidth',1);
                 set(lineH,'selected','on','color',this.COLOR_LINESELECTION,'linewidth',1.5,'displayname',num2str(get(lineH,'userdata')));
                 this.setStatus('%d selected',get(lineH,'userdata'));
                 legend(ax,lineH);
-
-            % Toggle off
+                
+                % Toggle off
             else
                 set(lineH,'selected','off','color',this.COLOR_MEMBERSHAPE);
                 this.clearStatus();
@@ -1332,8 +1336,8 @@ classdef PAStatTool < PAViewController
                 % initDatabaseObj below ... which shows that the database
                 % object is actually cleared if not to be used.
                 this.useDatabase = this.initDatabaseObj();% initDatabase returns false if it fails to initialize and is supposed to.
-                if(this.canUseDatabase())                   
-                    this.initProfileTable();                    
+                if(this.canUseDatabase())
+                    this.initProfileTable();
                 end
                 didSet = true;
                 this.refreshAnalysisFigureAvailability();
@@ -1345,21 +1349,21 @@ classdef PAStatTool < PAViewController
         %> @brief Database functionality
         function didSet = setUseOutcomesTable(this, willSet)
             if nargin>1 && ~isempty(willSet)
-                this.useOutcomes = willSet && true;                
-                if(this.useOutcomes && isa(this.outcomesObj,'PAOutcomesTableData') && this.outcomesObj.isValid)                    
-                    this.profileFields = this.outcomesObj.getColumnNames('subjects');                    
-                    this.initProfileTable(this.outcomesObj.getSelectedIndex());                    
-                end                
+                this.useOutcomes = willSet && true;
+                if(this.useOutcomes && isa(this.outcomesObj,'PAOutcomesTableData') && this.outcomesObj.isValid)
+                    this.profileFields = this.outcomesObj.getColumnNames('subjects');
+                    this.initProfileTable(this.outcomesObj.getSelectedIndex());
+                end
                 didSet = true;
                 this.refreshAnalysisFigureAvailability();
-
+                
             else
                 didSet = false;
             end
         end
         function doesIt = supportsAnalysisFigure(this)
             doesIt = (this.useOutcomes && ~isempty(this.profileTableData)) || ...
-                (~isempty(this.profileFields) && this.useDatabase);         
+                (~isempty(this.profileFields) && this.useDatabase);
         end
         
         function refreshAnalysisFigureAvailability(this)
@@ -1387,7 +1391,7 @@ classdef PAStatTool < PAViewController
                     didInit = true;
                 else
                     this.databaseObj = [];
-                    this.profileFields = {};                    
+                    this.profileFields = {};
                 end
             catch me
                 showME(me);
@@ -1397,18 +1401,18 @@ classdef PAStatTool < PAViewController
             end
             
         end
-
+        
         % ======================================================================
         %> @brief Plot dropdown selection menu callback.
         %> @param this Instance of PAStatTool
         %> @param Handle of the dropdown menu.
         %> @param unused
         % ======================================================================
-        function plotSelectionChangeCb(this, varargin)           
+        function plotSelectionChangeCb(this, varargin)
             plotType = this.getPlotType();
             this.setPlotType(plotType);
         end
-        function refreshPlotType(this)        
+        function refreshPlotType(this)
             forceSet = true;
             this.setPlotType(this.getPlotType(),forceSet);
         end
@@ -1416,7 +1420,7 @@ classdef PAStatTool < PAViewController
         function setPlotType(this, plotType, forceSet)
             if(nargin<3 || isempty(forceSet))
                 forceSet = false;
-            end        
+            end
             if(~isempty(plotType) && (~isequal(plotType, this.previousState.plotType) || forceSet))
                 this.clearPlots();
                 set(this.handles.menu_plottype,'tooltipstring',this.base.tooltipstring.(plotType));
@@ -1424,7 +1428,7 @@ classdef PAStatTool < PAViewController
                 switch(plotType)
                     case 'clustering'
                         this.switch2clustering();
-                    otherwise                        
+                    otherwise
                         if(strcmpi(this.previousState.plotType,'clustering'))
                             this.switchFromClustering();
                         else
@@ -1457,10 +1461,10 @@ classdef PAStatTool < PAViewController
                     set(this.toolbarH.cluster.push_right,'enable','on');
                     drawnow();
                 case 'leftarrow'
-                    set(this.toolbarH.cluster.push_left,'enable','off');                    
-                    this.showPreviousCluster(toggleOn);               
+                    set(this.toolbarH.cluster.push_left,'enable','off');
+                    this.showPreviousCluster(toggleOn);
                     pause(0.1);
-                    set(this.toolbarH.cluster.push_left,'enable','on'); 
+                    set(this.toolbarH.cluster.push_left,'enable','on');
                     drawnow();
                 case 'uparrow'
                     if(figH == this.analysisFigureH)
@@ -1474,7 +1478,7 @@ classdef PAStatTool < PAViewController
                     elseif(figH == this.figureH)
                         this.showPreviousCluster(toggleOn);
                     end
-                otherwise                
+                otherwise
             end
         end
         
@@ -1502,7 +1506,7 @@ classdef PAStatTool < PAViewController
             end
             this.plotClusters();
         end
-       
+        
         % ======================================================================
         %> @brief Mouse button callback when clicking on the cluster
         %> distribution histogram.
@@ -1515,7 +1519,7 @@ classdef PAStatTool < PAViewController
             barWidth = 1;  % histogramH.BarWidth is 0.8 by default, but leaves 0.2 of ambiguity between adjancent bars.
             xStartStop = [histogramH.XData(:)-barWidth/2, histogramH.XData(:)+barWidth/2];
             selectedBarIndex = find( xStartStop(:,1)<xHit & xStartStop(:,2)>xHit ,1);
-            this.toggleHistogramSelection(selectedBarIndex);                
+            this.toggleHistogramSelection(selectedBarIndex);
         end
         
         % ======================================================================
@@ -1538,11 +1542,11 @@ classdef PAStatTool < PAViewController
         function scatterplotButtonDownFcn(this,lineH,eventData) %#ok<*INUSL>
             xHit = eventData.IntersectionPoint(1);
             selectedSortOrder = round(xHit);
-            this.toggleHistogramSelection(selectedSortOrder);        
-        end      
+            this.toggleHistogramSelection(selectedSortOrder);
+        end
         
         % ======================================================================
-        %> @brief Mouse button callback when clicking on a highlighted member (coi) 
+        %> @brief Mouse button callback when clicking on a highlighted member (coi)
         %> of the cluster-profile scatter plot.
         %> @param this Instance of PAStatTool
         %> @param lineH Handle to the scatterplot line.
@@ -1558,13 +1562,13 @@ classdef PAStatTool < PAViewController
             if(~this.holdPlots() && strcmpi(get(this.figureH,'selectiontype'),'normal'))
                 this.clusterObj.setCOISortOrder(selectedIndex);
             else
-                this.clusterObj.toggleCOISortOrder(selectedIndex);                
+                this.clusterObj.toggleCOISortOrder(selectedIndex);
             end
-            this.plotClusters();     
+            this.plotClusters();
         end
         
         function buttondownfcn(this, hobject, evtdata) %#ok<*INUSD>
-           this.logStatus('Button %s', get(hobject,'tag'));
+            this.logStatus('Button %s', get(hobject,'tag'));
         end
         
         function distributionChangeCb(this, hObject, evtData)
@@ -1587,7 +1591,7 @@ classdef PAStatTool < PAViewController
                 'fontweight','normal',...
                 'fontsize',12);
         end
-
+        
         % ======================================================================
         %> @brief Configure gui handles for non cluster/clusting viewing
         %> @param this Instance of PAStatTool
@@ -1599,9 +1603,9 @@ classdef PAStatTool < PAViewController
             
             set(this.figureH,'WindowKeyPressFcn',[]);
             set(this.analysisFigureH,'visible','off');
-
+            
             this.refreshPlot();
-        end    
+        end
         
         % ======================================================================
         %> @brief Configure gui handles for cluster analysis and viewing.
@@ -1609,14 +1613,14 @@ classdef PAStatTool < PAViewController
         % ======================================================================
         function switch2clustering(this)
             
-            this.previousState.normalizeValues = get(this.handles.check_normalizevalues,'value');           
+            this.previousState.normalizeValues = get(this.handles.check_normalizevalues,'value');
             % set(this.handles.check_normalizevalues,'value',1,'enable','off');
             set(this.handles.axes_primary,'ydir','normal');  %sometimes this gets changed by the heatmap displays which have the time shown in reverse on the y-axis
             
             this.showClusterControls();
             
             if(this.getCanPlot())
-                if(this.hasValidCluster())                    
+                if(this.hasValidCluster())
                     try
                         this.featureStruct = this.clusterObj.featureStruct;
                     catch me
@@ -1625,10 +1629,10 @@ classdef PAStatTool < PAViewController
                     % Need this because we will skip our x tick and
                     % labels refresh otherwise.
                     this.drawClusterXTicksAndLabels();
-
+                    
                     this.enableClusterControls();
-
-                    this.plotClusters();                    
+                    
+                    this.plotClusters();
                 else
                     this.disableClusterControls();
                     this.refreshClustersAndPlot();
@@ -1646,11 +1650,11 @@ classdef PAStatTool < PAViewController
                 
                 
                 % This is handled in the plot cluster method, right before tick marks are down on
-                % set(this.handles.axes_primary,'color',validColor); 
+                % set(this.handles.axes_primary,'color',validColor);
                 set(this.handles.axes_secondary,'color',validColor);
                 set([this.handles.axes_secondary
-                this.handles.btngrp_clusters],'visible','on');
-            
+                    this.handles.btngrp_clusters],'visible','on');
+                
                 set(this.figureH,'WindowKeyPressFcn',keyPressFcn);
                 
                 if(this.shouldShowAnalysisFigure())
@@ -1659,17 +1663,17 @@ classdef PAStatTool < PAViewController
             else
                 set(this.handles.panel_clusterInfo,'visible','off');
             end
-        end        
-
+        end
+        
         
         function decreaseProfileFieldSelection(this)
-           curProfileFieldIndex = this.getProfileFieldIndex();
-           this.setProfileFieldIndex(curProfileFieldIndex-1);
+            curProfileFieldIndex = this.getProfileFieldIndex();
+            this.setProfileFieldIndex(curProfileFieldIndex-1);
         end
         
         function increaseProfileFieldSelection(this)
-           curProfileFieldIndex = this.getProfileFieldIndex();
-           this.setProfileFieldIndex(curProfileFieldIndex+1);
+            curProfileFieldIndex = this.getProfileFieldIndex();
+            this.setProfileFieldIndex(curProfileFieldIndex+1);
         end
         
         
@@ -1678,15 +1682,15 @@ classdef PAStatTool < PAViewController
                 distType = 'loadshape_membership';
             end
             if(~strcmpi(distType,this.getSetting('clusterDistributionType')))
-                oldH = this.buttongroup.cluster.(this.getSetting('clusterDistributionType')); 
+                oldH = this.buttongroup.cluster.(this.getSetting('clusterDistributionType'));
                 cdata = get(oldH,'userdata');
                 set(oldH,'cdata',cdata.Off,'value',0);
             end
             
-            this.setSetting('clusterDistributionType', distType);   
+            this.setSetting('clusterDistributionType', distType);
             newH = this.buttongroup.cluster.(distType);
-            cdata = get(newH,'userdata');           
-            set(newH,'cdata',cdata.On,'value',1);            
+            cdata = get(newH,'userdata');
+            set(newH,'cdata',cdata.On,'value',1);
         end
         %> @brief Software driven callback trigger for
         %> profileFieldMnenuSelectionChangeCallback.  Used as a wrapper for
@@ -1704,15 +1708,15 @@ classdef PAStatTool < PAViewController
                 didSet = false;
             end
         end
-
-
+        
+        
         %> @brief Callback for the profile selection menu widget found in
-        %> the analysis figure.  Results in changing the scatter plot and 
+        %> the analysis figure.  Results in changing the scatter plot and
         %> highlighting the newly selected field of interest in the
         %> cluster profile table.
         %> @param this Instance of PAStatTool
         %> @param hObject
-        %> @param eventData 
+        %> @param eventData
         function profileFieldMenuSelectionChangeCallback(this,hObject,eventData)
             this.setProfileFieldIndex(get(hObject,'value'));
         end
@@ -1730,7 +1734,7 @@ classdef PAStatTool < PAViewController
         
         
         % Called from constructor.
-        function didInit = initFigure(this) 
+        function didInit = initFigure(this)
             this.originalFeatureStruct = [];
             this.canPlot = false;
             this.featuresDirectory = [];
@@ -1742,15 +1746,15 @@ classdef PAStatTool < PAViewController
             this.featureInputFilePattern = ['%s',filesep,'%s',filesep,'features.%s.accel.%s.%s.txt'];
             this.featureInputFileFieldnames = {'inputPathname','displaySeletion','processType','curSignal'};
             
-            didInit = initFigure@PAViewController(this); % calls: obj.designateHandles(); obj.initWidgets();  obj.initCallbacks(); 
+            didInit = initFigure@PAViewController(this); % calls: obj.designateHandles(); obj.initWidgets();  obj.initCallbacks();
             if(didInit)
-                try                    
+                try
                     set([this.handles.panel_results
                         this.handles.panel_shapeSettings
                         this.handles.panel_clusterSettings],'units','pixels');
-                                    
+                    
                     this.initToolbar();
-
+                    
                     % initializeOnSet = false;
                     % this.setWidgetSettings(this.settings, initializeOnSet);
                     this.initScatterPlotFigure();
@@ -1763,15 +1767,15 @@ classdef PAStatTool < PAViewController
                     % Profile Summary and analysis figure
                     this.setUseDatabase(this.getSetting('useDatabase'));  %sets this.useDatabase to false if it was initially true and then fails to open the database
                     this.setUseOutcomesTable(this.getSetting('useOutcomes'));
-
+                    
                     % Now handled inside of the calls to setUseDatabase and
                     % setUseOutcomesTable()
                     % if(this.useDatabase || this.useOutcomes)
                     %    this.initProfileTable();
-                    % end                    
+                    % end
                     
                     % update our text handle so it has the same background
-                    % colors as the figure.  
+                    % colors as the figure.
                     figColor = get(this.figureH,'color');
                     set(this.handles.text_clusterResultsOverlay,'backgroundcolor',figColor);
                     didInit = true;
@@ -1790,24 +1794,24 @@ classdef PAStatTool < PAViewController
                 ];
             
             this.handles.result_widgets_selection = [
-                    this.handles.check_normalizevalues
-                    this.handles.menu_feature
-                    this.handles.menu_signalsource
-                    this.handles.menu_plottype
-                    this.handles.menu_weekdays
-                    this.handles.menu_clusterMethod
-                    this.handles.menu_clusterStartTime
-                    this.handles.menu_clusterStopTime
-                    this.handles.menu_duration
-                    this.handles.push_refreshClusters
-                    this.handles.check_trim
-                    this.handles.edit_trimToPercent
-                    this.handles.check_cull
-                    this.handles.check_discardNonwear
-                    this.handles.edit_cullToValue
-                    this.handles.check_segment
-                    this.handles.menu_precluster_reduction
-                    this.handles.menu_number_of_data_segments];                
+                this.handles.check_normalizevalues
+                this.handles.menu_feature
+                this.handles.menu_signalsource
+                this.handles.menu_plottype
+                this.handles.menu_weekdays
+                this.handles.menu_clusterMethod
+                this.handles.menu_clusterStartTime
+                this.handles.menu_clusterStopTime
+                this.handles.menu_duration
+                this.handles.push_refreshClusters
+                this.handles.check_trim
+                this.handles.edit_trimToPercent
+                this.handles.check_cull
+                this.handles.check_discardNonwear
+                this.handles.edit_cullToValue
+                this.handles.check_segment
+                this.handles.menu_precluster_reduction
+                this.handles.menu_number_of_data_segments];
         end
         
         
@@ -1818,14 +1822,14 @@ classdef PAStatTool < PAViewController
         function disablePrimaryContextMenus(this)
             set(this.handles.axes_primary,'uicontextmenu', []);
         end
-
+        
         function enableSecondaryContextMenus(this)
             set(this.handles.axes_secondary,'uicontextmenu', this.handles.contextmenu.secondaryAxes.uicontextmenu);
         end
         
         function disableSecondaryContextMenus(this)
             set(this.handles.axes_secondary,'uicontextmenu', []);
-        end        
+        end
         
         function didInit = initCallbacks(this)
             
@@ -1834,7 +1838,7 @@ classdef PAStatTool < PAViewController
             if(ishandle(this.figureH))
                 
                 set(this.handles.btngrp_clusters,'SelectionChangedFcn',@this.distributionChangeCb);
-
+                
                 set(this.handles.menu_weekdays,'callback',@this.menuWeekdaysCallback);
                 
                 set([
@@ -1874,15 +1878,15 @@ classdef PAStatTool < PAViewController
                     this.handles.edit_minClusters
                     this.handles.edit_clusterConvergenceThreshold
                     this.handles.menu_duration
-                    ],'callback',@this.enableClusterRecalculation);                
-                                                
+                    ],'callback',@this.enableClusterRecalculation);
+                
                 % add a context menu now to figureH in order to use with cluster load
                 % shape line handles.
                 this.handles.contextmenu.clusterLineMember = uicontextmenu('parent',this.figureH);
                 uimenu(this.handles.contextmenu.clusterLineMember,'Label','Show all from this subject',...
                     'callback',@this.showSelectedMemberShapesCallback);
                 
-                % add a context menu now to primary axes 
+                % add a context menu now to primary axes
                 contextmenu_primaryAxes = uicontextmenu('parent',this.figureH);
                 this.handles.contextmenu.primaryAxes = struct('uicontextmenu', contextmenu_primaryAxes);
                 
@@ -1920,13 +1924,13 @@ classdef PAStatTool < PAViewController
         %> @param widgetSettings GUI setting parameters (optional).  If
         %> this is not included or is empty, then the default parameters are
         %> used to initialize the gui (See getDefaults).
-        % ======================================================================        
+        % ======================================================================
         function didInit = initWidgets(this, widgetSettings)
             if(nargin>1)
                 this.logError([],'settings are not used in initialization!');
             end
             
-            try                
+            try
                 btnProps = {'loadshape_membership','Loadshapes per cluster'
                     'participant_membership','Participants per cluster'
                     'nonwear_membership','Nonwear per cluster'
@@ -1964,7 +1968,7 @@ classdef PAStatTool < PAViewController
                 set(this.handles.check_trim,'min',0,'max',1,'value',this.getSetting('trimResults'));
                 set(this.handles.check_cull,'min',0,'max',1,'value',this.getSetting('cullResults'));
                 set(this.handles.check_normalizevalues,'min',0,'max',1,'value',this.getSetting('normalizeValues'));
-
+                
                 didInit = true;
             catch me
                 showME(me);
@@ -2013,16 +2017,16 @@ classdef PAStatTool < PAViewController
             
             showReady@PAViewController(this, varargin{:});
         end
-                
         
-%         function bgColorClickOnCb(this, hToggle, e)
-%             % curState = get(hToggle,'state');
-%             this.setStatus(e.EventName);
-%         end
-%         function bgColorClickOffCb(this, hToggle, e)
-%             % curState = get(hToggle,'state');
-%             this.setStatus(e.EventName);
-%         end
+        
+        %         function bgColorClickOnCb(this, hToggle, e)
+        %             % curState = get(hToggle,'state');
+        %             this.setStatus(e.EventName);
+        %         end
+        %         function bgColorClickOffCb(this, hToggle, e)
+        %             % curState = get(hToggle,'state');
+        %             this.setStatus(e.EventName);
+        %         end
         
         function showBg = isBgColorDisplayOn(this)
             showBg = istoggled(this.toolbarH.cluster.toggle_backgroundColor);
@@ -2039,7 +2043,7 @@ classdef PAStatTool < PAViewController
         
         
         % ======================================================================
-        %> @brief Callback to enable the push_refreshClusters button.  The button's 
+        %> @brief Callback to enable the push_refreshClusters button.  The button's
         %> background color is switched to green to highlight the change and need
         %> for recalculation.
         %> @param this Instance of PAStatTool
@@ -2057,7 +2061,7 @@ classdef PAStatTool < PAViewController
                 
                 fgColor = get(0,'FactoryuicontrolForegroundColor');
                 bgColor = get(0,'FactoryuicontrolBackgroundColor');
-            
+                
                 set(this.handles.push_refreshClusters,'enable','on',...
                     'backgroundcolor',bgColor,'string','Recalculate',...
                     'foregroundcolor',fgColor,...
@@ -2075,9 +2079,9 @@ classdef PAStatTool < PAViewController
             %             bgColor = get(0,'FactoryuicontrolBackgroundColor');
             %             fgColor = [0.94 0.94 0.94 ];
             fgColor = [1 1 1];
-
+            
             set(this.handles.push_refreshClusters,'enable','on',...
-                'fontsize',12,'fontweight','bold',...            
+                'fontsize',12,'fontweight','bold',...
                 'backgroundcolor',bgColor,'string','Cancel',...
                 'foregroundcolor',fgColor,...
                 'callback',@this.cancelClustersCalculationCallback);
@@ -2112,7 +2116,7 @@ classdef PAStatTool < PAViewController
                 name = 'Custom selection';
                 
                 promptString = 'Select day(s) of week to use in clustering';
-                selectionMode = 'multiple';                
+                selectionMode = 'multiple';
                 
                 [selection, okayChecked] = listdlg('liststring',listString,...
                     'name',name,'promptString',promptString,...
@@ -2120,10 +2124,10 @@ classdef PAStatTool < PAViewController
                     'initialValue',initialValue,'selectionMode',selectionMode);
                 
                 if(okayChecked && ~isempty(selection) && ~isequal(selection,initialValue))
-                    this.base.weekdayValues{customIndex} = selection-1;  %return to 0 based indexing for day of week fields.  
+                    this.base.weekdayValues{customIndex} = selection-1;  %return to 0 based indexing for day of week fields.
                     this.previousState.weekdaySelection = curValue;
                     set(hObject,'tooltipstring',cell2str(listString(selection)));
-                    this.enableClusterRecalculation();                    
+                    this.enableClusterRecalculation();
                 else
                     set(hObject,'value',this.previousState.weekdaySelection);
                 end
@@ -2146,15 +2150,15 @@ classdef PAStatTool < PAViewController
             else
                 f = f(1);
             end
-            figure(f); % make it current;            
+            figure(f); % make it current;
             numPlots = numel(fname);
             numBins = 100;
             for p=1:numPlots()
                 subplot(numPlots,1,p);
-                field = fname{p};                
+                field = fname{p};
                 hist(pData.(field), numBins);                 %#ok<*HIST>
                 fieldLabel = strrep(field,'_',' ');
-                ylabel('Subjects (n)');                
+                ylabel('Subjects (n)');
                 title(fieldLabel);
                 xlabel(fieldLabel)
             end
@@ -2163,78 +2167,78 @@ classdef PAStatTool < PAViewController
         end
         
         function analyzeClustersCallback(this, hObject,eventData)
-           % Get my cluster Object
-           % Take in all of the clusters, or the ones selected
-           % Apply to see how well it splits the data...
-           % Requires: addpath('/users/unknown/Google Drive/work/Stanford - Pediatrics/code/models');
-           initString = get(hObject,'string');
-           try
-               set(hObject,'enable','off','String','Analyzing ...');
-               dependentVar = this.getProfileFieldSelection();
-               %                'bmi_zscore'
-               %                'bmi_zscore+'  %for logistic regression modeling
-               %
-               % --all--               
-               covariateStruct = this.clusterObj.getCovariateStruct();
-               covariateStruct.id.memberIDs = covariateStruct.memberIDs;
-               covariateStruct = covariateStruct.id; 
-               % Normalize values
-               % values = covariateStruct.values;
-               % covariateStruct.values = diag(sum(values,2))*values;
-               % [resultStr, resultStruct] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'});
-               
-               % current selection               
-               coiSortOrders = this.clusterObj.getAllCOISortOrders();
-               %covariateStruct = this.clusterObj.getCovariateStruct();
-               
-               if(numel(coiSortOrders)>1)
-                   % If we have multiple elements selected then group
-                   % together and add as an extra element to the other
-                   % group.
-                   nonCoiInd = true(size(covariateStruct.colnames));
-                   nonCoiInd(coiSortOrders) = false;
-                   coiColname = {cell2str(covariateStruct.colnames(coiSortOrders),' AND ')};
-                   coiVarname = {cell2str(covariateStruct.varnames(coiSortOrders),'_AND_')};
-                   coiValues =  sum(covariateStruct.values(:,coiSortOrders),2); %sum across each row
-                   
-                   covariateStruct.values = [covariateStruct.values(:,nonCoiInd), coiValues];
-                   covariateStruct.colnames = [covariateStruct.colnames(nonCoiInd), coiColname];
-                   covariateStruct.varnames = [covariateStruct.varnames(nonCoiInd), coiVarname];
-                   coiSortOrders = numel(covariateStruct.varnames);
-                   %                    covariateStruct = this.clusterObj.getCovariateStruct(coiSortOrders);
-                   %                    covariateStruct.colnames = {cell2str(covariateStruct.colnames,' AND ')};
-                   %                    covariateStruct.varnames = {cell2str(covariateStruct.varnames,'_AND_')};
-                   %                    covariateStruct.values = sum(covariateStruct.values,2); %sum each row
-                   
-               end
-               
-               [resultStr, resultStruct] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'}, coiSortOrders);
-               %                [resultStr, resultStruct] = gee_model(this.clusterObj.getCovariateStruct(this.clusterObj.getCOISortOrder()),dependentVar,{'age'; '(sex=1) as male'});
-               if(~isempty(resultStr))
-                   if(this.hasIcon)
-                       CreateStruct.WindowStyle='replace';
-                       CreateStruct.Interpreter='tex';
-                       resultStr = strrep(resultStr,'_',' ');
-                       resultStr = strrep(resultStr,'B=','\beta = ');
-                       msgbox(sprintf('%s',resultStr),resultStruct.covariateName,'custom',this.iconData,this.iconCMap,CreateStruct);
-                   else
-                       msgbox(resultStr,resultStruct.covariateName);
-                   end
-               end
-                   
-           catch me
-               set(hObject,'string','Error!');
-               showME(me);
-               pause(1);
-           end
-           set(hObject,'enable','on','string',initString);            
+            % Get my cluster Object
+            % Take in all of the clusters, or the ones selected
+            % Apply to see how well it splits the data...
+            % Requires: addpath('/users/unknown/Google Drive/work/Stanford - Pediatrics/code/models');
+            initString = get(hObject,'string');
+            try
+                set(hObject,'enable','off','String','Analyzing ...');
+                dependentVar = this.getProfileFieldSelection();
+                %                'bmi_zscore'
+                %                'bmi_zscore+'  %for logistic regression modeling
+                %
+                % --all--
+                covariateStruct = this.clusterObj.getCovariateStruct();
+                covariateStruct.id.memberIDs = covariateStruct.memberIDs;
+                covariateStruct = covariateStruct.id;
+                % Normalize values
+                % values = covariateStruct.values;
+                % covariateStruct.values = diag(sum(values,2))*values;
+                % [resultStr, resultStruct] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'});
+                
+                % current selection
+                coiSortOrders = this.clusterObj.getAllCOISortOrders();
+                %covariateStruct = this.clusterObj.getCovariateStruct();
+                
+                if(numel(coiSortOrders)>1)
+                    % If we have multiple elements selected then group
+                    % together and add as an extra element to the other
+                    % group.
+                    nonCoiInd = true(size(covariateStruct.colnames));
+                    nonCoiInd(coiSortOrders) = false;
+                    coiColname = {cell2str(covariateStruct.colnames(coiSortOrders),' AND ')};
+                    coiVarname = {cell2str(covariateStruct.varnames(coiSortOrders),'_AND_')};
+                    coiValues =  sum(covariateStruct.values(:,coiSortOrders),2); %sum across each row
+                    
+                    covariateStruct.values = [covariateStruct.values(:,nonCoiInd), coiValues];
+                    covariateStruct.colnames = [covariateStruct.colnames(nonCoiInd), coiColname];
+                    covariateStruct.varnames = [covariateStruct.varnames(nonCoiInd), coiVarname];
+                    coiSortOrders = numel(covariateStruct.varnames);
+                    %                    covariateStruct = this.clusterObj.getCovariateStruct(coiSortOrders);
+                    %                    covariateStruct.colnames = {cell2str(covariateStruct.colnames,' AND ')};
+                    %                    covariateStruct.varnames = {cell2str(covariateStruct.varnames,'_AND_')};
+                    %                    covariateStruct.values = sum(covariateStruct.values,2); %sum each row
+                    
+                end
+                
+                [resultStr, resultStruct] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'}, coiSortOrders);
+                %                [resultStr, resultStruct] = gee_model(this.clusterObj.getCovariateStruct(this.clusterObj.getCOISortOrder()),dependentVar,{'age'; '(sex=1) as male'});
+                if(~isempty(resultStr))
+                    if(this.hasIcon)
+                        CreateStruct.WindowStyle='replace';
+                        CreateStruct.Interpreter='tex';
+                        resultStr = strrep(resultStr,'_',' ');
+                        resultStr = strrep(resultStr,'B=','\beta = ');
+                        msgbox(sprintf('%s',resultStr),resultStruct.covariateName,'custom',this.iconData,this.iconCMap,CreateStruct);
+                    else
+                        msgbox(resultStr,resultStruct.covariateName);
+                    end
+                end
+                
+            catch me
+                set(hObject,'string','Error!');
+                showME(me);
+                pause(1);
+            end
+            set(hObject,'enable','on','string',initString);
         end
         
         function exportTableResultsCallback(this, hObject,eventData)
             tableData = get(this.handles.table_clusterProfiles,'data');
             copy2workspace(tableData,'clusterProfilesTable');
         end
-                
+        
         function showAnalysisFigure(this)
             this.setAnalysisFigureVisibility('on');
         end
@@ -2249,8 +2253,8 @@ classdef PAStatTool < PAViewController
         
         function hideAnalysisFigureCb(this,varargin)
             this.hideAnalysisFigure();
-        end        
-        function toggleAnalysisFigureCb(this, varargin)    
+        end
+        function toggleAnalysisFigureCb(this, varargin)
             if(this.shouldShowAnalysisFigure())
                 this.showAnalysisFigure();
             else
@@ -2259,11 +2263,11 @@ classdef PAStatTool < PAViewController
         end
         
         function primaryAxesHorizontalGridContextmenuCallback(this,hObject,~)
-            set(get(hObject,'children'),'checked','off');            
+            set(get(hObject,'children'),'checked','off');
             set(this.handles.contextmenu.horizontalGridLines.(get(this.handles.axes_primary,'ygrid')),'checked','on');
         end
         
-        function primaryAxesHorizontalGridCallback(this,hObject,~,gridState)            
+        function primaryAxesHorizontalGridCallback(this,hObject,~,gridState)
             this.setPrimaryAxesHorizontalGrid(gridState);
         end
         function setPrimaryAxesHorizontalGrid(this, gridState)
@@ -2271,17 +2275,17 @@ classdef PAStatTool < PAViewController
                 this.setSetting('primaryAxis_horizontalGrid', gridState);
                 set(this.handles.axes_primary,'ygrid',gridState);
             end
-        end        
+        end
         
         % This is a parent contextmenu callback which updates check marks
         % for submenus
         function primaryAxesScalingContextmenuCallback(this,hObject,~)
-            set(get(hObject,'children'),'checked','off');            
+            set(get(hObject,'children'),'checked','off');
             set(this.handles.contextmenu.axesYLimMode.(get(this.handles.axes_primary,'ylimmode')),'checked','on');
         end
-            
+        
         function setPrimaryAxesYMode(this, yScalingMode)
-            if strcmpi(yScalingMode, 'user')                
+            if strcmpi(yScalingMode, 'user')
                 y_limits = ylim(this.handles.axes_primary);
                 prompt={'Enter y-min:','Enter y-max:'};
                 name='Set y-axis limits';
@@ -2290,22 +2294,22 @@ classdef PAStatTool < PAViewController
                 options.Resize='on';
                 options.WindowStyle='normal';
                 options.Interpreter='tex';
-                answer=inputdlg(prompt,name,numlines,defaultanswer, options);                
+                answer=inputdlg(prompt,name,numlines,defaultanswer, options);
                 if ~isempty(answer)
                     y_min = str2double(answer{1});
                     y_max = str2double(answer{2});
-                    try 
+                    try
                         set(this.handles.axes_primary,'ylim',[y_min, y_max], 'ylimmode','manual',...
                             'ytickmode','auto',...
-                            'yticklabelmode','auto');                        
+                            'yticklabelmode','auto');
                         this.plotClusters();
                     catch me
-                       showME(me); 
+                        showME(me);
                     end
                     
                 end
             else
-            
+                
                 set(this.handles.axes_primary,'ylimmode',yScalingMode,...
                     'ytickmode',yScalingMode,...
                     'yticklabelmode',yScalingMode);
@@ -2319,7 +2323,7 @@ classdef PAStatTool < PAViewController
             end
         end
         
-        function primaryAxesScalingCallback(this,hObject,~,yScalingMode)            
+        function primaryAxesScalingCallback(this,hObject,~,yScalingMode)
             this.setPrimaryAxesYMode(yScalingMode);
         end
         
@@ -2345,14 +2349,14 @@ classdef PAStatTool < PAViewController
                 yScalingMode = 'auto';
             end
             this.setPrimaryAxesYMode(yScalingMode);
-        end        
+        end
         
         function primaryAxesNextPlotContextmenuCallback(this,hObject,~)
             set(get(hObject,'children'),'checked','off');
             set(this.handles.contextmenu.nextPlot.(get(this.handles.axes_primary,'nextplot')),'checked','on');
         end
         
-        function setNextPlotBehavior(this, nextPlot)            
+        function setNextPlotBehavior(this, nextPlot)
             set(this.handles.axes_primary,'nextplot',nextPlot);
             this.setSetting('primaryAxis_nextPlot', nextPlot);
         end
@@ -2361,7 +2365,7 @@ classdef PAStatTool < PAViewController
             this.setNextPlotBehavior(nextPlot);
         end
         
-        function checkHoldPlotsCb(this,hObject,~)            
+        function checkHoldPlotsCb(this,hObject,~)
             % Is it checked?
             if(istoggled(hObject))
                 nextPlot = 'add';
@@ -2372,7 +2376,7 @@ classdef PAStatTool < PAViewController
         end
         
         function contextmenu_secondaryAxesCallback(this,varargin)
-            % This may be easier to maintain ... 
+            % This may be easier to maintain ...
             contextMenus = this.handles.contextmenu.secondaryAxes;
             if(isfield(contextMenus,'nextPlot'))
                 contextMenus = rmfield(contextMenus,'nextPlot');
@@ -2386,22 +2390,22 @@ classdef PAStatTool < PAViewController
             set(struct2array(contextMenus),'checked','off');
             set(contextMenus.(this.getSetting('clusterDistributionType')),'checked','on');
             
-            % Than this 
+            % Than this
             %             set([this.handles.contextmenu.performance
             %                 this.handles.contextmenu.weekday
             %                 this.handles.contextmenu.membership
             %                 this.handles.contextmenu.profile],'checked','off');
             %             set(this.handles.contextmenu.(this.getSetting('clusterDistributionType')),'checked','on');
-        end               
+        end
         
         function clusterDistributionCb(this,hObject,eventdata,selection)
             this.setClusterDistributionType(selection);
             this.plotClusters();
-        end   
+        end
         
         function refreshScatterPlot(this)
             displayStrings = get(this.handles.line_coiInScatterPlot,'displayname');
-
+            
             this.initScatterPlotAxes();
             
             figSource = 'unset';
@@ -2411,7 +2415,7 @@ classdef PAStatTool < PAViewController
                 figSource = 'Outcome .txt files';
             end
             set(this.analysisFigureH,'name',sprintf('Cluster Analysis (%s)',figSource));
-
+            
             if(~isempty(this.clusterObj))
                 numClusters = this.clusterObj.getNumClusters();  %or numel(globalStruct.colnames).
                 sortOrders = find( this.clusterObj.getCOIToggleOrder() );
@@ -2468,8 +2472,8 @@ classdef PAStatTool < PAViewController
             this.initHandles();
             
             % Initialize the scatter plot axes
-            this.initScatterPlotAxes();            
-            set(this.handles.push_plotHistogram,'string','Histogram','callback',@this.analysisFigurePlotHistogramCb);            
+            this.initScatterPlotAxes();
+            set(this.handles.push_plotHistogram,'string','Histogram','callback',@this.analysisFigurePlotHistogramCb);
             set(this.handles.push_analyzeClusters,'string','Analyze Selection','callback',@this.analyzeClustersCallback);
             set(this.handles.push_exportTable,'string','Export Table','callback',@this.exportTableResultsCallback);
             set(this.handles.text_analysisTitle,'string','','fontsize',12);
@@ -2500,7 +2504,7 @@ classdef PAStatTool < PAViewController
             end
             
             set(this.handles.menu_ySelection,'string',this.profileFields,'value',profileFieldSelection,'callback',@this.profileFieldMenuSelectionChangeCallback);
-
+            
             numRows = numel(rowNames);
             backgroundColor = repmat([1 1 1; 0.94 0.94 0.94],ceil(numRows/2),1); % possibly have one extra if numRows is odd.
             backgroundColor = backgroundColor(1:numRows,:);  %make sure we only get as many rows as we actually have.
@@ -2520,7 +2524,7 @@ classdef PAStatTool < PAViewController
             % DefaultUIStyleTableModel which does not provide the same
             % functionality (namely setRowData)
             %             this.jhandles.table_clusterProfiles.setModel(javax.swing.table.DefaultTableModel(tableData,profileColumnNames));
-                     
+            
             %             curStack = dbstack;
             %             fprintf(1,'Skipping cluster profile table initialization on line %u of %s\n',curStack(1).line,curStack(1).file);
             set(this.handles.table_clusterProfiles,'rowName',rowNames,'columnName',profileColumnNames,...
@@ -2528,7 +2532,7 @@ classdef PAStatTool < PAViewController
                 'backgroundColor',backgroundColor,'rowStriping','on',...
                 'data',tableData,...
                 'userdata',userData,'CellSelectionCallback',@this.analysisTableCellSelectionCallback);
-
+            
             
             % May or may not occur depending on state of cached values, but
             % if there are loaded table or database values, go ahead and
@@ -2538,11 +2542,11 @@ classdef PAStatTool < PAViewController
                     % this will clear it out to a blank table.
                     this.refreshProfileTableData();
                 end
-            end            
+            end
             fitTableWidth(this.handles.table_clusterProfiles);
             this.setProfileFieldIndex(profileFieldSelection);
         end
-
+        
         % ======================================================================
         %> @brief Initialize the scatter plot axes (of the analysis
         %> figure).
@@ -2569,11 +2573,11 @@ classdef PAStatTool < PAViewController
             % add a context menu now to primary axes
             contextmenu_ScatterPlotAxes = uicontextmenu('parent',this.analysisFigureH);
             this.handles.contextmenu.toggleLegend = uimenu(contextmenu_ScatterPlotAxes,'Label','Toggle legend','callback',{@this.toggleLegendCallback,this.handles.axes_scatterplot});
-            set(this.handles.axes_scatterplot,'uicontextmenu',contextmenu_ScatterPlotAxes);  
+            set(this.handles.axes_scatterplot,'uicontextmenu',contextmenu_ScatterPlotAxes);
         end
-
         
-        function initToolbar(this)  
+        
+        function initToolbar(this)
             toolbarTags.cluster = {
                 'toggle_backgroundColor'
                 'toggle_holdPlots'
@@ -2631,7 +2635,7 @@ classdef PAStatTool < PAViewController
             set(this.toolbarH.cluster.toggle_analysisFigure,'state',offOnState{this.getSetting('showAnalysisFigure')+1});
             set(this.toolbarH.cluster.toggle_backgroundColor,'state',offOnState{this.getSetting('showTimeOfDayAsBackgroundColor')+1}); %'OffCallback',@this.toggleBgColorCb,'OnCallback',@this.toggleBgColorCb);
             
-        end 
+        end
         
         
         % only extract the handles we are interested in using for the stat tool.
@@ -2671,7 +2675,7 @@ classdef PAStatTool < PAViewController
             
             jAnalysisFrame = get(this.analysisFigureH,'JavaFrame');
             jAnalysisFigPanel = get(jAnalysisFrame,'FigurePanelContainer');
-%             this.jhandles.table_clusterProfiles=jFigPanel.getComponent(0).getComponent(0).getComponent(0).getComponent(0).getComponent(0);
+            %             this.jhandles.table_clusterProfiles=jFigPanel.getComponent(0).getComponent(0).getComponent(0).getComponent(0).getComponent(0);
             
             this.jhandles.table_clusterProfiles = javaObjectEDT(jAnalysisFigPanel.getComponent(0).getComponent(5).getComponent(0).getComponent(0).getComponent(0));
             scrollPane =        javaObjectEDT(jAnalysisFigPanel.getComponent(0).getComponent(5).getComponent(0));
@@ -2685,13 +2689,13 @@ classdef PAStatTool < PAViewController
             this.jhandles.verticalScrollPane = verticalScrollPane;
             this.jhandles.table = jTable;
             %             j.getUIClassID=='TableUI';
-        
+            
             %countComponents(jFigPanel.getComponent(0))
             %getName(this.jhandles.table_clusterProfiles)) -->
             %table_clusterProfiles
             
             %jStatToolFrame = get(this.figureH,'JavaFrame');
-            %jStatToolFigPanel = get(jStatToolFrame,'FigurePanelContainer');            
+            %jStatToolFigPanel = get(jStatToolFrame,'FigurePanelContainer');
             
             % allocate line handle names here for organizational consistency
             this.handles.line_allScatterPlot = [];
@@ -2702,8 +2706,8 @@ classdef PAStatTool < PAViewController
         end
         
         function toggleOnOffCb(this, toggleH, evtData)
-           cdataStruct = get(toggleH,'userdata');           
-           set(toggleH,'cdata',cdataStruct.(evtData.EventName));
+            cdataStruct = get(toggleH,'userdata');
+            set(toggleH,'cdata',cdataStruct.(evtData.EventName));
         end
         
         % ======================================================================
@@ -2713,7 +2717,7 @@ classdef PAStatTool < PAViewController
         function initBase(this)
             this.base = this.getBaseSettings();
         end
-
+        
         % ======================================================================
         %> @brief Display a selection of results organized by day of the
         %> week.
@@ -2724,7 +2728,7 @@ classdef PAStatTool < PAViewController
         function plotSelection(this,plotOptions)
             axesHandle = this.handles.axes_primary;
             daysofweek = this.featureStruct.startDaysOfWeek;
-                        
+            
             % daysofweekStr = this.base.daysOfWeekShortDescriptions; %{'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
             daysofweekStr = this.base.daysOfWeekDescriptions; %{'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
             daysofweekOrder = this.base.daysOfWeekOrder; %1:7;
@@ -2753,7 +2757,7 @@ classdef PAStatTool < PAViewController
                         else
                             imageMap(dayofweek+1) = sum(sum(features(dayofweek==daysofweek,:),1))/numSubjects;
                         end
-                        daysofweekStr{dayofweekIndex} = sprintf('%s (n=%u)',daysofweekStr{dayofweekIndex},numSubjects);                        
+                        daysofweekStr{dayofweekIndex} = sprintf('%s (n=%u)',daysofweekStr{dayofweekIndex},numSubjects);
                     end
                     
                     bar(axesHandle,imageMap);
@@ -2769,7 +2773,7 @@ classdef PAStatTool < PAViewController
                         daysofweekStr{dayofweekIndex} = sprintf('%s (n=%u)',daysofweekStr{dayofweekIndex},numSubjects);
                     end
                     
-                    bar(axesHandle,imageMap);                    
+                    bar(axesHandle,imageMap);
                     weekdayticks = linspace(1,7,7);
                     
                 case 'morningheatmap'  %note: I use 24 to represent the first 6 hours of the morning (24 x 15 minute blocks = 6 hours)
@@ -2815,7 +2819,7 @@ classdef PAStatTool < PAViewController
                     end
                     %            imageMap=imageMap/max(imageMap(:));
                     rollingMap = imageMap';
-                    plot(axesHandle,rollingMap(:));                    
+                    plot(axesHandle,rollingMap(:));
                     weekdayticks = linspace(0,divisionsPerDay*6,7);
                     set(axesHandle,'ygrid','on');
                     
@@ -2826,7 +2830,7 @@ classdef PAStatTool < PAViewController
                     end
                     %            imageMap=imageMap/max(imageMap(:));
                     rollingMap = imageMap';
-                    plot(axesHandle,rollingMap(:));                    
+                    plot(axesHandle,rollingMap(:));
                     weekdayticks = linspace(0,24*6,7);
                     set(axesHandle,'ygrid','on');
                     
@@ -2834,16 +2838,16 @@ classdef PAStatTool < PAViewController
                     disp Oops!;
             end
             hT = title(axesHandle,plotOptions.titleStr,'fontsize',14);%,'units','normalized','visible','off');
-
+            
             xlimits = minmax(weekdayticks);
-
+            
             if(strcmpi(plotOptions.plotType,'dailytally')||strcmpi(plotOptions.plotType,'dailyaverage'))
                 xlimits = xlimits+[-1,1]*0.75;
             end
             set(axesHandle,'xtick',weekdayticks,'xticklabel',daysofweekStr,'xlim',xlimits);
         end
-
-                
+        
+        
         % ======================================================================
         %> @brief Callback for trim percent change edit box
         %> @param this Instance of PAStatTool
@@ -2872,7 +2876,7 @@ classdef PAStatTool < PAViewController
             else
                 enableState = 'off';
             end
-            set(this.handles.edit_trimToPercent,'enable',enableState);            
+            set(this.handles.edit_trimToPercent,'enable',enableState);
             this.refreshPlot();
         end
         % ======================================================================
@@ -2903,19 +2907,19 @@ classdef PAStatTool < PAViewController
             else
                 enableState = 'off';
             end
-            set(this.handles.edit_cullToValue,'enable',enableState);            
+            set(this.handles.edit_cullToValue,'enable',enableState);
             this.refreshPlot();
         end
-       
+        
         % ======================================================================
         %> @brief Push button callback for displaying the next cluster.
         %> @param this Instance of PAStatTool
         %> @param Variable number of arguments required by MATLAB gui callbacks
         % ======================================================================
-        function showNextClusterCallback(this, varargin)            
+        function showNextClusterCallback(this, varargin)
             this.showNextCluster();
         end
-                
+        
         % ======================================================================
         %> @brief Push button callback for displaying the next cluster.
         %> @param this Instance of PAStatTool
@@ -2933,7 +2937,7 @@ classdef PAStatTool < PAViewController
                 if(toggleOn)
                     didChange = this.clusterObj.toggleOnNextCOI();
                 else
-                    didChange = this.clusterObj.increaseCOISortOrder();                    
+                    didChange = this.clusterObj.increaseCOISortOrder();
                 end
                 if(didChange)
                     this.plotClusters();
@@ -2983,39 +2987,39 @@ classdef PAStatTool < PAViewController
         %> membership is checked, and off when it is unchecked.
         % ======================================================================
         function checkShowClusterMembershipCallback(this,hObject,varargin)
-            this.plotClusters();            
+            this.plotClusters();
             % Is it checked?
             if(istoggled(hObject))
                 set(this.handles.axes_primary,'ygrid','on');
                 [~, uniqueIDs] = this.clusterObj.getClustersOfInterestMemberIDs();
                 %disp(uniqueIDs);
             else
-                set(this.handles.axes_primary,'ygrid','off');                
+                set(this.handles.axes_primary,'ygrid','off');
             end
         end
         
     end
     
     methods
-                
+        
         %> @brief Creates a matlab struct with pertinent fields related to
         %> the current cluster and its calculation, and then saves the
         %> struct in a matlab binary (.mat) file.  Fields include
         %> - clusterObj (sans handle references)
         %> - featureStruct
         %> - originalFeatureStruct
-        %> - usageStateStruct        
+        %> - usageStateStruct
         %> - featuresDirectory
         function didCache = cacheCluster(this)
             didCache = false;
             if(this.useCache)
                 if(isdir(this.cacheDirectory) || mkdir(this.cacheDirectory))
                     try
-                        tmpStruct.clusterObj = this.getClusterObj();  
+                        tmpStruct.clusterObj = this.getClusterObj();
                         tmpStruct.clusterObj.removeHandleReferences();
                         tmpStruct.featureStruct = this.featureStruct;
                         tmpStruct.originalFeatureStruct = this.originalFeatureStruct;
-                        tmpStruct.usageStateStruct = this.usageStateStruct;                        
+                        tmpStruct.usageStateStruct = this.usageStateStruct;
                         tmpStruct.featuresDirectory = this.featuresDirectory;
                         tmpStruct.nonwear = this.nonwear;
                         fnames = fieldnames(tmpStruct);
@@ -3028,9 +3032,9 @@ classdef PAStatTool < PAViewController
                 end
             end
         end
-
+        
         function featureStruct = getFeatureStruct(this)
-            featureStruct = this.featureStruct;            
+            featureStruct = this.featureStruct;
         end
         
         function durHours=  getFeatureVecDurationInHours(this)
@@ -3046,7 +3050,7 @@ classdef PAStatTool < PAViewController
         function [startEndTimeStr, startEndDatenums] = getStartEndTimes(this)
             startEndTimeStr = {getMenuString(this.handles.menu_clusterStartTime);
                 getMenuString(this.handles.menu_clusterStopTime)};
-            startEndDatenums = datenum(startEndTimeStr);            
+            startEndDatenums = datenum(startEndTimeStr);
         end
         
         function startTimes = getStartTimesCell(this)
@@ -3054,12 +3058,12 @@ classdef PAStatTool < PAViewController
                 startTimes = this.featureStruct.startTimes;
             else
                 startTimes = {};
-            end            
+            end
         end
         
         
         function bootstrapCallback(this,varargin)
-
+            
             bootSettings = struct();
             defaultSettings = struct();
             defaults  = this.getDefaults();
@@ -3076,7 +3080,7 @@ classdef PAStatTool < PAViewController
                     pName = this.bootstrapParamNames{f};
                     this.(pName) = bootSettings.ouputStruct.(pName);
                 end
-                this.bootstrap();                
+                this.bootstrap();
             end
         end
         
@@ -3095,18 +3099,18 @@ classdef PAStatTool < PAViewController
             try
                 
                 % configure bootstrap
-
+                
                 paramNames = {'clusterCount','silhouetteIndex','calinskiIndex'};
                 params = mkstruct(paramNames,nan(1,numBootstraps));
                 
                 bootstrapUsing = this.bootstrapSampleName; % 'studyID';  % or 'days'
-        
-                if(strcmpi(bootstrapUsing,'days'))                
+                
+                if(strcmpi(bootstrapUsing,'days'))
                     sample_size = numel(this.originalFeatureStruct.studyIDs);
                     boot_daysInd = randi(sample_size,[sample_size,numBootstraps]);
                 else
                     sample_size = numel(this.originalFeatureStruct.uniqueIDs);
-                    boot_studyInd = randi(sample_size,[sample_size,numBootstraps]);                    
+                    boot_studyInd = randi(sample_size,[sample_size,numBootstraps]);
                 end
                 
                 allowUserCancel = false;
@@ -3115,7 +3119,7 @@ classdef PAStatTool < PAViewController
                     
                     if(~didCancel && ishandle(h))
                         %featureStruct = this.StatTool.getFeatureStruct();
-                        timeElapsedStr = getTimeElapsedStr(startTime);                        
+                        timeElapsedStr = getTimeElapsedStr(startTime);
                         msg = sprintf('Bootstrapping %d of %d  (%s)',n,numBootstraps,timeElapsedStr);
                         waitbar(n/numBootstraps,h,msg);
                         this.setStatus(msg);
@@ -3135,9 +3139,9 @@ classdef PAStatTool < PAViewController
                                 
                                 ind2use(curVecInd:curVecInd+daysPerStudy(row)-1) = indFirstLast(row,1):indFirstLast(row,2);
                                 curVecInd = curVecInd+daysPerStudy(row);
-                            end                 
+                            end
                         end
-                        if(this.refreshClustersAndPlot(allowUserCancel,ind2use))                            
+                        if(this.refreshClustersAndPlot(allowUserCancel,ind2use))
                             for f=1:numel(paramNames)
                                 pName = paramNames{f};
                                 params.(pName)(n) = this.clusterObj.getParam(pName);
@@ -3159,13 +3163,13 @@ classdef PAStatTool < PAViewController
                     CI = 95;  %i.e. we want the 95% confidence interval
                     CI_alpha = 100-CI;
                     CI_range = [CI_alpha/2, 100-CI_alpha/2];  %[2.5, 97.5]
-                   
+                    
                     message = cell(numel(paramNames)+1,1);
                     message{1} = sprintf('95%% Confidence Interval(s) using\n\tbootstrap iterations = %i\n\tsample size = %i\nComputation Time: %s\n',n,sample_size,getTimeElapsedStr(startTime));
                     for f=1:numel(paramNames)
                         pName = paramNames{f};
                         values = params.(pName)(1:n);
-                        param_CI_percentile = prctile(values,CI_range);                        
+                        param_CI_percentile = prctile(values,CI_range);
                         stdVal = std(values);
                         meanVal = mean(values);
                         stdCI = meanVal+stdVal*[-1.96, +1.96];
@@ -3194,23 +3198,38 @@ classdef PAStatTool < PAViewController
         end
         
         function refreshClustersAndPlotCb(this, varargin)
-            enableUserCancel = true;
-            this.refreshClustersAndPlot(enableUserCancel);
+            enableUserCancel = true;            
+            evaluateK = this.isEvaluateKSelection();
+            this.refreshClustersAndPlot(enableUserCancel, evaluateK);
+        end
+        
+        function isIt = isEvaluateKSelection(this)
+            isIt = get(this.handles.radio_evaluate_k, 'value');
+        end
+        
+        function isIt = isClusterKSelection(this)
+            isIt = get(this.handles.radio_cluster_k, 'value');
         end
         
         % ======================================================================
         %> @brief Push button callback for updating the clusters being displayed.
         %> @param this Instance of PAStatTool
         %> @param enableUserCancel Boolean flag indicating whether user cancel
-        %> button is provided [false].
+        %> button is provided [True].
+        %> @param evaluateK Evaluate optimal K using Tibshirani's prediction strength
+        %> method instead clustering [False].
         %> @param Optional Indices of study IDs and shapes to use or string
         %> 'bootstrap' indicating a random configuration can be used.
         %> @note clusterObj is cleared at the beginning of this function.
         %> If it is empty after the function call, then the clustering
         %> failed.
         % ======================================================================
-        function didConverge = refreshClustersAndPlot(this,enableUserCancel,varargin)
+        function didConverge = refreshClustersAndPlot(this,enableUserCancel, evaluateK, varargin)
             didConverge = false;
+            if nargin<3
+                evaluateK = false;
+            end
+            
             if(nargin<2)
                 enableUserCancel = true;
             end
@@ -3221,15 +3240,16 @@ classdef PAStatTool < PAViewController
             
             this.clusterObj = [];
             this.disable();
+            this.disableWidgets();
             %this.disableClusterControls();  % disable further interaction with our cluster panel
             
             resultsTextH = this.handles.text_clusterResultsOverlay; % an alias
             % clear the analysis figure
             
             
-            if(this.calcFeatureStruct(varargin{:}))            
+            if(this.calcFeatureStruct(varargin{:}))
                 % does not converge well if not normalized as we are no longer looking at the shape alone
-
+                
                 % @b weekdayTag String to identify how/if data should be
                 % filtered according to when it was recorded during the week.
                 % Values include
@@ -3257,12 +3277,12 @@ classdef PAStatTool < PAViewController
                 %                 end
                 
                 if(~isempty(daysOfInterest))
-                    rowsOfInterest = ismember(this.featureStruct.startDaysOfWeek,daysOfInterest); 
+                    rowsOfInterest = ismember(this.featureStruct.startDaysOfWeek,daysOfInterest);
                     % fieldsOfInterest = {'startDatenums','startDaysOfWeek','shapes','features'};
                     fieldsOfInterest = {'startDaysOfWeek','features','studyIDs'};
                     for f=1:numel(fieldsOfInterest)
                         fname = fieldsOfInterest{f};
-                        this.featureStruct.(fname) = this.featureStruct.(fname)(rowsOfInterest,:);                        
+                        this.featureStruct.(fname) = this.featureStruct.(fname)(rowsOfInterest,:);
                     end
                     if this.isShowingWeekLong(pSettings)
                         % CAUTION - This works because we are guaranteed to
@@ -3278,10 +3298,10 @@ classdef PAStatTool < PAViewController
                             for f=1:numel(fieldsOfInterest)
                                 fname = fieldsOfInterest{f};
                                 this.featureStruct.(fname)(curRange,:) = this.featureStruct.(fname)(curRange(sortInd),:);
-                            end                            
-                            %this.featureStruct.startDaysOfWeek(curRange) = startDays;                            
+                            end
+                            %this.featureStruct.startDaysOfWeek(curRange) = startDays;
                         end
-                        % reshape poc: tmp = [1:2:7;2:2:8]'; 
+                        % reshape poc: tmp = [1:2:7;2:2:8]';
                         % tmp = [tmp;tmp];
                         % reshape(tmp',8,[])'
                         this.featureStruct.totalCount = 7*this.featureStruct.totalCount;
@@ -3297,10 +3317,10 @@ classdef PAStatTool < PAViewController
                         this.featureStruct.startTimes = repmat(this.featureStruct.startTimes,1,7);
                         for day_index=1:7
                             % day_label = PACluster.WEEKDAY_SHORT_LABELS{day_index};
-                            day_label = PACluster.WEEKDAY_LABELS{day_index};                            
+                            day_label = PACluster.WEEKDAY_LABELS{day_index};
                             update_index = (day_index-1)*numStartTimes+1;
                             this.featureStruct.startTimes{1,update_index} = sprintf('%s %s',day_label,this.featureStruct.startTimes{1,update_index});
-                        end                       
+                        end
                         
                         this.featureStruct.features = reshape(this.featureStruct.features',this.featureStruct.totalCount,[])';% [] should result to sum(this.featureStruct.numDays==7)
                         
@@ -3321,17 +3341,17 @@ classdef PAStatTool < PAViewController
                             end
                             
                         catch me
-                            showME(me);                            
+                            showME(me);
                         end
-                    end                    
-                end                
-               
+                    end
+                end
+                
                 set(this.handles.axes_primary,'color',[1 1 1],'xlimmode','auto','ylimmode',pSettings.primaryAxis_yLimMode,'xtickmode','auto',...
                     'ytickmode',pSettings.primaryAxis_yLimMode,'xticklabelmode','auto','yticklabelmode',pSettings.primaryAxis_yLimMode,'xminortick','off','yminortick','off');
                 set(resultsTextH,'visible','on','foregroundcolor',[0.1 0.1 0.1],'string','');
-
+                
                 % % set(this.handles.text_primaryAxes,'backgroundcolor',[0 0 0],'foregroundcolor',[1 1 0],'visible','on');
-                this.showClusterControls();                
+                this.showClusterControls();
                 drawnow();
                 
                 % This means we will create the cluster object, but not
@@ -3358,18 +3378,26 @@ classdef PAStatTool < PAViewController
                 end
                 
                 tmpClusterObj.setNonwearRows(this.nonwear.rows);
-                this.clusterObj = tmpClusterObj;
                 
-                if(enableUserCancel)
-                    this.enableClusterCancellation();
-                end
                 
-                this.clusterObj.calculateClusters();
-                
-                if(this.clusterObj.failedToConverge())
-                    warnMsg = {'Failed to converge.',[]};
-                    if(isempty(this.featureStruct.features))
-                        warnMsg = {[warnMsg{1}, ' No features found.'];
+
+                if evaluateK
+                    minK = this.getSetting('predictionStrength_minK');
+                    maxK = this.getSetting('predictionStrength_maxK');
+                    iterations = this.getSetting('predictionStrength_iterations');
+                    showProgress = ~isdeployed;
+                    predictionStrength(tmpClusterObj.loadShapes, 'mink', minK, 'maxk', maxK, 'M', iterations, 'showprogress', showProgress,'gui',true); 
+                else
+                    if(enableUserCancel)
+                        this.enableClusterCancellation();
+                    end
+                    this.clusterObj = tmpClusterObj;
+                    this.clusterObj.calculateClusters();
+                    
+                    if(this.clusterObj.failedToConverge())
+                        warnMsg = {'Failed to converge.',[]};
+                        if(isempty(this.featureStruct.features))
+                            warnMsg = {[warnMsg{1}, ' No features found.'];
                                 '';
                                 '  Hint: Try altering input settings:';
                                 '';
@@ -3377,20 +3405,19 @@ classdef PAStatTool < PAViewController
                                 '  - Reduce minimum number of clusters';
                                 '  - Include non-wear sections instead of discarding them';
                                 ''};
+                        else
+                            warnMsg{end} = 'See console for possible explanations';
+                        end
+                        warndlg(warnMsg,'Warning','modal');
+                        this.clusterObj = [];
                     else
-                        warnMsg{end} = 'See console for possible explanations';
+                        this.refreshGlobalProfile();
+                        this.clusterObj.featureStruct = this.featureStruct;
+                        this.cacheCluster();
                     end
-                    warndlg(warnMsg,'Warning','modal');
-
-                    
-                    this.clusterObj = [];
-                else
-                    this.refreshGlobalProfile();
-                    this.clusterObj.featureStruct = this.featureStruct;
-                    this.cacheCluster();
                 end
             else
-                inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);                
+                inputFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,pSettings.processType,pSettings.curSignal);
                 wrnMsg = sprintf('Could not find the input file required (%s)!',inputFilename);
                 fprintf(1,'%s\n',wrnMsg);
                 if(this.hasIcon)
@@ -3401,59 +3428,62 @@ classdef PAStatTool < PAViewController
                     warndlg(wrnMsg,'Warning','modal');
                 end
             end
-            
-            if(this.hasValidCluster()) % ~isempty(this.clusterObj))
-                didConverge = true;
-                % Prep the x-axis here since it will not change when going from one cluster to the
-                % next, but only (though not necessarily) when refreshing clusters.
-                this.drawClusterXTicksAndLabels();
-                
-                if(this.clusterObj.getUserCancelled())
-                    this.initRefreshClusterButton('on');
-                else
-                    this.initRefreshClusterButton('off');                    
-                end
-                
-                if this.isBgColorDisplayOn()
-                    dissolveIn = 0;
-                else
-                    
-                end
-                dissolveIn = 2.5;                    
-                dissolve(resultsTextH,dissolveIn);
-                this.plotClusters(pSettings);
-                this.enableClusterControls();                
+            if evaluateK
+                this.enableClusterControls();
             else
-                set(resultsTextH,'visible','off');
-                this.initRefreshClusterButton('on');  % want to initialize the button again so they can try again perhaps.
+                if(this.hasValidCluster()) % ~isempty(this.clusterObj))
+                    didConverge = true;
+                    % Prep the x-axis here since it will not change when going from one cluster to the
+                    % next, but only (though not necessarily) when refreshing clusters.
+                    this.drawClusterXTicksAndLabels();
+                    
+                    if(this.clusterObj.getUserCancelled())
+                        this.initRefreshClusterButton('on');
+                    else
+                        this.initRefreshClusterButton('off');
+                    end
+                    
+                    if this.isBgColorDisplayOn()
+                        dissolveIn = 0;
+                    else
+                        
+                    end
+                    dissolveIn = 2.5;
+                    dissolve(resultsTextH,dissolveIn);
+                    this.plotClusters(pSettings);
+                    this.enableClusterControls();
+                else
+                    set(resultsTextH,'visible','off');
+                    this.initRefreshClusterButton('on');  % want to initialize the button again so they can try again perhaps.
+                end
             end
             this.enable();
             this.showReady();
         end
         
         function cSettings = getClusterSettings(this, pSettings)
-           if(nargin<2 || isempty(pSettings))
-               pSettings = this.getPlotSettings();
-           end
-           
-           plotOnlyFields = {
-               'primaryAxis_yLimMode'
-               'primaryAxis_nextPlot'
-               'showAnalysisFigure'
-               'numShades'
-               'showTimeOfDayAsBackgroundColor'
-               'showClusterSummary'
-               'plotTypeSelection'
-               'clusterDistributionType'
-               };
-           allFields = fieldnames(pSettings);
-           fieldsToRemove = intersect(plotOnlyFields,allFields);
-           cSettings = rmfield(pSettings,fieldsToRemove);
+            if(nargin<2 || isempty(pSettings))
+                pSettings = this.getPlotSettings();
+            end
+            
+            plotOnlyFields = {
+                'primaryAxis_yLimMode'
+                'primaryAxis_nextPlot'
+                'showAnalysisFigure'
+                'numShades'
+                'showTimeOfDayAsBackgroundColor'
+                'showClusterSummary'
+                'plotTypeSelection'
+                'clusterDistributionType'
+                };
+            allFields = fieldnames(pSettings);
+            fieldsToRemove = intersect(plotOnlyFields,allFields);
+            cSettings = rmfield(pSettings,fieldsToRemove);
         end
         % Original widget settings from when the last cluster calculation
         % was performed.
         function widgetState = getStateAtTimeOfLastClustering(this)
-            widgetState = this.originalSettings;            
+            widgetState = this.originalSettings;
         end
         
         function drawClusterXTicksAndLabels(this)
@@ -3489,12 +3519,12 @@ classdef PAStatTool < PAViewController
             featureLen = featureS.totalCount;
             xlimit = [1, featureLen];
             if(numel(xTicks)>70)
-                xLabelRot = -90;                
+                xLabelRot = -90;
                 xTicks = xTicks(1:10:end);
                 xTickLabels = xTickLabels(1:10:end);
             elseif(numel(xTicks)>10)
                 xLabelRot = -45;
-            else                
+            else
                 xLabelRot = 0;
                 
                 if featureLen<2
@@ -3506,7 +3536,7 @@ classdef PAStatTool < PAViewController
             set(this.handles.axes_primary,'xlim',xlimit,'xtick',xTicks,'xticklabel',char(xTickLabels(:)),...
                 'XTickLabelRotation',xLabelRot);%,...
             
-%                 'fontsize',11); 
+            %                 'fontsize',11);
         end
         
         %> @brief Hides the panel of cluster interaction controls.  For
@@ -3529,7 +3559,7 @@ classdef PAStatTool < PAViewController
             
             containerPos = get(this.handles.panel_results,'position');  % contains shape and cluster panels
             shapePos = get(this.handles.panel_shapeSettings,'position');  % shape panel sits above the cluster panel on screen
-            clusterPos = get(this.handles.panel_clusterSettings,'position'); %             
+            clusterPos = get(this.handles.panel_clusterSettings,'position'); %
             
             hDelta = sum(clusterPos([2,4]));
             
@@ -3557,14 +3587,14 @@ classdef PAStatTool < PAViewController
             containerPos = get(this.handles.panel_results,'position');
             shapePos = get(this.handles.panel_shapeSettings,'position');
             clusterPos = get(this.handles.panel_clusterSettings,'position');
-
+            
             hDelta = sum(clusterPos([2,4]));
             
             % only resize if necessary...
             if(containerPos(4)<hDelta+shapePos(4))
                 
                 shapePos(2) = shapePos(2)+hDelta;
-                set(this.handles.panel_shapeSettings,'position',shapePos);                
+                set(this.handles.panel_shapeSettings,'position',shapePos);
                 
                 containerPos(2) = containerPos(2)-hDelta;
                 containerPos(4) = containerPos(4)+hDelta;
@@ -3572,7 +3602,7 @@ classdef PAStatTool < PAViewController
             end
             
             
-            set([                
+            set([
                 this.handles.panel_clusterSettings
                 this.handles.axes_secondary
                 this.handles.btngrp_clusters
@@ -3581,14 +3611,14 @@ classdef PAStatTool < PAViewController
         end
         
         %> @brief Enables panel_clusterSettings controls.
-        function enableClusterControls(this)            
+        function enableClusterControls(this)
             enableHandles([
-                this.handles.panel_results                            
+                this.handles.panel_results
                 this.handles.toolbar_results
                 this.handles.btngrp_clusters]);
-
+            
             this.enablePrimaryContextMenus();
-            this.enableSecondaryContextMenus();            
+            this.enableSecondaryContextMenus();
             
             % --------
             % I don't think this does anything anymore @hyatt 5/11/2017
@@ -3621,13 +3651,13 @@ classdef PAStatTool < PAViewController
                 % you really want, otherwise solution is handled already
                 % @hyatt 2/8/2020
                 ]);
-                
+            
             set(this.handles.panel_clusterInfo,'visible','off');
             set(this.handles.text_clusterResultsOverlay,'enable','on');
-            % add a context menu now to primary axes  
+            % add a context menu now to primary axes
             this.disablePrimaryContextMenus();
             this.disableSecondaryContextMenus();
-
+            
             this.clearPlots();
             set([this.handles.axes_primary
                 this.handles.axes_secondary],'color',[0.75 0.75 0.75]);
@@ -3637,22 +3667,22 @@ classdef PAStatTool < PAViewController
         %> @brief Displays most recent cluster data according to gui
         %> setttings.
         %> @param this Instance of PAStatTool
-        %> @param plotSettings Structure of GUI parameters for configuration and 
+        %> @param plotSettings Structure of GUI parameters for configuration and
         %> display of cluster data.
         % ======================================================================
         function plotClusters(this,clusterAndPlotSettings)
             
             this.clearPrimaryAxes();
             
-            %  this.clearPlots();            
+            %  this.clearPlots();
             % this.showMouseBusy();
             try
                 if(isempty(this.clusterObj)|| this.clusterObj.failedToConverge())
                     % clear everything and give a warning that the cluster is empty
                     this.logWarning('Clustering results were empty');
-                else                  
+                else
                     numClusters = this.clusterObj.numClusters();
- 
+                    
                     distributionAxes = this.handles.axes_secondary;
                     clusterAxes = this.handles.axes_primary;
                     
@@ -3666,15 +3696,15 @@ classdef PAStatTool < PAViewController
                     % load.  Add drawClusterXTicksAndLabels() to the lite
                     % method for refreshClustersAndPlot when
                     % switching2clusters is invoked.
-                    % this.drawClusterXTicksAndLabels();                    
+                    % this.drawClusterXTicksAndLabels();
                     
                     if(nargin<2)
                         clusterAndPlotSettings = this.getPlotSettings();
                     end
                     
                     
-                    %% Show clusters on primary axes                    
-                    cois = this.clusterObj.getClustersOfInterest();                    
+                    %% Show clusters on primary axes
+                    cois = this.clusterObj.getClustersOfInterest();
                     numCOIs = numel(cois);
                     clusterHandles = nan(numCOIs,1);
                     coiSortOrders = nan(numCOIs,1);
@@ -3742,13 +3772,13 @@ classdef PAStatTool < PAViewController
                         else
                             clusterHandles(c) = plot(clusterAxes,coi.shape,'linewidth',2,'linestyle',coiStyles(colorStyleIndex),'color',coiColors(colorStyleIndex),'marker',markerType,'markerfacecolor','none','markeredgecolor','k'); %[0 0 0]);
                         end
-
+                        
                         if(coi.numMembers==1)
                             set(clusterHandles(c),'uicontextmenu',this.handles.contextmenu.clusterLineMember,...
                                 'userdata',coi.memberIDs,...
                                 'buttondownfcn',{@this.memberLineButtonDownCallback,coi.memberIDs});
                         else
-                            %set(clusterHandles(c),'visible','off');                            
+                            %set(clusterHandles(c),'visible','off');
                         end
                     end
                     
@@ -3757,7 +3787,7 @@ classdef PAStatTool < PAViewController
                     legendStrings = this.displayClusterSummary(coiMemberIDs, coiSortOrders);
                     
                     if(numCOIs>1)
-                        legend(clusterAxes,clusterHandles,legendStrings,'box','on','fontsize',12);                
+                        legend(clusterAxes,clusterHandles,legendStrings,'box','on','fontsize',12);
                     else
                         legend(clusterAxes,'off');
                     end
@@ -3768,7 +3798,7 @@ classdef PAStatTool < PAViewController
                         verticalOffset = 0;
                         height = 1;
                         axesH = this.handles.axes_primary;
-                                           
+                        
                         datenumVec = datenum(this.getStartTimesCell,'HH:MM');
                         numShades = 1;
                         daylightOverlay = getDaylightEstimate(numShades,datenumVec);
@@ -3781,7 +3811,7 @@ classdef PAStatTool < PAViewController
                         % is already provided in the 'xdata' property of
                         % our axes handle.
                         startStopXData = [xdata(1:end-1);xdata(2:end)]';
-                      
+                        
                         [~, overlayPatchH] = addOverlayToAxes(axesH, daylightOverlay, startStopXData, height, verticalOffset,maxDaylight);
                         set(overlayPatchH,'hittest','off');
                         uistack(overlayPatchH,'bottom');
@@ -3789,15 +3819,15 @@ classdef PAStatTool < PAViewController
                     
                     % Analysis figure and scatter plot - highlight the
                     % selected point; the cluster of interest (coi)
-                    if(this.useDatabase || this.useOutcomes)                        
+                    if(this.useDatabase || this.useOutcomes)
                         yData = get(this.handles.line_allScatterPlot,'ydata');
                         if(~isempty(yData))
                             set(this.handles.line_coiInScatterPlot,'xdata',coiSortOrders,'ydata',yData(coiSortOrders));
                         end
                     end
-
+                    
                     oldVersion = verLessThan('matlab','7.14');
- 
+                    
                     yLabelStr = '';
                     titleStr = '';
                     %%  Show distribution on secondary axes
@@ -3861,26 +3891,26 @@ classdef PAStatTool < PAViewController
                             xlim(distributionAxes,[daysofweekOrder(1)-0.75 daysofweekOrder(end)+0.75]);
                             set(distributionAxes,'ylim',[0,1],'ygrid','on','ytickmode','auto','xtick',daysofweekOrder,'xticklabel',daysofweekStr);
                             
-                        % plots clusters id's (sorted by membership in ascending order) on x-axis
-                        % and the count of loadshapes (i.e. membership count) on the y-axis.                            
+                            % plots clusters id's (sorted by membership in ascending order) on x-axis
+                            % and the count of loadshapes (i.e. membership count) on the y-axis.
                         case {'loadshape_membership','participant_membership','weekday_scores','nonwear_membership'}
                             set(distributionAxes,'ylimmode','auto');
                             barWidth = 0.8;
                             
-                            if(strcmpi(clusterDistributionType,'loadshape_membership'))                                
-                                y = this.clusterObj.getHistogram('loadshapes');    
-                                yLabelStr = 'Loadshapes (n)';                                
+                            if(strcmpi(clusterDistributionType,'loadshape_membership'))
+                                y = this.clusterObj.getHistogram('loadshapes');
+                                yLabelStr = 'Loadshapes (n)';
                                 distTitle = 'Loadshapes by cluster';
-                            elseif(strcmpi(clusterDistributionType,'participant_membership'))                                
+                            elseif(strcmpi(clusterDistributionType,'participant_membership'))
                                 yLabelStr = 'Unique participants (n)';
                                 distTitle = 'Unique participants by cluster';
                                 y = this.clusterObj.getHistogram('participants');
-                            elseif(strcmpi(clusterDistributionType,'weekday_scores'))                                
+                            elseif(strcmpi(clusterDistributionType,'weekday_scores'))
                                 sortLikeHistogram = true;
                                 yLabelStr = 'Score';
                                 y = this.clusterObj.getWeekdayScores(sortLikeHistogram);
                                 distTitle = 'Weekday distribution scores';
-                            elseif(strcmpi(clusterDistributionType,'nonwear_membership'))                                
+                            elseif(strcmpi(clusterDistributionType,'nonwear_membership'))
                                 yLabelStr = 'Loadshapes with nonwear (n)';
                                 %y = this.clusterObj.getHistogram('loadshapes');
                                 y = this.clusterObj.getHistogram('nonwear');
@@ -3889,12 +3919,12 @@ classdef PAStatTool < PAViewController
                             end
                             titleStr = distTitle;
                             
-                            x = 1:numel(y);                            
-                            highlightColor = [0.75 0.75 0];                            
+                            x = 1:numel(y);
+                            highlightColor = [0.75 0.75 0];
                             barH = bar(distributionAxes,y,barWidth,'buttonDownFcn',@this.clusterHistogramButtonDownFcn);
                             
-                            if(strcmpi(this.getSetting('clusterDistributionType'),'weekday_scores'))     
-                               set(distributionAxes,'ylim',[-1 1]); 
+                            if(strcmpi(this.getSetting('clusterDistributionType'),'weekday_scores'))
+                                set(distributionAxes,'ylim',[-1 1]);
                             end
                             
                             if(oldVersion)
@@ -3945,7 +3975,7 @@ classdef PAStatTool < PAViewController
                 end
             catch me
                 showME(me);
-                this.clearPrimaryAxes();           
+                this.clearPrimaryAxes();
             end
             this.showMouseReady();
         end
@@ -3953,14 +3983,14 @@ classdef PAStatTool < PAViewController
         function [legendStrings, clusterTitle, clusterDescription] = displayClusterSummary(this, coiMemberIDs, coiSortOrders)
             % summaryTextH = this.handles.text_clusterResultsOverlay;
             clusterAxes = this.handles.axes_primary;
-          
+            
             numClusters = this.clusterObj.numClusters();
             numLoadShapes = this.clusterObj.numLoadShapes();
-%             numNonwear
+            %             numNonwear
             % The cluster of interest will change according to user
             % selection or interaction with the gui.  It is updated
-            % internally within clusterObj.            
-            cois = this.clusterObj.getClustersOfInterest();            
+            % internally within clusterObj.
+            cois = this.clusterObj.getClustersOfInterest();
             numCOIs = numel(cois);
             
             legendStrings = cell(numCOIs,1);
@@ -3969,7 +3999,7 @@ classdef PAStatTool < PAViewController
             coiNumNonwear = zeros(numCOIs,1);
             % summaryTextH = this.handles.text_clusterResultsOverlay;
             
-            for c=1:numCOIs                
+            for c=1:numCOIs
                 coi = cois{c};
                 
                 numCOILoadShapes = coi.numMembers;  %total load shape counts;
@@ -3992,7 +4022,7 @@ classdef PAStatTool < PAViewController
             %contributing to a particular load shape.
             uniqueMemberIDs = unique(coiMemberIDs);
             numUniqueMemberIDs = numel(uniqueMemberIDs);
-
+            
             totalMemberIDsCount = this.clusterObj.getUniqueLoadShapeIDsCount();
             pctOfTotalMemberIDs = numUniqueMemberIDs/totalMemberIDsCount*100;
             weekdayScore = coi.dayOfWeek.score;
@@ -4022,7 +4052,7 @@ classdef PAStatTool < PAViewController
             set(this.handles.text_clusterDescription,'string',clusterDescription);
             
             if(istoggled(this.toolbarH.cluster.toggle_summary) && isempty(intersect(this.getSetting('clusterDistributionType'),{'performance_progression','weekday_scores'})))
-                set(this.handles.panel_clusterInfo,'visible','on');                
+                set(this.handles.panel_clusterInfo,'visible','on');
                 % the title is cleared automatically already.
                 %title(clusterAxes,clusterTitle,'fontsize',14,'interpreter','none','visible','off');
             else
@@ -4041,14 +4071,14 @@ classdef PAStatTool < PAViewController
                 displayName = sprintf('Cluster #%u (%0.2f%%)\n',[coiSortOrders(:),coiPctOfLoadShapes(:)]');
                 displayName(end)=[];  %remove the final new line character
                 set(this.handles.line_coiInScatterPlot,'displayName',displayName);
-            end            
+            end
             
             % Additional ways to display/update summary text
             %   set(summaryTextH,'string',summaryStrings);
             %   summaryStrings = strrep(summaryStrings,'%','%%');
             %   this.setStatus(cell2str(summaryStrings,' - '));
             %   this.logStatus(cell2str(summaryStrings,' - '));
-
+            
         end
         
         % Refresh the user settings from current GUI configuration.
@@ -4061,7 +4091,7 @@ classdef PAStatTool < PAViewController
             userSettings.discardNonwearFeatures = get(this.handles.check_discardNonwear,'value'); %this.originalSettings.get('discardNonwearFeatures;
             
             userSettings.showClusterMembers = istoggled(this.toolbarH.cluster.toggle_membership);
-            userSettings.showClusterSummary = istoggled(this.toolbarH.cluster.toggle_summary); 
+            userSettings.showClusterSummary = istoggled(this.toolbarH.cluster.toggle_summary);
             
             userSettings.processedTypeSelection = 1;  %defaults to count!
             
@@ -4078,21 +4108,21 @@ classdef PAStatTool < PAViewController
             userSettings.discardNonwearFeatures = get(this.handles.check_discardNonwear,'value');
             userSettings.processType = this.base.processedTypes{userSettings.processedTypeSelection};
             userSettings.baseFeature = this.featureTypes{userSettings.baseFeatureSelection};
-            userSettings.curSignal = this.base.signalTypes{userSettings.signalSelection};            
-            userSettings.plotType = this.base.plotTypes{userSettings.plotTypeSelection}; 
+            userSettings.curSignal = this.base.signalTypes{userSettings.signalSelection};
+            userSettings.plotType = this.base.plotTypes{userSettings.plotTypeSelection};
             userSettings.titleStr = this.base.plotTypeTitles{userSettings.plotTypeSelection};
             userSettings.numShades = this.base.numShades;
             
-            userSettings.trimResults = get(this.handles.check_trim,'value'); % returns 0 for unchecked, 1 for checked            
+            userSettings.trimResults = get(this.handles.check_trim,'value'); % returns 0 for unchecked, 1 for checked
             userSettings.trimToPercent = str2double(get(this.handles.edit_trimToPercent,'string'));
-            userSettings.cullResults = get(this.handles.check_cull,'value'); % returns 0 for unchecked, 1 for checked            
+            userSettings.cullResults = get(this.handles.check_cull,'value'); % returns 0 for unchecked, 1 for checked
             userSettings.cullToValue = str2double(get(this.handles.edit_cullToValue,'string'));
             
             userSettings.weekdaySelection = get(this.handles.menu_weekdays,'value');
-
+            
             userSettings.startTimeSelection = get(this.handles.menu_clusterStartTime,'value');
             userSettings.stopTimeSelection = get(this.handles.menu_clusterStopTime,'value');
-
+            
             % Plot settings
             userSettings.primaryAxis_yLimMode = get(this.handles.axes_primary,'ylimmode');
             userSettings.primaryAxis_nextPlot = get(this.handles.axes_primary,'nextplot');
@@ -4101,7 +4131,7 @@ classdef PAStatTool < PAViewController
             userSettings.profileFieldSelection = get(this.handles.menu_ySelection,'value');
             %             userSettings.clusterStartTime = getSelectedMenuString(this.handles.menu_clusterStartTime);
             %             userSettings.clusterStopTime = getSelectedMenuString(this.handles.menu_clusterStopTime);
-
+            
             userSettings.weekdayTag = this.base.weekdayTags{userSettings.weekdaySelection};
             customIndex = strcmpi(this.base.weekdayTags,'custom');
             userSettings.customDaysOfWeek = this.base.weekdayValues{customIndex};
@@ -4126,10 +4156,10 @@ classdef PAStatTool < PAViewController
             
         end
         
-        %> @brief Refreshes the cluster profile table based on current 
+        %> @brief Refreshes the cluster profile table based on current
         %> profile statistics found in member variable @c profileTableData.
         %> @param this Instance of PAStatTool.
-        %> @retval didRefresh True on successful refresh, false otherwise.        
+        %> @retval didRefresh True on successful refresh, false otherwise.
         function didRefresh = refreshProfileTableData(this)
             %             curStack = dbstack;
             %             fprintf(1,'Skipping %s on line %u of %s\n',curStack(1).name,curStack(1).line,curStack(1).file);
@@ -4145,8 +4175,8 @@ classdef PAStatTool < PAViewController
                 %this.jhandles.table_clusterProfiles.setModel(javax.swing.table.DefaultTableModel(this.profileTableData,colNames));
                 
                 set(this.handles.table_clusterProfiles,'data',this.profileTableData);
-
-                strData= cellfun(@num2str,this.profileTableData,'uniformoutput',false);  
+                
+                strData= cellfun(@num2str,this.profileTableData,'uniformoutput',false);
                 % set(this.handles.
                 [R,C] = size(this.profileTableData);
                 set(this.handles.table_clusterProfiles,'columnEditable',true(1,C));
@@ -4196,40 +4226,40 @@ classdef PAStatTool < PAViewController
                 if(rowSelectionIndex~=this.getProfileFieldIndex())
                     this.setProfileFieldIndex(rowSelectionIndex);
                 end
-            end            
+            end
         end
         
         %> @brief Refreshes profile statistics for the current cluster of interest (COI).
         %> This method should be called whenever the COI changes.
         %> @param this Instance of PAStatTool.
-        %> @retval didRefresh True on successful refresh, false otherwise.        
+        %> @retval didRefresh True on successful refresh, false otherwise.
         function didRefresh = refreshCOIProfile(this)
             try
-               if(this.hasProfileData() && this.hasCluster())
-                
+                if(this.hasProfileData() && this.hasCluster())
+                    
                     % This gets the memberIDs attached to each cluster.
-                    % This gives us all 
+                    % This gives us all
                     coiStruct = this.clusterObj.getClusterOfInterest();
                     this.coiProfile = this.getProfileCell(coiStruct.memberIDs,this.profileFields);
-                                        
+                    
                     % place the local profile at the beginning (first few
                     % columns).
-                    this.profileTableData(:,1:size(this.coiProfile,2)) = this.coiProfile;  
+                    this.profileTableData(:,1:size(this.coiProfile,2)) = this.coiProfile;
                     this.refreshProfileTableData();
-                    didRefresh = true;                    
+                    didRefresh = true;
                 else
                     didRefresh = false;
                 end
             catch me
                 showME(me);
                 didRefresh = false;
-            end            
+            end
         end
         
         function canIt = canUseDatabase(this)
-            canIt = this.useDatabase && ~isempty(this.databaseObj) && this.hasValidCluster();            
+            canIt = this.useDatabase && ~isempty(this.databaseObj) && this.hasValidCluster();
         end
-        function canIt = canUseOutcomes(this)            
+        function canIt = canUseOutcomes(this)
             canIt = this.useOutcomes && ~isempty(this.outcomesObj) && this.hasValidCluster();
         end
         
@@ -4255,7 +4285,7 @@ classdef PAStatTool < PAViewController
                     [this.globalProfile, ~] = this.getProfileCell(globalStruct.memberIDs,this.profileFields);
                     
                     % place the global profile at the end.
-                    this.profileTableData(:,end-size(this.globalProfile,2)+1:end) = this.globalProfile;  
+                    this.profileTableData(:,end-size(this.globalProfile,2)+1:end) = this.globalProfile;
                     this.refreshProfileTableData();
                     numClusters = this.clusterObj.getNumClusters();  %or numel(globalStruct.colnames).
                     xlim(this.handles.axes_scatterplot,[0 numClusters+1]);
@@ -4266,8 +4296,8 @@ classdef PAStatTool < PAViewController
                     %                     this.allCOIProfiles = nan(numFields,3,numClusters);
                     
                     % I would like to arrange the data in terms of the sort
-                    % order.  The data from PA_Cluster.getCovariateStruct uses 
-                    % the coiSortOrder for identifying clusters; 
+                    % order.  The data from PA_Cluster.getCovariateStruct uses
+                    % the coiSortOrder for identifying clusters;
                     % Previously a remapping would occur because the getCovariateStruct returned the coi index.
                     % Now this is no longer necessary.
                     for coiSO=1:numClusters
@@ -4304,7 +4334,7 @@ classdef PAStatTool < PAViewController
         
         function dataStruct = getProfileData(this,primaryKeys,fieldsOfInterest)
             if(isempty(primaryKeys))
-               primaryKeys = 1; 
+                primaryKeys = 1;
             end
             if(this.useOutcomes())
                 [~,~,dataStruct]=this.outcomesObj.getSubjectInfoSummary(primaryKeys,fieldsOfInterest);
@@ -4331,15 +4361,15 @@ classdef PAStatTool < PAViewController
         function [coiProfile, dataSummaryStruct] = getProfileCell(this,primaryKeys,fieldsOfInterest)
             
             if(nargin<3 || isempty(fieldsOfInterest))
-                if(this.useOutcomes())   
-                    fieldsOfInterest = this.outcomesObj.getColumnNames('subjects');                    
+                if(this.useOutcomes())
+                    fieldsOfInterest = this.outcomesObj.getColumnNames('subjects');
                 elseif(this.useDatabase())
                     fieldsOfInterest = this.databaseObj.getColumnNames('subjectInfo_t');
                 end
                 %                 fieldsOfInterest = {'bmi_zscore';
                 %                     'insulin'};
             end
-
+            
             statOfInterest = 'AVG';
             if(this.canUseOutcomes())
                 [dataSummaryStruct, ~]=this.outcomesObj.getSubjectInfoSummary(primaryKeys,fieldsOfInterest,statOfInterest);
@@ -4352,7 +4382,7 @@ classdef PAStatTool < PAViewController
                 coiProfile = [];
             else
                 coiProfile = PAStatTool.profile2cell(dataSummaryStruct);
-            end 
+            end
         end
         
         %> @brief Listening and checking for changes to the split checkbox.
@@ -4367,7 +4397,7 @@ classdef PAStatTool < PAViewController
                 enableState = 'off';
             end
             set(this.handles.menu_number_of_data_segments,'enable',enableState);
-        end      
+        end
     end
     
     methods (Static)
@@ -4388,25 +4418,25 @@ classdef PAStatTool < PAViewController
             backgroundColor(curIndex,:) = userData.rowOfInterestBackgroundColor;
             set(statToolObj.handles.table_clusterProfiles,'backgroundColor',backgroundColor,'rowStriping','on');
             drawnow();
-%             pause(0.2);
+            %             pause(0.2);
             sRow = curIndex-1;  %java is 0 based
             sCol = max(0,statToolObj.jhandles.table_clusterProfiles.getSelectedColumn());  %give us the first column if nothing is selected)
-%             this.jhandles.table_clusterProfiles.setRowSelectionInterval(sRow,sRow);
-%             this.jhandles.table_clusterProfiles.setSelectionBackground()
+            %             this.jhandles.table_clusterProfiles.setRowSelectionInterval(sRow,sRow);
+            %             this.jhandles.table_clusterProfiles.setSelectionBackground()
             statToolObj.jhandles.table_clusterProfiles.changeSelection(sRow,sCol,false,false);
             statToolObj.jhandles.table_clusterProfiles.repaint();
             statToolObj.refreshScatterPlot();
             if(statToolObj.useOutcomes && ~isempty(statToolObj.outcomesObj) && statToolObj.hasValidCluster)
                 statToolObj.outcomesObj.setSelectedField(eventData.fieldName);
             end
-
+            
         end
         
         % ======================================================================
         % ======================================================================
         function [featureStruct, discardedFeatureStruct] = discardNonwearFeatures(featureStructIn,nonwearRows)
             %         function featureStruct = getValidFeatureStruct(originalFeatureStruct,usageStateStruct)
-            featureStruct = featureStructIn;           
+            featureStruct = featureStructIn;
             foi = {'startDatenums','startDaysOfWeek','shapes','studyIDs'};
             discardedFeatureStruct = mkstruct(foi);
             if(~isempty(nonwearRows) && ~isempty(featureStructIn) && any(nonwearRows))
@@ -4430,7 +4460,7 @@ classdef PAStatTool < PAViewController
                     end
                     if(isstruct(usageStateStruct))
                         tagStruct = PASensorData.getActivityTags();
-                        nonwearRows = any(usageStateStruct.shapes<=tagStruct.NONWEAR,2);                        
+                        nonwearRows = any(usageStateStruct.shapes<=tagStruct.NONWEAR,2);
                     end
                 otherwise
             end
@@ -4442,7 +4472,7 @@ classdef PAStatTool < PAViewController
         %> of features file produced by padaco's batch processing mode.
         %> @retval featureStruct A structure of aligned features obtained
         %> from filename.  Fields include:
-        %> - @c filename The source filename data was loaded from.        
+        %> - @c filename The source filename data was loaded from.
         %> - @c method
         %> - @c signal
         %> - @c methodDescription
@@ -4470,13 +4500,13 @@ classdef PAStatTool < PAViewController
             
             featureStruct.signal.group = signalGroup;
             featureStruct.signal.source = signalSource;
-            featureStruct.signal.name = signalName;            
+            featureStruct.signal.name = signalName;
             
             fid = fopen(filename,'r');
             
             featureStruct.methodDescription = strrep(strrep(fgetl(fid),'# Feature:',''),char(9),'');
             featureStruct.totalCount = str2double(strrep(strrep(fgetl(fid),'# Length:',''),char(9),''));
-            startTimes = fgetl(fid);  
+            startTimes = fgetl(fid);
             % Not necessary to remove the other headers here.
             % startTimes = strrep(fgetl(fid),sprintf('# Study_ID\tStart_Datenum\tStart_Day'),'');
             pattern = '\s+(\d+:\d+)+';
@@ -4513,14 +4543,14 @@ classdef PAStatTool < PAViewController
         %> @brief Normalizes each load according to the sum of its parts.
         %> @param loadShapes NxM array of N load shapes, each of dimension M.
         %> @retval normalizedLoadShapes NxM array of normalized load
-        %> shapes, where N is the number of load shapes.  
+        %> shapes, where N is the number of load shapes.
         %> normalizedLoadShapes(n,:) = loadShapes(n,:)/sum(loadShapes(n,:))
         %> @retval nzi Indices of non-zero sum load shapes.
         %> @note normalizedLoadShapes(n,:) = 0 in the case of
-        %> sum(loadShapes(n,:)) is a zero sum.        
+        %> sum(loadShapes(n,:)) is a zero sum.
         % ======================================================================
         function [normalizedLoadShapes, nzi] = normalizeLoadShapes(loadShapes)
-            % normalizedLoadShapes = loadShapes;            
+            % normalizedLoadShapes = loadShapes;
             % a= sum(loadShapes,2);
             % %nzi = nonZeroIndices
             %nzi = a~=0;
@@ -4537,7 +4567,7 @@ classdef PAStatTool < PAViewController
                 if(~isa(loadShapes,'double'))
                     loadShapes = double(loadShapes);
                 end
-
+                
                 % ensure we are filtering along the individual loadshapes
                 % which are organized by row.  filtfilt works down columns
                 % however so need to transpose, filter, and transpose back.
@@ -4550,11 +4580,11 @@ classdef PAStatTool < PAViewController
             nzi = a~=0;
             loadShapes(nzi,:) = loadShapes(nzi,:)./max(loadShapes(nzi,:),[],2);
             normalizedLoadShapes = loadShapes;
-
+            
         end
         
         % ======================================================================
-        %> @brief Applies a reduction or sorting method along each row of the 
+        %> @brief Applies a reduction or sorting method along each row of the
         %> input data and returns the result.
         %> @param featureSet NxM array of N feature sets, each of dimension M.
         %> @param reductionMethod String specifying the reduction or
@@ -4581,7 +4611,7 @@ classdef PAStatTool < PAViewController
                 case 'max'
                     featureSet = max(featureSet,[],2);
                 case 'above_50'
-                    featureSet = sum(featureSet>50,2);    
+                    featureSet = sum(featureSet>50,2);
                 case 'above_100'
                     featureSet = sum(featureSet>100,2);
                 case 'above_500'
@@ -4591,9 +4621,9 @@ classdef PAStatTool < PAViewController
                 case 'hours_to_80pct'
                     c = cumsum(featureSet,2);
                     total = c(:,end);
-                    p_thresh = total*0.8;        
+                    p_thresh = total*0.8;
                     num_features = size(featureSet,2);
-                    p_index = repmat(num_features, size(p_thresh));                    
+                    p_index = repmat(num_features, size(p_thresh));
                     for k=1:numel(p_thresh)
                         p_index(k) = find(c(k,:)>=p_thresh(k),1,'first');
                     end
@@ -4602,9 +4632,9 @@ classdef PAStatTool < PAViewController
                 case 'hours_to_50pct'
                     c = cumsum(featureSet,2);
                     total = c(:,end);
-                    p_thresh = total*0.5;        
+                    p_thresh = total*0.5;
                     num_features = size(featureSet,2);
-                    p_index = repmat(num_features, size(p_thresh));                    
+                    p_index = repmat(num_features, size(p_thresh));
                     for k=1:numel(p_thresh)
                         p_index(k) = find(c(k,:)>=p_thresh(k),1,'first');
                     end
@@ -4652,19 +4682,19 @@ classdef PAStatTool < PAViewController
         %> - @c clusterDurationSelection
         % ======================================================================
         function paramStruct = getDefaults()
-            % Cache directory is for storing the cluster object to 
+            % Cache directory is for storing the cluster object to
             % so it does not have to be reloaded each time when the
             % PAStatTool is instantiated.
             if(~isdeployed)
                 workingPath = fileparts(mfilename('fullpath'));
             else
-                workingPath = fileparts(mfilename('fullpath'));                
+                workingPath = fileparts(mfilename('fullpath'));
             end
             
-            baseSettings = PAStatTool.getBaseSettings();  
+            baseSettings = PAStatTool.getBaseSettings();
             % Prime with cluster parameters.
-            paramStruct = PACluster.getDefaults();            
- 
+            paramStruct = PACluster.getDefaults();
+            
             paramStruct.maxNumDaysAllowed = PANumericParam('default',0,'Description','Maximum number of days allowed per subject.','help','Leave 0 to include all days.','min',0);
             paramStruct.minNumDaysAllowed = PANumericParam('default',0,'Description','Minimum number of days allowed per subject.','help','Leave 0 for no minimum.  Currently variable has no effect at all.','min',0);
             
@@ -4672,8 +4702,8 @@ classdef PAStatTool < PAViewController
             paramStruct.discardNonwearFeatures = PABoolParam('default',true,'description','Discard nonwear features prior to clustering');
             
             paramStruct.trimResults = PABoolParam('default',false,'description','Trim results');
-            paramStruct.trimToPercent =         PANumericParam('default',100,'description','Trim to percent');            
-            paramStruct.cullResults = PABoolParam('default',false,'description','Cull results');    
+            paramStruct.trimToPercent =         PANumericParam('default',100,'description','Trim to percent');
+            paramStruct.cullResults = PABoolParam('default',false,'description','Cull results');
             paramStruct.cullToValue =           PANumericParam('default',0,'description','Cull to');
             
             paramStruct.chunkShapes = PABoolParam('default',false,'description','Chunk feature vectors prior to clustering');
@@ -4682,7 +4712,7 @@ classdef PAStatTool < PAViewController
             paramStruct.numDataSegmentsSelection = PAIndexParam('default',find(baseSettings.numDataSegments==numChunks,1),'description','Data segments selection'); %results in number six
             
             % If we no longer have 6 as a choice, then just take the first
-            % choice that is available 
+            % choice that is available
             if(isempty(paramStruct.numDataSegmentsSelection))
                 paramStruct.numDataSegmentsSelection = PAIndexParam('default',1,'description','Data chunk size selection');
                 paramStruct.numChunks.setValue(baseSettings.numDataSegments(paramStruct.numDataSegmentsSelection));
@@ -4697,17 +4727,17 @@ classdef PAStatTool < PAViewController
             
             paramStruct.startTimeSelection =    PAIndexParam('default',1,'description','Start time selection');
             paramStruct.stopTimeSelection =     PAIndexParam('default',-1,'description','Stop time selection');
-            paramStruct.showTimeOfDayAsBackgroundColor = PABoolParam('default',false,'description','Show time of day visual indicator'); % do not display at first            
+            paramStruct.showTimeOfDayAsBackgroundColor = PABoolParam('default',false,'description','Show time of day visual indicator'); % do not display at first
             paramStruct.weekdaySelection =      PAIndexParam('default',1,'description','Weekday selection');
             paramStruct.customDaysOfWeek =      PANumericParam('default',0,'min',0,'max',6,'Description','Day of week','help','0 = Sunday, 1 = Monday, ... 6 = Saturday');
-                        
+            
             paramStruct.clusterDurationSelection = PAIndexParam('default',1,'description','Cluster duration');
             paramStruct.showClusterMembers =    PABoolParam('default',false,'description','Show cluster members');
             paramStruct.showClusterSummary =    PABoolParam('default',false,'description','Show cluster summary');
             paramStruct.showAnalysisFigure =            PABoolParam('default',false,'description','Show analysis figure'); % do not display the other figure at first
-                        
+            
             paramStruct.primaryAxis_yLimMode =          PAEnumParam('default','auto','categories',{'auto','manual'},'description','y-axis range');
-                                                        % PACategoricalParam('default',categorical({'auto'},{'auto','manual'},'protected',true),'description','y-axis range');
+            % PACategoricalParam('default',categorical({'auto'},{'auto','manual'},'protected',true),'description','y-axis range');
             
             paramStruct.primaryAxis_nextPlot =          PAEnumParam('default','replace','categories',{{'replace','hold'}},'description','Next plot');
             
@@ -4727,73 +4757,81 @@ classdef PAStatTool < PAViewController
             paramStruct.useDatabase = PABoolParam('default',false,'description','Use MySQL database');
             
             paramStruct.databaseClass = PAStringParam('default','CLASS_database_goals','description','Database classname');
-            paramStruct.profileFieldSelection = PAIndexParam('default',1,'description','Profile field selection');    
+            paramStruct.profileFieldSelection = PAIndexParam('default',1,'description','Profile field selection');
             paramStruct.profileFieldIndex =     PAIndexParam('default',1,'description','Profile field index'); % is one for database and the other for outcomes table?  looks redundant.
             
             paramStruct.bootstrapIterations = PANumericParam('default',100,'description','Bootstrap iterations');
             paramStruct.bootstrapSampleName = PAEnumParam('default','studyID','categories',{'studyID','days'},'description','Bootstrap sample name');
             paramStruct.exportPathname =      PAPathParam('default',getSavePath(),'Description','Export path');
             paramStruct.exportShowNonwear = PABoolParam('default',true,'description','Include nonwear with export');
-
+            
             paramStruct.useCache = PABoolParam('default',true,'description','Use file caching','help','Turn on file caching to improve startup times.');
             paramStruct.cacheDirectory = PAPathParam('default',fullfile(workingPath,'cache'),'description','Caching directory');
-
-%             paramStruct.exportShowNonwear = true;
-%             paramStruct.cacheDirectory = fullfile(workingPath,'cache');
-%             paramStruct.useCache = 1;
-%             
-%             paramStruct.useOutcomes = 0;
-%             paramStruct.useDatabase = 0;
-%             paramStruct.profileFieldIndex = 1;
-%             paramStruct.databaseClass = 'CLASS_database_goals';
-%             paramStruct.discardNonwearFeatures = 1;
-%             paramStruct.trimResults = 0;
-%             paramStruct.cullResults = 0;            
-%             paramStruct.chunkShapes = 0;
-%             paramStruct.numChunks = 6;
-%             paramStruct.numDataSegmentsSelection = find(baseSettings.numDataSegments==paramStruct.numChunks,1); %results in number six
-%             
-%             % If we no longer have 6 as a choice, then just take the first
-%             % choice that is available 
-%             if(isempty(paramStruct.numDataSegmentsSelection))
-%                 paramStruct.numDataSegmentsSelection = 1;
-%                 paramStruct.numChunks=baseSettings.numDataSegments(paramStruct.numDataSegmentsSelection);
-%             end
-%             
-%             paramStruct.preclusterReductionSelection = 1; % defaults to 'none'
-% 
-%             paramStruct.maxNumDaysAllowed = 0; % Maximum number of days allowed per subject.  Leave 0 to include all days.
-%             paramStruct.minNumDaysAllowed = 0; % Minimum number of days allowed per subject.  Leave 0 for no minimum.  Currently variable has no effect at all.
-%             
-%             paramStruct.normalizeValues = 0;            
-%             paramStruct.processedTypeSelection = 1;
-%             paramStruct.baseFeatureSelection = 1;
-%             paramStruct.signalSelection = 1;
-%             paramStruct.plotTypeSelection = 1;
-%             paramStruct.trimToPercent = 100;
-%             paramStruct.cullToValue = 0;
-%             paramStruct.showClusterMembers = 0;
-%             paramStruct.showClusterSummary = 0;
-%             
-%             paramStruct.weekdaySelection = 1;
-%             paramStruct.startTimeSelection = 1;
-%             paramStruct.stopTimeSelection = -1;
-%             paramStruct.customDaysOfWeek = 0;  %for sunday.
-%             
-%             paramStruct.clusterDurationSelection = 1;
-%                         
-%             paramStruct.primaryAxis_yLimMode = 'auto';
-%             paramStruct.primaryAxis_nextPlot = 'replace';
-%             paramStruct.showAnalysisFigure = 0; % do not display the other figure at first
-%             paramStruct.showTimeOfDayAsBackgroundColor = 0; % do not display at first
-%             paramStruct.clusterDistributionType = 'loadshape_membership';  %{'loadshape_membership','participant_membership','performance_progression','membership','weekday_membership'}            
-%             paramStruct.profileFieldSelection = 1;    
-%             
-%             paramStruct.bootstrapIterations =  100;
-%             paramStruct.bootstrapSampleName = 'studyID';  % or 'days'
-%             
-%             paramStruct.exportPathname = '';
-%            
+            
+            
+            paramStruct.predictionStrength_minK = PANumericParam('default',2,'min',2,'description','Prediction strength: minimum K',...
+                'help','The initial value of K evaluated determining prediction strength for a range of K.');
+            paramStruct.predictionStrength_maxK = PANumericParam('default',10,'min',2,'description','Prediction strength: maximum K',...
+                'help','The final value of K evaluated when determining prediction strength for a range of K.');
+            paramStruct.predictionStrength_iterations = PANumericParam('default',20,'min',1,'description','Prediction strength: bootstrap iterations per K',...
+                'help','The number of iterations performed to evaluate the prediction strength for each value of K considered.');
+            
+            %             paramStruct.exportShowNonwear = true;
+            %             paramStruct.cacheDirectory = fullfile(workingPath,'cache');
+            %             paramStruct.useCache = 1;
+            %
+            %             paramStruct.useOutcomes = 0;
+            %             paramStruct.useDatabase = 0;
+            %             paramStruct.profileFieldIndex = 1;
+            %             paramStruct.databaseClass = 'CLASS_database_goals';
+            %             paramStruct.discardNonwearFeatures = 1;
+            %             paramStruct.trimResults = 0;
+            %             paramStruct.cullResults = 0;
+            %             paramStruct.chunkShapes = 0;
+            %             paramStruct.numChunks = 6;
+            %             paramStruct.numDataSegmentsSelection = find(baseSettings.numDataSegments==paramStruct.numChunks,1); %results in number six
+            %
+            %             % If we no longer have 6 as a choice, then just take the first
+            %             % choice that is available
+            %             if(isempty(paramStruct.numDataSegmentsSelection))
+            %                 paramStruct.numDataSegmentsSelection = 1;
+            %                 paramStruct.numChunks=baseSettings.numDataSegments(paramStruct.numDataSegmentsSelection);
+            %             end
+            %
+            %             paramStruct.preclusterReductionSelection = 1; % defaults to 'none'
+            %
+            %             paramStruct.maxNumDaysAllowed = 0; % Maximum number of days allowed per subject.  Leave 0 to include all days.
+            %             paramStruct.minNumDaysAllowed = 0; % Minimum number of days allowed per subject.  Leave 0 for no minimum.  Currently variable has no effect at all.
+            %
+            %             paramStruct.normalizeValues = 0;
+            %             paramStruct.processedTypeSelection = 1;
+            %             paramStruct.baseFeatureSelection = 1;
+            %             paramStruct.signalSelection = 1;
+            %             paramStruct.plotTypeSelection = 1;
+            %             paramStruct.trimToPercent = 100;
+            %             paramStruct.cullToValue = 0;
+            %             paramStruct.showClusterMembers = 0;
+            %             paramStruct.showClusterSummary = 0;
+            %
+            %             paramStruct.weekdaySelection = 1;
+            %             paramStruct.startTimeSelection = 1;
+            %             paramStruct.stopTimeSelection = -1;
+            %             paramStruct.customDaysOfWeek = 0;  %for sunday.
+            %
+            %             paramStruct.clusterDurationSelection = 1;
+            %
+            %             paramStruct.primaryAxis_yLimMode = 'auto';
+            %             paramStruct.primaryAxis_nextPlot = 'replace';
+            %             paramStruct.showAnalysisFigure = 0; % do not display the other figure at first
+            %             paramStruct.showTimeOfDayAsBackgroundColor = 0; % do not display at first
+            %             paramStruct.clusterDistributionType = 'loadshape_membership';  %{'loadshape_membership','participant_membership','performance_progression','membership','weekday_membership'}
+            %             paramStruct.profileFieldSelection = 1;
+            %
+            %             paramStruct.bootstrapIterations =  100;
+            %             paramStruct.bootstrapSampleName = 'studyID';  % or 'days'
+            %
+            %             paramStruct.exportPathname = '';
+            %
         end
         
         % ======================================================================
@@ -4819,20 +4857,20 @@ classdef PAStatTool < PAViewController
             baseSettings.signalDescriptions = {'X','Y','Z','VecMag'};
             
             reduction_dictionary = {'none','None';
-             'sort','Sort (high->low)';
-             'sum','Sum';
-             'mean','Mean';
-             'median','Median';
-             'max','Maximum';
-             'above_1000','Occurrences > 1000';
-             'above_500','Occurrences > 500';
-             'above_100','Occurrences > 100';
-             'above_50','Occurrences > 50';
-             'hours_to_80pct','Hours until 80%';
-             'hours_to_50pct','Hours until 50%';
-             'hours_until_50000','Hours until 50000 counts';
-             };
-         
+                'sort','Sort (high->low)';
+                'sum','Sum';
+                'mean','Mean';
+                'median','Median';
+                'max','Maximum';
+                'above_1000','Occurrences > 1000';
+                'above_500','Occurrences > 500';
+                'above_100','Occurrences > 100';
+                'above_50','Occurrences > 50';
+                'hours_to_80pct','Hours until 80%';
+                'hours_to_50pct','Hours until 50%';
+                'hours_until_50000','Hours until 50000 counts';
+                };
+            
             baseSettings.preclusterReductions = reduction_dictionary(:,1);
             baseSettings.preclusterReductionDescriptions = reduction_dictionary(:,2);
             baseSettings.numDataSegments = [1,2,3,4,6,8,12,24]';
@@ -4847,7 +4885,7 @@ classdef PAStatTool < PAViewController
                 'Rolling Map';
                 'Morning Rolling Map (00:00-06:00AM daily)';
                 };
-                
+            
             baseSettings.plotTypeDescriptions = {'Clusters','Average Daily Tallies','Total Daily Tallies','Heat map (early morning)','Heat map','Time series','Time series (morning)'};
             baseSettings.plotTypeToolTipStrings = {
                 sprintf('Clustering view present the adaptive clustering results (clusters or medoids) for the selected\n features and clustering parameters given in the controls below.');
@@ -4856,28 +4894,28 @@ classdef PAStatTool < PAViewController
                 sprintf('The morning heat map presents the average sum of early morning activity as color intensity instead of height on the y-axis.\n  It focuses on the early part of each day.');
                 sprintf('The heat map presents the average sum of daily activity\n as color intensity instead of height on the y-axis.');
                 sprintf('The rolling map shows the linear progression of the\n sum of subject activity by day of the week.');
-                sprintf('The early morning rolling map shows the linear progression\n of the sum of subject activity for the early part of each day of the week.');                
+                sprintf('The early morning rolling map shows the linear progression\n of the sum of subject activity for the early part of each day of the week.');
                 };
-
+            
             for b=1:numel(baseSettings.plotTypes)
                 plotType = baseSettings.plotTypes{b};
                 baseSettings.tooltipstring.(plotType) = baseSettings.plotTypeToolTipStrings{b};
             end
             
-            baseSettings.processedTypes = {'count','raw'};            
+            baseSettings.processedTypes = {'count','raw'};
             baseSettings.numShades = 1000;
             
-            baseSettings.weekdayDescriptions = {'All days','Sun-Sat (week)','Mon-Fri','Weekend','Custom'};            
+            baseSettings.weekdayDescriptions = {'All days','Sun-Sat (week)','Mon-Fri','Weekend','Custom'};
             baseSettings.weekdayTags = {'all','weeklong','weekdays','weekends','custom'};
             baseSettings.weekdayValues = {0:6,0:6,1:5,[0,6],[]};
             baseSettings.daysOfWeekShortDescriptions = {'Sun','Mon','Tue','Wed','Thur','Fri','Sat'};
             baseSettings.daysOfWeekDescriptions = {'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'};
             baseSettings.daysOfWeekOrder = 1:7;
-                    
+            
             
             baseSettings.clusterDurationDescriptions = {'1 day','12 hours','6 hours','4 hours','3 hours','2 hours','1 hour'};
             baseSettings.clusterDurationDescriptions = {'24 hours','12 hours','6 hours','4 hours','3 hours','2 hours','1 hour'};
-
+            
             baseSettings.clusterHourlyDurations = [24
                 12
                 6
@@ -4888,7 +4926,7 @@ classdef PAStatTool < PAViewController
         end
         
         % ======================================================================
-        %> @bretval Profile cell is output as follows  
+        %> @bretval Profile cell is output as follows
         %> - @c 'n'
         %> - @c 'n_above'
         %> - @c 'n_below'

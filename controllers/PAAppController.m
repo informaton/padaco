@@ -259,7 +259,7 @@ classdef PAAppController < PAFigureController
             % version.  There is no 'workspace'.
             else
                 safeset(figHandles,'menu_file_export_sensorDataObj','visible','off');
-                safeset(figHandles,'menu_file_export_clusterObj','visible','off');
+                safeset(figHandles,'menu_file_export_clusterObj','visible','off');                
             end
             
             safeset(figHandles,'menu_file_export_clusters_to_csv','callback',{@obj.exportClustersCb,'csv'});%, 'label','Cluster results to disk');
@@ -1252,7 +1252,7 @@ classdef PAAppController < PAFigureController
             if(isdir(featuresPath))
                 if ~isdir(currentFeaturesPath) && isdir(featuresPath)
                     refreshPath = true;
-                elseif ~strcmpi(featuresPath,currentFeaturesPath)
+                elseif ~strcmpi(featuresPath,currentFeaturesPath) && ~strcmpi(fullfile(featuresPath,'features'), currentFeaturesPath)
                     msgStr = sprintf('There has been a change to the results path.\nWould you like to load features from the updated path?\n%s',this.getFeaturesPathname());
                     titleStr = 'Refresh results path?';
                     buttonName = questdlg(msgStr,titleStr,'Yes','No','Yes');
