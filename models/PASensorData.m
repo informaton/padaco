@@ -1251,7 +1251,6 @@ classdef PASensorData < PAData
         % %x - x-axis
         % %y - y-axis
         % %z - z-axis
-
         function didLoad = loadCustomRawFile(obj, fullfilename, fmtStruct)
             try
                 if(nargin<3)
@@ -1357,17 +1356,25 @@ classdef PASensorData < PAData
                     fullCountFilename = fullfile(pathName,strcat(baseName,'.csv'));
 
                     if(exist(fullCountFilename,'file'))
-
-                        didLoad = obj.loadCountFile(fullCountFilename);
-
-                        if(didLoad)
-                            obj.accelType = 'count'; % this is modified, below, to 'all' if a
-                            % a raw acceleration file (.csv or
-                            % .bin) is being loaded, in which
-                            % case the count data is replaced
-                            % with the raw data.
+                        
+                        % Could have a .csv extension on a 'raw' data file.  We only know by the samping rate, which shows up as 0 in the header field. for gravity/raw data files.
+                        obj.loadFileHeader(fullfilename);
+                        if obj.countPeriodSec == 0
+                            loadFast = true;
+                            didLoad = obj.loadRawCSVFile(fullfilename,loadFast);
+                            obj.hasRaw = didLoad;
+                        else
+                            didLoad = obj.loadCountFile(fullCountFilename);
+                            
+                            if(didLoad)
+                                obj.accelType = 'count'; % this is modified, below, to 'all' if a
+                                % a raw acceleration file (.csv or
+                                % .bin) is being loaded, in which
+                                % case the count data is replaced
+                                % with the raw data.
+                            end
+                            obj.hasCounts = didLoad;
                         end
-                        obj.hasCounts = didLoad;
                     end
 
                     % For .raw files, load the count data first so that it can
@@ -1394,14 +1401,14 @@ classdef PASensorData < PAData
 
 
                             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                            % Ensure firmware version is either 2.2.1, 2.5.0 or 3.1.0
+                            % Ensure firmware version is either 1.5.0, 2.2.1, 2.5.0 or 3.1.0
                             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                             if(strcmp(firmwareVersion,'2.5.0')||strcmp(firmwareVersion,'3.1.0') || strcmp(firmwareVersion,'2.2.1') || strcmp(firmwareVersion,'1.5.0'))
                                 obj.setFullFilename(fullfilename);
                                 obj.sampleRate = str2double(infoStruct.Sample_Rate);
 
                                 % Version 2.5.0 firmware
-                                if(strcmp(firmwareVersion,'2.5.0'))
+                                if strcmp(firmwareVersion,'2.5.0')  || strcmp(firmwareVersion,'1.5.0')
 
                                     unitsTimePerDay = 24*3600*10^7;
                                     matlabDateTimeOffset = 365+1+1;  %367, 365 days for the first year + 1 day for the first month + 1 day for the first day of the month
@@ -1432,14 +1439,14 @@ classdef PASensorData < PAData
 
                                     % Version 3.1.0 firmware                                % Version 2.2.1 firmware
 
-                                elseif(strcmp(firmwareVersion,'3.1.0') || strcmp(firmwareVersion,'2.2.1') || strcmp(firmwareVersion,'1.5.0'))
+                                elseif(strcmp(firmwareVersion,'3.1.0') || strcmp(firmwareVersion,'2.2.1'))
                                     didLoad = obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
-                                else
-                                    didLoad = false;
                                 end
                                 obj.hasRaw = didLoad;
 
                             else
+                                didLoad = false;
+                                
 
                                 % for future firmware version loaders
                                 % Not 2.2.1, 2.5.0 or 3.1.0 - skip - cannot handle right now.

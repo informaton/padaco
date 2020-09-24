@@ -273,7 +273,7 @@ classdef PAAppController < PAFigureController
             %% Tools
             safeset(figHandles,'menu_tools_batch','callback',@obj.menuToolsBatchCallback);
             safeset(figHandles,'menu_tools_bootstrap','callback',@obj.menuToolsBootstrapCallback,'enable','off');  % enable state depends on PAStatTool construction success (see obj.events)
-            safeset(figHandles,'menu_tools_raw2bin','callback',@obj.menuToolsRaw2BinCallback);
+            safeset(figHandles,'menu_tools_raw2bin','callback',@obj.menuToolsRaw2BinCallback); % This is empty ...
             safeset(figHandles,'menu_tools_coptr2act','callback',@obj.coptr2actigraphCallback);
             
             %% Help
