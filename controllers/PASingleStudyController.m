@@ -103,9 +103,7 @@ classdef PASingleStudyController < PAViewController
                 
                 windowDurationSec = obj.accelObj.getWindowDurSec();
                 obj.setWindowDurSecMenu(windowDurationSec);
-            end
-            
-            
+            end            
         end
         
         % returns visible linehandles in the upper axes of padaco.
@@ -113,8 +111,7 @@ classdef PASingleStudyController < PAViewController
             lineHandleStructs = obj.getLinehandle(obj.getDisplayType());
             lineHandles = struct2vec(lineHandleStructs);
             visibleLineHandles = lineHandles(strcmpi(get(lineHandles,'visible'),'on'));
-        end
-        
+        end        
         
         function hiddenLineHandles = getHiddenLineHandles(obj)
             lineHandleStructs = obj.getLinehandle(obj.getDisplayType());
@@ -2198,7 +2195,8 @@ classdef PASingleStudyController < PAViewController
             %            uimenu(uicontextmenu_handle,'Label','Add Reference Line','separator','on','callback',@obj.contextmenu_line_referenceline_callback);
             %            uimenu(uicontextmenu_handle,'Label','Align Channel','separator','off','callback',@obj.align_channels_on_axes);
             uimenu(uicontextmenu_handle,'Label','Hide','separator','on','callback',@obj.cmenuLineHideCb);
-            uimenu(uicontextmenu_handle,'Label','Copy window to clipboard','separator','off','callback',@obj.contextmenuWindow2ClipboardCb,'tag','copy_window2clipboard');
+            uimenu(uicontextmenu_handle,'Label','Copy to clipboard','separator','off','callback',@obj.contextmenuLine2ClipboardCb,'tag','copy_line2clipboard');
+            % uimenu(uicontextmenu_handle,'Label','Copy window to clipboard','separator','off','callback',@obj.contextmenuWindow2ClipboardCb,'tag','copy_window2clipboard');
         end
         
         % =================================================================
@@ -2210,7 +2208,7 @@ classdef PASingleStudyController < PAViewController
         % =================================================================
         function uicontextmenu_handle = createFeatureLineContextmenuHandle(obj)
             uicontextmenu_handle = uicontextmenu('parent',obj.figureH);%,get(parentAxes,'parent'));
-            uimenu(uicontextmenu_handle,'Label','Copy to clipboard','separator','off','callback',@obj.contextmenuLine2ClipboardCb,'tag','copy_window2clipboard');
+            uimenu(uicontextmenu_handle,'Label','Copy to clipboard','separator','off','callback',@obj.contextmenuLine2ClipboardCb,'tag','copy_line2clipboard');
         end
         
         
@@ -2423,12 +2421,17 @@ classdef PASingleStudyController < PAViewController
         %> @param hObject Handle of callback object (unused).
         %> @param eventdata Unused.
         % =================================================================
-        function contextmenuWindow2ClipboardCb(obj,varargin)
-            data =get(obj.current_linehandle,'ydata');
+        function contextmenuLine2ClipboardCb(obj,varargin)
+            tagLine = get(gco,'tag');
+            parentH = get(gco,'parent');
+            
+            % get the siblings handles with same tagLine (e.g. label and
+            % rereference line handles.
+            h = findobj(parentH,'tag',tagLine,'linestyle','-','type','line');
+            data =get(h(1),'ydata');
             clipboard('copy',data);
             disp([num2str(numel(data)),' items copied to the clipboard.  Press Control-V to access data items, or type "str=clipboard(''paste'')"']);
-            set(gco,'selected','off');
-            obj.current_linehandle = [];
+            obj.deactivateLineHandle();
         end
         
         % =================================================================

@@ -2293,16 +2293,18 @@ classdef PASensorData < PAData
         % ======================================================================
         function didClassify = classifyUsageForAllAxes(obj)
             try
-                classifyObj = PAClassifyCounts();% %obj.classifyUsageState(dataStruct.(axesName));
-                classifyObj.setDatenumVec(obj.dateTimeNum);
-                obj.usage = struct();
                 if(obj.hasCounts || obj.hasRaw)
                     dataStruct = obj.getStruct('all');
-                    if(obj.hasCounts)
-                        dataStruct = dataStruct.accel.count;
-                    else
+                    if strcmpi(obj.accelType,'raw') && obj.hasRaw
+                        classifyObj = PAClassifyGravities();% %obj.classifyUsageState(dataStruct.(axesName));
                         dataStruct = dataStruct.accel.raw;
+                    else                        
+                        classifyObj = PAClassifyCounts();% %obj.classifyUsageState(dataStruct.(axesName));
+                        dataStruct = dataStruct.accel.count;
                     end
+                    
+                    classifyObj.setDatenumVec(obj.dateTimeNum);
+                    obj.usage = struct();
                     
                     axesNames = fieldnames(dataStruct);
                     for a=1:numel(axesNames)
@@ -2321,6 +2323,7 @@ classdef PASensorData < PAData
                     didClassify = false;
                     fprintf(1,'No data available to classify the usage state with.\n');
                 end
+                
             catch me
                 showME(me);
                 didClassify=false;

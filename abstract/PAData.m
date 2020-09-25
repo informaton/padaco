@@ -42,7 +42,7 @@ classdef PAData < PABaseWithSettings
         % ======================================================================
         %> @brief Returns the filename, pathname, and full filename (pathname + filename) of
         %> the file that the accelerometer data was loaded from.
-        %> @param obj Instance of PAClassifyCounts
+        %> @param obj Instance of PAData
         %> @retval filename The short filename of the accelerometer data.
         %> @retval pathname The pathname of the accelerometer data.
         %> @retval fullFilename The full filename of the accelerometer data.

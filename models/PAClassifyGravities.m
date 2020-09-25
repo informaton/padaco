@@ -1,25 +1,25 @@
 % ======================================================================
-%> @file PAClassifyCounts.cpp
+%> @file PAClassifyGravities.cpp
 %> @brief Padaco count activity classifier
 % ======================================================================
-classdef PAClassifyCounts < PAClassifyUsage
+classdef PAClassifyGravities < PAClassifyUsage
 
     methods
         % ======================================================================
-        %> @brief Constructor for PAClassifyCounts class.
+        %> @brief Constructor for PAClassifyGravities class.
         %> @param vector of count values to process.
         %> @param pStruct Optional struct of parameters to use.  If it is not
         %> included then parameters from getDefaults method are used.
-        %> @retval Instance of PAClassifyCounts.
+        %> @retval Instance of PAClassifyGravities.
          % =================================================================
-        function obj = PAClassifyCounts(varargin)  % icountVector should be first argument,  nputSettings is second argument
+        function obj = PAClassifyGravities(varargin)  % icountVector should be first argument,  nputSettings is second argument
             obj = obj@PAClassifyUsage(varargin{:});                        
         end
         
      
         % ======================================================================
         %> @brief Categorizes the study's usage state.
-        %> @param obj Instance of PAClassifyCounts.
+        %> @param obj Instance of PAClassifyGravities.
         %> @param vector of count activity to apply classification rules
         %> too.  If not provided, then the vector magnitude is used by
         %> default.
@@ -41,12 +41,12 @@ classdef PAClassifyCounts < PAClassifyUsage
         %> @retval startStopDatenums Start and stop datenums for each usage
         %> state row entry of usageState.
         % ======================================================================
-        function [usageVec, wearState, startStopDateNums] = classifyUsageState(obj, countActivity, datetimeNums, usageStateRules)
+        function [usageVec, wearState, startStopDateNums] = classifyUsageState(obj, gravityVec, datetimeNums, usageStateRules)
 
            
             % By default activity determined from vector magnitude signal
-            if(nargin<2 || isempty(countActivity))
-                countActivity = obj.dataVec;
+            if(nargin<2 || isempty(gravityVec))
+                gravityVec = obj.dataVec;
             end
             if(nargin<3 || isempty(datetimeNums))
                 datetimeNums = obj.datenumVec;
@@ -60,38 +60,32 @@ classdef PAClassifyCounts < PAClassifyUsage
                                         
             tagStruct = obj.getActivityTags();
 
-            %             UNKNOWN = -1;
-            %             NONWEAR = 5;
-            %             WEAR = 10;
-            %            STUDYOVER=0;
-            %            REMS = 10;
-            %            NREMS = 15;
-            %            NAPPING = 20;
-            %            INACTIVE = 25;
-            %            ACTIVE = 30;
+            %  STUCK_VALUES/MALFUNCTION = -5;
+            %  UNKNOWN = -1;
+            %  NONWEAR = 5;
+            %  WEAR = 10;
+            %  STUDYOVER=0;
+            %  REMS = 10;
+            %  NREMS = 15;
+            %  NAPPING = 20;
+            %  INACTIVE = 25;
+            %  ACTIVE = 30;
 
             longClassificationMinimumDurationOfMinutes = usageStateRules.longClassificationMinimumDurationOfMinutes; %15; %a 15 minute or 1/4 hour filter
             shortClassificationMinimumDurationOfMinutes = usageStateRules.shortClassificationMinimumDurationOfMinutes; %5; %a 5 minute or 1/12 hour filter
 
-            awakeVsAsleepCountsPerSecondCutoff = usageStateRules.awakeVsAsleepCountsPerSecondCutoff;  %1;  % exceeding the cutoff means you are awake
-            activeVsInactiveCountsPerSecondCutoff = usageStateRules.activeVsInactiveCountsPerSecondCutoff; %10; % exceeding the cutoff indicates active
-            onBodyVsOffBodyCountsPerMinuteCutoff = usageStateRules.onBodyVsOffBodyCountsPerMinuteCutoff; %1; % exceeding the cutoff indicates on body (wear)
-
             samplesPerMinute = obj.getSampleRate()*60; % samples per second * 60 seconds per minute
             samplesPerHour = 60*samplesPerMinute;
-
 
             longFilterLength = longClassificationMinimumDurationOfMinutes*samplesPerMinute;
             shortFilterLength = shortClassificationMinimumDurationOfMinutes*samplesPerMinute;
 
-            longRunningActivitySum = obj.movingSummer(countActivity,longFilterLength);
-            shortRunningActivitySum = obj.movingSummer(countActivity,shortFilterLength);
+            longRunningActivitySum = obj.movingSummer(gravityVec,longFilterLength);
+            shortRunningActivitySum = obj.movingSummer(gravityVec,shortFilterLength);
 
             %            usageVec = zeros(size(datetimeNums));
             usageVec = repmat(tagStruct.UNKNOWN,(size(datetimeNums)));
 
-            % This is good for determining where the study has ended... using a 15 minute duration minimum
-            % (essentially 1 count allowed per minute or 15 counts per 900 samples )
             offBodyThreshold = longClassificationMinimumDurationOfMinutes*onBodyVsOffBodyCountsPerMinuteCutoff;
 
             longActiveThreshold = longClassificationMinimumDurationOfMinutes*(activeVsInactiveCountsPerSecondCutoff*60);
@@ -122,10 +116,7 @@ classdef PAClassifyCounts < PAClassifyUsage
             params.merge_within_sec = usageStateRules.mergeWithinHoursForNonWear*samplesPerHour; %4;
             params.min_dur_sec = usageStateRules.minHoursForNonWear*samplesPerHour; %4;
 
-            %            params.merge_within_sec = 3600*1;
-            %            params.min_dur_sec = 3600*1;
-
-            if(~isempty(candidate_nonwear_events))
+            if(~isempty(candidate_not_collecting))
 
                 if(params.merge_within_sec>0)
                     merge_distance = round(params.merge_within_sec*obj.getSampleRate());
@@ -201,26 +192,17 @@ classdef PAClassifyCounts < PAClassifyUsage
 
             %usageVec(awakeVsAsleepVec) = 20;
             %usageVec(wearVec) = 10;   %        This is covered
-            % <<<<<<< HEAD
-            %            usageVec(activeVec) = ACTIVE;  %None!
-            %            usageVec(inactiveVec) = INACTIVE;
-            %            usageVec(~awakeVsAsleepVec) = NAPPING;   % Not awake, but may be too short to enter REM or NREMS.
-            %            usageVec(sleepVec) = NREMS;   %Sleep period
-            %            usageVec(remSleepVec) = REMS;  %REM sleep
-            %            usageVec(nonwearVec) = NONWEAR;
-            %            usageVec(studyOverVec) = STUDYOVER;
-            %            % -1 uncategorized
-            %
-            %
-            % =======
+
             usageVec(activeVec) = tagStruct.ACTIVE;%35;  %None!
             usageVec(inactiveVec) = tagStruct.INACTIVE;%25;
             usageVec(~awakeVsAsleepVec) = tagStruct.NAP;%20;
             usageVec(sleepVec) = tagStruct.NREM;%15;   %Sleep period
             usageVec(remSleepVec) = tagStruct.REMS;%10;  %REM sleep
             usageVec(nonwearVec) = tagStruct.NONWEAR;%5;
-            usageVec(studyOverVec) = tagStruct.STUDYOVER;%0;
-
+            usageVec(studyOverVec) = tagStruct.STUDYOVER;%0;            
+            usageVec(studyNotStarted) = tagStruct.STUDY_NOT_STARTED;
+            usageVec(studyMalfunction) = tagStruct.MALFUNCTION;
+            
         end
 
     end
@@ -229,7 +211,7 @@ classdef PAClassifyCounts < PAClassifyUsage
 
 
         % ======================================================================
-        %> @brief Returns a structure of PAClassifyCounts's default parameters as a struct.
+        %> @brief Returns a structure of PAClassifyGravities's default parameters as a struct.
         %> @retval pStruct A structure of default parameters which include the following
         %> fields
         %> - @c usageState Struct defining usage state classification
@@ -240,17 +222,15 @@ classdef PAClassifyCounts < PAClassifyUsage
         %======================================================================
         function usageStateRules = getDefaults()
             
-            usageStateRules.longClassificationMinimumDurationOfMinutes=15;
-            usageStateRules.shortClassificationMinimumDurationOfMinutes = 5;
-            usageStateRules.awakeVsAsleepCountsPerSecondCutoff = 1;  % exceeding the cutoff means you are awake
-            usageStateRules.activeVsInactiveCountsPerSecondCutoff = 10; % exceeding the cutoff indicates active
-            usageStateRules.onBodyVsOffBodyCountsPerMinuteCutoff = 1; % exceeding the cutoff indicates on body (wear)
+            usageStateRules.longClassificationMinimumDurationOfMinutes=5;
+            usageStateRules.shortClassificationMinimumDurationOfMinutes = 1;
+            
+            usageStateRules.accelerometerStuckMinutesCutoff = 1;  % exceeding the cutoff means you are awake            
+            usageStateRules.workingGravitiesPerMinuteCutoff = 0; % exceeding the cutoff indicates working
 
-            usageStateRules.mergeWithinHoursForSleep = 2;
-            usageStateRules.minHoursForSleep = 4;
-
-            usageStateRules.mergeWithinMinutesForREM = 5;
-            usageStateRules.minMinutesForREM = 20;
+            
+            usageStateRules.minMinutesForStuck = 1;
+            usageStateRules.minMinutesForNotWorking = 1;
 
             usageStateRules.mergeWithinHoursForNonWear = 4;
             usageStateRules.minHoursForNonWear = 4;
@@ -258,6 +238,11 @@ classdef PAClassifyCounts < PAClassifyUsage
             usageStateRules.mergeWithinHoursForStudyOver = 6;
             usageStateRules.minHoursForStudyOver = 12;% -> this is for classifying state as over.
             usageStateRules.mergeWithinFinalHoursOfStudy = 4;
+            
+            usageStateRules.mergeWithinHoursForStudyNotStarted = 6;
+            usageStateRules.minHoursForStudyNotStarted = 2;% -> this is for classifying state as not yet starting.
+            usageStateRules.mergeWithinHoursOfStudyNotStarted = 4;            
+            
             usageStateRules.sampleRate = 1;
         end
     end
