@@ -2307,17 +2307,26 @@ classdef PASensorData < PAData
                     obj.usage = struct();
                     
                     axesNames = fieldnames(dataStruct);
+                    
+                    % As long as you don't run into an exception, it passes.
+                    didClassify = true;
                     for a=1:numel(axesNames)
-                        axesName=axesNames{a};
-                        % This branch can be merged with the one above as soon
-                        % as there is a better/faster way to classify usage
-                        % state from raw data.
-                        if(obj.hasCounts)
+                        try
+                            axesName=axesNames{a};
                             obj.usage.(axesName) = classifyObj.classifyUsageState(dataStruct.(axesName)); %obj.classifyUsageState(dataStruct.(axesName));
-                            didClassify = true;
-                        else
-                            obj.usage.(axesName) = zeros(size(dataStruct.(axesName)));
+                        catch me
+                            showME(me);
+                            didClassify = false;
+                            obj.usage.(axesName) = zeros(size(dataStruct.(axesName))); 
                         end
+                    end
+                    
+                    if isfield(obj.usage, 'vecMag')
+                        tags = classifyObj.getActivityTags();
+                        stuckID = tags.SENSOR_STUCK;
+                        obj.usage.vecMag(obj.usage.x==stuckID) = stuckID;
+                        obj.usage.vecMag(obj.usage.y==stuckID) = stuckID;
+                        obj.usage.vecMag(obj.usage.z==stuckID) = stuckID;
                     end
                 else
                     didClassify = false;

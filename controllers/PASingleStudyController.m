@@ -710,24 +710,29 @@ classdef PASingleStudyController < PAViewController
         %> @retval startStopDatenums Nx2 matrix of datenum values whose
         %> rows correspond to the start/stop range that the feature vector
         %> value (at the same row position) was derived from.
-        %> @note  Sections will not be calculated on equally lenghted
+        %> @note  Sections will not be calculated on equally lengthed
         %> sections when numSections does not evenly divide the total number
         %> of samples.  In this case, the last section may be shorter or
         %> longer than the others.
         % --------------------------------------------------------------------
         %function [usageVec, usageStates,startStopDatenums] = getUsageState(obj)
-        function usageVec = getUsageState(obj)            
-            paDataObj = obj.accelObj;
+        function usageVec = getUsageState(obj, paDataObj)
+            if nargin < 2
+                paDataObj = obj.accelObj;
+            end
             usageVec = [];
-            usageStates = [];
-            startStopDatenums = [];
-            if(paDataObj.classifyUsageForAllAxes())
-                %[usageVec, usageStates, startStopDatenums] = paDataObj.classifyUsageForAllAxes();
+            %usageStates = [];
+            %startStopDatenums = [];
+            if isfield(obj.accelObj.usage,'vecMag')
                 usageVec = paDataObj.usage.vecMag;
             else
-                obj.logWarning('Unable to classify usage state for all axis');
+                if(paDataObj.classifyUsageForAllAxes())
+                    %[usageVec, usageStates, startStopDatenums] = paDataObj.classifyUsageForAllAxes();
+                    usageVec = paDataObj.usage.vecMag;
+                else
+                    obj.logWarning('Unable to classify usage state for all axis');
+                end
             end
-            
         end
         
         % --------------------------------------------------------------------
@@ -840,10 +845,14 @@ classdef PASingleStudyController < PAViewController
                 itemsToDisplay = obj.numViewsInSecondaryDisplay-5; % usage state, mean lumens, daylight approx
                 remainingHeight = 1-heightOffset;
                 height = remainingHeight/itemsToDisplay;
-                if(obj.accelObj.getSampleRate()<=1)
+                
+                usageVec = obj.getUsageState();
+                obj.addWeartimeToSecondaryAxes(usageVec,obj.accelObj.dateTimeNum,height,heightOffset);
+                % if(obj.accelObj.getSampleRate()<=1)
                     
-                    usageVec = obj.getUsageState();
-                    obj.addWeartimeToSecondaryAxes(usageVec,obj.accelObj.dateTimeNum,height,heightOffset);
+                    % usageVec = obj.getUsageState();
+                    % obj.addWeartimeToSecondaryAxes(usageVec,obj.accelObj.dateTimeNum,height,heightOffset);
+                    
                     % Old
                     % vecHandles = obj.addFeaturesVecToSecondaryAxes(usageVec,obj.accelObj.dateTimeNum,height,heightOffset);
                     
@@ -851,10 +860,11 @@ classdef PASingleStudyController < PAViewController
                     %[usageVec,usageState, startStopDatenums] = obj.getUsageState();
                     
                     %obj.addOverlayToSecondaryAxes(usageState,startStopDatenums,1/numRegions,curRegion/numRegions);
-                else
+                % else
+                    
                     % Old
                     %                 vecHandles = [];
-                end
+                % end
                 
                 numFrames = obj.getFrameCount();
                 
@@ -1040,9 +1050,10 @@ classdef PASingleStudyController < PAViewController
         % -1         Unknown
         % --------------------------------------------------------------------
         function featureHandles = addWeartimeToSecondaryAxes(obj, featureVector, startStopDatenum, overlayHeightRatio, overlayOffset)
+            featureVector(end) = 35;
             featureHandles = addFeaturesVecToAxes(obj.axeshandle.secondary, featureVector, startStopDatenum, overlayHeightRatio, overlayOffset, obj.getUseSmoothing());
             
-            nonwearHeightRatio = overlayHeightRatio*(7.5/(35--1));
+            nonwearHeightRatio = overlayHeightRatio*((7.5)/(35--1));
             wearHeightRatio = overlayHeightRatio-nonwearHeightRatio;
             axesH = obj.axeshandle.secondary;
             yLim = get(axesH,'ylim');
@@ -1058,10 +1069,10 @@ classdef PASingleStudyController < PAViewController
             
             % place wear above it.  xData is same, but yDdata is shifted up
             % some.
-            overlayOffset = yLimPatches(end);
-            yLimPatches = yLim*wearHeightRatio+overlayOffset;
-            ydata = [yLimPatches, fliplr(yLimPatches)]';            
-            set(obj.patchhandle.wear,'xdata',xdata,'ydata',ydata,'visible','on');
+            overlayOffset2 = yLimPatches(end);
+            yLimPatches2 = yLim*wearHeightRatio+overlayOffset2;
+            ydata2 = [yLimPatches2, fliplr(yLimPatches2)]';            
+            set(obj.patchhandle.wear,'xdata',xdata,'ydata',ydata2,'visible','on');
             obj.draw();
             
         end
@@ -2198,7 +2209,7 @@ classdef PASingleStudyController < PAViewController
             uimenu(uicontextmenu_handle,'Label','Copy to clipboard','separator','off','callback',@obj.contextmenuLine2ClipboardCb,'tag','copy_line2clipboard');
             
             if ~isdeployed
-                uimenu(uicontextmenu_handle,'Label','Copy to workspace','separator','off','callback',{@obj.contextmenuLine2ClipboardCb, 'workspace'},'tag','copy_line2clipboard');
+                uimenu(uicontextmenu_handle,'Label','Export to workspace','separator','off','callback',{@obj.contextmenuLine2ClipboardCb, 'workspace'},'tag','copy_line2clipboard');
             end
             % uimenu(uicontextmenu_handle,'Label','Copy window to clipboard','separator','off','callback',@obj.contextmenuWindow2ClipboardCb,'tag','copy_window2clipboard');
         end
@@ -2437,7 +2448,8 @@ classdef PASingleStudyController < PAViewController
             data =get(h(1),'ydata');
             
             if nargin >= 4 && strcmpi(exportOption, 'workspace')
-                copy2workspace(data, tagLine);
+                tokens = strsplit(tagLine, '.');
+                copy2workspace(data, [tokens{end},'Data']);
             else                
                 clipboard('copy',data);
                 disp([num2str(numel(data)),' items copied to the clipboard.  Press Control-V to access data items, or type "str=clipboard(''paste'')"']);

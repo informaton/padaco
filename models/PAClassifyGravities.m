@@ -41,8 +41,7 @@ classdef PAClassifyGravities < PAClassifyUsage
         %> @retval startStopDatenums Start and stop datenums for each usage
         %> state row entry of usageState.
         % ======================================================================
-        function [usageVec, wearState, startStopDateNums] = classifyUsageState(obj, gravityVec, datetimeNums, usageStateRules)
-
+        function [usageVec, wearState, startStopDateNums] = classifyUsageState(obj, gravityVec, datetimeNums, rules)
            
             % By default activity determined from vector magnitude signal
             if(nargin<2 || isempty(gravityVec))
@@ -53,10 +52,10 @@ classdef PAClassifyGravities < PAClassifyUsage
             end
             
             if(nargin>3)
-                obj.setUsageClassificationRules(usageStateRules);
+                obj.setUsageClassificationRules(rules);
             end
 
-            usageStateRules = obj.settings;
+            rules = obj.settings;
                                         
             tagStruct = obj.getActivityTags();
 
@@ -71,73 +70,66 @@ classdef PAClassifyGravities < PAClassifyUsage
             %  INACTIVE = 25;
             %  ACTIVE = 30;
 
-            longClassificationMinimumDurationOfMinutes = usageStateRules.longClassificationMinimumDurationOfMinutes; %15; %a 15 minute or 1/4 hour filter
-            shortClassificationMinimumDurationOfMinutes = usageStateRules.shortClassificationMinimumDurationOfMinutes; %5; %a 5 minute or 1/12 hour filter
+            longFilterLengthMinutes = rules.longFilterLengthMinutes; %15; %a 15 minute or 1/4 hour filter
+            shortFilterLengthMinutes = rules.shortFilterLengthMinutes; %5; %a 5 minute or 1/12 hour filter
 
             samplesPerMinute = obj.getSampleRate()*60; % samples per second * 60 seconds per minute
             samplesPerHour = 60*samplesPerMinute;
 
-            longFilterLength = longClassificationMinimumDurationOfMinutes*samplesPerMinute;
-            shortFilterLength = shortClassificationMinimumDurationOfMinutes*samplesPerMinute;
+            longFilterLength = longFilterLengthMinutes*samplesPerMinute;
+            shortFilterLength = shortFilterLengthMinutes*samplesPerMinute;
 
-            longRunningActivitySum = obj.movingSummer(gravityVec,longFilterLength);
-            shortRunningActivitySum = obj.movingSummer(gravityVec,shortFilterLength);
+            longSum = obj.movingSummer(gravityVec,longFilterLength);
+            shortSum = obj.movingSummer(gravityVec,shortFilterLength);
 
-            %            usageVec = zeros(size(datetimeNums));
             usageVec = repmat(tagStruct.UNKNOWN,(size(datetimeNums)));
 
-            offBodyThreshold = longClassificationMinimumDurationOfMinutes*onBodyVsOffBodyCountsPerMinuteCutoff;
+            notWorkingThreshold = shortFilterLengthMinutes*rules.workingGravitiesPerMinuteCutoff;
+            
+            stuckThreshold = shortFilterLengthMinutes*rules.minMinutesForStuck;
 
-            longActiveThreshold = longClassificationMinimumDurationOfMinutes*(activeVsInactiveCountsPerSecondCutoff*60);
+            isStuck = diff(shortSum)==0 & shortSum(2:end)~=0;
+            isStuckEvents = obj.thresholdcrossings(isStuck, 0);
+            
+            isWorking = longSum > notWorkingThreshold; % 1 indicates working
+            isNotWorkingEvents= obj.thresholdcrossings(~isWorking, 0);
 
-            awakeVsAsleepVec = longRunningActivitySum>awakeVsAsleepCountsPerSecondCutoff; % 1 indicates Awake
-            activeVec = longRunningActivitySum>longActiveThreshold; % 1 indicates active
-            inactiveVec = awakeVsAsleepVec&~activeVec; %awake, but not active
-            sleepVec = ~awakeVsAsleepVec; % not awake
 
-            sleepPeriodParams.merge_within_samples = usageStateRules.mergeWithinHoursForSleep*samplesPerHour; % 3600*2*obj.getSampleRate();
-            sleepPeriodParams.min_dur_samples = usageStateRules.minHoursForSleep*samplesPerHour; %3600*4*obj.getSampleRate();
-            sleepVec = obj.reprocessEventVector(sleepVec,sleepPeriodParams.min_dur_samples,sleepPeriodParams.merge_within_samples);
-
-            %% Short vector sum - applied to sleep states
-            % Examine rem sleep on a shorter time scale
-            shortOffBodyThreshold = shortClassificationMinimumDurationOfMinutes*onBodyVsOffBodyCountsPerMinuteCutoff;
-            % shortActiveThreshold = shortClassificationMinimumDurationOfMinutes*(activeVsInactiveCountsPerSecondCutoff*60);
-            shortNoActivityVec = shortRunningActivitySum<shortOffBodyThreshold;
-
-            remSleepPeriodParams.merge_within_samples = usageStateRules.mergeWithinMinutesForREM*samplesPerMinute;  %merge within 5 minutes
-            remSleepPeriodParams.min_dur_samples = usageStateRules.minMinutesForREM*samplesPerMinute;   %require minimum of 20 minutes
-            remSleepVec = obj.reprocessEventVector(sleepVec&shortNoActivityVec,remSleepPeriodParams.min_dur_samples,remSleepPeriodParams.merge_within_samples);
-
-            % Check for nonwear
-            longNoActivityVec = longRunningActivitySum<offBodyThreshold;
-            candidate_nonwear_events= obj.thresholdcrossings(longNoActivityVec,0);
-
-            params.merge_within_sec = usageStateRules.mergeWithinHoursForNonWear*samplesPerHour; %4;
-            params.min_dur_sec = usageStateRules.minHoursForNonWear*samplesPerHour; %4;
-
-            if(~isempty(candidate_not_collecting))
-
-                if(params.merge_within_sec>0)
-                    merge_distance = round(params.merge_within_sec*obj.getSampleRate());
-                    nonwear_events = obj.merge_nearby_events(candidate_nonwear_events,merge_distance);
+            if ~isempty(isStuckEvents)                
+                min_dur_sec = rules.minMinutesForStuck*60;               
+                if(min_dur_sec>0)
+                    diff_sec = (isStuckEvents(:,2)-isStuckEvents(:,1))/obj.getSampleRate();
+                    isStuckEvents = isStuckEvents(diff_sec>=min_dur_sec,:);
                 end
+            end
+            
+            isStuck = obj.unrollEvents(isStuckEvents, numel(usageVec));
+            
+            if ~isempty(isNotWorkingEvents)
+                %params.merge_within_sec = rules.mergeWithinHoursForNonWear*samplesPerHour; %4;
+                %params.min_dur_sec = rules.minHoursForNonWear*samplesPerHour; %4;
 
-                if(params.min_dur_sec>0)
-                    diff_sec = (candidate_nonwear_events(:,2)-candidate_nonwear_events(:,1))/obj.getSampleRate();
-                    nonwear_events = candidate_nonwear_events(diff_sec>=params.min_dur_sec,:);
-                end
+                %if(params.merge_within_sec>0)
+                %    merge_distance = round(params.merge_within_sec*obj.getSampleRate());
+                %    isNotWorkingEvents = obj.merge_nearby_events(isNotWorkingEvents,merge_distance);
+                %end
 
-                studyOverParams.merge_within_sec = usageStateRules.mergeWithinHoursForStudyOver*samplesPerHour; %-> group within 6 hours ..
-                studyOverParams.min_dur_sec = usageStateRules.minHoursForStudyOver*samplesPerHour;%12;% -> this is for classifying state as over.
+                %if(params.min_dur_sec>0)
+                %    diff_sec = (isNotWorkingEvents(:,2)-isNotWorkingEvents(:,1))/obj.getSampleRate();
+                %    isNotWorkingEvents = isNotWorkingEvents(diff_sec>=params.min_dur_sec,:);
+                % end
+
+                studyOverParams.merge_within_sec = rules.mergeWithinHoursForStudyOver*samplesPerHour; %-> group within 6 hours ..
+                studyOverParams.min_dur_sec = rules.minHoursForStudyOver*samplesPerHour;%12;% -> this is for classifying state as over.
                 merge_distance = round(studyOverParams.merge_within_sec*obj.getSampleRate());
-                candidate_studyover_events = obj.merge_nearby_events(nonwear_events,merge_distance);
+                
+                candidate_studyover_events = obj.merge_nearby_events(isNotWorkingEvents,merge_distance);
                 diff_sec = (candidate_studyover_events(:,2)-candidate_studyover_events(:,1))/obj.getSampleRate();
-                studyover_events = candidate_studyover_events(diff_sec>=studyOverParams.min_dur_sec,:);
-
+                studyover_events = candidate_studyover_events(diff_sec>=studyOverParams.min_dur_sec,:);                
+                study_not_started_events = studyover_events;                
             end
 
-            nonwearVec = obj.unrollEvents(nonwear_events,numel(usageVec));
+            isNotWorkingVec = obj.unrollEvents(isNotWorkingEvents, numel(usageVec));
 
             % Akin to obj.getDurationSamples() or obj.durSamples -> see
             % PASensorData.m
@@ -150,8 +142,17 @@ classdef PAClassifyGravities < PAClassifyUsage
             % activity being presented).
             if(~isempty(studyover_events))
                 diff_hours = (numSamples-studyover_events(end))/samplesPerHour; %      obj.getSampleRate()/3600;
-                if(diff_hours<=usageStateRules.mergeWithinHoursForStudyOver)
+                if(diff_hours<=rules.mergeWithinHoursForStudyOver)
                     studyover_events(end) = numSamples;
+                else
+                    studyover_events = [];
+                end
+                
+                diff_hours = (study_not_started_events(1))/samplesPerHour;
+                if diff_hours <= rules.mergeWithinHoursOfStudyNotStarted
+                    study_not_started_events(1) = 1;
+                else
+                    study_not_started_events = [];
                 end
             end
 
@@ -161,55 +162,53 @@ classdef PAClassifyGravities < PAClassifyUsage
             if(size(studyover_events,1)>1)
                 studyover_events = studyover_events(end,:);
             end
+            
+            if(size(study_not_started_events,1)>1)
+                study_not_started_events = study_not_started_events(1,:);
+            end
 
             studyOverVec = obj.unrollEvents(studyover_events,numel(usageVec));
+            studyNotStartedVec = obj.unrollEvents(study_not_started_events,numel(usageVec));
 
-            nonwear_events = obj.thresholdcrossings(nonwearVec,0);
-            if(~isempty(nonwear_events))
-                nonwearStartStopDateNums = [datetimeNums(nonwear_events(:,1)),datetimeNums(nonwear_events(:,2))];
-                %durationOff = nonwear(:,2)-nonwear(:,1);
-                %durationOffInHours = (nonwear(:,2)-nonwear(:,1))/3600;
+            if ~isempty(isNotWorkingEvents) && ~isempty(datetimeNums)
+                nonwearStartStopDateNums = [datetimeNums(isNotWorkingEvents(:,1)),datetimeNums(isNotWorkingEvents(:,2))];
             else
                 nonwearStartStopDateNums = [];
             end
-            nonwearState = repmat(tagStruct.NONWEAR,size(nonwear_events,1),1);
+            nonwearState = repmat(tagStruct.NONWEAR,size(isNotWorkingEvents,1),1);
 
             %            wearVec = runningActivitySum>=offBodyThreshold;
-            wearVec = ~nonwearVec;
-            wear = obj.thresholdcrossings(wearVec,0);
+            isWorkingVec = ~isNotWorkingVec;
+            wear = obj.thresholdcrossings(isWorkingVec,0);
             if(isempty(wear))
                 % only have non wear then
                 wearState = nonwearState;
                 startStopDateNums = nonwearStartStopDateNums;
             else
-                wearStartStopDateNums = [datetimeNums(wear(:,1)),datetimeNums(wear(:,2))];
+                if ~isempty(datetimeNums)
+                    wearStartStopDateNums = [datetimeNums(wear(:,1)),datetimeNums(wear(:,2))];
+                else
+                    wearStartStopDateNums = [];
+                end
                 wearState = repmat(tagStruct.WEAR,size(wear,1),1);
-
                 wearState = [nonwearState;wearState];
                 [startStopDateNums, sortIndex] = sortrows([nonwearStartStopDateNums;wearStartStopDateNums]);
                 wearState = wearState(sortIndex);
             end
-
-            %usageVec(awakeVsAsleepVec) = 20;
-            %usageVec(wearVec) = 10;   %        This is covered
-
-            usageVec(activeVec) = tagStruct.ACTIVE;%35;  %None!
-            usageVec(inactiveVec) = tagStruct.INACTIVE;%25;
-            usageVec(~awakeVsAsleepVec) = tagStruct.NAP;%20;
-            usageVec(sleepVec) = tagStruct.NREM;%15;   %Sleep period
-            usageVec(remSleepVec) = tagStruct.REMS;%10;  %REM sleep
-            usageVec(nonwearVec) = tagStruct.NONWEAR;%5;
+           
+            usageVec(isWorkingVec) = tagStruct.WORKING; %10;
+            usageVec(isNotWorkingVec) = tagStruct.NOT_WORKING; %5;
             usageVec(studyOverVec) = tagStruct.STUDYOVER;%0;            
-            usageVec(studyNotStarted) = tagStruct.STUDY_NOT_STARTED;
-            usageVec(studyMalfunction) = tagStruct.MALFUNCTION;
+            usageVec(studyNotStartedVec) = tagStruct.STUDY_NOT_STARTED;
+            usageVec(isStuck) = tagStruct.SENSOR_STUCK;
+
+            
+            % usageVec(studyMalfunction) = tagStruct.MALFUNCTION;
             
         end
-
     end
 
     methods(Static)
-
-
         % ======================================================================
         %> @brief Returns a structure of PAClassifyGravities's default parameters as a struct.
         %> @retval pStruct A structure of default parameters which include the following
@@ -222,21 +221,21 @@ classdef PAClassifyGravities < PAClassifyUsage
         %======================================================================
         function usageStateRules = getDefaults()
             
-            usageStateRules.longClassificationMinimumDurationOfMinutes=5;
-            usageStateRules.shortClassificationMinimumDurationOfMinutes = 1;
+            usageStateRules.longFilterLengthMinutes=5;
+            usageStateRules.shortFilterLengthMinutes = 1;
             
-            usageStateRules.accelerometerStuckMinutesCutoff = 1;  % exceeding the cutoff means you are awake            
+            usageStateRules.accelerometerStuckMinutesCutoff = 1;  % exceeding the cutoff means you are awake     
+            
             usageStateRules.workingGravitiesPerMinuteCutoff = 0; % exceeding the cutoff indicates working
 
-            
             usageStateRules.minMinutesForStuck = 1;
             usageStateRules.minMinutesForNotWorking = 1;
 
-            usageStateRules.mergeWithinHoursForNonWear = 4;
-            usageStateRules.minHoursForNonWear = 4;
+            % usageStateRules.mergeWithinHoursForNonWear = 4;
+            % usageStateRules.minHoursForNonWear = 4;
 
             usageStateRules.mergeWithinHoursForStudyOver = 6;
-            usageStateRules.minHoursForStudyOver = 12;% -> this is for classifying state as over.
+            usageStateRules.minHoursForStudyOver = 2;% -> this is for classifying state as over. had been 12
             usageStateRules.mergeWithinFinalHoursOfStudy = 4;
             
             usageStateRules.mergeWithinHoursForStudyNotStarted = 6;

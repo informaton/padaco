@@ -113,12 +113,15 @@ classdef PAClassifyUsage < PADataAnalysis
             tagStruct.NREM =  15;
             tagStruct.REMS = 10;
             tagStruct.WEAR = 10;
+            tagStruct.WORKING = 10;
             tagStruct.NONWEAR = 5;
             tagStruct.STUDYOVER = 0;
             tagStruct.STUDY_NOT_STARTED = 1;
-            
+            tagStruct.NOT_WORKING = 5;
             tagStruct.UNKNOWN = -1;
-            tagStruct.MALFUNCTION = -5;            
+            tagStruct.MALFUNCTION = -5;
+            tagStruct.SENSOR_STUCK = 50;
+            
         end
     end
 end
