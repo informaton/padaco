@@ -619,21 +619,30 @@ classdef PAStatTool < PAViewController
             
             if(isRawData || isCountData)
                 usageFeature = 'usagestate';
-                usageFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,usageFeature,usageFeature,'count','vecMag');
                 
-                % Usage state based on count data
-                if(isCountData)
-                    % Double check that we haven't switched paths somewhere and
-                    % are still using a previous copy of usageStateStruct (i.e.
-                    % check usageFilename against this.usageStateStruct.filename)
-                    if(isempty(this.usageStateStruct) || ~strcmpi(usageFilename,this.usageStateStruct.filename))
-                        if(exist(usageFilename,'file'))
-                            this.usageStateStruct = this.loadAlignedFeatures(usageFilename);
-                        end
-                    end
+                if isRawData
+                    srcDataType = 'raw';
+                else
+                    srcDataType = 'count';
                 end
                 
-                loadFileRequired = isempty(this.originalFeatureStruct) || ~strcmpi(inputFilename,this.originalFeatureStruct.filename);
+                usageFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,usageFeature,usageFeature,srcDataType,'vecMag');
+                
+                
+                % Usage state previously based on count data, but now supporting both.  However, the states are not fully overlapping, so some are supported by
+                % one form but not the other (e.g. not_working for raw, and nonwear for count)
+                
+                % Double check that we haven't switched paths somewhere and
+                % are still using a previous copy of usageStateStruct (i.e.
+                % check usageFilename against this.usageStateStruct.filename)
+                if(isempty(this.usageStateStruct) || ~strcmpi(usageFilename,this.usageStateStruct.filename))
+                    if(exist(usageFilename,'file'))
+                        this.usageStateStruct = this.loadAlignedFeatures(usageFilename);
+                    end
+                end                
+                
+                loadFileRequired = isempty(this.originalFeatureStruct) || ~strcmpi(inputFilename,this.originalFeatureStruct.filename);               
+
                 if(loadFileRequired)
                     this.originalFeatureStruct = this.loadAlignedFeatures(inputFilename);
                     if(isfield(this.originalFeatureStruct,'studyIDs'))
@@ -666,7 +675,7 @@ classdef PAStatTool < PAViewController
                 tmpFeatureStruct = this.originalFeatureStruct;
                 
                 % Make sure we actually have a usage state struct
-                if(isCountData && ~isempty(this.usageStateStruct))
+                if(~isempty(this.usageStateStruct))
                     tmpUsageStateStruct = this.usageStateStruct;
                 else
                     tmpUsageStateStruct = this.originalFeatureStruct;
@@ -674,6 +683,8 @@ classdef PAStatTool < PAViewController
                     tmpUsageStateStruct.method = 'usagestate';
                     tmpUsageStateStruct.filename = '';
                 end
+                
+
                 
                 % update to here to make sure we are covered for the one
                 % week case now.  So we can exclude based on the days
@@ -1909,10 +1920,13 @@ classdef PAStatTool < PAViewController
                 this.handles.contextmenu.secondaryAxes.uicontextmenu = contextmenu_secondaryAxes;
                 this.handles.contextmenu.secondaryAxes.loadshape_membership = uimenu(contextmenu_secondaryAxes,'Label','Loadshapes per cluster','callback',{@this.clusterDistributionCb,'loadshape_membership'});
                 this.handles.contextmenu.secondaryAxes.participant_membership = uimenu(contextmenu_secondaryAxes,'Label','Participants per cluster','callback',{@this.clusterDistributionCb,'participant_membership'});
-                this.handles.contextmenu.secondaryAxes.nonwear_membership = uimenu(contextmenu_secondaryAxes,'Label','Nonwear per cluster','callback',{@this.clusterDistributionCb,'nonwear_membership'});
+                this.handles.contextmenu.secondaryAxes.nonwear_membership = uimenu(contextmenu_secondaryAxes,'Label','Nonwear per cluster','callback',{@this.clusterDistributionCb,'nonwear_membership'});                
                 this.handles.contextmenu.secondaryAxes.weekday_scores = uimenu(contextmenu_secondaryAxes,'Label','Weekday scores by cluster','callback',{@this.clusterDistributionCb,'weekday_scores'},'separator','on');
                 this.handles.contextmenu.secondaryAxes.performance_progression = uimenu(contextmenu_secondaryAxes,'Label','Adaptive separation performance progression','callback',{@this.clusterDistributionCb,'performance_progression'},'separator','on');
                 this.handles.contextmenu.secondaryAxes.weekday_membership = uimenu(contextmenu_secondaryAxes,'Label','Current cluster''s weekday distribution','callback',{@this.clusterDistributionCb,'weekday_membership'});
+                
+                this.handles.contextmenu.secondaryAxes.performance_progression = uimenu(contextmenu_secondaryAxes,'Label','Summary','callback',{@this.clusterDistributionCb,'summary'},'separator','on');
+                
                 didInit = true;
             end
         end
@@ -2397,7 +2411,31 @@ classdef PAStatTool < PAViewController
             %                 this.handles.contextmenu.profile],'checked','off');
             %             set(this.handles.contextmenu.(this.getSetting('clusterDistributionType')),'checked','on');
         end
-        
+
+        function clusterSummaryCb(this,hObject,eventdata)
+            if(strcmpi(clusterDistributionType,'loadshape_membership'))
+                y = this.clusterObj.getHistogram('loadshapes');
+                yLabelStr = 'Loadshapes (n)';
+                distTitle = 'Loadshapes by cluster';
+            elseif(strcmpi(clusterDistributionType,'participant_membership'))
+                yLabelStr = 'Unique participants (n)';
+                distTitle = 'Unique participants by cluster';
+                y = this.clusterObj.getHistogram('participants');
+            elseif(strcmpi(clusterDistributionType,'weekday_scores'))
+                sortLikeHistogram = true;
+                yLabelStr = 'Score';
+                y = this.clusterObj.getWeekdayScores(sortLikeHistogram);
+                distTitle = 'Weekday distribution scores';
+            elseif(strcmpi(clusterDistributionType,'nonwear_membership'))
+                yLabelStr = 'Loadshapes with nonwear (n)';
+                %y = this.clusterObj.getHistogram('loadshapes');
+                y = this.clusterObj.getHistogram('nonwear');
+                distTitle = 'Nonwear Occurrence';
+            end
+            
+            
+            this.plotClusters();
+        end
         function clusterDistributionCb(this,hObject,eventdata,selection)
             this.setClusterDistributionType(selection);
             this.plotClusters();
@@ -3913,8 +3951,7 @@ classdef PAStatTool < PAViewController
                             elseif(strcmpi(clusterDistributionType,'nonwear_membership'))
                                 yLabelStr = 'Loadshapes with nonwear (n)';
                                 %y = this.clusterObj.getHistogram('loadshapes');
-                                y = this.clusterObj.getHistogram('nonwear');
-                                
+                                y = this.clusterObj.getHistogram('nonwear');                        
                                 distTitle = 'Nonwear Occurrence';
                             end
                             titleStr = distTitle;
