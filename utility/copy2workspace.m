@@ -7,6 +7,6 @@ function copy2workspace(data2copy,workspaceName)
         uiwait(msgbox(sprintf('Data saved to workspace variable %s',workspaceName)));
     else
         errordlg('No data entered to send to work space');
-    end;
+    end
 end
     

@@ -2196,6 +2196,10 @@ classdef PASingleStudyController < PAViewController
             %            uimenu(uicontextmenu_handle,'Label','Align Channel','separator','off','callback',@obj.align_channels_on_axes);
             uimenu(uicontextmenu_handle,'Label','Hide','separator','on','callback',@obj.cmenuLineHideCb);
             uimenu(uicontextmenu_handle,'Label','Copy to clipboard','separator','off','callback',@obj.contextmenuLine2ClipboardCb,'tag','copy_line2clipboard');
+            
+            if ~isdeployed
+                uimenu(uicontextmenu_handle,'Label','Copy to workspace','separator','off','callback',{@obj.contextmenuLine2ClipboardCb, 'workspace'},'tag','copy_line2clipboard');
+            end
             % uimenu(uicontextmenu_handle,'Label','Copy window to clipboard','separator','off','callback',@obj.contextmenuWindow2ClipboardCb,'tag','copy_window2clipboard');
         end
         
@@ -2420,8 +2424,10 @@ classdef PASingleStudyController < PAViewController
         %> @param obj Instance of PAController
         %> @param hObject Handle of callback object (unused).
         %> @param eventdata Unused.
+        %> @param exportOption Optional tag, if 'workspace' then the data is sent to the MATLAB workspace instead of the clipboard
+        %> followed by a popup window showing which variable it was exported to.
         % =================================================================
-        function contextmenuLine2ClipboardCb(obj,varargin)
+        function contextmenuLine2ClipboardCb(obj,~, ~, exportOption)
             tagLine = get(gco,'tag');
             parentH = get(gco,'parent');
             
@@ -2429,8 +2435,13 @@ classdef PASingleStudyController < PAViewController
             % rereference line handles.
             h = findobj(parentH,'tag',tagLine,'linestyle','-','type','line');
             data =get(h(1),'ydata');
-            clipboard('copy',data);
-            disp([num2str(numel(data)),' items copied to the clipboard.  Press Control-V to access data items, or type "str=clipboard(''paste'')"']);
+            
+            if nargin >= 4 && strcmpi(exportOption, 'workspace')
+                copy2workspace(data, tagLine);
+            else                
+                clipboard('copy',data);
+                disp([num2str(numel(data)),' items copied to the clipboard.  Press Control-V to access data items, or type "str=clipboard(''paste'')"']);
+            end
             obj.deactivateLineHandle();
         end
         
