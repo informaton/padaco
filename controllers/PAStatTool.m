@@ -186,9 +186,15 @@ classdef PAStatTool < PAViewController
                 
                 this.useCache = this.getSetting('useCache');
                 this.cacheDirectory = this.getSetting('cacheDirectory');
-                this.clusterSettings.clusterMethod = this.getSetting('clusterMethod');
-                this.clusterSettings.useDefaultRandomizer = this.getSetting('useDefaultRandomizer');
-                this.clusterSettings.initClusterWithPermutation = this.getSetting('initClusterWithPermutation');
+                
+                clusterFields = {'clusterMethod', 'distanceMetric', 'useDefaultRandomizer', 'initClusterWithPermutation'};
+                for c=1:numel(clusterFields)
+                    fname = clusterFields{c};
+                    this.clusterSettings.(fname) = this.getSetting(fname);
+                end
+                %this.clusterSettings.clusterMethod = this.getSetting('clusterMethod');
+                %this.clusterSettings.useDefaultRandomizer = this.getSetting('useDefaultRandomizer');
+                %this.clusterSettings.initClusterWithPermutation = this.getSetting('initClusterWithPermutation');
                 
                 this.originalSettings = paparamsToValues(inputSettings);
             end
@@ -706,8 +712,10 @@ classdef PAStatTool < PAViewController
                     individualsMissingCompleteWeekAfterNonWearExclusion = 0;
                     for d=1:size(dayInd,1)
                         if any(nonwear_rows(dayInd(d,1):dayInd(d,2)))
+                            % This is a conservative approach as it could be that a subject only has one or two days of nonwear over the course
+                            % of 10 days of data and still has a week left to be evaluated with.  
                             day_ind = dayInd(d,1):dayInd(d,2);
-                            ind2keepAndNonwearExcluded(day_ind) = false;
+                            ind2keepAndNonwearExcluded(day_ind) = false;                            
                             if(this.originalFeatureStruct.numDays(d)>=7)
                                 ind2keepExactly1WeekAndNonwearExcluded(day_ind) = false;
                                 individualsMissingCompleteWeekAfterNonWearExclusion = individualsMissingCompleteWeekAfterNonWearExclusion + 1;
@@ -762,8 +770,8 @@ classdef PAStatTool < PAViewController
                     warndlg('Well this is unexpected.');
                 end
                 
-                this.nonwear.rows = this.getNonwearRows(this.nonwear.method, tmpUsageStateStruct);
-                
+                [this.nonwear.rows, malfunctionRows] = this.getNonwearRows(this.nonwear.method, tmpUsageStateStruct);
+                % this.nonwear.rows = this.nonwear.rows | malfunctionRows;
                 if this.isShowingWeekLong()
                     maxDaysAllowed = 7;
                     minDaysAllowed = 7;
@@ -1925,7 +1933,7 @@ classdef PAStatTool < PAViewController
                 this.handles.contextmenu.secondaryAxes.performance_progression = uimenu(contextmenu_secondaryAxes,'Label','Adaptive separation performance progression','callback',{@this.clusterDistributionCb,'performance_progression'},'separator','on');
                 this.handles.contextmenu.secondaryAxes.weekday_membership = uimenu(contextmenu_secondaryAxes,'Label','Current cluster''s weekday distribution','callback',{@this.clusterDistributionCb,'weekday_membership'});
                 
-                this.handles.contextmenu.secondaryAxes.performance_progression = uimenu(contextmenu_secondaryAxes,'Label','Summary','callback',{@this.clusterDistributionCb,'summary'},'separator','on');
+                this.handles.contextmenu.secondaryAxes.performance_progression = uimenu(contextmenu_secondaryAxes,'Label','Summary','callback',@this.clusterSummaryCb,'separator','on');
                 
                 didInit = true;
             end
@@ -2413,29 +2421,23 @@ classdef PAStatTool < PAViewController
         end
 
         function clusterSummaryCb(this,hObject,eventdata)
-            if(strcmpi(clusterDistributionType,'loadshape_membership'))
-                y = this.clusterObj.getHistogram('loadshapes');
-                yLabelStr = 'Loadshapes (n)';
-                distTitle = 'Loadshapes by cluster';
-            elseif(strcmpi(clusterDistributionType,'participant_membership'))
-                yLabelStr = 'Unique participants (n)';
-                distTitle = 'Unique participants by cluster';
-                y = this.clusterObj.getHistogram('participants');
-            elseif(strcmpi(clusterDistributionType,'weekday_scores'))
-                sortLikeHistogram = true;
-                yLabelStr = 'Score';
-                y = this.clusterObj.getWeekdayScores(sortLikeHistogram);
-                distTitle = 'Weekday distribution scores';
-            elseif(strcmpi(clusterDistributionType,'nonwear_membership'))
-                yLabelStr = 'Loadshapes with nonwear (n)';
-                %y = this.clusterObj.getHistogram('loadshapes');
-                y = this.clusterObj.getHistogram('nonwear');
-                distTitle = 'Nonwear Occurrence';
+            
+            clusterDistributionType = this.getSetting('clusterDistributionType');
+            [y, memberIds] = this.clusterObj.getHistogram(clusterDistributionType);
+            fprintf('Summarizing %s in order of cluster popularity:\n\n',clusterDistributionType);
+            for k=1:numel(y)
+                n = y(k);
+                if n==0
+                    fprintf('Cluster %d has %d IDs.\n', k, n);
+                elseif n==1
+                    fprintf('Cluster %d has %d ID:\n', k, n);
+                else
+                    fprintf('Cluster %d has %d IDs:\n', k, n);
+                end
+                disp(memberIds{k});
             end
-            
-            
-            this.plotClusters();
         end
+        
         function clusterDistributionCb(this,hObject,eventdata,selection)
             this.setClusterDistributionType(selection);
             this.plotClusters();
@@ -3415,10 +3417,10 @@ classdef PAStatTool < PAViewController
                     this.setStatus('');
                 end
                 
-                tmpClusterObj.setNonwearRows(this.nonwear.rows);
+                if ~tmpClusterObj.setNonwearRows(this.nonwear.rows) && ~pSettings.discardNonwearFeatures
+                    this.logWarning('Could not set nonwear rows');
+                end             
                 
-                
-
                 if evaluateK
                     minK = this.getSetting('predictionStrength_minK');
                     maxK = this.getSetting('predictionStrength_maxK');
@@ -3514,10 +3516,12 @@ classdef PAStatTool < PAViewController
                 'plotTypeSelection'
                 'clusterDistributionType'
                 };
+            
             allFields = fieldnames(pSettings);
             fieldsToRemove = intersect(plotOnlyFields,allFields);
             cSettings = rmfield(pSettings,fieldsToRemove);
         end
+        
         % Original widget settings from when the last cluster calculation
         % was performed.
         function widgetState = getStateAtTimeOfLastClustering(this)
@@ -4125,7 +4129,6 @@ classdef PAStatTool < PAViewController
         %> @retval userSettings Struct of GUI parameter value pairs
         % ======================================================================
         function userSettings = getPlotSettings(this)
-            userSettings.discardNonwearFeatures = get(this.handles.check_discardNonwear,'value'); %this.originalSettings.get('discardNonwearFeatures;
             
             userSettings.showClusterMembers = istoggled(this.toolbarH.cluster.toggle_membership);
             userSettings.showClusterSummary = istoggled(this.toolbarH.cluster.toggle_summary);
@@ -4142,7 +4145,8 @@ classdef PAStatTool < PAViewController
             userSettings.numDataSegmentsSelection = get(this.handles.menu_number_of_data_segments,'value');
             
             userSettings.normalizeValues = get(this.handles.check_normalizevalues,'value');  %return 0 for unchecked, 1 for checked
-            userSettings.discardNonwearFeatures = get(this.handles.check_discardNonwear,'value');
+            
+            userSettings.discardNonwearFeatures = get(this.handles.check_discardNonwear,'value'); %this.originalSettings.get('discardNonwearFeatures;
             userSettings.processType = this.base.processedTypes{userSettings.processedTypeSelection};
             userSettings.baseFeature = this.featureTypes{userSettings.baseFeatureSelection};
             userSettings.curSignal = this.base.signalTypes{userSettings.signalSelection};
@@ -4182,8 +4186,10 @@ classdef PAStatTool < PAViewController
             userSettings.minClusters = str2double(get(this.handles.edit_minClusters,'string'));
             userSettings.clusterThreshold = str2double(get(this.handles.edit_clusterConvergenceThreshold,'string'));
             userSettings.clusterMethod = getSelectedMenuString(this.handles.menu_clusterMethod);%this.clusterSettings.clusterMethod;
+            userSettings.distanceMetric = this.clusterSettings.distanceMetric;
             userSettings.initClusterWithPermutation = this.clusterSettings.initClusterWithPermutation;
             userSettings.useDefaultRandomizer = this.clusterSettings.useDefaultRandomizer;
+            
             
             % Cluster reduction settings
             userSettings.preclusterReductionSelection = get(this.handles.menu_precluster_reduction,'value');
@@ -4485,8 +4491,9 @@ classdef PAStatTool < PAViewController
             end
         end
         
-        function nonwearRows = getNonwearRows(nonwearMethod, varargin)
+        function [nonwearRows, malfunctionRows] = getNonwearRows(nonwearMethod, varargin)
             nonwearRows = [];
+            malfunctionRows = [];
             switch(lower(nonwearMethod))
                 case 'choi'
                 case 'padaco'
@@ -4497,7 +4504,11 @@ classdef PAStatTool < PAViewController
                     end
                     if(isstruct(usageStateStruct))
                         tagStruct = PASensorData.getActivityTags();
-                        nonwearRows = any(usageStateStruct.shapes<=tagStruct.NONWEAR,2);
+                        nonwearRows = any(usageStateStruct.shapes<=tagStruct.NONWEAR,2);                        
+                        malfunctionRows = any(usageStateStruct.shapes==tagStruct.SENSOR_STUCK,2);
+                        nonwearRows = nonwearRows | malfunctionRows;
+                        
+                        %tagStruct.SENSOR_STUCK
                     end
                 otherwise
             end

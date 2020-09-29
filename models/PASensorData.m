@@ -1953,6 +1953,17 @@ classdef PASensorData < PAData
                     fprintf(1,'Unknown method (%s)\n',method);
             end
         end
+        
+        function signal = getSignalFromTagLine(obj, signalTagLine)
+            try
+                signalTagLine = strrep(signalTagLine, 'timeSeries.', ''); % for backward compatibility.
+                data = obj.getStruct('all');
+                signal = eval(['data.',signalTagLine]);
+            catch me
+                showME(me)
+                signal = [];
+            end
+        end
 
         % ======================================================================
         %> @brief Extracts features from the identified signal using the
@@ -2065,9 +2076,9 @@ classdef PASensorData < PAData
                 otherwise
                     featureVector = obj.calcFeatureVectorFromFrames(data,method);
                     if(~isempty(featureVector))
-                         obj.features.(method) = featureVector;
+                        obj.features.(method) = featureVector;
                     else
-
+                        
                     end
             end
         end
@@ -2122,8 +2133,7 @@ classdef PASensorData < PAData
             for b=1:numel(bandInd)-1
                 psdBands(:,b) = sum(psdAll(:,bandInd(b)+1:bandInd(b+1)),2);  % ,2 to sum across columns (each row will contain the sum of the columns)
             end
-
-        end
+        end        
 
         function [psdSettings, Fs] = getPSDSettings(obj)
             psdSettings.FFT_window_sec = obj.getFrameDurationInMinutes()*60;
@@ -2132,7 +2142,6 @@ classdef PASensorData < PAData
             psdSettings.removemean =true;
             Fs = obj.getSampleRate();
         end
-
 
         % --------------------------------------------------------------------
         %> @brief Calculates the number of complete days and the number of
@@ -2189,7 +2198,6 @@ classdef PASensorData < PAData
                 completeDayCount = max(0,datenum(lastStartDateVec) - datenum(firstStartDateVec));
 
             end
-
         end
 
 
@@ -2208,9 +2216,9 @@ classdef PASensorData < PAData
                 featureVec = featureStruct.(featureFcn);
                 % find the first Start Time
                 startDatenum = obj.startDatenums;
-
             end
         end
+        
         % --------------------------------------------------------------------
         %> @brief Calculates a desired feature for a particular acceleration object's field value.
         %> and returns it as a matrix of elapsed time aligned vectors.
@@ -2282,8 +2290,8 @@ classdef PASensorData < PAData
                 clippedFeatureVecs = featureVec(startIndex:stopIndex);
                 alignedFeatureVecs = reshape(clippedFeatureVecs,[],numIntervals)';
             end
-
         end
+        
 
         % ======================================================================
         %> @brief Classifies the usage state for each axis using count data from
@@ -3688,16 +3696,8 @@ classdef PASensorData < PAData
             structType.features = 'features';
         end
 
-        function tagStruct = getActivityTags()
-            tagStruct.ACTIVE = 35;
-            tagStruct.INACTIVE = 25;
-            tagStruct.NAP  = 20;
-            tagStruct.NREM =  15;
-            tagStruct.REMS = 10;
-            tagStruct.WEAR = 10;
-            tagStruct.NONWEAR = 5;
-            tagStruct.STUDYOVER = 0;
-            tagStruct.UNKNOWN = -1;
+        function tagStruct = getActivityTags()            
+            tagStruct = PAClassifyUsage.getActivityTags();
         end
 
         function bandNamesAsCell = getPSDBandNames()

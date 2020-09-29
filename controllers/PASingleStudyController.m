@@ -2445,7 +2445,9 @@ classdef PASingleStudyController < PAViewController
             % get the siblings handles with same tagLine (e.g. label and
             % rereference line handles.
             h = findobj(parentH,'tag',tagLine,'linestyle','-','type','line');
-            data =get(h(1),'ydata');
+            data = obj.accelObj.getSignalFromTagLine(tagLine);
+            
+            % data =get(h(1),'ydata');
             
             if nargin >= 4 && strcmpi(exportOption, 'workspace')
                 tokens = strsplit(tagLine, '.');

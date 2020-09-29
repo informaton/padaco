@@ -38,8 +38,6 @@ classdef PACluster < PAData
         % silhouette(X, idx,'distance','euclidean');
         % silhouette(this.loadShapes, this.loadshapeIndex2centroidIndexMap,'distance','euclidean');
         
-        
-        
         %> Nx1 vector that maps the constructor's input load shapes matrix
         %> to the sorted  @c loadShapes matrix.
         %sortIndices;  % centroidShapes(sortIndices(1),:) is the most popular centroid
@@ -125,9 +123,14 @@ classdef PACluster < PAData
         
         sumD;
         
-        %> Sorted distribution of centroid shapes by frequency of children load shape members.
+        %> Struct of the sorted distribution of centroid shapes by frequency of children load shape members.
         %> (Cx1 vector - where is C is the number centroids)
         histogram;
+        
+        %> Struct of cells containing the loadShapeIDs associated with the members of the
+        %> histogram property, which it shares the same field names
+        %> (Cx1 vector - where is C is the number centroids)        
+        histogram_ids;
         
         %> Weekday scores for cluster shapes, sorted according to frequency
         %> of load shape popularity *see histogram note.
@@ -230,8 +233,12 @@ classdef PACluster < PAData
             else
                 this.statusTextHandle = -1;
             end
-            this.distanceMetric = 'sqeuclidean'; %> For clustering.  Default is squared euclidean ('sqeuclidean');
-            %'sqeuclidean','cityblock','cosine','correlation','hamming'
+            
+            % this.distanceMetric = 'sqeuclidean';
+            if isfield(settings, 'distanceMetric')
+                this.setSetting('distanceMetric', settings.distanceMetric);
+            end
+            
             if(~isempty(axesOrLineH) && ishandle(axesOrLineH))
                 handleType = get(axesOrLineH,'type');
                 if(strcmpi(handleType,'axes'))
@@ -693,20 +700,24 @@ classdef PACluster < PAData
             end
         end
         
-        function distribution = getHistogram(this,histogramOf)
+        function [distribution, ids] = getHistogram(this,histogramOf)
             if(nargin<2 || isempty(histogramOf))
                 histogramOf = 'loadshapes';
             end
             switch(lower(histogramOf))
-                case 'participants'
+                case {'participants', 'participants_membership'}
                     distribution = this.histogram.participants;
-                case 'loadshapes'
+                    ids = this.histogram_ids.participants;
+                case {'loadshapes', 'loadshapes_membership'}
                     distribution = this.histogram.loadshapes;
-                case 'nonwear'
+                    ids = this.histogram_ids.loadshapes;
+                case {'nonwear','nonwear_membership'}
                     distribution = this.histogram.nonwear;
+                    ids = this.histogram_ids.nonwear;
                 otherwise
                     this.logWarning('Unrecognized histogram option (%s) - returning loadshapes',histogramOf);
                     distribution = this.histogram.loadshapes;
+                    ids = this.histogram_ids.loadshapes;
             end
         end
         
@@ -1144,34 +1155,48 @@ classdef PACluster < PAData
                         fprintf(1,'%s\n',msg);
                     end
                     [this.histogram.loadshapes, this.centroidSortMap] = this.calculateAndSortDistribution(this.loadshapeIndex2centroidIndexMap);%  was -->       calculateAndSortDistribution(this.loadshapeIndex2centroidIndexMap);
-                    
                     this.histogram.participants = zeros(size(this.histogram.loadshapes));
                     this.histogram.nonwear = zeros(size(this.histogram.loadshapes));
-                    
+                                        
                     this.coiSortOrder2Index = this.centroidSortMap;  % coiSortOrder2Index(c) contains the original centroid index that corresponds to the c_th most popular position
                     [~,this.coiIndex2SortOrder] = sort(this.centroidSortMap,1,'ascend');
                     
                     K = this.getNumClusters();
+                    
                     % May need to look into a sparse matrix at some point here ...
                     this.clusterMemberIndices = false(K,this.getNumLoadShapes());
+                    
+                    this.histogram_ids.loadshapes = cell(K,1);
+                    this.histogram_ids.participants = cell(K,1);
+                    this.histogram_ids.nonwear = cell(K,1);
+                    
                     this.weekdayScores = nan(K,1);
                     for k = 1:K
-                        this.clusterMemberIndices(k,:) = k==this.loadshapeIndex2centroidIndexMap;
-                        startDay.value = this.loadShapeDayOfWeek(this.clusterMemberIndices(k,:),1);
+                        memberIndices = k==this.loadshapeIndex2centroidIndexMap;
+                        this.clusterMemberIndices(k,:) = memberIndices;
+                        startDay.value = this.loadShapeDayOfWeek(memberIndices,1);
+                        % startDay.value = this.loadShapeDayOfWeek(this.clusterMemberIndices(k,:),1);
                         startDay.count = histc(startDay.value,this.WEEKDAY_ORDER);
                         %                     this.weekdayScores(k) = this.WEEKDAY_WEIGHT*dayOfWeek.count(:)/sum(dayOfWeek.count);
                         this.weekdayScores(k) = (this.WEEKDAY_SCORE.*this.WEEKDAY_WEIGHT*startDay.count(:))/(this.WEEKDAY_WEIGHT*startDay.count(:));
                         
                         startDay.memberIDs = this.loadShapeIDs(this.clusterMemberIndices(k,:));
+                        this.histogram_ids.loadshapes{this.coiIndex2SortOrder(k)} = startDay.memberIDs;
                         
                         % Keep it in the same order as histogram.loadshapes
-                        this.histogram.participants(this.coiIndex2SortOrder(k)) = numel(unique(startDay.memberIDs));
+                        participant_ids = unique(startDay.memberIDs);
+                        this.histogram_ids.participants{this.coiIndex2SortOrder(k)} = participant_ids;
+                        this.histogram.participants(this.coiIndex2SortOrder(k)) = numel(participant_ids);
+                        
                         if(~isempty(this.nonwearRows))
                             % Keep it in the same order as histogram.loadshapes
-                            this.histogram.nonwear(this.coiIndex2SortOrder(k)) = sum(this.nonwearRows(this.clusterMemberIndices(k,:)));
+                            % nonwear_indices = this.nonwearRows(memberIndices);
+                            nonwear_ids = this.loadShapeIDs(this.nonwearRows & memberIndices);
+                            this.histogram.nonwear(this.coiIndex2SortOrder(k)) = numel(nonwear_ids);
+                            this.histogram_ids.nonwear{this.coiIndex2SortOrder(k)} = nonwear_ids;
                         end
 
-                        dayOfWeek.values = this.loadShapeDayOfWeek(this.clusterMemberIndices(k,:),:);
+                        dayOfWeek.values = this.loadShapeDayOfWeek(memberIndices,:);
                         dayOfWeek.counts = histc(dayOfWeek.values(:),this.WEEKDAY_ORDER);
                         this.weekdayScores(k) = (this.WEEKDAY_SCORE.*this.WEEKDAY_WEIGHT*dayOfWeek.counts(:))/(this.WEEKDAY_WEIGHT*dayOfWeek.counts(:));
                         
@@ -1225,8 +1250,7 @@ classdef PACluster < PAData
                 this.calculationState = -1;  % Calculation failed
                 this.calinskiIndex = nan;
                 this.silhouetteIndex = nan;
-                this.init();
-                
+                this.init();                
             end
         end
         
@@ -1373,6 +1397,7 @@ classdef PACluster < PAData
             Y = [];
             idx = [];
             sumD = [];
+            
             % argument checking and validation ....
             if(nargin<5)
                 textStatusH = -1;
@@ -1394,6 +1419,9 @@ classdef PACluster < PAData
                     this.logWarning('Unsupported cluster method (%s), using kmeans',settings.clusterMethod);
                     kstats = @kmeans;
             end
+            
+            
+            distanceMetric_ = settings.distanceMetric;
             
             if(settings.useDefaultRandomizer)
                 rng('default');  % To get same results from run to run...
@@ -1461,21 +1489,21 @@ classdef PACluster < PAData
                         % - Turn this off for reproducibility
                         if(settings.initClusterWithPermutation)
                             clusters = loadShapes(pa_randperm(N,K),:);
-                            [idx, clusters, sumD, pointToClusterDistances] = kstats(loadShapes,K,'Start',clusters,'distance',this.distanceMetric);
-%                             [idx, centroids, sumD, pointToClusterDistances] = kmeans(loadShapes,K,'Start',centroids,'EmptyAction','drop','distance',this.distanceMetric);
+                            [idx, clusters, sumD, pointToClusterDistances] = kstats(loadShapes,K,'Start',clusters,'distance',distanceMetric_);
+%                             [idx, centroids, sumD, pointToClusterDistances] = kmeans(loadShapes,K,'Start',centroids,'EmptyAction','drop','distance',distanceMetric_);
                         else
-                            [idx, clusters, sumD, pointToClusterDistances] = kstats(loadShapes,K,'distance',this.distanceMetric);
+                            [idx, clusters, sumD, pointToClusterDistances] = kstats(loadShapes,K,'distance',distanceMetric_);
 %                             [idx, centroids, sumD, pointToClusterDistances] = kmeans(loadShapes,K);
                         end
                         firstLoop = false;
                     else
-                        [idx, clusters, sumD, pointToClusterDistances] = kstats(loadShapes,K,'Start',clusters,'distance',this.distanceMetric);
-%                         [idx, centroids, sumD, pointToClusterDistances] = kmeans(loadShapes,K,'Start',centroids,'EmptyAction','drop','distance',this.distanceMetric);
+                        [idx, clusters, sumD, pointToClusterDistances] = kstats(loadShapes,K,'Start',clusters,'distance',distanceMetric_);
+%                         [idx, centroids, sumD, pointToClusterDistances] = kmeans(loadShapes,K,'Start',centroids,'EmptyAction','drop','distance',distanceMetric_);
                     end
                     
                     if(ishandle(performanceAxesH))
                         if(strcmpi(this.performanceCriterion,'silhouette'))
-                            performanceIndex  = mean(silhouette(loadShapes,idx,this.distanceMetric));
+                            performanceIndex  = mean(silhouette(loadShapes,idx,distanceMetric_));
                             
                         else
                             performanceIndex  = this.getCalinskiHarabaszIndex(idx,clusters,sumD);
@@ -1514,14 +1542,14 @@ classdef PACluster < PAData
                         
                         clusters(removed,:)=[];
                         K = K-numRemoved;
-                        [idx, clusters, sumD, pointToClusterDistances] = kstats(loadShapes,K,'Start',clusters,'onlinephase','off','distance',this.distanceMetric);
-%                         [idx, centroids, sumD, pointToClusterDistances] = kmeans(loadShapes,K,'Start',centroids,'EmptyAction','drop','onlinephase','off','distance',this.distanceMetric);
+                        [idx, clusters, sumD, pointToClusterDistances] = kstats(loadShapes,K,'Start',clusters,'onlinephase','off','distance',distanceMetric_);
+%                         [idx, centroids, sumD, pointToClusterDistances] = kmeans(loadShapes,K,'Start',centroids,'EmptyAction','drop','onlinephase','off','distance',distanceMetric_);
             
                         % We performed another clustering step just now, so
                         % show these results.
                         if(ishandle(performanceAxesH))
                             if(strcmpi(this.performanceCriterion,'silhouette'))
-                                performanceIndex  = mean(silhouette(loadShapes,idx,this.distanceMetric));
+                                performanceIndex  = mean(silhouette(loadShapes,idx,distanceMetric_));
                                 
                             else
                                 performanceIndex  = this.getCalinskiHarabaszIndex(idx,clusters,sumD);
@@ -1565,8 +1593,8 @@ classdef PACluster < PAData
                             numClusteredLoadShapes = size(clusteredLoadShapes,1);
                             if(numClusteredLoadShapes>1)
                                 try
-                                    [~,splitClusters] = kstats(clusteredLoadShapes,2,'distance',this.distanceMetric);
-%                                     [~,splitClusters] = kmeans(clusteredLoadShapes,2,'EmptyAction','drop','distance',this.distanceMetric);
+                                    [~,splitClusters] = kstats(clusteredLoadShapes,2,'distance',distanceMetric_);
+%                                     [~,splitClusters] = kmeans(clusteredLoadShapes,2,'EmptyAction','drop','distance',distanceMetric_);
                         
                                 catch me
                                     showME(me);
@@ -1582,13 +1610,13 @@ classdef PACluster < PAData
                         end
                         % ???
                         % for speed
-                        %[~,centroids(curRow:curRow+1,:)] = kmeans(clusteredLoadShapes,2,'distance',this.distanceMetric);
+                        %[~,centroids(curRow:curRow+1,:)] = kmeans(clusteredLoadShapes,2,'distance',distanceMetric_);
                         %curRow = curRow+2;
                         
                         % reset cluster centers now / batch update
                         K = K+numNotCloseEnough;
-                        [~, clusters] = kstats(loadShapes,K,'Start',clusters,'onlinephase','off','distance',this.distanceMetric);
-%                         [~, centroids] = kmeans(loadShapes,K,'Start',centroids,'EmptyAction','drop','onlinephase','off','distance',this.distanceMetric);
+                        [~, clusters] = kstats(loadShapes,K,'Start',clusters,'onlinephase','off','distance',distanceMetric_);
+%                         [~, centroids] = kmeans(loadShapes,K,'Start',centroids,'EmptyAction','drop','onlinephase','off','distance',distanceMetric_);
                     end
                 end  % end adaptive while loop
                 
@@ -1610,8 +1638,8 @@ classdef PACluster < PAData
                             curString = get(textStatusH,'string');
                             set(textStatusH,'string',[curString(end);statusStr]);
                         end
-                        [idx, clusters, sumD, pointToClusterDistances] = kstats(loadShapes,K,'Start',clusters,'distance',this.distanceMetric);
-%                         [~, centroids] = kmeans(loadShapes,K,'Start',centroids,'EmptyAction','drop','onlinephase','off','distance',this.distanceMetric);
+                        [idx, clusters, sumD, pointToClusterDistances] = kstats(loadShapes,K,'Start',clusters,'distance',distanceMetric_);
+%                         [~, centroids] = kmeans(loadShapes,K,'Start',centroids,'EmptyAction','drop','onlinephase','off','distance',distanceMetric_);
                     end
                     % This may only pertain to when the user cancelled.
                     % Not sure if it is needed otherwise...
@@ -1736,6 +1764,7 @@ classdef PACluster < PAData
                 'description','Cluster convergence threshold');
             
             settings.clusterMethod = PAEnumParam('default','kmeans','categories',PACluster.getClusterMethods(),'description','Clustering method');
+            settings.distanceMetric = PAEnumParam('default','sqeuclidean','categories', PACluster.getDistanceMetrics(),'description','Clustering distance metric','help', 'Distance metric used with clustering.  Default is squared euclidean (''sqeuclidean'')');
             settings.useDefaultRandomizer = PABoolParam('default',false,'description','Use default randomizer');
             settings.initClusterWithPermutation = PABoolParam('default',false,'description','Initialize clusters with permutation');            
         end
@@ -1743,6 +1772,11 @@ classdef PACluster < PAData
         function methods = getClusterMethods()
             methods = {'kmeans','kmedoids'};
         end
+        
+        function metrics = getDistanceMetrics()
+            metrics = {'sqeuclidean','cityblock','cosine','correlation','hamming'};
+        end
+
     
         function h=plot(performanceAxesH,X,Y)
             plotOptions = PACluster.getPlotOptions();

@@ -29,7 +29,7 @@ classdef PABase < handle
             obj.setStatus(varargin{:});
             start(obj.statusTimerH);            
         end
-        
+                
         function setStatus(obj, fmtStr, varargin)            
             str = sprintf(fmtStr, varargin{:});
             if(~isempty(obj.statusHandle) && ishandle(obj.statusHandle))
