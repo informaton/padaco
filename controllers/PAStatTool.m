@@ -4328,6 +4328,9 @@ classdef PAStatTool < PAViewController
                     [this.globalProfile, ~] = this.getProfileCell(globalStruct.memberIDs,this.profileFields);
                     
                     % place the global profile at the end.
+                    if isempty(this.profileTableData)
+                    %    this.initProfileTable  - this will be infinitely recursive if the tableData does not initialize :(
+                    end
                     this.profileTableData(:,end-size(this.globalProfile,2)+1:end) = this.globalProfile;
                     this.refreshProfileTableData();
                     numClusters = this.clusterObj.getNumClusters();  %or numel(globalStruct.colnames).

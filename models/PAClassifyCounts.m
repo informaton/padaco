@@ -33,7 +33,7 @@ classdef PAClassifyCounts < PAClassifyUsage
         %> - c usageVec(remSleepVec) = 10  REM sleep
         %> - c usageVec(nonwearVec) = 5  Non-wear
         %> - c usageVec(studyOverVec) = 0  Non-wear, study over.
-        %> @retval whereState Vector of wear vs non-wear state.  Each element represent the
+        %> @retval wearState Vector of wear vs non-wear state.  Each element represent the
         %> consecutive grouping of like states found in the usage vector.
         %> @note Wear states are categorized as follows:
         %> - c 5 Nonwear
@@ -41,9 +41,7 @@ classdef PAClassifyCounts < PAClassifyUsage
         %> @retval startStopDatenums Start and stop datenums for each usage
         %> state row entry of usageState.
         % ======================================================================
-        function [usageVec, wearState, startStopDateNums] = classifyUsageState(obj, countActivity, datetimeNums, usageStateRules)
-
-           
+        function [usageVec, wearState, startStopDateNums] = classifyUsageState(obj, countActivity, datetimeNums, usageStateRules)           
             % By default activity determined from vector magnitude signal
             if(nargin<2 || isempty(countActivity))
                 countActivity = obj.dataVec;
@@ -60,15 +58,15 @@ classdef PAClassifyCounts < PAClassifyUsage
                                         
             tagStruct = obj.getActivityTags();
 
-            %             UNKNOWN = -1;
-            %             NONWEAR = 5;
-            %             WEAR = 10;
-            %            STUDYOVER=0;
-            %            REMS = 10;
-            %            NREMS = 15;
-            %            NAPPING = 20;
-            %            INACTIVE = 25;
-            %            ACTIVE = 30;
+            % UNKNOWN = -1;
+            % NONWEAR = 5;
+            % WEAR = 10;
+            % STUDYOVER=0;
+            % REMS = 10;
+            % NREMS = 15;
+            % NAPPING = 20;
+            % INACTIVE = 25;
+            % ACTIVE = 30;
 
             longClassificationMinimumDurationOfMinutes = usageStateRules.longClassificationMinimumDurationOfMinutes; %15; %a 15 minute or 1/4 hour filter
             shortClassificationMinimumDurationOfMinutes = usageStateRules.shortClassificationMinimumDurationOfMinutes; %5; %a 5 minute or 1/12 hour filter
@@ -79,7 +77,6 @@ classdef PAClassifyCounts < PAClassifyUsage
 
             samplesPerMinute = obj.getSampleRate()*60; % samples per second * 60 seconds per minute
             samplesPerHour = 60*samplesPerMinute;
-
 
             longFilterLength = longClassificationMinimumDurationOfMinutes*samplesPerMinute;
             shortFilterLength = shortClassificationMinimumDurationOfMinutes*samplesPerMinute;

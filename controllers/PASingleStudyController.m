@@ -2206,10 +2206,12 @@ classdef PASingleStudyController < PAViewController
             %            uimenu(uicontextmenu_handle,'Label','Add Reference Line','separator','on','callback',@obj.contextmenu_line_referenceline_callback);
             %            uimenu(uicontextmenu_handle,'Label','Align Channel','separator','off','callback',@obj.align_channels_on_axes);
             uimenu(uicontextmenu_handle,'Label','Hide','separator','on','callback',@obj.cmenuLineHideCb);
-            uimenu(uicontextmenu_handle,'Label','Copy to clipboard','separator','off','callback',@obj.contextmenuLine2ClipboardCb,'tag','copy_line2clipboard');
+            uimenu(uicontextmenu_handle,'Label','Copy entire signal to clipboard','separator','on','callback',{@obj.contextmenuLine2ClipboardCb,'clipboard'}, 'tag','copy_line2clipboard');
+            uimenu(uicontextmenu_handle,'Label','Copy current window to clipboard','separator','off','callback',{@obj.contextmenuLine2ClipboardCb,'clipboard'}, 'tag','copy_window2clipboard');
             
             if ~isdeployed
-                uimenu(uicontextmenu_handle,'Label','Export to workspace','separator','off','callback',{@obj.contextmenuLine2ClipboardCb, 'workspace'},'tag','copy_line2clipboard');
+                uimenu(uicontextmenu_handle,'Label','Export entire signal to workspace','separator','on','callback',{@obj.contextmenuLine2ClipboardCb, 'workspace'},'tag','export_line2clipboard');
+                uimenu(uicontextmenu_handle,'Label','Export current window to workspace','separator','off','callback',{@obj.contextmenuLine2ClipboardCb, 'workspace'},'tag','export_window2clipboard');
             end
             % uimenu(uicontextmenu_handle,'Label','Copy window to clipboard','separator','off','callback',@obj.contextmenuWindow2ClipboardCb,'tag','copy_window2clipboard');
         end
@@ -2438,7 +2440,8 @@ classdef PASingleStudyController < PAViewController
         %> @param exportOption Optional tag, if 'workspace' then the data is sent to the MATLAB workspace instead of the clipboard
         %> followed by a popup window showing which variable it was exported to.
         % =================================================================
-        function contextmenuLine2ClipboardCb(obj,~, ~, exportOption)
+        function contextmenuLine2ClipboardCb(obj,hObject, ~, exportOption)
+            menuTag = get(hObject,'tag');
             tagLine = get(gco,'tag');
             parentH = get(gco,'parent');
             
@@ -2446,6 +2449,13 @@ classdef PASingleStudyController < PAViewController
             % rereference line handles.
             h = findobj(parentH,'tag',tagLine,'linestyle','-','type','line');
             data = obj.accelObj.getSignalFromTagLine(tagLine);
+                                   
+            % copy_window2clipboard or export_window2clipboard
+            if contains(menuTag, 'window')
+                ax = get(h,'parent');
+                x_range = round(get(ax, 'xlim'));
+                data = data(x_range(1):x_range(2));
+            end
             
             % data =get(h(1),'ydata');
             

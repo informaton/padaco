@@ -119,8 +119,9 @@ classdef PAClassifyUsage < PADataAnalysis
             tagStruct.STUDY_NOT_STARTED = 1;
             tagStruct.NOT_WORKING = 5;
             tagStruct.UNKNOWN = -1;
-            tagStruct.MALFUNCTION = -5;
-            tagStruct.SENSOR_STUCK = 50;
+            tagStruct.MALFUNCTION = -5;            
+            tagStruct.TRIAXIAL_BURST = 45; % all accelerometers show large activity for 5-20 minutes.            
+            tagStruct.SENSOR_STUCK = 50; % any sensor stuck at the same value
             
         end
     end
