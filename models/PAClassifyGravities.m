@@ -12,7 +12,7 @@ classdef PAClassifyGravities < PAClassifyUsage
         %> included then parameters from getDefaults method are used.
         %> @retval Instance of PAClassifyGravities.
          % =================================================================
-        function obj = PAClassifyGravities(varargin)  % icountVector should be first argument,  nputSettings is second argument
+        function obj = PAClassifyGravities(varargin)  %  (gravity vector, inputSettings)
             obj = obj@PAClassifyUsage(varargin{:});                        
         end        
      
@@ -160,9 +160,7 @@ classdef PAClassifyGravities < PAClassifyUsage
             usageVec(isNotWorkingVec) = tagStruct.NOT_WORKING; %5;
             usageVec(studyOverVec) = tagStruct.STUDYOVER;%0;            
             usageVec(studyNotStartedVec) = tagStruct.STUDY_NOT_STARTED;
-            usageVec(isStuck) = tagStruct.SENSOR_STUCK;
-
-            
+            usageVec(isStuck) = tagStruct.SENSOR_STUCK;            
             % usageVec(studyMalfunction) = tagStruct.MALFUNCTION;
             
         end

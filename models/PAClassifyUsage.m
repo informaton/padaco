@@ -86,14 +86,12 @@ classdef PAClassifyUsage < PADataAnalysis
         end
         
         function fs = getSampleRate(obj)
-%             fs = obj.settings.sampleRate;
+            %             fs = obj.settings.sampleRate;
             fs = obj.getSetting('sampleRate');
         end
     end
 
     methods(Static)
-
-
         % ======================================================================
         %> @brief Returns a structure of PAClassifyUsage's default parameters as a struct.
         %> when subclassed.  An empty struct is returned otherwise.  

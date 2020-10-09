@@ -56,6 +56,8 @@ classdef PABaseWithSettings < PABase
             param = this.getSettingsParam(keys{:});
             if(~isempty(param) && isa(param, 'PAParam'))
                 didSet = param.setValue(value2set);
+            elseif numel(keys)==1 
+                didSet = this.setScalarSettingsParam(keys{1}, value2set);                
             else
                 didSet = false;
             end
@@ -101,6 +103,19 @@ classdef PABaseWithSettings < PABase
                     end
                 end
             end
-        end        
+        end 
+        
+        function didSet = setScalarSettingsParam(this, key, value)            
+            exactKey = getCaseSensitiveMatch(key, this.settings);
+            didSet = false;
+            if(~isempty(exactKey) && ~isa(this.settings.(exactKey),'PAParam'))
+                try
+                    this.settings.(exactKey) = value;
+                    didSet = true;
+                catch me
+                    showME(me);
+                end
+            end
+        end 
     end
 end
