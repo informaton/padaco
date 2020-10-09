@@ -49,8 +49,8 @@ classdef PAClassifyGravities < PAClassifyUsage
 
             %  STUCK_VALUES/MALFUNCTION = -5; 
 
-            longFilterLengthMinutes = rules.longFilterLengthMinutes;   % 15; %a 15 minute or 1/4 hour filter
-            shortFilterLengthMinutes = rules.shortFilterLengthMinutes; % 05; %a 5 minute or 1/12 hour filter
+            longFilterLengthMinutes = rules.longFilterLengthMinutes;   % 5 minute or 1/4 hour filter
+            shortFilterLengthMinutes = rules.shortFilterLengthMinutes; % 1 minute or 1/12 hour filter
 
             samplesPerMinute = obj.getSampleRate()*60; % samples per second * 60 seconds per minute
             samplesPerHour = 60*samplesPerMinute;
@@ -62,7 +62,6 @@ classdef PAClassifyGravities < PAClassifyUsage
             shortSum = obj.movingSummer(gravityVec,shortFilterLength);
 
             usageVec = repmat(tagStruct.UNKNOWN,(size(datetimeNums)));
-
             
             isStuck = diff(shortSum)==0 & shortSum(2:end)~=0;
             isStuckEvents = obj.thresholdcrossings(isStuck, 0);
@@ -74,6 +73,18 @@ classdef PAClassifyGravities < PAClassifyUsage
             end            
             isStuck = obj.unrollEvents(isStuckEvents, numel(usageVec));
             
+            burstThresholdG = rules.excessiveGravitiesPerMinuteCutoff*shortFilterLength; % shortFilterLengthMinutes*samplesPerMinute; % each filtered value represents the sum of the neighboring shortFilterLengthMinutes (e.g. 5 minutes) worth of data
+            isBursting = shortSum > burstThresholdG; % 1 indicates working
+            isBurstingEvents = obj.thresholdcrossings(isBursting, 0);
+            if ~isempty(isBurstingEvents)
+                isBurstingEvents = [max(isBurstingEvents(:, 1)-shortFilterLength/2,1), min(isBurstingEvents(:, 2)+ shortFilterLength/2, numel(isBursting))];
+                % Merge?
+                % Verify correct length if our shortFilterLenghtMinutes ~= rules.minMInutesForExessiveGravities
+            end
+            isBurstingVec = obj.unrollEvents(isBurstingEvents, numel(usageVec));
+            
+            % Here, I compare it to the long some though - is that right?           
+            % These are for 0 value runs
             notWorkingThreshold = shortFilterLengthMinutes*rules.workingGravitiesPerMinuteCutoff;            
             isWorking = longSum > notWorkingThreshold; % 1 indicates working
             isNotWorkingEvents= obj.thresholdcrossings(~isWorking, 0);
@@ -160,6 +171,7 @@ classdef PAClassifyGravities < PAClassifyUsage
             usageVec(isNotWorkingVec) = tagStruct.NOT_WORKING; %5;
             usageVec(studyOverVec) = tagStruct.STUDYOVER;%0;            
             usageVec(studyNotStartedVec) = tagStruct.STUDY_NOT_STARTED;
+            usageVec(isBurstingVec) = tagStruct.SENSOR_BURST;
             usageVec(isStuck) = tagStruct.SENSOR_STUCK;            
             % usageVec(studyMalfunction) = tagStruct.MALFUNCTION;
             
@@ -182,12 +194,13 @@ classdef PAClassifyGravities < PAClassifyUsage
             usageStateRules.longFilterLengthMinutes=5;
             usageStateRules.shortFilterLengthMinutes = 1;
             
-            usageStateRules.accelerometerStuckMinutesCutoff = 1;  % exceeding the cutoff means you are awake     
+            usageStateRules.accelerometerStuckMinutesCutoff = 1;  % exceeding the cutoff means you are awake                 
+            usageStateRules.workingGravitiesPerMinuteCutoff = 0; % exceeding the cutoff indicates working            
+            usageStateRules.excessiveGravitiesPerMinuteCutoff = 4; % exceeding the cutoff indicates excessive
             
-            usageStateRules.workingGravitiesPerMinuteCutoff = 0; % exceeding the cutoff indicates working
-
             usageStateRules.minMinutesForStuck = 1;
             usageStateRules.minMinutesForNotWorking = 1;
+            usageStateRules.minMinutesForExessiveGravities = 5;
 
             % usageStateRules.mergeWithinHoursForNonWear = 4;
             % usageStateRules.minHoursForNonWear = 4;
