@@ -710,17 +710,23 @@ classdef PAStatTool < PAViewController
                     % again, and check if there are discards here.
                     
                     individualsMissingCompleteWeekAfterNonWearExclusion = 0;
-                    for d=1:size(dayInd,1)
-                        if any(nonwear_rows(dayInd(d,1):dayInd(d,2)))
-                            % This is a conservative approach as it could be that a subject only has one or two days of nonwear over the course
-                            % of 10 days of data and still has a week left to be evaluated with.  
-                            day_ind = dayInd(d,1):dayInd(d,2);
-                            ind2keepAndNonwearExcluded(day_ind) = false;                            
-                            if(this.originalFeatureStruct.numDays(d)>=7)
-                                ind2keepExactly1WeekAndNonwearExcluded(day_ind) = false;
-                                individualsMissingCompleteWeekAfterNonWearExclusion = individualsMissingCompleteWeekAfterNonWearExclusion + 1;
+                    
+                    % It is possible for nonwear_rows to be empty; 
+                    % e.g. if a user tries to overwrite previous usage state 
+                    % by running a batch job and then stopping before it finishes.
+                    if ~isempty(nonwear_rows)
+                        for d=1:size(dayInd,1)
+                            if any(nonwear_rows(dayInd(d,1):dayInd(d,2)))
+                                % This is a conservative approach as it could be that a subject only has one or two days of nonwear over the course
+                                % of 10 days of data and still has a week left to be evaluated with.
+                                day_ind = dayInd(d,1):dayInd(d,2);
+                                ind2keepAndNonwearExcluded(day_ind) = false;
+                                if(this.originalFeatureStruct.numDays(d)>=7)
+                                    ind2keepExactly1WeekAndNonwearExcluded(day_ind) = false;
+                                    individualsMissingCompleteWeekAfterNonWearExclusion = individualsMissingCompleteWeekAfterNonWearExclusion + 1;
+                                end
+                                this.nonwear.week_rows(day_ind) = true;
                             end
-                            this.nonwear.week_rows(day_ind) = true;
                         end
                     end
                     this.originalFeatureStruct.ind2keepAndNonwearExcluded = ind2keepAndNonwearExcluded;
@@ -4509,7 +4515,12 @@ classdef PAStatTool < PAViewController
                         tagStruct = PASensorData.getActivityTags();
                         nonwearRows = any(usageStateStruct.shapes<=tagStruct.NONWEAR,2);                        
                         malfunctionRows = any(usageStateStruct.shapes==tagStruct.SENSOR_STUCK,2);
+                        
+                        
                         nonwearRows = nonwearRows | malfunctionRows;
+                        
+                        % burstRows = any(usageStateStruct.shapes==tagStruct.SENSOR_BURST, 2); % one sensor showing excessive readings for 5+ minutes.                        
+                        % nonwearRows = burstRows;
                         
                         %tagStruct.SENSOR_STUCK
                     end

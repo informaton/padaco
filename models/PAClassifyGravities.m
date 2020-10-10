@@ -170,9 +170,10 @@ classdef PAClassifyGravities < PAClassifyUsage
             usageVec(isWorkingVec) = tagStruct.WORKING; %10;
             usageVec(isNotWorkingVec) = tagStruct.NOT_WORKING; %5;
             usageVec(studyOverVec) = tagStruct.STUDYOVER;%0;            
-            usageVec(studyNotStartedVec) = tagStruct.STUDY_NOT_STARTED;
-            usageVec(isBurstingVec) = tagStruct.SENSOR_BURST;
-            usageVec(isStuck) = tagStruct.SENSOR_STUCK;            
+            usageVec(studyNotStartedVec) = tagStruct.STUDY_NOT_STARTED;           
+            usageVec(isBurstingVec) = tagStruct.SENSOR_BURST;     
+            usageVec(isStuck) = tagStruct.SENSOR_STUCK;
+
             % usageVec(studyMalfunction) = tagStruct.MALFUNCTION;
             
         end
