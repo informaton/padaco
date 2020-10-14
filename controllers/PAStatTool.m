@@ -2526,21 +2526,16 @@ classdef PAStatTool < PAViewController
             %             set(this.toolbarH.cluster.toggle_analysisFigure,'visible','on');
         end
         
-        % ======================================================================
-        %>  @brief Initializes the row table and menu_ySelection menu
-        %> handle which indicates the profile field selected by the user.
-        %> The row corresponding to the selected profile field is highlighed
-        %> by using a darker background color
-        %> @param this Instance of PAStatTool
-        %> @param profileFieldSelection Index of the profile field
-        %> currently selected.  If not entered, it is set to '1', the first
-        %> profile field available.
-        % ======================================================================
-        function initProfileTable(this, profileFieldSelection)
+        % Creates an empty table (cell) with column and row names for the profile data associated with studies being analyzed
+        function [tableData, rowNames, columnNames] = createProfileTable(this, profileFieldSelection)
             % intialize the cluster profile table
-            profileColumnNames = {'n','mx','sem','n (global)','mx (global)','sem (global)'};
-            %{'Mean (global)','Mean (cluster)','p'};
+            columnNames = {'n','mx','sem','n (global)','mx (global)','sem (global)'};
             rowNames = this.profileFields;
+            numRows = numel(rowNames);
+            tableData = cell(numRows,numel(columnNames));
+            this.profileTableData = tableData;  %array2table(tableData,'VariableNames',profileColumnNames,'RowNames',rowNames); 
+            
+                        % intialize the cluster profile table
             if(nargin<2 || isempty(profileFieldSelection))
                 profileFieldSelection = this.getSetting('profileFieldSelection');
             end
@@ -2563,8 +2558,7 @@ classdef PAStatTool < PAViewController
             backgroundColor(profileFieldSelection,:) = userData.rowOfInterestBackgroundColor;
             
             % legend(this.handles.axes_scatterPlot,'off');
-            tableData = cell(numRows,numel(profileColumnNames));
-            this.profileTableData = tableData;  %array2table(tableData,'VariableNames',profileColumnNames,'RowNames',rowNames);
+            
             
             % Could use the DefaultTableModel instead of the, otherwise,
             % DefaultUIStyleTableModel which does not provide the same
@@ -2573,12 +2567,26 @@ classdef PAStatTool < PAViewController
             
             %             curStack = dbstack;
             %             fprintf(1,'Skipping cluster profile table initialization on line %u of %s\n',curStack(1).line,curStack(1).file);
-            set(this.handles.table_clusterProfiles,'rowName',rowNames,'columnName',profileColumnNames,...
+            set(this.handles.table_clusterProfiles,'rowName',rowNames,'columnName',columnNames,...
                 'units','pixels','fontname','arial','fontsize',12,'fontunits','pixels','visible','on',...
                 'backgroundColor',backgroundColor,'rowStriping','on',...
                 'data',tableData,...
                 'userdata',userData,'CellSelectionCallback',@this.analysisTableCellSelectionCallback);
-            
+           
+        end
+        
+        % ======================================================================
+        %>  @brief Initializes the row table and menu_ySelection menu
+        %> handle which indicates the profile field selected by the user.
+        %> The row corresponding to the selected profile field is highlighed
+        %> by using a darker background color
+        %> @param this Instance of PAStatTool
+        %> @param profileFieldSelection Index of the profile field
+        %> currently selected.  If not entered, it is set to '1', the first
+        %> profile field available.
+        % ======================================================================
+        function initProfileTable(this, profileFieldSelection)
+            this.createProfileTable();           
             
             % May or may not occur depending on state of cached values, but
             % if there are loaded table or database values, go ahead and
@@ -2589,7 +2597,8 @@ classdef PAStatTool < PAViewController
                     this.refreshProfileTableData();
                 end
             end
-            fitTableWidth(this.handles.table_clusterProfiles);
+            
+            fitTableWidth(this.handles.table_clusterProfiles);            
             this.setProfileFieldIndex(profileFieldSelection);
         end
         
@@ -4335,6 +4344,7 @@ classdef PAStatTool < PAViewController
                     
                     % place the global profile at the end.
                     if isempty(this.profileTableData)
+                        this.createProfileTable();
                     %    this.initProfileTable  - this will be infinitely recursive if the tableData does not initialize :(
                     end
                     this.profileTableData(:,end-size(this.globalProfile,2)+1:end) = this.globalProfile;
@@ -4513,16 +4523,17 @@ classdef PAStatTool < PAViewController
                     end
                     if(isstruct(usageStateStruct))
                         tagStruct = PASensorData.getActivityTags();
-                        nonwearRows = any(usageStateStruct.shapes<=tagStruct.NONWEAR,2);                        
-                        malfunctionRows = any(usageStateStruct.shapes==tagStruct.SENSOR_STUCK,2);
-                        
-                        
-                        nonwearRows = nonwearRows | malfunctionRows;
-                        
-                        % burstRows = any(usageStateStruct.shapes==tagStruct.SENSOR_BURST, 2); % one sensor showing excessive readings for 5+ minutes.                        
-                        % nonwearRows = burstRows;
-                        
-                        %tagStruct.SENSOR_STUCK
+                        nonwearRows = any(usageStateStruct.shapes<=tagStruct.NONWEAR,2);
+                        zeroRows = any(usageStateStruct.shapes==tagStruct.NOT_WORKING, 2);
+                        zeroRows = any(usageStateStruct.shapes==tagStruct.STUDY_NOT_STARTED, 2);
+                        zeroRows = any(usageStateStruct.shapes==tagStruct.STUDYOVER, 2);
+
+                        stuckRows = any(usageStateStruct.shapes==tagStruct.SENSOR_STUCK,2);
+                        burstRows = any(usageStateStruct.shapes==tagStruct.SENSOR_BURST, 2); % one sensor showing excessive readings for 5+ minutes.                        
+                        nonwearRows = zeroRows;
+                        malfunctionRows = nonwearRows;
+                        % malfunctionRows = burstRows | stuckRows;                        
+                        %nonwearRows = nonwearRows | malfunctionRows; 
                     end
                 otherwise
             end
