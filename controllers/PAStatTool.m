@@ -4524,14 +4524,17 @@ classdef PAStatTool < PAViewController
                     if(isstruct(usageStateStruct))
                         tagStruct = PASensorData.getActivityTags();
                         nonwearRows = any(usageStateStruct.shapes<=tagStruct.NONWEAR,2);
-                        zeroRows = any(usageStateStruct.shapes==tagStruct.NOT_WORKING, 2);
-                        zeroRows = any(usageStateStruct.shapes==tagStruct.STUDY_NOT_STARTED, 2);
-                        zeroRows = any(usageStateStruct.shapes==tagStruct.STUDYOVER, 2);
-
+                        zeroDuringRows = any(usageStateStruct.shapes==tagStruct.NOT_WORKING, 2);
+                        zeroStartRows = any(usageStateStruct.shapes==tagStruct.STUDY_NOT_STARTED, 2);
+                        zeroEndRows = any(usageStateStruct.shapes==tagStruct.STUDYOVER, 2);
+                        
+                        zeroRows = zeroDuringRows| zeroStartRows| zeroEndRows;
                         stuckRows = any(usageStateStruct.shapes==tagStruct.SENSOR_STUCK,2);
                         burstRows = any(usageStateStruct.shapes==tagStruct.SENSOR_BURST, 2); % one sensor showing excessive readings for 5+ minutes.                        
-                        nonwearRows = zeroRows;
-                        malfunctionRows = nonwearRows;
+                        malfunctionRows = stuckRows | burstRows;
+                        
+                        nonwearRows = zeroRows | malfunctionRows;
+                        
                         % malfunctionRows = burstRows | stuckRows;                        
                         %nonwearRows = nonwearRows | malfunctionRows; 
                     end
