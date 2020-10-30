@@ -187,9 +187,10 @@ classdef PAStatTool < PAViewController
             saveParams = mergeStruct(saveParams, paramStruct);
             
             % These fields are based on other, existing settings and are removed
-            % to avoid complication on loading.
-            rmFields = {'processtype','baseFeature','plotType','weekdayTag',...
-                'clusterDurationHours','preclusterDuration', 'numShades'};
+            % to avoid complication on loading.  showAnalysisFigure: I just don't want to have it show up initially on loading
+            rmFields = {'processType','baseFeature','plotType','weekdayTag',...
+                'clusterDurationHours','preclusterDuration', 'numShades',...
+                'showAnalysisFigure'};
             saveParams = rmfield(saveParams, rmFields);
         end
         
@@ -2723,7 +2724,9 @@ classdef PAStatTool < PAViewController
             
             set(this.toolbarH.cluster.toggle_holdPlots,'state',offOnState{this.holdPlots()+1});
             set(this.toolbarH.cluster.toggle_yLimit,'state',offOnState{strcmpi(this.getSetting('primaryAxis_yLimMode'),'manual')+1});
-            set(this.toolbarH.cluster.toggle_analysisFigure,'state',offOnState{this.getSetting('showAnalysisFigure')+1});
+            
+            % set(this.toolbarH.cluster.toggle_analysisFigure,'state',offOnState{this.getSetting('showAnalysisFigure')+1});
+            this.hideAnalysisFigure();
             set(this.toolbarH.cluster.toggle_backgroundColor,'state',offOnState{this.getSetting('showTimeOfDayAsBackgroundColor')+1}); %'OffCallback',@this.toggleBgColorCb,'OnCallback',@this.toggleBgColorCb);
             
         end
@@ -4293,10 +4296,10 @@ classdef PAStatTool < PAViewController
                 %             this.jhandles.table_clusterProfiles.getModel.setDataVector(this.profileTableData, colNames); % data = java.util.Vector
                 %             %             data = this.jhandles.table_clusterProfiles.getModel.getDataVector;
                 
-                %drawnow();
-                %this.jhandles.table_clusterProfiles.changeSelection(sRow,sCol,false,false);
-                %jViewPort.setViewPosition(initViewPos);
-                %drawnow();
+                % drawnow();
+                % this.jhandles.table_clusterProfiles.changeSelection(sRow,sCol,false,false);
+                % jViewPort.setViewPosition(initViewPos);
+                % drawnow();
                 
                 %             jViewPort.repaint();
                 
