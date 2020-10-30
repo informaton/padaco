@@ -175,6 +175,46 @@ classdef PAStatTool < PAViewController
             end
         end
         
+        % ======================================================================
+        %> @brief Returns plot settings that can be used to initialize a
+        %> a PAStatTool with the same settings.
+        %> @param this Instance of PAStatTool
+        %> @retval Structure of current plot settings.
+        % ======================================================================
+        function saveParams = getSaveParameters(this)
+            paramStruct = this.getPlotSettings();
+            saveParams = getSaveParameters@PAViewController(this);
+            saveParams = mergeStruct(saveParams, paramStruct);
+        end
+        
+        % ======================================================================
+        %> @brief Returns plot settings that can be used to initialize a
+        %> a PAStatTool with the same settings.
+        %> @param this Instance of PAStatTool
+        %> @retval Structure of current plot settings.
+        % ======================================================================
+        %         function paramStruct = getSaveParameters(this)
+        %             paramStruct = this.getPlotSettings();
+        %
+        %             paramStruct.exportShowNonwear = this.originalSettings.exportShowNonwear;
+        %             paramStruct.exportPathname = this.originalSettings.exportPathname;
+        %
+        %             % These parameters not stored in figure widgets
+        %             paramStruct.useDatabase = this.useDatabase;
+        %             paramStruct.useOutcomes = this.useOutcomes;
+        %             paramStruct.profileFieldIndex = this.getProfileFieldIndex();
+        %             % paramStruct.minDaysAllowed =    this.minNumDaysAllowed;  % Remove after 4/26/2019 @hyatt if no bugs
+        %             paramStruct.minNumDaysAllowed = this.minNumDaysAllowed;
+        %             paramStruct.maxNumDaysAllowed = this.maxNumDaysAllowed;
+        %             paramStruct.databaseClass = this.originalSettings.databaseClass;
+        %
+        %             paramStruct.useCache = this.useCache;
+        %             paramStruct.cacheDirectory = this.cacheDirectory;
+        %
+        %             paramStruct.bootstrapIterations = this.bootstrapIterations;
+        %             paramStruct.bootstrapSampleName = this.bootstrapSampleName;
+        %         end
+        
         function didSet = setSettings(this, inputSettings)
             didSet = setSettings@PAFigureController(this, inputSettings);
             if(didSet)
@@ -235,6 +275,7 @@ classdef PAStatTool < PAViewController
                 didSet = true;
             end
         end
+        
         function didSet = setFeaturesDirectoryAndUpdate(this, resultsPath)
             didSet = false;
             if (this.setFeaturesDirectory(resultsPath))
@@ -362,19 +403,34 @@ classdef PAStatTool < PAViewController
         % ======================================================================
         function canPlotValue = getCanPlot(this)
             canPlotValue = this.canPlot;
+        end        
+        
+        function didExport = exportNonwear(this, exportFmt)
+            didExport = false;
+            nonwearFeatures = this.nonwear;
+            if isempty(nonwearFeatures)
+                msg = 'No nonwear features exist.  Try clustering first.  Nothing to save.';
+                pa_msgbox(msg,'Warning');
+            elseif(curCluster.updateExportPath())                                
+                % If this is not true, then we can just leave this
+                % function since the user would have cancelled.
+                nonwearFeatures = this.nonwear;
+                
+
+            end
         end
-        
-        
         function didExport = exportClusters(this, exportFmt)
             if(nargin<2)
                 exportFmt = 'csv';
             end
             
-            if nargin<3 || isempty(loadShapesOnly)
-                loadShapesOnly = false;
-            end
+            % Migrated now to a gui setting ('exportShowNonWear')
+            %             if nargin<3 || isempty(loadShapesOnly)
+            %                 loadShapesOnly = false;
+            %             end
             
             didExport = false;
+            
             curCluster = this.getClusterObj();
             if(isempty(curCluster) || ~isa(curCluster,'PACluster'))
                 msg = 'No cluster object exists.  Nothing to save.';
@@ -438,52 +494,25 @@ classdef PAStatTool < PAViewController
             end
         end
         
-        % ======================================================================
-        %> @brief Returns plot settings that can be used to initialize a
-        %> a PAStatTool with the same settings.
-        %> @param this Instance of PAStatTool
-        %> @retval Structure of current plot settings.
-        % ======================================================================
-        %         function paramStruct = getSaveParameters(this)
-        %             paramStruct = this.getPlotSettings();
-        %
-        %             paramStruct.exportShowNonwear = this.originalSettings.exportShowNonwear;
-        %             paramStruct.exportPathname = this.originalSettings.exportPathname;
-        %
-        %             % These parameters not stored in figure widgets
-        %             paramStruct.useDatabase = this.useDatabase;
-        %             paramStruct.useOutcomes = this.useOutcomes;
-        %             paramStruct.profileFieldIndex = this.getProfileFieldIndex();
-        %             % paramStruct.minDaysAllowed =    this.minNumDaysAllowed;  % Remove after 4/26/2019 @hyatt if no bugs
-        %             paramStruct.minNumDaysAllowed = this.minNumDaysAllowed;
-        %             paramStruct.maxNumDaysAllowed = this.maxNumDaysAllowed;
-        %             paramStruct.databaseClass = this.originalSettings.databaseClass;
-        %
-        %             paramStruct.useCache = this.useCache;
-        %             paramStruct.cacheDirectory = this.cacheDirectory;
-        %
-        %             paramStruct.bootstrapIterations = this.bootstrapIterations;
-        %             paramStruct.bootstrapSampleName = this.bootstrapSampleName;
-        %         end
-        
-        % Don't know that this is used anymore ... @hm 1/16/2020
-        %         function loadSettings(obj, settingsFilename)
-        %             if(nargin<2 || ~exist(settingsFilename,'file'))
-        %                 path2check = getSavePath();
-        %                 filename=uigetfullfile({'*.txt;*.exp','All Settings Files';
-        %                     '*.exp','Export Settings'},...
-        %                     'Select a settings file',path2check);
-        %                 try
-        %                     if(~isempty(filename))
-        %                         this.settings = PASettings.loadParametersFromFile(filename);
-        %                         this.settings = mergeStruct(obj.getDefaults(),this.settings);
-        %                         obj.setWidgetSettings(this.settings);
-        %                     end
-        %                 catch me
-        %                     showME(me);
-        %                 end
-        %             end
-        %         end
+        %Don't know that this is used anymore ... @hm 1/16/2020
+        function loadSettings(obj, settingsFilename)
+            fprintf('Hey, I''m still here.\n');
+            if(nargin<2 || ~exist(settingsFilename,'file'))
+                path2check = getSavePath();
+                filename=uigetfullfile({'*.txt;*.exp','All Settings Files';
+                    '*.exp','Export Settings'},...
+                    'Select a settings file',path2check);
+                try
+                    if(~isempty(filename))
+                        this.settings = PASettings.loadParametersFromFile(filename);
+                        this.settings = mergeStruct(obj.getDefaults(),this.settings);
+                        obj.setWidgetSettings(this.settings);
+                    end
+                catch me
+                    showME(me);
+                end
+            end
+        end
         
         function updateOriginalWidgetSettings(this, updatedSettings)
             % Updating original widget settings ensures that the
@@ -572,10 +601,12 @@ classdef PAStatTool < PAViewController
         end
         
         function isIt = isShowingWeekLong(this, pSettings)
+            
             if nargin < 2 || isempty(pSettings)
                 pSettings = this.getPlotSettings();
             end
             isIt = strcmpi(pSettings.weekdayTag,'weeklong');
+            isIt = false;
         end
         
         % ======================================================================
@@ -4659,6 +4690,7 @@ classdef PAStatTool < PAViewController
             
         end
         
+        
         % ======================================================================
         %> @brief Applies a reduction or sorting method along each row of the
         %> input data and returns the result.
@@ -4694,6 +4726,11 @@ classdef PAStatTool < PAViewController
                     featureSet = sum(featureSet>500,2);
                 case 'above_1000'
                     featureSet = sum(featureSet>1000,2);
+                case {'romanzini_sb','romanzini_lpa','romanzini_mpa','romanzini_vpa'}                    
+                    fprintf(1,'Romanzini cutpoints assume Vector Magnitude counts calculated with a 1 minute epoch.\n');
+                    rziStruct = getRomanziniCutpoints();
+                    rziCP = rziStruct.(lower(reductionMethod));
+                    featureSet = sum(featureSet>=rziCP(1) & featureSet<=rziCP(2),2);
                 case 'hours_to_80pct'
                     c = cumsum(featureSet,2);
                     total = c(:,end);
@@ -4938,6 +4975,10 @@ classdef PAStatTool < PAViewController
                 'mean','Mean';
                 'median','Median';
                 'max','Maximum';
+                'romanzini_sb','Minutes of SB (Romanzini)';
+                'romanzini_lpa','Minutes of LPA (Romanzini)';
+                'romanzini_mpa','Minutes of MPA (Romanzini)';
+                'romanzini_vpa','Minutes of VPA (Romanzini)';                
                 'above_1000','Occurrences > 1000';
                 'above_500','Occurrences > 500';
                 'above_100','Occurrences > 100';

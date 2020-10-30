@@ -327,6 +327,7 @@ classdef PACluster < PAData
             end            
             configID = sprintf('%c-%s',durID,segID);
         end
+                
         function [didExport, resultMsg] = exportToDisk(this, clusterSettingsStruct, nonwearStruct, exportPath, exportFmt)
             didExport = false;
             if(nargin>4)

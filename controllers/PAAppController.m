@@ -264,6 +264,8 @@ classdef PAAppController < PAFigureController
             
             safeset(figHandles,'menu_file_export_clusters_to_csv','callback',{@obj.exportClustersCb,'csv'});%, 'label','Cluster results to disk');
             safeset(figHandles,'menu_file_export_clusters_to_xls','callback',{@obj.exportClustersCb,'xls'});%, 'label','Cluster results to disk');
+            safeset(figHandles,'menu_export_nonwear_csv','callback',{@obj.exportClustersCb,'nonwear_csv'});%, 'label',');
+            
             safeset(figHandles,'menu_export_timeseries_to_disk','callback',@obj.exportTimeSeriesCb);%,'label','Wear/nonwear to disk');
             
             %% View Modes
@@ -886,7 +888,11 @@ classdef PAAppController < PAFigureController
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
         function exportClustersCb(obj,hObject, evtData, exportAs)
-            obj.StatTool.exportClusters(exportAs);
+            if contains(exportAs, 'nonwear','ignorecase', true)
+                obj.StatTool.exportNonwearClusters(exportAs);
+            else
+                obj.StatTool.exportClusters(exportAs);
+            end
         end
         
         function exportTimeSeriesCb(obj, varargin)

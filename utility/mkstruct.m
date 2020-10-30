@@ -7,8 +7,7 @@
 function stc = mkstruct(fields,values)
 if(nargin<1)
     stc = struct;
-else    
-    
+else
     fields = fields(:);
 
     if(nargin<2 || isempty(values))
