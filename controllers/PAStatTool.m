@@ -185,6 +185,12 @@ classdef PAStatTool < PAViewController
             paramStruct = this.getPlotSettings();
             saveParams = getSaveParameters@PAViewController(this);
             saveParams = mergeStruct(saveParams, paramStruct);
+            
+            % These fields are based on other, existing settings and are removed
+            % to avoid complication on loading.
+            rmFields = {'processtype','baseFeature','plotType','weekdayTag',...
+                'clusterDurationHours','preclusterDuration', 'numShades'};
+            saveParams = rmfield(saveParams, rmFields);
         end
         
         % ======================================================================
@@ -605,8 +611,7 @@ classdef PAStatTool < PAViewController
             if nargin < 2 || isempty(pSettings)
                 pSettings = this.getPlotSettings();
             end
-            isIt = strcmpi(pSettings.weekdayTag,'weeklong');
-            isIt = false;
+            isIt = strcmpi(pSettings.weekdayTag,'weeklong');            
         end
         
         % ======================================================================
