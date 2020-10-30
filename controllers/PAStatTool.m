@@ -188,9 +188,10 @@ classdef PAStatTool < PAViewController
             
             % These fields are based on other, existing settings and are removed
             % to avoid complication on loading.  showAnalysisFigure: I just don't want to have it show up initially on loading
+            % Removing these also helps with vertical length scrolling with the settings editor.
             rmFields = {'processType','baseFeature','plotType','weekdayTag',...
-                'clusterDurationHours','preclusterDuration', 'numShades',...
-                'showAnalysisFigure'};
+                'clusterDurationHours','preclusterReduction', 'numShades',...
+                'showAnalysisFigure', 'curSignal', 'titleStr'};
             saveParams = rmfield(saveParams, rmFields);
         end
         
@@ -412,20 +413,34 @@ classdef PAStatTool < PAViewController
             canPlotValue = this.canPlot;
         end        
         
-        function didExport = exportNonwear(this, exportFmt)
+        % Exclusions are those days which are excluded from analysis either because of sensor malfunction,
+        % nonwear identification, imcomplete wear time, etc.
+        function didExport = exportExclusions(this, exportFmt)
             didExport = false;
             nonwearFeatures = this.nonwear;
-            if isempty(nonwearFeatures)
-                msg = 'No nonwear features exist.  Try clustering first.  Nothing to save.';
+            curCluster = this.getClusterObj();
+            if isempty(nonwearFeatures) || isempty(curCluster)
+                msg = 'No nonwear features exist.  Try clustering first.  Nothing to save.';                
                 pa_msgbox(msg,'Warning');
-            elseif(curCluster.updateExportPath())                                
-                % If this is not true, then we can just leave this
-                % function since the user would have cancelled.
-                nonwearFeatures = this.nonwear;
-                
-
+            elseif(curCluster.updateExportPath()) % false if user cancels
+                originalFeatures = this.originalFeatureStruct;
+                nonwearFeatures = rmfield(nonwearFeatures, 'featureStruct');
+                fieldsToCopy = {'studyIDs','indFirstLast', 'indFirstLast1Week', ...
+                    'ind2keep1Week', 'ind2keepExactly1Week',...
+                    'ind2keepAndNonwearExcluded', 'ind2keepExactly1WeekAndNonwearExcluded'};
+                for f=1:numel(fieldsToCopy)
+                    field = fieldsToCopy{f};
+                    nonwearFeatures.(field) = originalFeatures.(field);
+                end
+                exportPath = curCluster.getExportPath();
+                saveFile = fullfile(exportPath, 'nonwear_features.mat');
+                save(saveFile, 'nonwearFeatures');
+                didExport = true;
+            else
+                fprintf(1,'Cancelled');
             end
         end
+        
         function didExport = exportClusters(this, exportFmt)
             if(nargin<2)
                 exportFmt = 'csv';
@@ -4821,6 +4836,8 @@ classdef PAStatTool < PAViewController
             
             paramStruct.normalizeValues =       PABoolParam('default',false,'description','Normalize values');
             paramStruct.discardNonwearFeatures = PABoolParam('default',true,'description','Discard nonwear features prior to clustering');
+            
+            paramStruct.discardMethod = PAEnumParam('default','padaco','categories',{{'padaco','choi_nonwear','saved_file'}},'description','Data exclusion method');            
             
             paramStruct.trimResults = PABoolParam('default',false,'description','Trim results');
             paramStruct.trimToPercent =         PANumericParam('default',100,'description','Trim to percent');

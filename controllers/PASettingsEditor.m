@@ -68,9 +68,10 @@ classdef PASettingsEditor < PAFigureFcnController
                                 numKeys = numel(keys);
                                 
                                 if(numKeys==0 || strcmpi(settingName,'SensorData'))
-                                    fprintf('skipping sensor data')
+                                    fprintf('Skipping sensor data.\n')
+                                    % don't want to include the other settings after this right now.  
                                     break;
-                                    continue;
+                                    % continue;
                                 end
                                 
                                 parent = uitab(this.handles.tabgroup,...
@@ -289,7 +290,7 @@ classdef PASettingsEditor < PAFigureFcnController
                 newValue = max(min(requestedValue,maxAllowed),minAllowed);
                 set(sliderH,'value',newValue);
                 scrollPanelH.Position(2) = -newValue;
-                fprintf(1,'Scroll count: %d\tamount: %d\n', eventData.VerticalScrollCount, eventData.VerticalScrollAmount) ;
+                % fprintf(1,'Scroll count: %d\tamount: %d\n', eventData.VerticalScrollCount, eventData.VerticalScrollAmount) ;
             end
         end
         

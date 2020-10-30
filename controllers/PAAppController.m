@@ -889,7 +889,7 @@ classdef PAAppController < PAFigureController
         % --------------------------------------------------------------------
         function exportClustersCb(obj,hObject, evtData, exportAs)
             if contains(exportAs, 'nonwear','ignorecase', true)
-                obj.StatTool.exportNonwearClusters(exportAs);
+                obj.StatTool.exportExclusions(exportAs);
             else
                 obj.StatTool.exportClusters(exportAs);
             end
