@@ -241,6 +241,9 @@ classdef PAAppController < PAFigureController
                 'callback',@obj.menuFileOpenGeneralCallback,'enable','on');
             safeset(figHandles,'menubar_import_outcomes','callback',@obj.importOutcomesFileCb);
             
+            safeset(figHandles,'menu_import_exclusions','callback',@obj.importClusterExclusionsCb);
+            
+            
             % screeshots
             safeset(figHandles,'menu_file_screenshot_figure','callback',{@obj.menuFileScreenshotCallback,'figure'});
             safeset(figHandles,'menu_file_screenshot_primaryAxes','callback',{@obj.menuFileScreenshotCallback,'primaryAxes'});
@@ -264,7 +267,7 @@ classdef PAAppController < PAFigureController
             
             safeset(figHandles,'menu_file_export_clusters_to_csv','callback',{@obj.exportClustersCb,'csv'});%, 'label','Cluster results to disk');
             safeset(figHandles,'menu_file_export_clusters_to_xls','callback',{@obj.exportClustersCb,'xls'});%, 'label','Cluster results to disk');
-            safeset(figHandles,'menu_export_nonwear_csv','callback',{@obj.exportClustersCb,'nonwear_csv'});%, 'label',');
+            safeset(figHandles,'menu_export_nonwear_mat','callback',{@obj.exportClustersCb,'nonwear_mat'});%, 'label',');
             
             safeset(figHandles,'menu_export_timeseries_to_disk','callback',@obj.exportTimeSeriesCb);%,'label','Wear/nonwear to disk');
             
@@ -336,6 +339,14 @@ classdef PAAppController < PAFigureController
                 this.OutcomesTableData.importWithSettings(this.AppSettings.OutcomesTableSetup, showLoadStatus);                
             else
                 this.logStatus('User cancelled');
+            end
+        end
+        
+        function importClusterExclusionsCb(this, varargin)
+            if(~isempty(this.StatTool))
+                this.StatTool.importExclusions();
+            else
+                this.logStatus('No cluster results in memory yet.');
             end
         end
         

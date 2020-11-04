@@ -4,8 +4,8 @@
 % @note Use function fullfilename = uigetfullfile(filter_cell,display_message,file,multiselect_option)
 %> @note Examples:
 %> - fullfilename = uigetfullfile({'*.xml','Cohort structure file (*.xml)'},'Select cohort information structure file');
-%> - fullfilename = uigetfullfile({'*.xml','Cohort structure file (*.xml)'},'Select cohort information structure file','off','cohort.xml');
-%> - [fullfilename, filterIndex] = uigetfullfile({'*.xml','Cohort structure file (*.xml)'},'Select cohort information structure file','off','cohort.xml');
+%> - fullfilename = uigetfullfile({'*.xml','Cohort structure file (*.xml)'},'Select cohort information structure file','cohort.xml','off');
+%> - [fullfilename, filterIndex] = uigetfullfile(...);
 
 %> See uigetfile
 function [fullfilename, filterIndex] = uigetfullfile(filter_cell,display_message,file,multiselect_option)

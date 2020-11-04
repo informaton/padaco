@@ -30,6 +30,7 @@ classdef PAStatTool < PAViewController
         bootstrapSampleName;
         
         nonwear = struct('method','padaco','rows',[])
+        exclusionsFilename = PAFilenameParam();
         
         %> structure loaded features which is as current or as in sync with the gui settings
         %> as of the last time the 'Calculate' button was
@@ -261,7 +262,6 @@ classdef PAStatTool < PAViewController
             delete@PAViewController(this);
         end
         
-        
         function didSet = setFeaturesDirectory(this, resultsPath)
             if(~isdir(resultsPath))
                 this.logWarning('Not a valid directory');
@@ -314,8 +314,7 @@ classdef PAStatTool < PAViewController
                                         this.(curField) = curValue;
                                     end
                                 end
-                            end
-                            
+                            end                            
                             
                             if(this.hasValidCluster())
                                 exportPathname = this.getSetting('exportPathname');
@@ -411,10 +410,37 @@ classdef PAStatTool < PAViewController
         % ======================================================================
         function canPlotValue = getCanPlot(this)
             canPlotValue = this.canPlot;
-        end        
+        end
+        
+        function didImport = importExlcusions(this, importFilename)
+            didImport = false;
+            if nargin<2
+                importFilename = [];
+            end
+            if isempty(importFilename)
+                lastImportFilename = this.exclusionsFilename;
+                importFilename = uigetfullfile({'*.mat', 'Exclusion file (*.mat)'},...
+                    'Select nonwear/bad data exclusion data to import',...
+                    lastImportFilename,'off');
+            end
+            
+            if isempty(importFilename)
+                this.logStatus('User canceled');
+            elseif ~exist(importFilename,'file')
+                this.logStatus('Import filename does not exist: %s', importFilename);
+            else
+                try                    
+                    this.exclusionsFilename = importFilename;
+                    didImport = true;
+                catch me
+                    showME(me);
+                end                
+            end            
+        end
         
         % Exclusions are those days which are excluded from analysis either because of sensor malfunction,
         % nonwear identification, imcomplete wear time, etc.
+        % like exportNonwear - this is the more general case.
         function didExport = exportExclusions(this, exportFmt)
             didExport = false;
             nonwearFeatures = this.nonwear;
@@ -425,15 +451,15 @@ classdef PAStatTool < PAViewController
             elseif(curCluster.updateExportPath()) % false if user cancels
                 originalFeatures = this.originalFeatureStruct;
                 nonwearFeatures = rmfield(nonwearFeatures, 'featureStruct');
-                fieldsToCopy = {'studyIDs','indFirstLast', 'indFirstLast1Week', ...
-                    'ind2keep1Week', 'ind2keepExactly1Week',...
+                fieldsToCopy = {'studyIDs','indFirstLast', 'srcDataType',...
+                    'indFirstLast1Week', 'ind2keep1Week', 'ind2keepExactly1Week',...
                     'ind2keepAndNonwearExcluded', 'ind2keepExactly1WeekAndNonwearExcluded'};
                 for f=1:numel(fieldsToCopy)
                     field = fieldsToCopy{f};
                     nonwearFeatures.(field) = originalFeatures.(field);
                 end
                 exportPath = curCluster.getExportPath();
-                saveFile = fullfile(exportPath, 'nonwear_features.mat');
+                saveFile = fullfile(exportPath, sprintf('%s_%s_exclusions.mat',nonwearFeatures.method, nonwearFeatures.srcDataType));
                 save(saveFile, 'nonwearFeatures');
                 didExport = true;
             else
@@ -696,6 +722,7 @@ classdef PAStatTool < PAViewController
                 if(isempty(this.usageStateStruct) || ~strcmpi(usageFilename,this.usageStateStruct.filename))
                     if(exist(usageFilename,'file'))
                         this.usageStateStruct = this.loadAlignedFeatures(usageFilename);
+                        this.usageStateStruct.srcDataType = srcDataType;
                     end
                 end                
                 
@@ -730,6 +757,7 @@ classdef PAStatTool < PAViewController
                     [pSettings.startTimeSelection, pSettings.stopTimeSelection] = this.setStartTimes(this.originalFeatureStruct.startTimes);
                 end
                 
+                this.originalFeatureStruct.srcDataType = srcDataType;
                 tmpFeatureStruct = this.originalFeatureStruct;
                 
                 % Make sure we actually have a usage state struct
@@ -740,17 +768,17 @@ classdef PAStatTool < PAViewController
                     tmpUsageStateStruct.shapes(:) = 7;%just make everything magically 7 for right now to avoid having refactor further.
                     tmpUsageStateStruct.method = 'usagestate';
                     tmpUsageStateStruct.filename = '';
+                    tmpUsageStateStruct.srcDataType = srcDataType;
                 end
-                
-
                 
                 % update to here to make sure we are covered for the one
                 % week case now.  So we can exclude based on the days
                 % collected.
                 if(loadFileRequired)
                     ind2keepExactly1WeekAndNonwearExcluded = ind2keepExactly1Week;
-                    ind2keepAndNonwearExcluded = ind2keep;
-                    nonwear_rows = this.getNonwearRows('padaco', tmpUsageStateStruct);
+                    ind2keepAndNonwearExcluded = ind2keep;                    
+                    nonwear_rows = this.getNonwearRows(this.nonwear.method, tmpUsageStateStruct);
+
                     
                     % This sets all of the days of a study to true (up to
                     % first 7 days) for a participant if any one of their
@@ -3307,9 +3335,15 @@ classdef PAStatTool < PAViewController
         end
         
         function refreshClustersAndPlotCb(this, varargin)
-            enableUserCancel = true;            
-            evaluateK = this.isEvaluateKSelection();
-            this.refreshClustersAndPlot(enableUserCancel, evaluateK);
+            try
+                enableUserCancel = true;
+                evaluateK = this.isEvaluateKSelection();
+                this.refreshClustersAndPlot(enableUserCancel, evaluateK);
+            catch me
+                showME(me);
+                errordlg(sprintf('An error occurred:\n%s', me.message));
+                this.enable()
+            end
         end
         
         function isIt = isEvaluateKSelection(this)
@@ -4546,7 +4580,7 @@ classdef PAStatTool < PAViewController
                 statToolObj.outcomesObj.setSelectedField(eventData.fieldName);
             end
             
-        end
+        end   
         
         % ======================================================================
         % ======================================================================
@@ -4577,24 +4611,30 @@ classdef PAStatTool < PAViewController
                     end
                     if(isstruct(usageStateStruct))
                         tagStruct = PASensorData.getActivityTags();
-                        nonwearRows = any(usageStateStruct.shapes<=tagStruct.NONWEAR,2);
-                        zeroDuringRows = any(usageStateStruct.shapes==tagStruct.NOT_WORKING, 2);
-                        zeroStartRows = any(usageStateStruct.shapes==tagStruct.STUDY_NOT_STARTED, 2);
-                        zeroEndRows = any(usageStateStruct.shapes==tagStruct.STUDYOVER, 2);
                         
-                        zeroRows = zeroDuringRows| zeroStartRows| zeroEndRows;
-                        stuckRows = any(usageStateStruct.shapes==tagStruct.SENSOR_STUCK,2);
-                        burstRows = any(usageStateStruct.shapes==tagStruct.SENSOR_BURST, 2); % one sensor showing excessive readings for 5+ minutes.                        
-                        malfunctionRows = stuckRows | burstRows;
+                        % count data
+                        if strcmpi(usageStateStruct.srcDataType, 'count')
+                            nonwearRows = any(usageStateStruct.shapes<=tagStruct.NONWEAR,2);
+                        elseif strcmpi(usageStateStruct.srcDataType, 'raw')
+                            zeroDuringRows = any(usageStateStruct.shapes==tagStruct.NOT_WORKING, 2);
+                            zeroStartRows = any(usageStateStruct.shapes==tagStruct.STUDY_NOT_STARTED, 2);
+                            zeroEndRows = any(usageStateStruct.shapes==tagStruct.STUDYOVER, 2);
+                            
+                            zeroRows = zeroDuringRows| zeroStartRows| zeroEndRows;
+                            stuckRows = any(usageStateStruct.shapes==tagStruct.SENSOR_STUCK,2);
+                            burstRows = any(usageStateStruct.shapes==tagStruct.SENSOR_BURST, 2); % one sensor showing excessive readings for 5+ minutes.
+                            malfunctionRows = stuckRows | burstRows;
                         
-                        nonwearRows = zeroRows | malfunctionRows;
-                        
-                        % malfunctionRows = burstRows | stuckRows;                        
-                        %nonwearRows = nonwearRows | malfunctionRows; 
+                            % raw data?
+                            nonwearRows = zeroRows | malfunctionRows;                            
+                            % malfunctionRows = burstRows | stuckRows;
+                            %nonwearRows = nonwearRows | malfunctionRows;
+                        end
                     end
                 otherwise
             end
         end
+        
         % ======================================================================
         %> @brief Loads and aligns features from a padaco batch process
         %> results output file.
@@ -4686,7 +4726,6 @@ classdef PAStatTool < PAViewController
             %nzi = a~=0;
             % normalizedLoadShapes(nzi,:) = loadShapes(nzi,:)./repmat(a(nzi),1,size(loadShapes,2));
             
-            
             filterOrder = 10;
             if filterOrder>0
                 n = filterOrder;
@@ -4711,8 +4750,7 @@ classdef PAStatTool < PAViewController
             loadShapes(nzi,:) = loadShapes(nzi,:)./max(loadShapes(nzi,:),[],2);
             normalizedLoadShapes = loadShapes;
             
-        end
-        
+        end        
         
         % ======================================================================
         %> @brief Applies a reduction or sorting method along each row of the
