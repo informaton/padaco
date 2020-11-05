@@ -712,7 +712,6 @@ classdef PAStatTool < PAViewController
                 
                 usageFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,usageFeature,usageFeature,srcDataType,'vecMag');
                 
-                
                 % Usage state previously based on count data, but now supporting both.  However, the states are not fully overlapping, so some are supported by
                 % one form but not the other (e.g. not_working for raw, and nonwear for count)
                 
@@ -1031,8 +1030,16 @@ classdef PAStatTool < PAViewController
                             % intervalToUse = floor(initialCount/(pSettings.numChunks+1));
                             % indicesToUse = linspace(intervalToUse,intervalToUse*pSettings.numChunks,pSettings.numChunks);
                         else
-                            this.featureStruct.totalCount = 1;
-                            indicesToUse = 1;
+                            % 
+                            try
+                                this.featureStruct.totalCount = size(loadFeatures, 2);
+                                indicesToUse = 1:this.featureStruct.totalCount;
+                            catch me
+                                showME(me);
+                                this.featureStruct.totalCount = 1;
+                                indicesToUse = 1;
+                            end
+
                         end
                         this.featureStruct.startTimes = this.featureStruct.startTimes(indicesToUse);
                     end
@@ -3885,9 +3892,9 @@ classdef PAStatTool < PAViewController
                         coi = cois{c};
                         coiSortOrders(c) = coi.sortOrder;
                         coiMemberIDs = [coi.memberIDs(:);coiMemberIDs(:)];
-                        
+                        profileLength = numel(coi.shape);
                         if(clusterAndPlotSettings.showClusterMembers)
-                            if(numel(coi.shape)==1)
+                            if(profileLength==1)
                                 markerType = '.';
                                 midPoint = mean(get(clusterAxes,'xlim'));
                                 membersLineH = plot(clusterAxes,midPoint,coi.dayOfWeek.memberShapes,'-','linewidth',1,'color',this.COLOR_MEMBERSHAPE,'marker',markerType);
@@ -3907,13 +3914,18 @@ classdef PAStatTool < PAViewController
                         colorStyleIndex = mod(coi.sortOrder-1,maxColorStyles)+1;  %b/c MATLAB is one based, and 'mod' is not.
                         
                         markerType = 'none';
-                        if(numel(coi.shape)==1)
+                        if profileLength==1
                             markerType = coiMarkers(colorStyleIndex);
-                            midPoint = mean(get(clusterAxes,'xlim'));
-                            
+                            midPoint = mean(get(clusterAxes,'xlim'));                            
                             clusterHandles(c) = plot(clusterAxes,midPoint,coi.shape,'linestyle','none',...
                                 'marker',markerType,'markerfacecolor','none',...
                                 'markeredgecolor',coiColors(colorStyleIndex),'markersize',20);
+                        elseif profileLength <= 5
+                            markerType = coiMarkers(colorStyleIndex);
+                            clusterHandles(c) = plot(clusterAxes,coi.shape,'linestyle',coiStyles(colorStyleIndex),...
+                                'color',coiColors(colorStyleIndex),'linewidth', 2, ...
+                                'marker',markerType,'markerfacecolor','none',...
+                                'markeredgecolor',coiColors(colorStyleIndex),'markersize',10);
                         else
                             clusterHandles(c) = plot(clusterAxes,coi.shape,'linewidth',2,'linestyle',coiStyles(colorStyleIndex),'color',coiColors(colorStyleIndex),'marker',markerType,'markerfacecolor','none','markeredgecolor','k'); %[0 0 0]);
                         end
