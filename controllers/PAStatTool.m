@@ -4787,11 +4787,20 @@ classdef PAStatTool < PAViewController
                     featureSet = sum(featureSet>500,2);
                 case 'above_1000'
                     featureSet = sum(featureSet>1000,2);
-                case {'romanzini_sb','romanzini_lpa','romanzini_mpa','romanzini_vpa'}                    
+                case {'romanzini_sb','romanzini_lpa','romanzini_mpa','romanzini_vpa','romanzini_all'}                    
                     fprintf(1,'Romanzini cutpoints assume Vector Magnitude counts calculated with a 1 minute epoch.\n');
-                    rziStruct = getRomanziniCutpoints();
-                    rziCP = rziStruct.(lower(reductionMethod));
-                    featureSet = sum(featureSet>=rziCP(1) & featureSet<=rziCP(2),2);
+                    [rziStruct, fnames, cutpoints] = getRomanziniCutpoints();                    
+                    if strcmpi(reductionMethod, 'romanzini_all')
+                        % Activity categories are ordered as [sedentary, light, moderate, vigorous]
+                        reducedFeatureSet = zeros(size(featureSet,1), numel(fnames));
+                        for f=1:numel(fnames)
+                            reducedFeatureSet(:, f) = sum(featureSet>=cutpoints{f}(1) & featureSet<=cutpoints{f}(2),2);
+                        end
+                        featureSet = reducedFeatureSet;                        
+                    else
+                        rziCP = rziStruct.(lower(reductionMethod));
+                        featureSet = sum(featureSet>=rziCP(1) & featureSet<=rziCP(2),2);
+                    end                    
                 case 'hours_to_80pct'
                     c = cumsum(featureSet,2);
                     total = c(:,end);
@@ -5041,7 +5050,8 @@ classdef PAStatTool < PAViewController
                 'romanzini_sb','Minutes of SB (Romanzini)';
                 'romanzini_lpa','Minutes of LPA (Romanzini)';
                 'romanzini_mpa','Minutes of MPA (Romanzini)';
-                'romanzini_vpa','Minutes of VPA (Romanzini)';                
+                'romanzini_vpa','Minutes of VPA (Romanzini)';
+                'romanzini_all','Minutes of [SB, LPA, MPA, VPA] (Romanzini)';
                 'above_1000','Occurrences > 1000';
                 'above_500','Occurrences > 500';
                 'above_100','Occurrences > 100';
