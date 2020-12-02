@@ -14,43 +14,66 @@ function mergeActigraphFiles(file1, file2, fileToUseForOverlap, destinationPath)
             fileToUseForOverlap = 2;
         end
     end
+    fprintf(1,'Loading %s\n', file1);
     f1 = loadActiFile(file1);
+    fprintf(1,'Loading %s\n', file2);
     f2 = loadActiFile(file2);
     
     if f2.dateTimeNum(1) < f1.dateTimeNum(1)
-        fprintf('Second file given starts before first file given.  Swapping the order.\n'); 
-        f3 = f1;
-        f1 = f2;
-        f2 = f3;
-        delete(f3);
-
-        file3 = file1;
-        file1 = file2;
-        file2 = file3;
-        delete(file3);        
+        error('Second file given starts before first file given.  Swap the order and verify fileToUseForOverlap is correct.'); 
+        % don't both swapping them as we don't know what to do with the file to use for overlap: Should it be swapped as well if the 
+        % person made a mistake on the input?
     end
     
     [path1, name1, ext1] = fileparts(file1);
-    [~, name2, ~] = fileparts(file1);
+    [~, name2, ~] = fileparts(file2);
     
-    file_merge = fullfile(path1, sprintf('%s_%s%s',name1, name2, ext1));
+    if isempty(destinationPath) || ~isdir(destinationPath)
+        destinationPath = path1;
+    end
+    
+    merged_filename = fullfile(destinationPath, sprintf('%s_%s%s',name1, name2, ext1));
+    
+    if f1.sampleRate~=f2.sampleRate
+        error('Sample rates must be the same (%d, %d)', f1.sampleRate, f2.sampleRate);
+    end
+    datenum_delta = datenum(0, 0, 0, 0, 0, 1/f1.sampleRate);
+    fileHeader = PASensorData.getActigraphCSVFileHeader(file1);
+    
+    % This is necessary to determine if time stamps are written or not.
+    actilife_version = fileHeader.actilife;
 
     % no merge necessary
-    if f2.dateTimeNum(1) > f1.dateTimeNum(end)
-        copyfile(file1, file_merge);        
-        end_to_start_inclusive = datenum(file1.end):datenum([0 0 0 0 0 f1.sampling_period]):f2.dateTimeNum(1);
-        end_to_start_datestr = datestr(end_to_start_inclusive(2:end-1));
-        write_actigraph_zeros_to_file(file_merge, end_to_start_datestr);
+    if f2.dateTimeNum(1) > f1.dateTimeNum(end) || fileToUseForOverlap==1
+        fprintf(1,'Copying %s to %s\n', file1, merged_filename);
+        tic
+        copyfile(file1, merged_filename);        
+        toc
+        %         end_to_start_inclusive = datenum(file1.end):datenum([0 0 0 0 0 f1.sampling_period]):f2.dateTimeNum(1);
+        %         end_to_start_datestr = datestr(end_to_start_inclusive(2:end-1));
+        %         write_actigraph_zeros_to_file(merged_filename, end_to_start_datestr);
+        fprintf(1,'Appending %s to %s with zero padding if applicable\n', file2, merged_filename);
+        tic
+        f2.writeActigraphRawCSV(merged_filename, 'include_header', false, 'dry_run', false, 'start_datenum',f1.dateTimeNum(end)+datenum_delta, 'actilife_version', actilife_version);
+        toc
     else
         %need to merge then
-        copyfile_actigraph_until(file1, file_merge, f2.start);        
+        %copyfile_actigraph_until(file1, file_merge, f2.start);
+        fprintf(1,'Writing %s to %s until merge point\n', file1, merged_filename);
+        tic
+        f1.writeActigraphRawCSV(merged_filename, 'include_header', true, 'dry_run', false, 'end_datenum', f2.dateTimeNum(start)-datenum_delta, 'actilife_version', actilife_version);
+        toc
+        fprintf(1,'Appending %s to %s\n', file2, merged_filename);
+        tic
+        f2.writeActigraphRawCSV(merged_filename, 'include_header', false, 'dry_run', true);
+        toc
     end
     
-    if ~exist(file_merge, 'file')
-        throw(MException('PADACO:ACT:FERROR','Unable to open file for writing: %s', filename));
-    end
+%     if ~exist(file_merge, 'file')
+%         throw(MException('PADACO:ACT:FERROR','Unable to open file for writing: %s', filename));
+%     end
     
-    append_actigraph_file(file2, file_merge);
+    % append_actigraph_file(file2, file_merge);
 end
 
 function actiObj = loadActiFile(filename)
@@ -67,8 +90,6 @@ function copyfile_actigraph_until(filename, copy_filename, until_datenum)
        fprintf(fid_dest, '%s', fgets(fid_source));
        headerLines = headerLines - 1;
    end
-
-
    fclose(fid_dest);
    fclose(fid_source);    
 end

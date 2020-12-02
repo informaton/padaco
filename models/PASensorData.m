@@ -1342,41 +1342,143 @@ classdef PASensorData < PAData
         
         % writes an actigraph .csv file with raw acceleration values
         function didWrite = writeActigraphRawCSV(obj, outputFilename, varargin)
-            defaults.start = 1;
-            defaults.stop = [];
-            defaults.header = true;
-            defaults.dryRun = false;
-            keys = fieldnames(defaults);
-            values = struct2cell(defaults);
-            params = parsepvpairs(keys, values, varargin{:});
+            defaults.start_datenum = obj.dateTimeNum(1);
+            defaults.stop_datenum = obj.dateTimeNum(end);            
+            defaults.include_header = true;
+            defaults.dry_run = false;
+            defaults.actilife_version = '';
+            defaults.export_timestamp = false;
+            params = parse_pv_pairs(defaults, varargin);
+            
+            if isempty(params.start_datenum)
+                params.start_datenum = obj.dateTimeNum(1);
+            end
+            
+            if isempty(params.stop_datenum)
+                params.stop_datenum = obj.dateTimeNum(end);
+            end
+            
             didWrite = false;
-            if dryRun
-                fid = 1;
+            
+            if isempty(params.actilife_version)
+                if params.export_timestamp
+                    params.actilife_version = 'v6.11.4';
+                else
+                    params.actilife_version = 'v6.13.3';
+                end
             else
+                params.export_timestamp = isVerLessThan(params.actilife_version, 'v6.12.0');
+            end
+            
+            if params.dry_run
+                fid = 1;
+            elseif params.include_header
+                % Overwrite if it exists
                 fid = fopen(outputFilename,'w');
+            else
+                % Append if it exists
+                fid = fopen(outputFilename,'a');
             end
             if fid < 1
                 obj.logWarning('Cannot open output file for writing actigraph data as comma-separated values: %s', outputFilename);
             else
                 try
-                    if params.header
-                       headerStr = obj.getHeaderAsString();
+                    if params.include_header
+                       headerStr = generateActigraphRawHeader(params.start_datenum, 'sampling_frequency', obj.sampleRate,...
+                           'actilife_version', actiLifeVersion);
                        fprintf(1,'%s\n', headerStr);
+                    end 
+                    
+                    % ZERO FILL
+                    % This could fill your hard drive :(
+                    datenum_delta = datenum(0, 0, 0, 0, 0, 1/obj.sampleRate);
+                    if params.start_datenum < obj.dateTimeNum(1)
+                        % zero pad the file until you are ready
+                        time_stamps = params.start_datenum:datenum_delta:obj.dateTimeNum(1)-datenum_delta;
+                        update_intervals = mod(1:numel(time_stamps),obj.sampleRate*3600*12)==1; % every 12 hours
+                            
+                        if params.export_timestamp
+                            tic
+                            time_stamps_str = datestr(time_stamps, 'mm/dd/YYYY HH:MM:SS.FFF');
+                            toc
+                            
+                            tic
+                            for t=1:numel(time_stamps)
+                                % 10/7/2012 00:00:00.000,0.27,-0.126,0.974
+                                fprintf(fid, '%s,0,0,0\n',time_stamps_str(t,:));
+                                if update_intervals(t)
+                                    fprintf(1, '|');
+                                end
+                            end
+                            fprintf(1,'\n');
+                            toc
+                        else
+                            for t=1:numel(time_stamps)                                
+                                fprintf(fid, '0,0,0\n');
+                                if update_intervals(t)
+                                    fprintf(1, '|');
+                                end
+                            end
+                            fprintf(1,'\n');                            
+                        end
+                        cur_timestamp = obj.dateTimeNum(1);
+                    else
+                        cur_timestamp = params.start_datenum;
                     end
                     
-                    didWrite = true;
+                    % TRANSFER
+                    start_index = find(obj.dateTimeNum==cur_timestamp, 1);
+                    if params.stop_datenum > obj.dateTimeNum(end)
+                        stop_index = numel(obj.dateTimeNum);
+                    elseif params.stop_datenum > params.start_datenum
+                        stop_index = find(obj.dateTimeNum==params.stop_datenum, 1);
+                    else
+                        stop_index = [];
+                    end
                     
+                    indices = start_index:stop_index;
+                    time_stamps_str = datestr(obj.dateTimeNum(indices), 'mm/dd/YYYY HH:MM:SS.FFF');
+                    
+                    if params.export_timestamp
+                        for t=1:numel(indices)
+                            index = indices(t);
+                            fprintf(fid, '%s,%0.3f,%0.3f,%0.3f\n',time_stamps_str(t,:), obj.accel.raw.x(index), obj.accel.raw.y(index), obj.accel.raw.z(index));
+                            % 10/7/2012 00:00:00.000,0.27,-0.126,0.974                            
+                        end
+                    else
+                        for t=1:numel(indices)
+                            index = indices(t);
+                            fprintf(fid, '%0.3f,%0.3f,%0.3f\n', obj.accel.raw.x(index), obj.accel.raw.y(index), obj.accel.raw.z(index));
+                        end                        
+                    end
+                    cur_timestamp = obj.dateTimeNum(stop_index)+datenum_delta;
+                    
+                        
+                    if params.stop_datenum > cur_timestamp
+                        % zero pad the until you reach the end
+                        time_stamps = cur_timestam:datenum_delta:params.stop_datenum;
+                        time_stamps_str = datestr(time_stamps, 'mm/dd/YYYY HH:MM:SS.FFF');
+                        if params.export_timestamp
+                            for t=1:numel(time_stamps)
+                                % 10/7/2012 00:00:00.000,0.27,-0.126,0.974
+                                fprintf(fid, '%s,0,0,0\n',time_stamps_str(t,:));
+                            end                            
+                        else
+                            for t=1:numel(time_stamps)                                
+                                fprintf(fid, '0,0,0\n');
+                            end                            
+                        end
+                    end
+                    
+                    didWrite = true;                    
                 catch me
                     showME(me);
                 end
                 
                 if fid > 2
                     fclose(fid);
-                end
-                
+                end                
             end
-            
-            
         end
 
         function didLoad = loadActigraphFile(obj, fullfilename)
@@ -1725,9 +1827,8 @@ classdef PASensorData < PAData
 
                     if(loadFastOption)
                         %stopDateNum = datenum(strcat(obj.stopDate,{' '},obj.stopTime),'mm/dd/yyyy HH:MM:SS');
-                        stopDateNum = startDateNum + samplesFound/obj.sampleRate/24/3600; % or startDateNum+windowDateNumDelta*samplesFound
-                        obj.dateTimeNum = datespace(startDateNum,stopDateNum,windowDateNumDelta);
-                        %obj.dateTimeNum(end)=[];  %remove the very last sample, since it is not actually recorded in the dataset, but represents when the data was downloaded, which happens one sample after the device stops. %actually, that is not the case in practice.                        
+                        stopDateNum = startDateNum + (samplesFound-1)/obj.sampleRate/24/3600; % or startDateNum+windowDateNumDelta*samplesFound
+                        obj.dateTimeNum = datespace(startDateNum,stopDateNum,windowDateNumDelta);                        
                     else
                         zeroTimes = sum(dateVecFound,2)==0;
                         numZero = sum(zeroTimes);
@@ -3057,8 +3158,29 @@ classdef PASensorData < PAData
                     tline = fgetl(fid);
                     commentLine = '------------';
                     %make sure we are dealing with a file which has a header
-                    if(strncmp(tline,commentLine, numel(commentLine)))
+                    if ~strncmp(tline,commentLine, numel(commentLine))
+                            % unset - we don't know - assume 1 per second
+                        fileHeader.countPeriodSec = 1;
+                        fileHeader.startTime = 'N/A';
+                        fileHeader.startDate = 'N/A';
+                        fprintf(' File does not include header.  Default values set for start date and countPeriodSec (1).\n');                    
+                    else
+                        
+                        % will be empty for count data, in which case window period should be used
                         fs = regexp(tline,'.* at (\d+) Hz .*','tokens');
+                        
+                        % test_tline = '----...stuff ActiLife v6.9.2 Firmware v3.2.1 date format M/d/yyyy Filter Normal -----'
+                        result = regexp(tline,['.+ActiLife (?<actilife>[^\s]+).+',...
+                            'Firmware (?<firmware>[^\s]+).+Filter (?<filter>.+)\s-+$'],'names');                        
+                        
+                        if ~isempty(result)
+                            fileHeader = mergeStruct(fileHeader, result);
+                        else
+                            fileHeader.actilife = '';
+                            fileHeader.firmware = '';
+                            fileHeader.filter = '';                            
+                        end
+                        
 
                         fgetl(fid);
                         tline = fgetl(fid);
@@ -3105,12 +3227,7 @@ classdef PASensorData < PAData
                         %  Download Date 1/23/2014
                         tline = fgetl(fid);
                         fileHeader.stopDate = strrep(tline,'Download Date ','');
-                    else
-                        % unset - we don't know - assume 1 per second
-                        fileHeader.countPeriodSec = 1;
-                        fileHeader.startTime = 'N/A';
-                        fileHeader.startDate = 'N/A';
-                        fprintf(' File does not include header.  Default values set for start date and countPeriodSec (1).\n');
+                    
                     end
                     if fclose_on_exit
                         fclose(fid);

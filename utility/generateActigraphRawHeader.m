@@ -39,24 +39,6 @@ function headerStr = generateActigraphRawHeader(startDatenum,varargin)
         p.download_time, p.download_date, p.mode, axisHeader);
 end
 
-function isIt = isVerLessThan(ver1, ver2)
-    ver1Parts = getParts(ver1);
-    ver2Parts = getParts(ver2);
-    if ver1Parts(1) ~= ver2Parts(1)     % major version
-        isIt = ver1Parts(1) < ver2Parts(1);
-    elseif ver1Parts(2) ~= ver2Parts(2)     % minor version
-        isIt = ver1Parts(2) < ver2Parts(2);
-    else   % minor version
-        isIt = ver1Parts(3) < ver2Parts(3);
-    end    
-end
-
-function parts = getParts(V)
-    parts = sscanf(V, 'v%d.%d.%d')';
-    if length(parts) < 3
-        parts(3) = 0; % zero-fills to 3 elements
-    end
-end
 
 % Data File Created By ActiGraph GT3X+ ActiLife v6.13.3 Firmware v2.2.1 date format M/d/yyyy at 40 Hz  Filter Normal
 % Accelerometer X,Accelerometer Y,Accelerometer Z
