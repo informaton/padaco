@@ -1339,6 +1339,45 @@ classdef PASensorData < PAData
             fmtStruct.delimiter = ',';
             didLoad = obj.loadCustomRawFile(fullfilename, fmtStruct);
         end
+        
+        % writes an actigraph .csv file with raw acceleration values
+        function didWrite = writeActigraphRawCSV(obj, outputFilename, varargin)
+            defaults.start = 1;
+            defaults.stop = [];
+            defaults.header = true;
+            defaults.dryRun = false;
+            keys = fieldnames(defaults);
+            values = struct2cell(defaults);
+            params = parsepvpairs(keys, values, varargin{:});
+            didWrite = false;
+            if dryRun
+                fid = 1;
+            else
+                fid = fopen(outputFilename,'w');
+            end
+            if fid < 1
+                obj.logWarning('Cannot open output file for writing actigraph data as comma-separated values: %s', outputFilename);
+            else
+                try
+                    if params.header
+                       headerStr = obj.getHeaderAsString();
+                       fprintf(1,'%s\n', headerStr);
+                    end
+                    
+                    didWrite = true;
+                    
+                catch me
+                    showME(me);
+                end
+                
+                if fid > 2
+                    fclose(fid);
+                end
+                
+            end
+            
+            
+        end
 
         function didLoad = loadActigraphFile(obj, fullfilename)
             didLoad = false;
@@ -2985,8 +3024,104 @@ classdef PASensorData < PAData
     end
 
     methods(Static)
-
         % File I/O
+        
+        % ======================================================================
+        %> @brief Retrieves CSV header values (start time, start date, and window
+        %> period).        
+        %> @output fileHeader
+        %> @output fid
+        %> @param fullFilename The full filename to open and examine.
+        %> @param fclose_on_exit [True] close fullFilename when method completes.
+        %> Set to False to keep the file id open.  In which case the file identifier 
+        %> returned (fid) will be valid
+        % =================================================================
+        function [fileHeader, fid] = getActigraphCSVFileHeader(fullFilename, fclose_on_exit)
+            %  ------------ Data Table File Created By ActiGraph GT3XPlus ActiLife v6.9.2 Firmware v3.2.1 date format M/d/yyyy Filter Normal -----------
+            %  Serial Number: NEO1C15110135
+            %  Start Time 18:00:00
+            %  Start Date 1/23/2014
+            %  Window Period (hh:mm:ss) 00:00:01
+            %  Download Time 12:59:00
+            %  Download Date 1/24/2014
+            %  Current Memory Address: 0
+            %  Current Battery Voltage: 4.13     Mode = 61
+            %  --------------------------------------------------
+            if nargin<2 || isempty(fclose_on_exit)
+                fclose_on_exit = true;
+            end
+            fid = fopen(fullFilename,'r');
+            fileHeader = struct;
+            if(fid>0)
+                try                    
+                    tline = fgetl(fid);
+                    commentLine = '------------';
+                    %make sure we are dealing with a file which has a header
+                    if(strncmp(tline,commentLine, numel(commentLine)))
+                        fs = regexp(tline,'.* at (\d+) Hz .*','tokens');
+
+                        fgetl(fid);
+                        tline = fgetl(fid);
+                        exp = regexp(tline,'^Start Time (.*)','tokens');
+                        if(~isempty(exp))
+                            fileHeader.startTime = exp{1}{1};
+                        else
+                            fileHeader.startTime = 'N/A';
+                        end
+                        %  Start Date 1/23/2014
+                        tline = fgetl(fid);
+                        fileHeader.startDate = strrep(tline,'Start Date ','');
+
+                        % Window period (hh:mm:ss) 00:00:01
+                        tline = fgetl(fid);
+                        tmpPeriod = sscanf(tline,'Epoch Period (hh:mm:ss) %u:%u:%u');
+                        fileHeader.countPeriodSec = [3600,60,1]*tmpPeriod(:);
+
+                        if(~isempty(fs))
+                            fileHeader.sampleRate = str2double(fs{1}{1});
+                        else
+                            if(fileHeader.countPeriodSec~=0)
+                                fileHeader.sampleRate = 1/fileHeader.countPeriodSec;
+                            else
+                                fileHeader.sampleRate = fileHeader.countPeriodSec;
+                            end
+                        end
+
+                        % Pull the following line from the file and convert hh:mm:ss
+                        % to total seconds
+                        %  Window Period (hh:mm:ss) 00:00:01
+                        % [a, c]=fscanf(fid,'%*s %*s %*s %d:%d:%d');  %
+                        % This causes a read of the second line as well->
+                        % which is very strange.  So don't use this way.
+                        % obj.countPeriodSec = [3600 60 1]* a;
+
+                        tline = fgetl(fid);
+                        exp = regexp(tline,'^Download Time (.*)','tokens');
+                        if(~isempty(exp))
+                            fileHeader.stopTime = exp{1}{1};
+                        else
+                            fileHeader.stopTime = 'N/A';
+                        end
+                        %  Download Date 1/23/2014
+                        tline = fgetl(fid);
+                        fileHeader.stopDate = strrep(tline,'Download Date ','');
+                    else
+                        % unset - we don't know - assume 1 per second
+                        fileHeader.countPeriodSec = 1;
+                        fileHeader.startTime = 'N/A';
+                        fileHeader.startDate = 'N/A';
+                        fprintf(' File does not include header.  Default values set for start date and countPeriodSec (1).\n');
+                    end
+                    if fclose_on_exit
+                        fclose(fid);
+                    else
+                        fprintf(1,'File handle remains open for %s\n',fullFilename);
+                    end
+                catch me
+                    showME(me);
+                end
+            end
+        end
 
         %> @param fid File identifier is expected to be a file resource
         %> for a binary file obainted using fopen(<filename>,'r');
