@@ -1385,8 +1385,8 @@ classdef PASensorData < PAData
                 try
                     if params.include_header
                        headerStr = generateActigraphRawHeader(params.start_datenum, 'sampling_frequency', obj.sampleRate,...
-                           'actilife_version', actiLifeVersion);
-                       fprintf(1,'%s\n', headerStr);
+                           'actilife_version', params.actilife_version);
+                       fprintf(fid,'%s\n', headerStr);
                     end 
                     
                     % ZERO FILL
@@ -1395,16 +1395,25 @@ classdef PASensorData < PAData
                     if params.start_datenum < obj.dateTimeNum(1)
                         % zero pad the file until you are ready
                         time_stamps = params.start_datenum:datenum_delta:obj.dateTimeNum(1)-datenum_delta;
-                        update_intervals = mod(1:numel(time_stamps),obj.sampleRate*3600*12)==1; % every 12 hours
-                            
+                        
                         if params.export_timestamp
+                            fprintf(1,'Creating timestamps for %0.2f days\n', numel(time_stamps)/params.sampleRate/3600/24);                        
                             tic
                             time_stamps_str = datestr(time_stamps, 'mm/dd/YYYY HH:MM:SS.FFF');
-                            toc
+                            toc                            
+                        end
+                        
+                        update_intervals = mod(1:numel(time_stamps),obj.sampleRate*3600*12)==1; % every 12 hours
+                        numUpdates = sum(update_intervals);
+                        fprintf(1,'Expected:\t%s\n',repmat('|',1,numUpdates));
+                        fprintf(1,'Progress:\t');
+                        if params.export_timestamp
                             
                             tic
                             for t=1:numel(time_stamps)
                                 % 10/7/2012 00:00:00.000,0.27,-0.126,0.974
+                                % fprintf(fid, '%s,0,0,0\n',datestr(time_stamps(t),'mm/dd/YYYY HH:MM:SS.FFF'));
+                                
                                 fprintf(fid, '%s,0,0,0\n',time_stamps_str(t,:));
                                 if update_intervals(t)
                                     fprintf(1, '|');
@@ -1437,44 +1446,79 @@ classdef PASensorData < PAData
                     end
                     
                     indices = start_index:stop_index;
-                    time_stamps_str = datestr(obj.dateTimeNum(indices), 'mm/dd/YYYY HH:MM:SS.FFF');
+                    if params.export_timestamp
+                        fprintf(1,'Creating timestamps for %0.2f days\n', numel(time_stamps)/params.sampleRate/3600/24);
+                        tic
+                        time_stamps_str = datestr(obj.dateTimeNum(indices), 'mm/dd/YYYY HH:MM:SS.FFF');
+                        toc
+                    end
+                    
+                    update_intervals = mod(1:numel(indices),obj.sampleRate*3600*12)==1; % every 12 hours                    
+                    numUpdates = sum(update_intervals);                    
+                    fprintf(1,'Expected:\t%s\n',repmat('|',1,numUpdates));
+                    fprintf(1,'Progress:\t');
                     
                     if params.export_timestamp
+                        % time_stamps_str = datestr(obj.dateTimeNum(indices), 'mm/dd/YYYY HH:MM:SS.FFF');                    
                         for t=1:numel(indices)
                             index = indices(t);
                             fprintf(fid, '%s,%0.3f,%0.3f,%0.3f\n',time_stamps_str(t,:), obj.accel.raw.x(index), obj.accel.raw.y(index), obj.accel.raw.z(index));
                             % 10/7/2012 00:00:00.000,0.27,-0.126,0.974                            
+                            if update_intervals(t)
+                                fprintf(1, '|');
+                            end
                         end
+                        fprintf(1,'\n');                        
                     else
                         for t=1:numel(indices)
                             index = indices(t);
                             fprintf(fid, '%0.3f,%0.3f,%0.3f\n', obj.accel.raw.x(index), obj.accel.raw.y(index), obj.accel.raw.z(index));
-                        end                        
+                            if update_intervals(t)
+                                fprintf(1, '|');
+                            end
+                        end
+                        fprintf(1,'\n');
                     end
-                    cur_timestamp = obj.dateTimeNum(stop_index)+datenum_delta;
-                    
+                    cur_timestamp = obj.dateTimeNum(stop_index)+datenum_delta;                    
                         
                     if params.stop_datenum > cur_timestamp
                         % zero pad the until you reach the end
-                        time_stamps = cur_timestam:datenum_delta:params.stop_datenum;
-                        time_stamps_str = datestr(time_stamps, 'mm/dd/YYYY HH:MM:SS.FFF');
+                        time_stamps = cur_timestamp:datenum_delta:params.stop_datenum;
                         if params.export_timestamp
+                            fprintf(1,'Creating timestamps for %0.2f days\n', numel(time_stamps)/params.sampleRate/3600/24);
+                            tic
+                            time_stamps_str = datestr(time_stamps, 'mm/dd/YYYY HH:MM:SS.FFF');
+                            toc
+                        end
+                        
+                        update_intervals = mod(1:numel(time_stamps),obj.sampleRate*3600*12)==1; % every 12 hours
+                        numUpdates = sum(update_intervals);
+                        fprintf(1,'Expected:\t%s\n',repmat('|',1,numUpdates));
+                        fprintf(1,'Progress:\t');
+                        if params.export_timestamp
+                            % time_stamps_str = datestr(time_stamps, 'mm/dd/YYYY HH:MM:SS.FFF');
                             for t=1:numel(time_stamps)
                                 % 10/7/2012 00:00:00.000,0.27,-0.126,0.974
                                 fprintf(fid, '%s,0,0,0\n',time_stamps_str(t,:));
-                            end                            
+                                if update_intervals(t)
+                                    fprintf(1, '|');
+                                end
+                            end
+                            fprintf(1,'\n');                             
                         else
                             for t=1:numel(time_stamps)                                
                                 fprintf(fid, '0,0,0\n');
-                            end                            
+                                if update_intervals(t)
+                                    fprintf(1, '|');
+                                end
+                            end
+                            fprintf(1,'\n');
                         end
                     end
-                    
                     didWrite = true;                    
                 catch me
                     showME(me);
-                end
-                
+                end                
                 if fid > 2
                     fclose(fid);
                 end                
@@ -1786,23 +1830,30 @@ classdef PASensorData < PAData
                             tmpDataCell = {rawMat(:,7),rawMat(:,8),rawMat(:,9)};
                         end
                     else
-                        fid = fopen(fullFilename,'r');
+                        closeOnExit = false;
+                        [fileHeader, fid] = obj.getActigraphCSVFileHeader(fullFilename, closeOnExit);                        
                         if(fid>0)
                             delimiter = ',';
                             % header = 'Date	 Time	 Axis1	Axis2	Axis3
-                            headerLines = 11; %number of lines to skip
-                            %                        scanFormat = '%s %f32 %f32 %f32'; %load as a 'single' (not double) floating-point number
-                            if(loadFastOption)
-                                scanFormat = '%*f/%*f/%*f %*f:%*f:%*f %f32 %f32 %f32'; %reads the '/' character from the stream, and throws it away.
+                            headerLines = 0; %number of lines to skip - 0 if we have opened up the file and extracted the header, 11 otherwise
+                            
+                            if fileHeader.numColumns == 3                                
+                                scanFormat = '%f32 %f32 %f32';                                
                             else
-                                scanFormat = '%f/%f/%f %f:%f:%f %f32 %f32 %f32';
+                            
+                                %                        scanFormat = '%s %f32 %f32 %f32'; %load as a 'single' (not double) floating-point number
+                                if(loadFastOption)
+                                    scanFormat = '%*f/%*f/%*f %*f:%*f:%*f %f32 %f32 %f32'; %reads the '/' character from the stream, and throws it away.
+                                else
+                                    scanFormat = '%f/%f/%f %f:%f:%f %f32 %f32 %f32';
+                                end
                             end
                             tic
                             tmpDataCell = textscan(fid,scanFormat,'delimiter',delimiter,'headerlines',headerLines);
                             toc
                             %Date time handling
 
-                            if(~loadFastOption)
+                            if ~loadFastOption && fileHeader.numColumns ~=3
                                 dateVecFound = double([tmpDataCell{3},tmpDataCell{1},tmpDataCell{2},tmpDataCell{4},tmpDataCell{5},tmpDataCell{6}]);
                                 %dateVecFound = datevec(tmpDataCell{1},'mm/dd/yyyy HH:MM:SS.FFF');
 
@@ -3227,7 +3278,24 @@ classdef PASensorData < PAData
                         %  Download Date 1/23/2014
                         tline = fgetl(fid);
                         fileHeader.stopDate = strrep(tline,'Download Date ','');
-                    
+                        
+                        %  Download Date 1/23/2014
+                        tline = fgetl(fid);
+                        fileHeader.stopDate = strrep(tline,'Download Date ','');
+                        
+                        % Skip the next three lines which include:
+                        
+                        %  Current Memory Address: 0
+                        %  Current Battery Voltage: 3.86     Mode = 12
+                        % --------------------------------------------------
+                        fgetl(fid);
+                        fgetl(fid);
+                        fgetl(fid);
+                        
+                        % Accelerometer X,Accelerometer Y,Accelerometer Z                        
+                        tline = fgetl(fid);
+                        fileHeader.columnNames = strsplit(tline,',');
+                        fileHeader.numColumns = numel(fileHeader.columnNames);
                     end
                     if fclose_on_exit
                         fclose(fid);
