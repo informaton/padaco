@@ -1397,7 +1397,7 @@ classdef PASensorData < PAData
                         time_stamps = params.start_datenum:datenum_delta:obj.dateTimeNum(1)-datenum_delta;
                         
                         if params.export_timestamp
-                            fprintf(1,'Creating timestamps for %0.2f days\n', numel(time_stamps)/params.sampleRate/3600/24);                        
+                            fprintf(1,'Creating timestamps for %0.2f days\n', numel(time_stamps)/obj.sampleRate/3600/24);                        
                             tic
                             time_stamps_str = datestr(time_stamps, 'mm/dd/YYYY HH:MM:SS.FFF');
                             toc                            
@@ -1447,7 +1447,7 @@ classdef PASensorData < PAData
                     
                     indices = start_index:stop_index;
                     if params.export_timestamp
-                        fprintf(1,'Creating timestamps for %0.2f days\n', numel(time_stamps)/params.sampleRate/3600/24);
+                        fprintf(1,'Creating timestamps for %0.2f days\n', numel(time_stamps)/obj.sampleRate/3600/24);
                         tic
                         time_stamps_str = datestr(obj.dateTimeNum(indices), 'mm/dd/YYYY HH:MM:SS.FFF');
                         toc
@@ -1485,7 +1485,7 @@ classdef PASensorData < PAData
                         % zero pad the until you reach the end
                         time_stamps = cur_timestamp:datenum_delta:params.stop_datenum;
                         if params.export_timestamp
-                            fprintf(1,'Creating timestamps for %0.2f days\n', numel(time_stamps)/params.sampleRate/3600/24);
+                            fprintf(1,'Creating timestamps for %0.2f days\n', numel(time_stamps)/obj.sampleRate/3600/24);
                             tic
                             time_stamps_str = datestr(time_stamps, 'mm/dd/YYYY HH:MM:SS.FFF');
                             toc
@@ -3271,18 +3271,14 @@ classdef PASensorData < PAData
                         tline = fgetl(fid);
                         exp = regexp(tline,'^Download Time (.*)','tokens');
                         if(~isempty(exp))
-                            fileHeader.stopTime = exp{1}{1};
+                            fileHeader.downloadTime = exp{1}{1};
                         else
-                            fileHeader.stopTime = 'N/A';
+                            fileHeader.downloadTime = 'N/A';
                         end
                         %  Download Date 1/23/2014
                         tline = fgetl(fid);
-                        fileHeader.stopDate = strrep(tline,'Download Date ','');
-                        
-                        %  Download Date 1/23/2014
-                        tline = fgetl(fid);
-                        fileHeader.stopDate = strrep(tline,'Download Date ','');
-                        
+                        fileHeader.downloadDate = strrep(tline,'Download Date ','');
+                       
                         % Skip the next three lines which include:
                         
                         %  Current Memory Address: 0
@@ -3300,7 +3296,9 @@ classdef PASensorData < PAData
                     if fclose_on_exit
                         fclose(fid);
                     else
-                        fprintf(1,'File handle remains open for %s\n',fullFilename);
+                        % The following is true, but is disconcerting now since we don't have a closing 
+                        % comment when the file handle is closed later on.
+                        % fprintf(1,'File handle remains open for %s\n',fullFilename);
                     end
                 catch me
                     showME(me);
