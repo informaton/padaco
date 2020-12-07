@@ -1447,7 +1447,7 @@ classdef PASensorData < PAData
                     
                     indices = start_index:stop_index;
                     if params.export_timestamp
-                        fprintf(1,'Creating timestamps for %0.2f days\n', numel(time_stamps)/obj.sampleRate/3600/24);
+                        fprintf(1,'Creating timestamps for %0.2f days\n', numel(indices)/obj.sampleRate/3600/24);
                         tic
                         time_stamps_str = datestr(obj.dateTimeNum(indices), 'mm/dd/YYYY HH:MM:SS.FFF');
                         toc
