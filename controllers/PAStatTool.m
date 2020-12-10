@@ -461,9 +461,11 @@ classdef PAStatTool < PAViewController
                 exportPath = curCluster.getExportPath();
                 saveFile = fullfile(exportPath, sprintf('%s_%s_exclusions.mat',nonwearFeatures.method, nonwearFeatures.srcDataType));
                 save(saveFile, 'nonwearFeatures');
+                fprintf(1,'nonwearFeatures saved to %s\n', saveFile);
                 didExport = true;
+                
             else
-                fprintf(1,'Cancelled');
+                fprintf(1,'Cancelled\n');
             end
         end
         
