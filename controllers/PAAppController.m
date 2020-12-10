@@ -730,6 +730,12 @@ classdef PAAppController < PAFigureController
                     if(~strcmpi(obj.getViewMode(),'results'))
                         obj.showBusy('Switching to results view');
                         obj.setViewMode('results');
+                    else
+                        % Need to update the settings from the GUI, otherwise
+                        % the initial settings will be used that were last saved
+                        % which are not necessarily the ones shown to the user at
+                        % this moment, which can be frustrating to see change.                        
+                        obj.StatTool.updateSettingsFromGUI();
                     end                    
                     obj.showBusy('Initializing results view','all');
                     obj.setFeaturesPathnameAndUpdate(featuresPath);

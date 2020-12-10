@@ -1108,6 +1108,16 @@ classdef PAStatTool < PAViewController
             % this.initCallbacks();
         end
         
+        function updateSettingsFromGUI(this)
+            pStruct = this.getPlotSettings();
+            keys = fieldnames(pStruct);
+            for k=1:numel(keys)
+                key = keys{k};
+                value = pStruct.(key);
+                this.setSetting(key, value);
+            end
+        end
+        
         % didUpdate will be false in the event of an exception.
         function didUpdate = updateWidgets(this, varargin)
             try
