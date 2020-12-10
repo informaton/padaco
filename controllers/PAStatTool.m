@@ -412,13 +412,22 @@ classdef PAStatTool < PAViewController
             canPlotValue = this.canPlot;
         end
         
-        function didImport = importExlcusions(this, importFilename)
+        
+        function didImport = importExclusions(this, importFilename)
             didImport = false;
             if nargin<2
                 importFilename = [];
-            end
+            else
+                importFilename = char(importFilename);
+            end            
             if isempty(importFilename)
-                lastImportFilename = this.exclusionsFilename;
+                lastImportFilename = char(this.exclusionsFilename);
+                if isempty(lastImportFilename)
+                    curCluster = this.getClusterObj();
+                    if ~isempty(curCluster)
+                        lastImportFilename = curCluster.getExportPath();
+                    end
+                end
                 importFilename = uigetfullfile({'*.mat', 'Exclusion file (*.mat)'},...
                     'Select nonwear/bad data exclusion data to import',...
                     lastImportFilename,'off');
@@ -429,8 +438,9 @@ classdef PAStatTool < PAViewController
             elseif ~exist(importFilename,'file')
                 this.logStatus('Import filename does not exist: %s', importFilename);
             else
-                try                    
-                    this.exclusionsFilename = importFilename;
+                try 
+                    nonwearData = load(importFilename);
+                    this.exclusionsFilename.setValue(importFilename);                    
                     didImport = true;
                 catch me
                     showME(me);
@@ -461,9 +471,9 @@ classdef PAStatTool < PAViewController
                 exportPath = curCluster.getExportPath();
                 saveFile = fullfile(exportPath, sprintf('%s_%s_exclusions.mat',nonwearFeatures.method, nonwearFeatures.srcDataType));
                 save(saveFile, 'nonwearFeatures');
-                fprintf(1,'nonwearFeatures saved to %s\n', saveFile);
-                didExport = true;
                 
+                fprintf(1,'nonwearFeatures saved to %s\n', saveFile);
+                didExport = true;                
             else
                 fprintf(1,'Cancelled\n');
             end
