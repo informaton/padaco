@@ -461,7 +461,7 @@ classdef PAStatTool < PAViewController
             elseif(curCluster.updateExportPath()) % false if user cancels
                 originalFeatures = this.originalFeatureStruct;
                 nonwearFeatures = rmfield(nonwearFeatures, 'featureStruct');
-                fieldsToCopy = {'studyIDs','indFirstLast', 'srcDataType',...
+                fieldsToCopy = {'studyIDs','startDatenums','indFirstLast', 'srcDataType',...
                     'indFirstLast1Week', 'ind2keep1Week', 'ind2keepExactly1Week',...
                     'ind2keepAndNonwearExcluded', 'ind2keepExactly1WeekAndNonwearExcluded'};
                 for f=1:numel(fieldsToCopy)
@@ -751,12 +751,12 @@ classdef PAStatTool < PAViewController
                         
                         ind2keepExactly1Week = false(size(this.originalFeatureStruct.shapes,1),1);
                         ind2keep = false(size(this.originalFeatureStruct.shapes,1),1);
-                        dayInd = this.originalFeatureStruct.indFirstLast1Week;
-                        for d=1:size(dayInd,1)
-                            ind2keep(dayInd(d,1):dayInd(d,2))= true;  % could be less than a week, but not more
+                        oneWeekDayInd = this.originalFeatureStruct.indFirstLast1Week;
+                        for d=1:size(oneWeekDayInd,1)
+                            ind2keep(oneWeekDayInd(d,1):oneWeekDayInd(d,2))= true;  % could be less than a week, but not more
                             if(this.originalFeatureStruct.numDays(d)>=7)
                                 % exactly 1 week
-                                ind2keepExactly1Week(dayInd(d,1):dayInd(d,2)) = true;
+                                ind2keepExactly1Week(oneWeekDayInd(d,1):oneWeekDayInd(d,2)) = true;
                             end
                         end
                         this.originalFeatureStruct.ind2keep1Week = ind2keep;  % logical index for subject days that are part of 1 week or less.
@@ -791,12 +791,10 @@ classdef PAStatTool < PAViewController
                     nonwear_rows = this.getNonwearRows(this.nonwear.method, tmpUsageStateStruct);
 
                     
-                    % This sets all of the days of a study to true (up to
-                    % first 7 days) for a participant if any one of their
-                    % days has nonwear in it.  This allows us to discard
-                    % the entire week of nonwear at once later on if
-                    % need be.
-                    this.nonwear.week_exactly_rows = false(size(nonwear_rows));
+                    % Make all week long data nonwear.  Then check and change
+                    % all week entries found without nonwear.
+                    this.nonwear.week_exactly_rows = true(size(nonwear_rows));
+                    
                     % go through our indices of first and last days of week
                     % again, and check if there are discards here.
                     
@@ -806,17 +804,17 @@ classdef PAStatTool < PAViewController
                     % e.g. if a user tries to overwrite previous usage state 
                     % by running a batch job and then stopping before it finishes.
                     if ~isempty(nonwear_rows)
-                        for d=1:size(dayInd,1)
-                            if any(nonwear_rows(dayInd(d,1):dayInd(d,2)))
+                        for d=1:size(oneWeekDayInd,1)
+                            if any(nonwear_rows(oneWeekDayInd(d,1):oneWeekDayInd(d,2)))
                                 % This is a conservative approach as it could be that a subject only has one or two days of nonwear over the course
                                 % of 10 days of data and still has a week left to be evaluated with.
-                                day_ind = dayInd(d,1):dayInd(d,2);
+                                day_ind = oneWeekDayInd(d,1):oneWeekDayInd(d,2);
                                 ind2keepAndNonwearExcluded(day_ind) = false;
                                 if(this.originalFeatureStruct.numDays(d)>=7)
                                     ind2keepExactly1WeekAndNonwearExcluded(day_ind) = false;
                                     individualsMissingCompleteWeekAfterNonWearExclusion = individualsMissingCompleteWeekAfterNonWearExclusion + 1;
                                 end
-                                this.nonwear.week_rows(day_ind) = true;
+                                this.nonwear.week_exactly_rows(day_ind) = true;
                             end
                         end
                     end
@@ -879,7 +877,7 @@ classdef PAStatTool < PAViewController
                 
                 if(pSettings.discardNonwearFeatures)
                     if (maxDaysAllowed>0 || minDaysAllowed>0) && isempty(indicesToUse)
-                        %[this.featureStruct, this.nonwear.featureStruct] = this.discardNonwearFeatures(tmpFeatureStruct, this.nonwear.week_rows);
+                        %[this.featureStruct, this.nonwear.featureStruct] = this.discardNonwearFeatures(tmpFeatureStruct, this.nonwear.week_exactly_rows);
                         
                         % will handle this case below actually
                         this.featureStruct = tmpFeatureStruct;
@@ -921,9 +919,9 @@ classdef PAStatTool < PAViewController
                         ind2keep = false(size(this.featureStruct.shapes,1),1);
                         [c, iaFirst,ic] = unique(this.featureStruct.studyIDs,'first'); %#ok<*ASGLU>
                         [c, iaLast, ic] = unique(this.featureStruct.studyIDs,'last');
-                        dayInd = [iaFirst, min(iaLast, iaFirst+this.MAX_DAYS_PER_STUDY-1)];
-                        for d=1:size(dayInd,1)
-                            ind2keep(dayInd(d,1):dayInd(d,2))= true;
+                        oneWeekDayInd = [iaFirst, min(iaLast, iaFirst+this.MAX_DAYS_PER_STUDY-1)];
+                        for d=1:size(oneWeekDayInd,1)
+                            ind2keep(oneWeekDayInd(d,1):oneWeekDayInd(d,2))= true;
                         end
                     end
                     
