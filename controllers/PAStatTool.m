@@ -439,8 +439,19 @@ classdef PAStatTool < PAViewController
                 this.logStatus('Import filename does not exist: %s', importFilename);
             else
                 try 
-                    nonwearData = load(importFilename);
-                    this.exclusionsFilename.setValue(importFilename);                    
+                    tmp = load(importFilename,'nonwearFeatures');
+                    nonwearStruct = tmp.nonwearFeatures;
+                    this.exclusionsFilename.setValue(importFilename); 
+                    
+                    this.nonwear.import = nonwearStruct;
+                    % Merge the rows now ...
+                    current_keys = [this.originalFeatureStruct.studyIDs(:), this.originalFeatureStruct.startDatenums(:)];
+                    import_keys = [nonwearStruct.studyIDs(:), nonwearStruct.startDatenums(:)];
+                    [~, a, b] = intersect(current_keys, import_keys, 'rows', 'stable');
+                    
+                    this.nonwear.import.rows = false(size(this.originalFeatureStruct.startDatenums));
+                    this.nonwear.import.rows(a) = nonwearStruct.rows(b);
+                    
                     didImport = true;
                 catch me
                     showME(me);
@@ -865,7 +876,7 @@ classdef PAStatTool < PAViewController
                     warndlg('Well this is unexpected.');
                 end
                 
-                [this.nonwear.rows, malfunctionRows] = this.getNonwearRows(this.nonwear.method, tmpUsageStateStruct);
+                [this.nonwear.rows, malfunctionRows] = this.getNonwearRows(this.nonwear.method, tmpUsageStateStruct, this.nonwear);
                 % this.nonwear.rows = this.nonwear.rows | malfunctionRows;
                 if this.isShowingWeekLong()
                     maxDaysAllowed = 7;
@@ -4630,40 +4641,77 @@ classdef PAStatTool < PAViewController
             end
         end
         
+        % nonwear method can be a string or a cell of strings representing 
+        % the method or methods to apply to determine which rows should be considered
+        % nonwear.  
+        % nonwearRows = logical vector indicating which feature vectors of the second argument 
+        % are considered as nonwear or having data from a malfunctioning device.
+        % malfunctionRows = logical vector indicating which feature vectors of the second argument 
+        % are considered to be due to a malfunctioning device.
         function [nonwearRows, malfunctionRows] = getNonwearRows(nonwearMethod, varargin)
             nonwearRows = [];
             malfunctionRows = [];
-            switch(lower(nonwearMethod))
-                case 'choi'
-                case 'padaco'
-                    if(numel(varargin)>0)
-                        usageStateStruct = varargin{1};
-                    else
-                        usageStateStruct = [];
+                
+            if iscell(nonwearMethod)                
+                for c=1:numel(nonwearMethod)
+                    [tmpNonwearRows, tmpMalfunctionRows] = getNonwearRows(nonwearMethod{c}, varargin{:});
+                    if isempty(nonwearRows)
+                        nonwearRows = tmpNonwearRows;
+                    elseif ~isempty(tmpNonwearRows)
+                        nonwearRows = nonwearRows | tmpNonwearRows;
                     end
-                    if(isstruct(usageStateStruct))
-                        tagStruct = PASensorData.getActivityTags();
-                        
-                        % count data
-                        if strcmpi(usageStateStruct.srcDataType, 'count')
-                            nonwearRows = any(usageStateStruct.shapes<=tagStruct.NONWEAR,2);
-                        elseif strcmpi(usageStateStruct.srcDataType, 'raw')
-                            zeroDuringRows = any(usageStateStruct.shapes==tagStruct.NOT_WORKING, 2);
-                            zeroStartRows = any(usageStateStruct.shapes==tagStruct.STUDY_NOT_STARTED, 2);
-                            zeroEndRows = any(usageStateStruct.shapes==tagStruct.STUDYOVER, 2);
-                            
-                            zeroRows = zeroDuringRows| zeroStartRows| zeroEndRows;
-                            stuckRows = any(usageStateStruct.shapes==tagStruct.SENSOR_STUCK,2);
-                            burstRows = any(usageStateStruct.shapes==tagStruct.SENSOR_BURST, 2); % one sensor showing excessive readings for 5+ minutes.
-                            malfunctionRows = stuckRows | burstRows;
-                        
-                            % raw data?
-                            nonwearRows = zeroRows | malfunctionRows;                            
-                            % malfunctionRows = burstRows | stuckRows;
-                            %nonwearRows = nonwearRows | malfunctionRows;
+                    if isempty(malfunctionRows)
+                        malfunctionRows = tmpMalfunctionRows;
+                    elseif ~isempty(tmpMalfunctionRows)
+                        malfunctionRows = malfunctionRows | tmpMalfunctionRows;
+                    end
+                end 
+            else
+                nonwearRows = [];
+                malfunctionRows = [];                
+                
+                nonwearMethod = lower(nonwearMethod);
+                switch(nonwearMethod)
+                    case 'choi'
+                    case 'import'
+                        if(numel(varargin)>1)
+                            nonwearStruct = varargin{2};
+                        else
+                            nonwearStruct = [];
                         end
-                    end
-                otherwise
+                        if(isstruct(nonwearStruct))
+                            nonwearRows = nonwearStruct.(nonwearMethod).rows;
+                        end
+                    case 'padaco'
+                        if(numel(varargin)>0)
+                            usageStateStruct = varargin{1};
+                        else
+                            usageStateStruct = [];
+                        end
+                        if(isstruct(usageStateStruct))
+                            tagStruct = PASensorData.getActivityTags();
+                            
+                            % count data
+                            if strcmpi(usageStateStruct.srcDataType, 'count')
+                                nonwearRows = any(usageStateStruct.shapes<=tagStruct.NONWEAR,2);
+                            elseif strcmpi(usageStateStruct.srcDataType, 'raw')
+                                zeroDuringRows = any(usageStateStruct.shapes==tagStruct.NOT_WORKING, 2);
+                                zeroStartRows = any(usageStateStruct.shapes==tagStruct.STUDY_NOT_STARTED, 2);
+                                zeroEndRows = any(usageStateStruct.shapes==tagStruct.STUDYOVER, 2);
+                                
+                                zeroRows = zeroDuringRows| zeroStartRows| zeroEndRows;
+                                stuckRows = any(usageStateStruct.shapes==tagStruct.SENSOR_STUCK,2);
+                                burstRows = any(usageStateStruct.shapes==tagStruct.SENSOR_BURST, 2); % one sensor showing excessive readings for 5+ minutes.
+                                malfunctionRows = stuckRows | burstRows;
+                                
+                                % raw data?
+                                nonwearRows = zeroRows | malfunctionRows;
+                                % malfunctionRows = burstRows | stuckRows;
+                                %nonwearRows = nonwearRows | malfunctionRows;
+                            end
+                        end
+                    otherwise
+                end
             end
         end
         

@@ -538,7 +538,7 @@ classdef PACluster < PAData
             shapeStr = '';
             
             if(this.getNumClusters<=0)
-                headerStr = '# No clusters found!';
+                headerStr = '# No feature vectors found!';
             else
                 shapeTimesInCSV = cell2str(this.loadShapeTimes,',');
                 headerStr = sprintf('# studyID, Start day (0 = Sunday), %s',shapeTimesInCSV);
@@ -1100,6 +1100,9 @@ classdef PACluster < PAData
                     end
                 end
                 
+                if isempty(inputLoadShapes)
+                    throw(MException('PACluster:CaculateClusters','No feature vectors to cluster!'));
+                end
                 inputSettings = paparamsToValues(inputSettings);
                 
                 %             inputSettings.clusterMethod = 'kmedians';
@@ -1129,7 +1132,13 @@ classdef PACluster < PAData
                 %                 [this.loadshapeIndex2centroidIndexMap, this.centroidShapes, this.performanceMeasure, this.performanceProgression, this.sumD] = this.adaptiveKmeans(inputLoadShapes,inputSettings,this.performanceAxesHandle,this.statusTextHandle);
                 %             end
                 
-                if(~isempty(this.centroidShapes))
+                if(isempty(this.centroidShapes))
+                    fprintf('Clustering failed!  No clusters found!\n');
+                    this.calculationState = -1;  % Calculation failed
+                    this.calinskiIndex = nan;
+                    this.silhouetteIndex = nan;
+                    this.init();
+                else
                     
                     % It is possible that we overdid it and have unassigned
                     % clusters here.
@@ -1238,12 +1247,6 @@ classdef PACluster < PAData
                         this.silhouetteIndex = mean(silhouette(this.loadShapes,idx));
                         fprintf('Silhouette Index = %0.4f\n',this.silhouetteIndex);
                     end
-                else
-                    fprintf('Clustering failed!  No clusters found!\n');
-                    this.calculationState = -1;  % Calculation failed
-                    this.calinskiIndex = nan;
-                    this.silhouetteIndex = nan;
-                    this.init();
                 end
             catch me
                 fprintf('Clustering failed!  Exception caught: %s\n', me.message);
