@@ -876,7 +876,11 @@ classdef PAStatTool < PAViewController
                     warndlg('Well this is unexpected.');
                 end
                 
-                [this.nonwear.rows, malfunctionRows] = this.getNonwearRows(this.nonwear.method, tmpUsageStateStruct, this.nonwear);
+                nonwearMethod = this.nonwear.method;
+                if this.exclusionsFilename.exist % if strcmpi(nonwearMethod, 'import') 
+                    nonwearMethod = {'import',nonwearMethod};
+                end
+                [this.nonwear.rows, malfunctionRows] = this.getNonwearRows(nonwearMethod, tmpUsageStateStruct, this.nonwear);
                 % this.nonwear.rows = this.nonwear.rows | malfunctionRows;
                 if this.isShowingWeekLong()
                     maxDaysAllowed = 7;
@@ -4654,7 +4658,7 @@ classdef PAStatTool < PAViewController
                 
             if iscell(nonwearMethod)                
                 for c=1:numel(nonwearMethod)
-                    [tmpNonwearRows, tmpMalfunctionRows] = getNonwearRows(nonwearMethod{c}, varargin{:});
+                    [tmpNonwearRows, tmpMalfunctionRows] = PAStatTool.getNonwearRows(nonwearMethod{c}, varargin{:});                                                           
                     if isempty(nonwearRows)
                         nonwearRows = tmpNonwearRows;
                     elseif ~isempty(tmpNonwearRows)
