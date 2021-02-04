@@ -164,7 +164,7 @@ classdef PAStatTool < PAViewController
             this.globalProfile  = [];
             this.coiProfile = [];
             this.allProfiles = [];
-            
+            this.featureTypes = this.base.featureTypes;
             if nargin > 2
                 featuresPathname = varargin{3};
                 if(isdir(featuresPathname))
@@ -349,6 +349,16 @@ classdef PAStatTool < PAViewController
                     end
                 end
                 
+                % Imported exclusion data requires a merge with the current dataset..
+                try
+                    if exist(this.exclusionsFilename,'file')
+                        this.importExclusions(this.exclusionsFilename);
+                    end
+                catch me
+                    this.logError(me, 'Failed to import exclusion data from %s', char(this.exclusionsFilename));
+                end
+
+                
                 % This happens most often when we are switching to a new
                 % directory for the first time which has not been cached
                 % yet.
@@ -357,6 +367,7 @@ classdef PAStatTool < PAViewController
                 end
                 
                 this.clearPlots();
+                
                 
                 if(this.getCanPlot())
                     if(this.isClusterMode())
@@ -479,10 +490,18 @@ classdef PAStatTool < PAViewController
                     field = fieldsToCopy{f};
                     nonwearFeatures.(field) = originalFeatures.(field);
                 end
+                fieldsToRemove = {'import'};
+                for f=1:numel(fieldsToRemove)
+                    field = fieldsToRemove{f};
+                    if isfield(nonwearFeatures, field)
+                        nonwearFeatures = rmfield(nonwearFeatures, field);
+                    end
+                end
+                
                 exportPath = curCluster.getExportPath();
                 saveFile = fullfile(exportPath, sprintf('%s_%s_exclusions.mat',nonwearFeatures.method, nonwearFeatures.srcDataType));
-                save(saveFile, 'nonwearFeatures');
-                
+                save(saveFile, 'nonwearFeatures');                
+                this.exclusionsFilename.setValue(saveFilename)
                 fprintf(1,'nonwearFeatures saved to %s\n', saveFile);
                 didExport = true;                
             else
@@ -877,8 +896,10 @@ classdef PAStatTool < PAViewController
                 end
                 
                 nonwearMethod = this.nonwear.method;
-                if this.exclusionsFilename.exist % if strcmpi(nonwearMethod, 'import') 
-                    nonwearMethod = {'import',nonwearMethod};
+                if this.exclusionsFilename.exist && isfield(this.nonwear,'import')% if strcmpi(nonwearMethod, 'import') 
+                     %$ nonwearMethod = {'import',nonwearMethod};
+                     nonwearMethod = 'import';
+                     
                 end
                 [this.nonwear.rows, malfunctionRows] = this.getNonwearRows(nonwearMethod, tmpUsageStateStruct, this.nonwear);
                 % this.nonwear.rows = this.nonwear.rows | malfunctionRows;
@@ -4645,9 +4666,13 @@ classdef PAStatTool < PAViewController
             end
         end
         
-        % nonwear method can be a string or a cell of strings representing 
-        % the method or methods to apply to determine which rows should be considered
-        % nonwear.  
+        % nonwearMethod - A string or cell of strings representing the method(s)
+        % to apply to determine which rows should be considered nonwear.  
+        % varargin{} - 
+        %  - 'import' nonwear method: 
+        %       varargin{2} == nonwearStruct that was imported.
+        %  - 'padaco' nonwear
+        %       varargin{1} == usageStage struct (from Padaco)
         % nonwearRows = logical vector indicating which feature vectors of the second argument 
         % are considered as nonwear or having data from a malfunctioning device.
         % malfunctionRows = logical vector indicating which feature vectors of the second argument 
@@ -4678,12 +4703,12 @@ classdef PAStatTool < PAViewController
                 switch(nonwearMethod)
                     case 'choi'
                     case 'import'
-                        if(numel(varargin)>1)
+                        if numel(varargin)>1
                             nonwearStruct = varargin{2};
                         else
                             nonwearStruct = [];
                         end
-                        if(isstruct(nonwearStruct))
+                        if isstruct(nonwearStruct) && isfield(nonwearStruct,'import')
                             nonwearRows = nonwearStruct.(nonwearMethod).rows;
                         end
                     case 'padaco'
@@ -5120,6 +5145,8 @@ classdef PAStatTool < PAViewController
         % ======================================================================
         function baseSettings = getBaseSettings()
             featureDescriptionStruct = PASensorData.getFeatureDescriptionStructWithPSDBands();
+            
+            featureDescriptionStruct.nonwear_choi = 'Nonwear (choi)';
             baseSettings.featureDescriptions = struct2cell(featureDescriptionStruct);
             baseSettings.featureTypes = fieldnames(featureDescriptionStruct);
             baseSettings.signalTypes = {'x','y','z','vecMag'};

@@ -754,8 +754,11 @@ classdef PAAppController < PAFigureController
                 
             catch me
                 showME(me);
-                f=warndlg('An error occurred while trying to load the feature set.  See the console log for details.');
-                waitfor(f);
+                %f=warndlg('An error occurred while trying to load the feature set.  See the console log for details.');
+                %waitfor(f);
+                makeModal = true;
+                msg = sprintf('An error occurred while trying to load the feature set.\nSee the console log for details.');
+                pa_msgbox(msg,'Warning!',makeModal);           
                 obj.showReady();
             end
         end

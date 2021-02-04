@@ -336,6 +336,8 @@ classdef PABatchTool < PAFigureFcnController
                 dateMap.Fri = 5;
                 dateMap.Sat = 6;
                 
+                % See also: weekday()-1
+                
                 
                 % initialize batch processing file management
                 [countFilenames, countFullFilenames] = getFilenamesi(this.getSourcePath(),'.csv');
@@ -638,8 +640,6 @@ classdef PABatchTool < PAFigureFcnController
                                         end
                                         save(featureFilename,'result','-ascii','-tabs','-append');
                                     end
-                                    
-                                    
                                 end
                             end
                             
@@ -883,9 +883,6 @@ classdef PABatchTool < PAFigureFcnController
         function waitbarCancelCallback(this,hCancelBtn, eventData) 
             this.waitbarCloseRequestCallback(get(hCancelBtn,'parent'),eventData);
         end
-        
-        
-        
         
     end
     
