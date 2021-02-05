@@ -815,13 +815,18 @@ classdef PAStatTool < PAViewController
                     tmpUsageStateStruct.srcDataType = srcDataType;
                 end
                 
+                this.nonwear.padaco = tmpUsageStateStruct;
+                   
+                
                 % update to here to make sure we are covered for the one
                 % week case now.  So we can exclude based on the days
                 % collected.
                 if(loadFileRequired)
                     ind2keepExactly1WeekAndNonwearExcluded = ind2keepExactly1Week;
-                    ind2keepAndNonwearExcluded = ind2keep;                    
-                    nonwear_rows = this.getNonwearRows(this.nonwear.method, tmpUsageStateStruct);
+                    ind2keepAndNonwearExcluded = ind2keep;
+                    
+                    nonwearMethod = this.getSetting('discardMethod');                   
+                    [nonwear_rows, malfunctionRows] = this.getNonwearRows(nonwearMethod, this.nonwear);
 
                     
                     % Make all week long data nonwear.  Then check and change
@@ -898,13 +903,15 @@ classdef PAStatTool < PAViewController
                     warndlg('Well this is unexpected.');
                 end
                 
+                this.nonwear.padaco = tmpUsageStateStruct;
+                
                 nonwearMethod = this.getSetting('discardMethod');
                 if this.exclusionsFilename.exist && isfield(this.nonwear,'import')% if strcmpi(nonwearMethod, 'import') 
                      %$ nonwearMethod = {'import',nonwearMethod};
                      nonwearMethod = 'import';
-                     
                 end
-                [this.nonwear.rows, malfunctionRows] = this.getNonwearRows(nonwearMethod, tmpUsageStateStruct, this.nonwear);
+                
+                [this.nonwear.rows, malfunctionRows] = this.getNonwearRows(nonwearMethod, this.nonwear);
                 % this.nonwear.rows = this.nonwear.rows | malfunctionRows;
                 if this.isShowingWeekLong()
                     maxDaysAllowed = 7;
@@ -4682,22 +4689,20 @@ classdef PAStatTool < PAViewController
         
         % nonwearMethod - A string or cell of strings representing the method(s)
         % to apply to determine which rows should be considered nonwear.  
-        % varargin{} - 
-        %  - 'import' nonwear method: 
-        %       varargin{2} == nonwearStruct that was imported.
-        %  - 'padaco' nonwear
-        %       varargin{1} == usageStage struct (from Padaco)
+        % nonwearStruct - struct with field names keyed on the nonwearMethod
+        %  - 'import' == nonwearStruct that was imported.
+        %  - 'padaco' == usageStage struct (from Padaco)
         % nonwearRows = logical vector indicating which feature vectors of the second argument 
         % are considered as nonwear or having data from a malfunctioning device.
         % malfunctionRows = logical vector indicating which feature vectors of the second argument 
         % are considered to be due to a malfunctioning device.
-        function [nonwearRows, malfunctionRows] = getNonwearRows(nonwearMethod, varargin)
+        function [nonwearRows, malfunctionRows] = getNonwearRows(nonwearMethod, nonwearStruct)
             nonwearRows = [];
             malfunctionRows = [];
                 
             if iscell(nonwearMethod)                
                 for c=1:numel(nonwearMethod)
-                    [tmpNonwearRows, tmpMalfunctionRows] = PAStatTool.getNonwearRows(nonwearMethod{c}, varargin{:});                                                           
+                    [tmpNonwearRows, tmpMalfunctionRows] = PAStatTool.getNonwearRows(nonwearMethod{c}, nonwearStruct);                                                           
                     if isempty(nonwearRows)
                         nonwearRows = tmpNonwearRows;
                     elseif ~isempty(tmpNonwearRows)
@@ -4714,25 +4719,17 @@ classdef PAStatTool < PAViewController
                 malfunctionRows = [];                
                 
                 nonwearMethod = lower(nonwearMethod);
+                nonwearStruct = getfieldi(nonwearStruct, nonwearMethod);
                 switch(nonwearMethod)
                     case 'choi'
                         
                         
                     case 'import'
-                        if numel(varargin)>1
-                            nonwearStruct = varargin{2};
-                        else
-                            nonwearStruct = [];
-                        end
-                        if isstruct(nonwearStruct) && isfield(nonwearStruct,'import')
-                            nonwearRows = nonwearStruct.(nonwearMethod).rows;
+                        if isstruct(nonwearStruct) && isfield(nonwearStruct, 'rows')
+                            nonwearRows = nonwearStruct.rows;
                         end
                     case 'padaco'
-                        if(numel(varargin)>0)
-                            usageStateStruct = varargin{1};
-                        else
-                            usageStateStruct = [];
-                        end
+                        usageStateStruct = nonwearStruct;
                         if(isstruct(usageStateStruct))
                             tagStruct = PASensorData.getActivityTags();
                             
