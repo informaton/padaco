@@ -165,6 +165,7 @@ classdef PAStatTool < PAViewController
             this.coiProfile = [];
             this.allProfiles = [];
             this.featureTypes = this.base.featureTypes;
+
             if nargin > 2
                 featuresPathname = varargin{3};
                 if(isdir(featuresPathname))
@@ -232,6 +233,8 @@ classdef PAStatTool < PAViewController
                 this.bootstrapSampleName = this.getSetting('bootstrapSampleName');
                 this.maxNumDaysAllowed = this.getSetting('maxNumDaysAllowed');
                 this.minNumDaysAllowed = this.getSetting('minNumDaysAllowed');
+                
+                this.nonwear
                 
                 this.useCache = this.getSetting('useCache');
                 this.cacheDirectory = this.getSetting('cacheDirectory');
@@ -895,7 +898,7 @@ classdef PAStatTool < PAViewController
                     warndlg('Well this is unexpected.');
                 end
                 
-                nonwearMethod = this.nonwear.method;
+                nonwearMethod = this.getSetting('discardMethod');
                 if this.exclusionsFilename.exist && isfield(this.nonwear,'import')% if strcmpi(nonwearMethod, 'import') 
                      %$ nonwearMethod = {'import',nonwearMethod};
                      nonwearMethod = 'import';
@@ -1215,12 +1218,12 @@ classdef PAStatTool < PAViewController
                             % This should be updated to parse the actual output feature
                             % directories for signal type (count) or raw and the signal
                             % source (vecMag, x, y, z)
-                            set(this.handles.menu_signalsource,'string',this.base.signalDescriptions,'userdata',this.base.signalTypes,'value',this.getSetting('signalSelection'));
-                            set(this.handles.menu_plottype,'userdata',this.base.plotTypes,'string',this.base.plotTypeDescriptions,'value',this.getSetting('plotTypeSelection'));
+                            set(this.handles.menu_signalsource,'value',this.getSetting('signalSelection'));
+                            set(this.handles.menu_plottype,'value',this.getSetting('plotTypeSelection'));
                             
                             % Cluster widgets
-                            set(this.handles.menu_precluster_reduction,'string',this.base.preclusterReductionDescriptions,'userdata',this.base.preclusterReductions,'value',this.getSetting('preclusterReductionSelection'));
-                            set(this.handles.menu_number_of_data_segments,'string',this.base.numDataSegmentsDescriptions,'userdata',this.base.numDataSegments,'value',this.getSetting('numDataSegmentsSelection'));
+                            set(this.handles.menu_precluster_reduction,'value',this.getSetting('preclusterReductionSelection'));
+                            set(this.handles.menu_number_of_data_segments,'value',this.getSetting('numDataSegmentsSelection'));
                             
                             if(strcmpi(this.base.weekdayTags{this.getSetting('weekdaySelection')},'custom'))
                                 customIndex = this.getSetting('weekdaySelection');
@@ -1231,12 +1234,8 @@ classdef PAStatTool < PAViewController
                                 tooltipString = '';
                             end
                             
-                            set(this.handles.menu_weekdays,'string',this.base.weekdayDescriptions,'userdata',this.base.weekdayTags,...
-                                'value',this.getSetting('weekdaySelection'),'tooltipstring',tooltipString);
-                            
-                            set(this.handles.menu_duration,'string',this.base.clusterDurationDescriptions,'value',this.getSetting('clusterDurationSelection'));
-                            set(this.handles.edit_minClusters,'string',num2str(this.getSetting('minClusters')));
-                            set(this.handles.edit_clusterConvergenceThreshold,'string',num2str(this.getSetting('clusterThreshold')));
+                            set(this.handles.menu_weekdays,'value',this.getSetting('weekdaySelection'),'tooltipstring',tooltipString);                            
+                            set(this.handles.menu_duration,'value',this.getSetting('clusterDurationSelection'));
                             
                             % Trim results
                             if(this.getSetting('trimResults'))
@@ -1803,7 +1802,7 @@ classdef PAStatTool < PAViewController
                     this.plotClusters();
                 else
                     this.disableClusterControls();
-                    this.refreshClustersAndPlot();
+                    this.refreshClustersAndPlot();                    
                 end
                 
                 set(findall(this.handles.panel_clusterSettings,'-property','enable'),'enable','on');
@@ -2139,6 +2138,18 @@ classdef PAStatTool < PAViewController
                 set(this.handles.check_trim,'min',0,'max',1,'value',this.getSetting('trimResults'));
                 set(this.handles.check_cull,'min',0,'max',1,'value',this.getSetting('cullResults'));
                 set(this.handles.check_normalizevalues,'min',0,'max',1,'value',this.getSetting('normalizeValues'));
+                
+                
+                set(this.handles.menu_signalsource,'string',this.base.signalDescriptions,'userdata',this.base.signalTypes);
+                set(this.handles.menu_plottype,'userdata',this.base.plotTypes,'string',this.base.plotTypeDescriptions);
+                
+                % Cluster widgets
+                set(this.handles.menu_precluster_reduction,'string',this.base.preclusterReductionDescriptions,'userdata',this.base.preclusterReductions);
+                set(this.handles.menu_number_of_data_segments,'string',this.base.numDataSegmentsDescriptions,'userdata',this.base.numDataSegments);
+                
+                
+                set(this.handles.menu_weekdays,'string',this.base.weekdayDescriptions,'userdata',this.base.weekdayTags);
+                set(this.handles.menu_duration,'string',this.base.clusterDurationDescriptions);
                 
                 didInit = true;
             catch me
@@ -2729,7 +2740,10 @@ classdef PAStatTool < PAViewController
         %> profile field available.
         % ======================================================================
         function initProfileTable(this, profileFieldSelection)
-            this.createProfileTable();           
+            this.createProfileTable();
+            if nargin < 2 || isempty(profileFieldSelection)
+                profileFieldSelection = 1;
+            end
             
             % May or may not occur depending on state of cached values, but
             % if there are loaded table or database values, go ahead and
@@ -4702,6 +4716,8 @@ classdef PAStatTool < PAViewController
                 nonwearMethod = lower(nonwearMethod);
                 switch(nonwearMethod)
                     case 'choi'
+                        
+                        
                     case 'import'
                         if numel(varargin)>1
                             nonwearStruct = varargin{2};
@@ -4993,7 +5009,7 @@ classdef PAStatTool < PAViewController
             paramStruct.normalizeValues =       PABoolParam('default',false,'description','Normalize values');
             paramStruct.discardNonwearFeatures = PABoolParam('default',true,'description','Discard nonwear features prior to clustering');
             
-            paramStruct.discardMethod = PAEnumParam('default','padaco','categories',{{'padaco','choi_nonwear','saved_file'}},'description','Data exclusion method');            
+            paramStruct.discardMethod = PAEnumParam('default','padaco','categories',{{'padaco','choi','saved_file'}},'description','Data exclusion method');            
             
             paramStruct.trimResults = PABoolParam('default',false,'description','Trim results');
             paramStruct.trimToPercent =         PANumericParam('default',100,'description','Trim to percent');
