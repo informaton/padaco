@@ -2,8 +2,8 @@
 % 2/5/2020
 % Copyright Hyatt Moore, IV
 function value = getfieldi(structIn, fieldToGet, defaultResult)
-    narginchk(1,2);
-    if nargin<2
+    narginchk(2,3);
+    if nargin<3
         defaultResult = [];
     end
     value = defaultResult;

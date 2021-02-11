@@ -42,6 +42,9 @@ classdef PAStatTool < PAViewController
         %> non-wear/study over state)
         usageStateStruct;
         
+        %> Struct for holding choi nonwear results.
+        
+        choiNonwearStruct;
         %> struct of handles that PAStatTool interacts with.  Inherited from PABase
         %>  See initHandles()
         %> Includes contextmenu
@@ -298,6 +301,7 @@ classdef PAStatTool < PAViewController
                             'featureStruct';
                             'originalFeatureStruct'
                             'usageStateStruct'
+                            'choiNonwearStruct'
                             'featuresDirectory'
                             'nonwear'};
                         tmpStruct = load(this.getFullClusterCacheFilename(),'-mat',validFields{:});
@@ -748,6 +752,7 @@ classdef PAStatTool < PAViewController
             
             if(isRawData || isCountData)
                 usageFeature = 'usagestate';
+                choiFeature = 'nonwear_choi';
                 
                 if isRawData
                     srcDataType = 'raw';
@@ -755,7 +760,8 @@ classdef PAStatTool < PAViewController
                     srcDataType = 'count';
                 end
                 
-                usageFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,usageFeature,usageFeature,srcDataType,'vecMag');
+                usageFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory, usageFeature, usageFeature, srcDataType, 'vecMag');
+                choiFilename = sprintf(this.featureInputFilePattern, this.featuresDirectory, choiFeature, choiFeature, srcDataType, 'vecMag');
                 
                 % Usage state previously based on count data, but now supporting both.  However, the states are not fully overlapping, so some are supported by
                 % one form but not the other (e.g. not_working for raw, and nonwear for count)
@@ -769,6 +775,14 @@ classdef PAStatTool < PAViewController
                         this.usageStateStruct.srcDataType = srcDataType;
                     end
                 end                
+                
+                % Check for choi data 
+                if(isempty(this.choiNonwearStruct) || ~strcmpi(choiFilename,this.choiNonwearStruct.filename))
+                    if(exist(choiFilename,'file'))
+                        this.choiNonwearStruct = this.loadAlignedFeatures(choiFilename);
+                        this.choiNonwearStruct.srcDataType = srcDataType;
+                    end
+                end
                 
                 loadFileRequired = isempty(this.originalFeatureStruct) || ~strcmpi(inputFilename,this.originalFeatureStruct.filename);               
 
@@ -816,6 +830,18 @@ classdef PAStatTool < PAViewController
                 end
                 
                 this.nonwear.padaco = tmpUsageStateStruct;
+                
+                if(~isempty(this.choiNonwearStruct))
+                    tmpChoiStruct = this.choiNonwearStruct;
+                else
+                    tmpChoiStruct = this.originalFeatureStruct;
+                    tmpChoiStruct.shapes(:) = 0; %just make everything magically 0 (False for nonwear - meaning everything is wear) for right now to avoid having refactor further.
+                    tmpChoiStruct.method = 'nonwear_choi';
+                    tmpChoiStruct.filename = '';
+                    tmpChoiStruct.srcDataType = srcDataType;
+                end
+                
+                this.nonwear.choi = tmpChoiStruct;
                    
                 
                 % update to here to make sure we are covered for the one
@@ -866,6 +892,7 @@ classdef PAStatTool < PAViewController
                     for f=1:numel(fieldsToParse)
                         fname = fieldsToParse{f};
                         tmpUsageStateStruct.(fname) = tmpUsageStateStruct.(fname)(indicesToUse,:);
+                        tmpChoiStruct.(fname) = tmpChoiStruct.(fname)(indicesToUse,:);
                         tmpFeatureStruct.(fname) = tmpFeatureStruct.(fname)(indicesToUse,:);
                     end
                 end
@@ -889,6 +916,11 @@ classdef PAStatTool < PAViewController
                     tmpUsageStateStruct.shapes = tmpUsageStateStruct.shapes(:,startTimeSelection:stopTimeSelection);
                     tmpUsageStateStruct.totalCount = numel(tmpUsageStateStruct.startTimes);
                     
+                    tmpChoiStruct.startTimes = tmpChoiStruct.startTimes(startTimeSelection:stopTimeSelection);
+                    tmpChoiStruct.shapes = tmpChoiStruct.shapes(:,startTimeSelection:stopTimeSelection);
+                    tmpChoiStruct.totalCount = numel(tmpChoiStruct.startTimes);
+
+                    
                     % For example:  22:00 to 04:00 is ~ stopTimeSelection = 22 and
                     % startTimeSelection = 81
                 elseif(stopTimeSelection < startTimeSelection)
@@ -899,11 +931,17 @@ classdef PAStatTool < PAViewController
                     tmpUsageStateStruct.startTimes = [tmpUsageStateStruct.startTimes(startTimeSelection:end), tmpUsageStateStruct.startTimes(1:stopTimeSelection)];
                     tmpUsageStateStruct.shapes = [tmpUsageStateStruct.shapes(:,startTimeSelection:end), tmpUsageStateStruct.shapes(:,1:stopTimeSelection)];
                     tmpUsageStateStruct.totalCount = numel(tmpUsageStateStruct.startTimes);
+                    
+                    tmpChoiStruct.startTimes = [tmpChoiStruct.startTimes(startTimeSelection:end), tmpChoiStruct.startTimes(1:stopTimeSelection)];
+                    tmpChoiStruct.shapes = [tmpChoiStruct.shapes(:,startTimeSelection:end), tmpChoiStruct.shapes(:,1:stopTimeSelection)];
+                    tmpChoiStruct.totalCount = numel(tmpChoiStruct.startTimes);
+                    
                 else
                     warndlg('Well this is unexpected.');
                 end
                 
                 this.nonwear.padaco = tmpUsageStateStruct;
+                this.nonwear.choi = tmpChoiStruct;
                 
                 nonwearMethod = this.getSetting('discardMethod');
                 if this.exclusionsFilename.exist && isfield(this.nonwear,'import')% if strcmpi(nonwearMethod, 'import') 
@@ -3241,6 +3279,7 @@ classdef PAStatTool < PAViewController
                         tmpStruct.featureStruct = this.featureStruct;
                         tmpStruct.originalFeatureStruct = this.originalFeatureStruct;
                         tmpStruct.usageStateStruct = this.usageStateStruct;
+                        tmpStruct.choiNonwearStruct = this.choiNonwearStruct;
                         tmpStruct.featuresDirectory = this.featuresDirectory;
                         tmpStruct.nonwear = this.nonwear;
                         fnames = fieldnames(tmpStruct);
@@ -4147,8 +4186,22 @@ classdef PAStatTool < PAViewController
                             elseif(strcmpi(clusterDistributionType,'nonwear_membership'))
                                 yLabelStr = 'Loadshapes with nonwear (n)';
                                 %y = this.clusterObj.getHistogram('loadshapes');
-                                y = this.clusterObj.getHistogram('nonwear');                        
-                                distTitle = 'Nonwear Occurrence';
+                                y = this.clusterObj.getHistogram('nonwear'); 
+                                if isempty(this.nonwear.rows)
+                                    nonwear_occurrences = 0;
+                                    unique_subjects_with_nonwear(nonwear_study_id_occurrences) = 0;
+                                else
+                                    try
+                                        nonwear_occurrences = sum(this.nonwear.rows);
+                                        unique_subjects_with_nonwear = numel(unique(this.originalFeatureStruct.studyIDs(this.nonwear.rows)));
+                                    catch me
+                                        showME(me);
+                                        nonwear_occurrences = -1;
+                                        unique_subjects_with_nonwear = -1;
+                                    end
+                                end
+                                
+                                distTitle = sprintf('Nonwear Occurrences - Total = %d, Unique individuals = %d', nonwear_occurrences, unique_subjects_with_nonwear);
                             end
                             titleStr = distTitle;
                             
@@ -4722,7 +4775,10 @@ classdef PAStatTool < PAViewController
                 nonwearStruct = getfieldi(nonwearStruct, nonwearMethod);
                 switch(nonwearMethod)
                     case 'choi'
-                        
+                        choiStruct = nonwearStruct;
+                        if strcmpi(choiStruct.srcDataType, 'count')
+                            nonwearRows = any(choiStruct.shapes,2);
+                        end
                         
                     case 'import'
                         if isstruct(nonwearStruct) && isfield(nonwearStruct, 'rows')
