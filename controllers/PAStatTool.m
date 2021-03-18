@@ -2401,6 +2401,10 @@ classdef PAStatTool < PAViewController
             set(f,'visible','on');
         end
         
+        function plotClusterMembershipVsCovariate(self)
+            
+        end
+        
         function analyzeClustersCallback(this, hObject,eventData)
             % Get my cluster Object
             % Take in all of the clusters, or the ones selected
@@ -2410,6 +2414,7 @@ classdef PAStatTool < PAViewController
             try
                 set(hObject,'enable','off','String','Analyzing ...');
                 dependentVar = this.getProfileFieldSelection();
+                
                 %                'bmi_zscore'
                 %                'bmi_zscore+'  %for logistic regression modeling
                 %
@@ -2426,6 +2431,7 @@ classdef PAStatTool < PAViewController
                 coiSortOrders = this.clusterObj.getAllCOISortOrders();
                 %covariateStruct = this.clusterObj.getCovariateStruct();
                 
+                
                 if(numel(coiSortOrders)>1)
                     % If we have multiple elements selected then group
                     % together and add as an extra element to the other
@@ -2434,9 +2440,9 @@ classdef PAStatTool < PAViewController
                     nonCoiInd(coiSortOrders) = false;
                     coiColname = {cell2str(covariateStruct.colnames(coiSortOrders),' AND ')};
                     coiVarname = {cell2str(covariateStruct.varnames(coiSortOrders),'_AND_')};
-                    coiValues =  sum(covariateStruct.values(:,coiSortOrders),2); %sum across each row
+                    coiOccurrences =  sum(covariateStruct.values(:,coiSortOrders),2); %sum across each row
                     
-                    covariateStruct.values = [covariateStruct.values(:,nonCoiInd), coiValues];
+                    covariateStruct.values = [covariateStruct.values(:,nonCoiInd), coiOccurrences];
                     covariateStruct.colnames = [covariateStruct.colnames(nonCoiInd), coiColname];
                     covariateStruct.varnames = [covariateStruct.varnames(nonCoiInd), coiVarname];
                     coiSortOrders = numel(covariateStruct.varnames);
@@ -2449,7 +2455,9 @@ classdef PAStatTool < PAViewController
                 
                 [resultStr, resultStruct] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'}, coiSortOrders);
                 %                [resultStr, resultStruct] = gee_model(this.clusterObj.getCovariateStruct(this.clusterObj.getCOISortOrder()),dependentVar,{'age'; '(sex=1) as male'});
-                if(~isempty(resultStr))
+                
+                showMsgBox = false;
+                if showMsgBox && ~isempty(resultStr)
                     if(this.hasIcon)
                         CreateStruct.WindowStyle='replace';
                         CreateStruct.Interpreter='tex';
@@ -2459,6 +2467,38 @@ classdef PAStatTool < PAViewController
                     else
                         msgbox(resultStr,resultStruct.covariateName);
                     end
+                end
+
+                [~,~, dependentVarStruct] = this.databaseObj.getSubjectInfoSummary(covariateStruct.memberIDs, dependentVar);
+                dependentVarValues = dependentVarStruct.(dependentVar);
+                for c=1:numel(coiSortOrders)
+                    dependentVar(1) = upper(dependentVar(1));
+                    coi = coiSortOrders(c);
+                    titleStr = sprintf('Cluster #%d occurrences vs %s', coi, dependentVar);
+                    f = figure('name', titleStr);
+                    coiOccurrences = covariateStruct.values(:, coi);
+                    maxDaysConsidered = max(coiOccurrences);
+                    x = 0:maxDaysConsidered;
+                    y = nan(size(x));
+                    num_subjects = zeros(size(x));
+                    for d = 1:numel(x)
+                        days = x(d);
+                        occurrences_idx = coiOccurrences==days;
+                        num_subjects(d) = sum(occurrences_idx);  % the number of unique contributors here who had 'days' occurrences for the current cluster of interest (coi)                        
+                        value = dependentVarValues(occurrences_idx);
+                        if ~isempty(value)
+                            y(d) = mean(value);
+                        end
+                    end
+                    a= axes('parent',f);
+                    plot(a, x, y, 'marker','o');
+                    ylabel(a, dependentVar, 'interpreter', 'none');
+                    max(y)
+                    xlabel(a, 'Number of days a subject was in this cluster (with number of unique subjects)');
+                    xticklabels = sprintf('%d (%d)\n', [x; num_subjects]);
+                    set(a,'xlim', [min(x), max(x)], 'xtick', x, 'xticklabel', xticklabels);
+                    title(a, titleStr, 'interpreter', 'none');
+                    set(a, 'ygrid', 'on')
                 end
                 
             catch me
