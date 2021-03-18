@@ -168,7 +168,7 @@ classdef PAStatTool < PAViewController
             this.coiProfile = [];
             this.allProfiles = [];
             this.featureTypes = this.base.featureTypes;
-
+            
             if nargin > 2
                 featuresPathname = varargin{3};
                 if(isdir(featuresPathname))
@@ -321,7 +321,7 @@ classdef PAStatTool < PAViewController
                                         this.(curField) = curValue;
                                     end
                                 end
-                            end                            
+                            end
                             
                             if(this.hasValidCluster())
                                 exportPathname = this.getSetting('exportPathname');
@@ -364,7 +364,7 @@ classdef PAStatTool < PAViewController
                 catch me
                     this.logError(me, 'Failed to import exclusion data from %s', char(this.exclusionsFilename));
                 end
-
+                
                 
                 % This happens most often when we are switching to a new
                 % directory for the first time which has not been cached
@@ -437,7 +437,7 @@ classdef PAStatTool < PAViewController
                 importFilename = [];
             else
                 importFilename = char(importFilename);
-            end            
+            end
             if isempty(importFilename)
                 lastImportFilename = char(this.exclusionsFilename);
                 if isempty(lastImportFilename)
@@ -456,10 +456,10 @@ classdef PAStatTool < PAViewController
             elseif ~exist(importFilename,'file')
                 this.logStatus('Import filename does not exist: %s', importFilename);
             else
-                try 
+                try
                     tmp = load(importFilename,'nonwearFeatures');
                     nonwearStruct = tmp.nonwearFeatures;
-                    this.exclusionsFilename.setValue(importFilename); 
+                    this.exclusionsFilename.setValue(importFilename);
                     
                     this.nonwear.import = nonwearStruct;
                     % Merge the rows now ...
@@ -473,8 +473,8 @@ classdef PAStatTool < PAViewController
                     didImport = true;
                 catch me
                     showME(me);
-                end                
-            end            
+                end
+            end
         end
         
         % Exclusions are those days which are excluded from analysis either because of sensor malfunction,
@@ -485,7 +485,7 @@ classdef PAStatTool < PAViewController
             nonwearFeatures = this.nonwear;
             curCluster = this.getClusterObj();
             if isempty(nonwearFeatures) || isempty(curCluster)
-                msg = 'No nonwear features exist.  Try clustering first.  Nothing to save.';                
+                msg = 'No nonwear features exist.  Try clustering first.  Nothing to save.';
                 pa_msgbox(msg,'Warning');
             elseif(curCluster.updateExportPath()) % false if user cancels
                 originalFeatures = this.originalFeatureStruct;
@@ -507,10 +507,10 @@ classdef PAStatTool < PAViewController
                 
                 exportPath = curCluster.getExportPath();
                 saveFile = fullfile(exportPath, sprintf('%s_%s_exclusions.mat',nonwearFeatures.method, nonwearFeatures.srcDataType));
-                save(saveFile, 'nonwearFeatures');                
+                save(saveFile, 'nonwearFeatures');
                 this.exclusionsFilename.setValue(saveFilename)
                 fprintf(1,'nonwearFeatures saved to %s\n', saveFile);
-                didExport = true;                
+                didExport = true;
             else
                 fprintf(1,'Cancelled\n');
             end
@@ -702,7 +702,7 @@ classdef PAStatTool < PAViewController
             if nargin < 2 || isempty(pSettings)
                 pSettings = this.getPlotSettings();
             end
-            isIt = strcmpi(pSettings.weekdayTag,'weeklong');            
+            isIt = strcmpi(pSettings.weekdayTag,'weeklong');
         end
         
         % ======================================================================
@@ -774,9 +774,9 @@ classdef PAStatTool < PAViewController
                         this.usageStateStruct = this.loadAlignedFeatures(usageFilename);
                         this.usageStateStruct.srcDataType = srcDataType;
                     end
-                end                
+                end
                 
-                % Check for choi data 
+                % Check for choi data
                 if(isempty(this.choiNonwearStruct) || ~strcmpi(choiFilename,this.choiNonwearStruct.filename))
                     if(exist(choiFilename,'file'))
                         this.choiNonwearStruct = this.loadAlignedFeatures(choiFilename);
@@ -784,8 +784,8 @@ classdef PAStatTool < PAViewController
                     end
                 end
                 
-                loadFileRequired = isempty(this.originalFeatureStruct) || ~strcmpi(inputFilename,this.originalFeatureStruct.filename);               
-
+                loadFileRequired = isempty(this.originalFeatureStruct) || ~strcmpi(inputFilename,this.originalFeatureStruct.filename);
+                
                 if(loadFileRequired)
                     this.originalFeatureStruct = this.loadAlignedFeatures(inputFilename);
                     if(isfield(this.originalFeatureStruct,'studyIDs'))
@@ -842,7 +842,7 @@ classdef PAStatTool < PAViewController
                 end
                 
                 this.nonwear.choi = tmpChoiStruct;
-                   
+                
                 
                 % update to here to make sure we are covered for the one
                 % week case now.  So we can exclude based on the days
@@ -851,9 +851,9 @@ classdef PAStatTool < PAViewController
                     ind2keepExactly1WeekAndNonwearExcluded = ind2keepExactly1Week;
                     ind2keepAndNonwearExcluded = ind2keep;
                     
-                    nonwearMethod = this.getSetting('discardMethod');                   
+                    nonwearMethod = this.getSetting('discardMethod');
                     [nonwear_rows, malfunctionRows] = this.getNonwearRows(nonwearMethod, this.nonwear);
-
+                    
                     
                     % Make all week long data nonwear.  Then check and change
                     % all week entries found without nonwear.
@@ -864,8 +864,8 @@ classdef PAStatTool < PAViewController
                     
                     individualsMissingCompleteWeekAfterNonWearExclusion = 0;
                     
-                    % It is possible for nonwear_rows to be empty; 
-                    % e.g. if a user tries to overwrite previous usage state 
+                    % It is possible for nonwear_rows to be empty;
+                    % e.g. if a user tries to overwrite previous usage state
                     % by running a batch job and then stopping before it finishes.
                     if ~isempty(nonwear_rows)
                         for d=1:size(oneWeekDayInd,1)
@@ -919,7 +919,7 @@ classdef PAStatTool < PAViewController
                     tmpChoiStruct.startTimes = tmpChoiStruct.startTimes(startTimeSelection:stopTimeSelection);
                     tmpChoiStruct.shapes = tmpChoiStruct.shapes(:,startTimeSelection:stopTimeSelection);
                     tmpChoiStruct.totalCount = numel(tmpChoiStruct.startTimes);
-
+                    
                     
                     % For example:  22:00 to 04:00 is ~ stopTimeSelection = 22 and
                     % startTimeSelection = 81
@@ -944,9 +944,9 @@ classdef PAStatTool < PAViewController
                 this.nonwear.choi = tmpChoiStruct;
                 
                 nonwearMethod = this.getSetting('discardMethod');
-                if this.exclusionsFilename.exist && isfield(this.nonwear,'import')% if strcmpi(nonwearMethod, 'import') 
-                     %$ nonwearMethod = {'import',nonwearMethod};
-                     nonwearMethod = 'import';
+                if this.exclusionsFilename.exist && isfield(this.nonwear,'import')% if strcmpi(nonwearMethod, 'import')
+                    nonwearMethod = {'import',nonwearMethod};
+                    % nonwearMethod = 'import';
                 end
                 
                 [this.nonwear.rows, malfunctionRows] = this.getNonwearRows(nonwearMethod, this.nonwear);
@@ -960,10 +960,15 @@ classdef PAStatTool < PAViewController
                 end
                 
                 if(pSettings.discardNonwearFeatures)
-                    if (maxDaysAllowed>0 || minDaysAllowed>0) && isempty(indicesToUse)
-                        %[this.featureStruct, this.nonwear.featureStruct] = this.discardNonwearFeatures(tmpFeatureStruct, this.nonwear.week_exactly_rows);
+                    % min and max days allowed interpeted in one of three ways
+                    % 1.  both exactly 7
+                    % 2.  either more than 0
+                    % 3.  both exactly 0
+                    if (maxDaysAllowed > 0 || minDaysAllowed > 0) && isempty(indicesToUse)
+                        % Determine nonwear rows and then determine how much is excess for one week values and exclude those next.  
+                        % [this.featureStruct, this.nonwear.featureStruct] = this.discardNonwearFeatures(tmpFeatureStruct, this.nonwear.week_exactly_rows);
                         
-                        % will handle this case below actually
+                        % will NO LONGER handle this case below actually
                         this.featureStruct = tmpFeatureStruct;
                         this.nonwear.featureStruct = [];
                         
@@ -974,6 +979,8 @@ classdef PAStatTool < PAViewController
                     this.featureStruct = tmpFeatureStruct;
                     this.nonwear.featureStruct = [];
                 end
+                
+                
                 
                 % min and max days allowed interpeted in one of three ways
                 % 1.  both exactly 7
@@ -993,7 +1000,8 @@ classdef PAStatTool < PAViewController
                             % week or less.
                         else
                             if pSettings.discardNonwearFeatures
-                                ind2keep = this.originalFeatureStruct.ind2keepAndNonwearExcluded;
+                                % ind2keep = this.originalFeatureStruct.ind2keepAndNonwearExcluded;
+                                ind2keep = ~this.nonwear.rows;
                             else
                                 ind2keep = this.originalFeatureStruct.ind2keep1Week;
                             end
@@ -1124,7 +1132,7 @@ classdef PAStatTool < PAViewController
                             % intervalToUse = floor(initialCount/(pSettings.numChunks+1));
                             % indicesToUse = linspace(intervalToUse,intervalToUse*pSettings.numChunks,pSettings.numChunks);
                         else
-                            % 
+                            %
                             try
                                 this.featureStruct.totalCount = size(loadFeatures, 2);
                                 indicesToUse = 1:this.featureStruct.totalCount;
@@ -1133,7 +1141,7 @@ classdef PAStatTool < PAViewController
                                 this.featureStruct.totalCount = 1;
                                 indicesToUse = 1;
                             end
-
+                            
                         end
                         this.featureStruct.startTimes = this.featureStruct.startTimes(indicesToUse);
                     end
@@ -1279,7 +1287,7 @@ classdef PAStatTool < PAViewController
                                 tooltipString = '';
                             end
                             
-                            set(this.handles.menu_weekdays,'value',this.getSetting('weekdaySelection'),'tooltipstring',tooltipString);                            
+                            set(this.handles.menu_weekdays,'value',this.getSetting('weekdaySelection'),'tooltipstring',tooltipString);
                             set(this.handles.menu_duration,'value',this.getSetting('clusterDurationSelection'));
                             
                             % Trim results
@@ -1847,7 +1855,7 @@ classdef PAStatTool < PAViewController
                     this.plotClusters();
                 else
                     this.disableClusterControls();
-                    this.refreshClustersAndPlot();                    
+                    this.refreshClustersAndPlot();
                 end
                 
                 set(findall(this.handles.panel_clusterSettings,'-property','enable'),'enable','on');
@@ -2121,7 +2129,7 @@ classdef PAStatTool < PAViewController
                 this.handles.contextmenu.secondaryAxes.uicontextmenu = contextmenu_secondaryAxes;
                 this.handles.contextmenu.secondaryAxes.loadshape_membership = uimenu(contextmenu_secondaryAxes,'Label','Loadshapes per cluster','callback',{@this.clusterDistributionCb,'loadshape_membership'});
                 this.handles.contextmenu.secondaryAxes.participant_membership = uimenu(contextmenu_secondaryAxes,'Label','Participants per cluster','callback',{@this.clusterDistributionCb,'participant_membership'});
-                this.handles.contextmenu.secondaryAxes.nonwear_membership = uimenu(contextmenu_secondaryAxes,'Label','Nonwear per cluster','callback',{@this.clusterDistributionCb,'nonwear_membership'});                
+                this.handles.contextmenu.secondaryAxes.nonwear_membership = uimenu(contextmenu_secondaryAxes,'Label','Nonwear per cluster','callback',{@this.clusterDistributionCb,'nonwear_membership'});
                 this.handles.contextmenu.secondaryAxes.weekday_scores = uimenu(contextmenu_secondaryAxes,'Label','Weekday scores by cluster','callback',{@this.clusterDistributionCb,'weekday_scores'},'separator','on');
                 this.handles.contextmenu.secondaryAxes.performance_progression = uimenu(contextmenu_secondaryAxes,'Label','Adaptive separation performance progression','callback',{@this.clusterDistributionCb,'performance_progression'},'separator','on');
                 this.handles.contextmenu.secondaryAxes.weekday_membership = uimenu(contextmenu_secondaryAxes,'Label','Current cluster''s weekday distribution','callback',{@this.clusterDistributionCb,'weekday_membership'});
@@ -2624,7 +2632,7 @@ classdef PAStatTool < PAViewController
             %                 this.handles.contextmenu.profile],'checked','off');
             %             set(this.handles.contextmenu.(this.getSetting('clusterDistributionType')),'checked','on');
         end
-
+        
         function clusterSummaryCb(this,hObject,eventdata)
             
             clusterDistributionType = this.getSetting('clusterDistributionType');
@@ -2732,9 +2740,9 @@ classdef PAStatTool < PAViewController
             rowNames = this.profileFields;
             numRows = numel(rowNames);
             tableData = cell(numRows,numel(columnNames));
-            this.profileTableData = tableData;  %array2table(tableData,'VariableNames',profileColumnNames,'RowNames',rowNames); 
+            this.profileTableData = tableData;  %array2table(tableData,'VariableNames',profileColumnNames,'RowNames',rowNames);
             
-                        % intialize the cluster profile table
+            % intialize the cluster profile table
             if(nargin<2 || isempty(profileFieldSelection))
                 profileFieldSelection = this.getSetting('profileFieldSelection');
             end
@@ -2771,7 +2779,7 @@ classdef PAStatTool < PAViewController
                 'backgroundColor',backgroundColor,'rowStriping','on',...
                 'data',tableData,...
                 'userdata',userData,'CellSelectionCallback',@this.analysisTableCellSelectionCallback);
-           
+            
         end
         
         % ======================================================================
@@ -2800,7 +2808,7 @@ classdef PAStatTool < PAViewController
                 end
             end
             
-            fitTableWidth(this.handles.table_clusterProfiles);            
+            fitTableWidth(this.handles.table_clusterProfiles);
             this.setProfileFieldIndex(profileFieldSelection);
         end
         
@@ -3645,14 +3653,14 @@ classdef PAStatTool < PAViewController
                 
                 if ~tmpClusterObj.setNonwearRows(this.nonwear.rows) && ~pSettings.discardNonwearFeatures
                     this.logWarning('Could not set nonwear rows');
-                end             
+                end
                 
                 if evaluateK
                     minK = this.getSetting('predictionStrength_minK');
                     maxK = this.getSetting('predictionStrength_maxK');
                     iterations = this.getSetting('predictionStrength_iterations');
                     showProgress = ~isdeployed;
-                    predictionStrength(tmpClusterObj.loadShapes, 'mink', minK, 'maxk', maxK, 'M', iterations, 'showprogress', showProgress,'gui',true); 
+                    predictionStrength(tmpClusterObj.loadShapes, 'mink', minK, 'maxk', maxK, 'M', iterations, 'showprogress', showProgress,'gui',true);
                 else
                     if(enableUserCancel)
                         this.enableClusterCancellation();
@@ -4032,7 +4040,7 @@ classdef PAStatTool < PAViewController
                         markerType = 'none';
                         if profileLength==1
                             markerType = coiMarkers(colorStyleIndex);
-                            midPoint = mean(get(clusterAxes,'xlim'));                            
+                            midPoint = mean(get(clusterAxes,'xlim'));
                             clusterHandles(c) = plot(clusterAxes,midPoint,coi.shape,'linestyle','none',...
                                 'marker',markerType,'markerfacecolor','none',...
                                 'markeredgecolor',coiColors(colorStyleIndex),'markersize',20);
@@ -4186,7 +4194,7 @@ classdef PAStatTool < PAViewController
                             elseif(strcmpi(clusterDistributionType,'nonwear_membership'))
                                 yLabelStr = 'Loadshapes with nonwear (n)';
                                 %y = this.clusterObj.getHistogram('loadshapes');
-                                y = this.clusterObj.getHistogram('nonwear'); 
+                                y = this.clusterObj.getHistogram('nonwear');
                                 if isempty(this.nonwear.rows)
                                     nonwear_occurrences = 0;
                                     unique_subjects_with_nonwear(nonwear_study_id_occurrences) = 0;
@@ -4575,7 +4583,7 @@ classdef PAStatTool < PAViewController
                     % place the global profile at the end.
                     if isempty(this.profileTableData)
                         this.createProfileTable();
-                    %    this.initProfileTable  - this will be infinitely recursive if the tableData does not initialize :(
+                        %    this.initProfileTable  - this will be infinitely recursive if the tableData does not initialize :(
                     end
                     this.profileTableData(:,end-size(this.globalProfile,2)+1:end) = this.globalProfile;
                     this.refreshProfileTableData();
@@ -4722,7 +4730,7 @@ classdef PAStatTool < PAViewController
                 statToolObj.outcomesObj.setSelectedField(eventData.fieldName);
             end
             
-        end   
+        end
         
         % ======================================================================
         % ======================================================================
@@ -4741,21 +4749,21 @@ classdef PAStatTool < PAViewController
         end
         
         % nonwearMethod - A string or cell of strings representing the method(s)
-        % to apply to determine which rows should be considered nonwear.  
+        % to apply to determine which rows should be considered nonwear.
         % nonwearStruct - struct with field names keyed on the nonwearMethod
         %  - 'import' == nonwearStruct that was imported.
         %  - 'padaco' == usageStage struct (from Padaco)
-        % nonwearRows = logical vector indicating which feature vectors of the second argument 
+        % nonwearRows = logical vector indicating which feature vectors of the second argument
         % are considered as nonwear or having data from a malfunctioning device.
-        % malfunctionRows = logical vector indicating which feature vectors of the second argument 
+        % malfunctionRows = logical vector indicating which feature vectors of the second argument
         % are considered to be due to a malfunctioning device.
         function [nonwearRows, malfunctionRows] = getNonwearRows(nonwearMethod, nonwearStruct)
             nonwearRows = [];
             malfunctionRows = [];
-                
-            if iscell(nonwearMethod)                
+            
+            if iscell(nonwearMethod)
                 for c=1:numel(nonwearMethod)
-                    [tmpNonwearRows, tmpMalfunctionRows] = PAStatTool.getNonwearRows(nonwearMethod{c}, nonwearStruct);                                                           
+                    [tmpNonwearRows, tmpMalfunctionRows] = PAStatTool.getNonwearRows(nonwearMethod{c}, nonwearStruct);
                     if isempty(nonwearRows)
                         nonwearRows = tmpNonwearRows;
                     elseif ~isempty(tmpNonwearRows)
@@ -4766,10 +4774,10 @@ classdef PAStatTool < PAViewController
                     elseif ~isempty(tmpMalfunctionRows)
                         malfunctionRows = malfunctionRows | tmpMalfunctionRows;
                     end
-                end 
+                end
             else
                 nonwearRows = [];
-                malfunctionRows = [];                
+                malfunctionRows = [];
                 
                 nonwearMethod = lower(nonwearMethod);
                 nonwearStruct = getfieldi(nonwearStruct, nonwearMethod);
@@ -4928,7 +4936,7 @@ classdef PAStatTool < PAViewController
             loadShapes(nzi,:) = loadShapes(nzi,:)./max(loadShapes(nzi,:),[],2);
             normalizedLoadShapes = loadShapes;
             
-        end        
+        end
         
         % ======================================================================
         %> @brief Applies a reduction or sorting method along each row of the
@@ -4965,20 +4973,20 @@ classdef PAStatTool < PAViewController
                     featureSet = sum(featureSet>500,2);
                 case 'above_1000'
                     featureSet = sum(featureSet>1000,2);
-                case {'romanzini_sb','romanzini_lpa','romanzini_mpa','romanzini_vpa','romanzini_all'}                    
+                case {'romanzini_sb','romanzini_lpa','romanzini_mpa','romanzini_vpa','romanzini_all'}
                     fprintf(1,'Romanzini cutpoints assume Vector Magnitude counts calculated with a 1 minute epoch.\n');
-                    [rziStruct, fnames, cutpoints] = getRomanziniCutpoints();                    
+                    [rziStruct, fnames, cutpoints] = getRomanziniCutpoints();
                     if strcmpi(reductionMethod, 'romanzini_all')
                         % Activity categories are ordered as [sedentary, light, moderate, vigorous]
                         reducedFeatureSet = zeros(size(featureSet,1), numel(fnames));
                         for f=1:numel(fnames)
                             reducedFeatureSet(:, f) = sum(featureSet>=cutpoints{f}(1) & featureSet<=cutpoints{f}(2),2);
                         end
-                        featureSet = reducedFeatureSet;                        
+                        featureSet = reducedFeatureSet;
                     else
                         rziCP = rziStruct.(lower(reductionMethod));
                         featureSet = sum(featureSet>=rziCP(1) & featureSet<=rziCP(2),2);
-                    end                    
+                    end
                 case 'hours_to_80pct'
                     c = cumsum(featureSet,2);
                     total = c(:,end);
@@ -5062,7 +5070,7 @@ classdef PAStatTool < PAViewController
             paramStruct.normalizeValues =       PABoolParam('default',false,'description','Normalize values');
             paramStruct.discardNonwearFeatures = PABoolParam('default',true,'description','Discard nonwear features prior to clustering');
             
-            paramStruct.discardMethod = PAEnumParam('default','padaco','categories',{{'padaco','choi','saved_file'}},'description','Data exclusion method');            
+            paramStruct.discardMethod = PAEnumParam('default','padaco','categories',{{'padaco','choi','saved_file'}},'description','Data exclusion method');
             
             paramStruct.trimResults = PABoolParam('default',false,'description','Trim results');
             paramStruct.trimToPercent =         PANumericParam('default',100,'description','Trim to percent');
