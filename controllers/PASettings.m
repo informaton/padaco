@@ -161,6 +161,8 @@ classdef  PASettings < handle
                 %                         fprintf(fid,'%s\t%s\n',fnames{k},num2str(saveStruct.(fnames{k})));
                 %                     end
                 fclose(fid);
+                
+                fprintf('Settings saved to %s\n', filename);
             end
         end
         

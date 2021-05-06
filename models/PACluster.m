@@ -1335,14 +1335,13 @@ classdef PACluster < PAData
             idColnames = regexp(sprintf('Cluster #%u\n',idOrder),'\n','split');
             idColnames(end) = [];  %remove the last cell entry which will be empty.
             popularityColnames = regexp(sprintf('Popularity #%u\n',sortOrder),'\n','split');
-            popularityColnames(end) = [];  %remove the last cell entry which will be empty.
-            
+            popularityColnames(end) = [];  %remove the last cell entry which will be empty.      
 
             if(nargin>1 && ~isempty(optionalCOISortOder))
                 throw(MException('PA:Cluster:Covariates','Unhandled case with optional sort order.  Needs to be updated in code base'));
-                optionalIndexOrder = this.coiSortOrder2Index(optionalCOISortOrder);
-                centroidPopularityCount = centroidPopularityCount(:,optionalCOISortOder);
-                colnames = colnames(optionalCOISortOder);
+                % optionalIndexOrder = this.coiSortOrder2Index(optionalCOISortOrder);
+                % centroidPopularityCount = centroidPopularityCount(:,optionalCOISortOder);
+                % colnames = colnames(optionalCOISortOder);
             end
             covariateStruct.memberIDs = subjectIDs;
             covariateStruct.id.values = centroidIDCount;
@@ -1351,6 +1350,12 @@ classdef PACluster < PAData
             covariateStruct.popularity.values = centroidPopularityCount;
             covariateStruct.popularity.colnames = popularityColnames;
             covariateStruct.popularity.varnames = strrep(strrep(covariateStruct.popularity.colnames,'#',''),' ',''); % create valid variable names for use with MATLAB table and dataset constructs.
+            
+            covariateStruct.loadshape = struct;
+            covariateStruct.loadshape.id = this.loadShapeIDs;
+            covariateStruct.loadshape.day = this.loadShapeDayOfWeek;
+            covariateStruct.loadshape.cluster = this.clusterMemberIndices+0;
+            covariateStruct.loadshape.weekend = this.loadShapeDayOfWeek>=5;            
         end
         
         %> @brief Returns Nx3 matrix useful for logisitic or linear regression modeling.

@@ -187,8 +187,9 @@ classdef PAStatTool < PAViewController
         %> @retval Structure of current plot settings.
         % ======================================================================
         function saveParams = getSaveParameters(this)
-            paramStruct = this.getPlotSettings();
+            paramStruct = this.getPlotSettings();            
             saveParams = getSaveParameters@PAViewController(this);
+            
             saveParams = mergeStruct(saveParams, paramStruct);
             
             % These fields are based on other, existing settings and are removed
@@ -196,7 +197,19 @@ classdef PAStatTool < PAViewController
             % Removing these also helps with vertical length scrolling with the settings editor.
             rmFields = {'processType','baseFeature','plotType','weekdayTag',...
                 'clusterDurationHours','preclusterReduction', 'numShades',...
-                'showAnalysisFigure', 'curSignal', 'titleStr'};
+                'showAnalysisFigure', 'curSignal', 'titleStr'};            
+            
+            %             plotOnlyFields = {
+            %                 'primaryAxis_yLimMode'
+            %                 'primaryAxis_nextPlot'
+            %                 'showAnalysisFigure'
+            %                 'numShades'
+            %                 'showTimeOfDayAsBackgroundColor'
+            %                 'showClusterSummary'
+            %                 'plotTypeSelection'
+            %                 'clusterDistributionType'
+            %                 };
+            
             saveParams = rmfield(saveParams, rmFields);
         end
         
@@ -237,7 +250,8 @@ classdef PAStatTool < PAViewController
                 this.maxNumDaysAllowed = this.getSetting('maxNumDaysAllowed');
                 this.minNumDaysAllowed = this.getSetting('minNumDaysAllowed');
                 
-                this.nonwear
+                this.logWarning('nonwear setting is not being updated in PAStatTool.m');
+                % this.nonwear
                 
                 this.useCache = this.getSetting('useCache');
                 this.cacheDirectory = this.getSetting('cacheDirectory');
@@ -2182,15 +2196,22 @@ classdef PAStatTool < PAViewController
                     end
                 end
                 
-                set(this.handles.edit_clusterConvergenceThreshold,'tooltipstring','Hint: Enter ''inf'' to fix the number of clusters to the min value');
+                set(this.handles.edit_clusterConvergenceThreshold,...
+                    'string', num2str(this.getSetting('clusterThreshold')),...
+                    'tooltipstring','Hint: Enter ''inf'' to fix the number of clusters to the min value');
+                
+                set(this.handles.menu_duration,'value', this.getSetting('clusterDurationSelection')); 
+                
+                % Cluster settings
+                set(this.handles.edit_minClusters,'string', num2str(this.getSetting('minClusters')));                
                 
                 set(this.handles.result_widgets_selection,'units','normalized'); % had been : 'points',...
                 
-                set(this.handles.check_discardNonwear,'min',0,'max',1,'value',this.getSetting('discardNonwearFeatures'));
-                set(this.handles.check_segment,'min',0,'max',1,'value',this.getSetting('chunkShapes'));
-                set(this.handles.check_trim,'min',0,'max',1,'value',this.getSetting('trimResults'));
-                set(this.handles.check_cull,'min',0,'max',1,'value',this.getSetting('cullResults'));
-                set(this.handles.check_normalizevalues,'min',0,'max',1,'value',this.getSetting('normalizeValues'));
+                set(this.handles.check_discardNonwear,'min',0,'max',1,'value', this.getSetting('discardNonwearFeatures'));
+                set(this.handles.check_segment,'min',0,'max',1,'value', this.getSetting('chunkShapes'));
+                set(this.handles.check_trim,'min',0,'max',1,'value', this.getSetting('trimResults'));
+                set(this.handles.check_cull,'min',0,'max',1,'value', this.getSetting('cullResults'));
+                set(this.handles.check_normalizevalues,'min',0,'max',1,'value', this.getSetting('normalizeValues'));
                 
                 
                 set(this.handles.menu_signalsource,'string',this.base.signalDescriptions,'userdata',this.base.signalTypes);
@@ -2421,7 +2442,28 @@ classdef PAStatTool < PAViewController
                 % --all--
                 covariateStruct = this.clusterObj.getCovariateStruct();
                 covariateStruct.id.memberIDs = covariateStruct.memberIDs;
-                covariateStruct = covariateStruct.id;
+                
+                ANALYZE_ALL_CLUSTERS = true;
+                if ANALYZE_ALL_CLUSTERS
+                    varnames = covariateStruct.id.varnames(2:end);
+                    colnames = covariateStruct.id.colnames(2:end);
+                    covariateStruct = covariateStruct.loadshape;
+                    covariateStruct.memberIDs = covariateStruct.id;
+                    clusters = covariateStruct.cluster';
+                    clusters = clusters(:, 2:end);
+                    isWeekendCluster = repmat(covariateStruct.weekend, 1, size(clusters, 2));
+                    weekendClusters = clusters.*isWeekendCluster;
+                    covariateStruct.values = [clusters, weekendClusters];
+
+                    weekendVarnames = cellfun(@(c) ['w', c], varnames, 'uniformoutput',false);
+                    weekendColnames = cellfun(@(c) ['w', c], colnames, 'uniformoutput',false);
+                    covariateStruct.colnames = [colnames, weekendColnames];
+                    covariateStruct.varnames = [varnames, weekendVarnames];
+                    % covariateStruct.values = covariateStruct.values(:, 2:end);
+                else
+                    covariateStruct = covariateStruct.id;
+                end 
+                
                 % Normalize values
                 % values = covariateStruct.values;
                 % covariateStruct.values = diag(sum(values,2))*values;
@@ -2432,7 +2474,10 @@ classdef PAStatTool < PAViewController
                 %covariateStruct = this.clusterObj.getCovariateStruct();
                 
                 
-                if(numel(coiSortOrders)>1)
+                
+                % Analyze selections of clusters versus the remaining clusters.
+                if ~ANALYZE_ALL_CLUSTERS && numel(coiSortOrders)>1
+                    
                     % If we have multiple elements selected then group
                     % together and add as an extra element to the other
                     % group.
@@ -2453,7 +2498,12 @@ classdef PAStatTool < PAViewController
                     
                 end
                 
-                [resultStr, resultStruct] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'}, coiSortOrders);
+
+                if ANALYZE_ALL_CLUSTERS
+                    [resultStr, resultStruct] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'}, coiSortOrders);                       
+                else
+                    [resultStr, resultStruct] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'}, coiSortOrders);
+                end
                 %                [resultStr, resultStruct] = gee_model(this.clusterObj.getCovariateStruct(this.clusterObj.getCOISortOrder()),dependentVar,{'age'; '(sex=1) as male'});
                 
                 showMsgBox = false;
@@ -2468,37 +2518,41 @@ classdef PAStatTool < PAViewController
                         msgbox(resultStr,resultStruct.covariateName);
                     end
                 end
-
-                [~,~, dependentVarStruct] = this.databaseObj.getSubjectInfoSummary(covariateStruct.memberIDs, dependentVar);
-                dependentVarValues = dependentVarStruct.(dependentVar);
-                for c=1:numel(coiSortOrders)
-                    dependentVar(1) = upper(dependentVar(1));
-                    coi = coiSortOrders(c);
-                    titleStr = sprintf('Cluster #%d occurrences vs %s', coi, dependentVar);
-                    f = figure('name', titleStr);
-                    coiOccurrences = covariateStruct.values(:, coi);
-                    maxDaysConsidered = max(coiOccurrences);
-                    x = 0:maxDaysConsidered;
-                    y = nan(size(x));
-                    num_subjects = zeros(size(x));
-                    for d = 1:numel(x)
-                        days = x(d);
-                        occurrences_idx = coiOccurrences==days;
-                        num_subjects(d) = sum(occurrences_idx);  % the number of unique contributors here who had 'days' occurrences for the current cluster of interest (coi)                        
-                        value = dependentVarValues(occurrences_idx);
-                        if ~isempty(value)
-                            y(d) = mean(value);
+                
+                % Show a plot of the number of times the same person was in a cluster vs the outcome
+                PLOT_SUMMARY = false;
+                if PLOT_SUMMARY
+                    [~,~, dependentVarStruct] = this.databaseObj.getSubjectInfoSummary(covariateStruct.memberIDs, dependentVar);
+                    dependentVarValues = dependentVarStruct.(dependentVar);
+                    for c=1:numel(coiSortOrders)
+                        dependentVar(1) = upper(dependentVar(1));
+                        coi = coiSortOrders(c);
+                        titleStr = sprintf('Cluster #%d occurrences vs %s', coi, dependentVar);
+                        f = figure('name', titleStr);
+                        coiOccurrences = covariateStruct.values(:, coi);
+                        maxDaysConsidered = max(coiOccurrences);
+                        x = 0:maxDaysConsidered;
+                        y = nan(size(x));
+                        num_subjects = zeros(size(x));
+                        for d = 1:numel(x)
+                            days = x(d);
+                            occurrences_idx = coiOccurrences==days;
+                            num_subjects(d) = sum(occurrences_idx);  % the number of unique contributors here who had 'days' occurrences for the current cluster of interest (coi)
+                            value = dependentVarValues(occurrences_idx);
+                            if ~isempty(value)
+                                y(d) = mean(value);
+                            end
                         end
+                        a= axes('parent',f);
+                        plot(a, x, y, 'marker','o');
+                        ylabel(a, dependentVar, 'interpreter', 'none');
+                        max(y)
+                        xlabel(a, 'Number of days a subject was in this cluster (with number of unique subjects)');
+                        xticklabels = sprintf('%d (%d)\n', [x; num_subjects]);
+                        set(a,'xlim', [min(x), max(x)], 'xtick', x, 'xticklabel', xticklabels);
+                        title(a, titleStr, 'interpreter', 'none');
+                        set(a, 'ygrid', 'on')
                     end
-                    a= axes('parent',f);
-                    plot(a, x, y, 'marker','o');
-                    ylabel(a, dependentVar, 'interpreter', 'none');
-                    max(y)
-                    xlabel(a, 'Number of days a subject was in this cluster (with number of unique subjects)');
-                    xticklabels = sprintf('%d (%d)\n', [x; num_subjects]);
-                    set(a,'xlim', [min(x), max(x)], 'xtick', x, 'xticklabel', xticklabels);
-                    title(a, titleStr, 'interpreter', 'none');
-                    set(a, 'ygrid', 'on')
                 end
                 
             catch me
@@ -3515,6 +3569,9 @@ classdef PAStatTool < PAViewController
                 errordlg(sprintf('An error occurred:\n%s', me.message));
                 this.enable()
             end
+            % Save settings ?
+            % saveParams = this.getSaveParameters
+            % cSettings = this.getClusterSettings();
         end
         
         function isIt = isEvaluateKSelection(this)
@@ -3775,6 +3832,7 @@ classdef PAStatTool < PAViewController
             this.showReady();
         end
         
+        % Removes plot only fields
         function cSettings = getClusterSettings(this, pSettings)
             if(nargin<2 || isempty(pSettings))
                 pSettings = this.getPlotSettings();
