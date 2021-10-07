@@ -1,0 +1,111 @@
+---
+title: "Raw .csv to mims"
+output: html_notebook
+---
+
+This [R Markdown](http://rmarkdown.rstudio.com) Notebook shows how to convert accelerometer output files containing raw gravity as comma separated values (.csv) to Monitor Independent Movement Summary Units (MIMS-Unit) as explained in the [MIMS-Unit readme](https://rdrr.io/cran/MIMSunit/f/README.md).
+
+## Require the 'MIMSunit' package.
+
+Install if necessary.
+
+```{r}
+# Kudos to Henry - https://stackoverflow.com/questions/9341635/check-for-installed-packages-before-running-install-packages
+mimsPackageName <- "MIMSunit"
+if(mimsPackageName %in% rownames(installed.packages()) == FALSE) {
+  install.packages(mimsPackageName)
+}
+library(mimsPackageName, character.only=TRUE)
+```
+
+## Need help?
+```{r}
+help("MIMSunit")
+```
+
+## Set Actigraph filename
+
+```{r}
+rawFilename <- "/Volumes/Accel/t_1/raw/700023t00c1.raw"
+```
+
+Import [ref](https://rdrr.io/cran/MIMSunit/man/import_actigraph_csv.html)
+
+```{r}
+default_ops = options()
+options(digits.secs=3)
+
+# Check file format
+readLines(rawFilename)[1:15]
+
+# Load the file without timestamp column
+ptm_start <- proc.time()
+time_sec = system.time(df = import_actigraph_csv(rawFilename))
+ptm_end <- proc.time()
+
+# Check loaded file
+head(df)
+
+# Check more
+summary(df)
+# Restore default options
+options(default_ops)
+```
+
+That took `r ptm_end - ptm_start` to finish.
+
+```r
+system.time(df_mim <- MIMSunit::mims_unit(df, dynamic_range=c( -6, 6), epoch='1 min'))
+```
+
+# Import directly from a file
+
+https://rdrr.io/cran/MIMSunit/man/mims_unit.html
+
+```
+mims_unit_from_files(
+  files,
+  epoch = "5 sec",
+  dynamic_range,
+  output_mims_per_axis = FALSE,
+  use_gui_progress = FALSE,
+  file_type = "mhealth",
+  ...
+)
+```
+
+# Obtain the mims value on a per second peoch
+
+```r
+system.time(mims_sec<-mims_unit_from_files(rawFilename, epoch="1 sec", dynamic_range=c(-6,6), file_type="actigraph", output_mims_per_axis=TRUE, use_gui_progress=TRUE))
+```
+
+# Write to a .csv
+
+Writing to a file.
+
+```{r}
+basename(rawFilename)
+# [1] "a.ext"
+dirname(rawFilename)
+# [1] "C:/some_dir"
+
+#tools::file_path_sans_ext("ABCD.csv")
+
+tools::file_path_sans_ext(rawFilename)
+
+mimsOutfile = paste(tools::file_path_sans_ext(rawFilename),'.mims', sep='')
+
+write.csv(mims_sec,mimsOutfile, row.names = FALSE)
+```
+
+### If there is something you need
+
+-   enter it as a comment or bullet
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.

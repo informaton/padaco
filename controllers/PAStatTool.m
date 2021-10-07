@@ -556,6 +556,9 @@ classdef PAStatTool < PAViewController
                     % original widget settings are kept track of using a
                     % separate gui
                     exportNonwearFeatures = this.getSetting('exportShowNonwear');
+                    
+                    this.logWarning('Not exporting nonwear flags');
+                    exportNonwearFeatures = false;
                     if(exportNonwearFeatures)
                         nonwearFeatures = this.nonwear;
                     else
@@ -2432,6 +2435,11 @@ classdef PAStatTool < PAViewController
             % Apply to see how well it splits the data...
             % Requires: addpath('/users/unknown/Google Drive/work/Stanford - Pediatrics/code/models');
             initString = get(hObject,'string');
+            
+            modelSelections = {'Membership Proportion','Proportion+isWeekend','Daily','Daily+isWeekend'};
+            userdata = {'model1a','model1aw','model1b','model1bw'};
+
+            modelSelection = getMenuUserData(this.handles.menu_model);
             try
                 set(hObject,'enable','off','String','Analyzing ...');
                 dependentVar = this.getProfileFieldSelection();
@@ -2443,23 +2451,46 @@ classdef PAStatTool < PAViewController
                 covariateStruct = this.clusterObj.getCovariateStruct();
                 covariateStruct.id.memberIDs = covariateStruct.memberIDs;
                 
-                ANALYZE_ALL_CLUSTERS = true;
+                ANALYZE_ALL_CLUSTERS = any(strcmpi(modelSelection, userdata));
                 if ANALYZE_ALL_CLUSTERS
-                    varnames = covariateStruct.id.varnames(2:end);
-                    colnames = covariateStruct.id.colnames(2:end);
-                    covariateStruct = covariateStruct.loadshape;
-                    covariateStruct.memberIDs = covariateStruct.id;
-                    clusters = covariateStruct.cluster';
-                    clusters = clusters(:, 2:end);
-                    isWeekendCluster = repmat(covariateStruct.weekend, 1, size(clusters, 2));
-                    weekendClusters = clusters.*isWeekendCluster;
-                    covariateStruct.values = [clusters, weekendClusters];
-
-                    weekendVarnames = cellfun(@(c) ['w', c], varnames, 'uniformoutput',false);
-                    weekendColnames = cellfun(@(c) ['w', c], colnames, 'uniformoutput',false);
-                    covariateStruct.colnames = [colnames, weekendColnames];
-                    covariateStruct.varnames = [varnames, weekendVarnames];
-                    % covariateStruct.values = covariateStruct.values(:, 2:end);
+                    
+                    if any(strcmpi(modelSelection,{'model1b','model1bw'}))
+                        varnames = covariateStruct.id.varnames(2:end);
+                        colnames = covariateStruct.id.colnames(2:end);
+                        covariateStruct = covariateStruct.loadshape;
+                        covariateStruct.memberIDs = covariateStruct.id;
+                        clusters = covariateStruct.cluster';
+                        clusters = clusters(:, 2:end);
+                        
+                        if strcmpi(modelSelection, 'model1bw')
+                            isWeekendCluster = repmat(covariateStruct.weekend, 1, size(clusters, 2));
+                            weekendClusters = clusters.*isWeekendCluster;
+                            covariateStruct.values = [clusters, weekendClusters];
+                            
+                            weekendVarnames = cellfun(@(c) ['w', c], varnames, 'uniformoutput',false);
+                            weekendColnames = cellfun(@(c) ['w', c], colnames, 'uniformoutput',false);
+                            
+                            covariateStruct.colnames = [colnames, weekendColnames];
+                            covariateStruct.varnames = [varnames, weekendVarnames];
+                        else
+                            covariateStruct.values = clusters;
+                            covariateStruct.colnames = colnames;
+                            covariateStruct.varnames = varnames;
+                        end
+                        % covariateStruct.values = covariateStruct.values(:, 2:end);
+                    elseif any(strcmpi(modelSelection,{'model1a','model1aw'}))
+                        covariateStruct = covariateStruct.id;
+                        
+                        % Normalize values
+                        values = covariateStruct.values;
+                        covariateStruct.values = diag(sum(values,2))*values;                        
+ 
+                        if strcmpi(modelSelection, 'model1aw')
+                            fprintf(1,'%s is not handled differently than model1a\n', modelSelection);
+                        else
+                            
+                        end
+                    end
                 else
                     covariateStruct = covariateStruct.id;
                 end 
@@ -2472,8 +2503,6 @@ classdef PAStatTool < PAViewController
                 % current selection
                 coiSortOrders = this.clusterObj.getAllCOISortOrders();
                 %covariateStruct = this.clusterObj.getCovariateStruct();
-                
-                
                 
                 % Analyze selections of clusters versus the remaining clusters.
                 if ~ANALYZE_ALL_CLUSTERS && numel(coiSortOrders)>1
@@ -2494,13 +2523,13 @@ classdef PAStatTool < PAViewController
                     %                    covariateStruct = this.clusterObj.getCovariateStruct(coiSortOrders);
                     %                    covariateStruct.colnames = {cell2str(covariateStruct.colnames,' AND ')};
                     %                    covariateStruct.varnames = {cell2str(covariateStruct.varnames,'_AND_')};
-                    %                    covariateStruct.values = sum(covariateStruct.values,2); %sum each row
-                    
-                end
-                
+                    %                    covariateStruct.values = sum(covariateStruct.values,2); %sum each row                    
+                end                
 
                 if ANALYZE_ALL_CLUSTERS
-                    [resultStr, resultStruct] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'}, coiSortOrders);                       
+                    [resultStr, resultStruct, mdl, dataSet] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'}, coiSortOrders);   
+                    % dataSet = [id,Y,time,X];
+                    fprintf(1,'\nResults from <strong>%s</strong>.\n', modelSelection);
                 else
                     [resultStr, resultStruct] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'}, coiSortOrders);
                 end
@@ -2820,6 +2849,9 @@ classdef PAStatTool < PAViewController
             
             % Initialize the scatter plot axes
             this.initScatterPlotAxes();
+            modelSelections = {'Membership Proportion','Proportion+isWeekend','Daily','Daily+isWeekend'};
+            userdata = {'model1a','model1aw','model1b','model1bw'};
+            set(this.handles.menu_model,'string',modelSelections, 'userdata',userdata);
             set(this.handles.push_plotHistogram,'string','Histogram','callback',@this.analysisFigurePlotHistogramCb);
             set(this.handles.push_analyzeClusters,'string','Analyze Selection','callback',@this.analyzeClustersCallback);
             set(this.handles.push_exportTable,'string','Export Table','callback',@this.exportTableResultsCallback);
@@ -3014,6 +3046,8 @@ classdef PAStatTool < PAViewController
                 'push_exportTable'
                 'push_analyzeClusters'
                 'push_plotHistogram'
+                'panel_model'
+                'menu_model'
                 'text_analysisTitle'
                 };
             

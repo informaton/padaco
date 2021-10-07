@@ -361,7 +361,7 @@ classdef PACluster < PAData
                     [covHeader, covDataStr] = this.exportFrequencyCovariates();
                     [weekdayCovHeader, weekdayCovDataStr] = this.exportWeekDayCovariates(nonwearStruct);
                     [clusterShapesHeaderStr, clusterShapesStr] = this.exportClusterShapes();
-                    [loadShapesHeaderStr, loadShapesStr] = this.exportClusterShapes();
+                    [loadShapesHeaderStr, loadShapesStr] =       this.exportLoadShapes();
                     
                     [summaryHeaderStr, summaryStr] = this.exportClusterSummary();
                     
@@ -539,14 +539,14 @@ classdef PACluster < PAData
             
             if(this.getNumClusters<=0)
                 headerStr = '# No feature vectors found!';
-            else
+            else                
                 shapeTimesInCSV = cell2str(this.loadShapeTimes,',');
-                headerStr = sprintf('# studyID, Start day (0 = Sunday), %s',shapeTimesInCSV);
-                nRows = size(this.shapes,1);
+                headerStr = sprintf('# studyID, Day (0 = Sunday), %s',shapeTimesInCSV);
+                nRows = size(this.loadShapes,1);
                 for r=1:nRows
-                    headerStr = sprintf('%i, %i', this.studyIDs(r), this.startDaysOfWeek(r));
-                    curShapeStr = sprintf(', %f',this.shapes(r,:));
-                    shapeStr = sprintf('%s%s%s\n',shapeStr,shapeStr,curShapeStr);
+                    curHeaderStr = sprintf('%i, %i', this.loadShapeIDs(r), this.loadShapeDayOfWeek(r));
+                    curShapeStr = sprintf(', %f',this.loadShapes(r,:));
+                    shapeStr = sprintf('%s%s%s\n',shapeStr,curHeaderStr,curShapeStr);
                 end                
             end
         end        
