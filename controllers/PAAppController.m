@@ -219,45 +219,51 @@ classdef PAAppController < PAFigureController
         function initMenubarCallbacks(obj)
             
             figHandles = obj.handles;
+            if verLessThan('matlab','9.6')
+                menuCbKey = 'callback';
+            else
+                menuCbKey = 'MenuSelectedFcn';
+            end
             
             %% file
             % settings and about
-            safeset(figHandles,'menu_file_about','callback',@obj.menuFileAboutCallback);
-            safeset(figHandles,'menu_file_settings_application','callback',@obj.menuFileSettingsApplicationCallback);
-            safeset(figHandles,'menu_file_settings_usageRules','callback',@obj.menuFileSettingsUsageRulesCallback);
-            safeset(figHandles,'menu_load_settings','callback',@obj.menuFileLoadSettingsCb);
+            safeset(figHandles,'menu_file_about',menuCbKey,@obj.menuFileAboutCallback);
+            safeset(figHandles,'menu_file_settings_application',menuCbKey,@obj.menuFileSettingsApplicationCallback);
+            safeset(figHandles,'menu_file_settings_usageRules',menuCbKey,@obj.menuFileSettingsUsageRulesCallback);
+            safeset(figHandles,'menu_load_settings',menuCbKey,@obj.menuFileLoadSettingsCb);
             
             %  open
-            safeset(figHandles,'menu_file_open','callback',@obj.menuFileOpenCallback);
-            safeset(figHandles,'menu_file_open_featurespath','callback',@obj.menuFileOpenFeaturesPathCallback);
+            safeset(figHandles,'menu_file_open_mims',menuCbKey,@obj.menuFileOpenMimsCb);
+            safeset(figHandles,'menu_file_open_actigraph',menuCbKey,@obj.menuFileOpenActigraphCallback);
+            safeset(figHandles,'menu_file_open_featurespath',menuCbKey,@obj.menuFileOpenFeaturesPathCallback);
             
-            safeset(figHandles,'menu_file_openGENEActiv','callback',@obj.openGENEActivFileCb);
+            safeset(figHandles,'menu_file_openGENEActiv',menuCbKey,@obj.openGENEActivFileCb);
             % import
-            safeset(figHandles,'menu_file_openVasTrac','callback',@obj.menuFileOpenVasTracCSVCallback,'enable','off','visible','off');
-            safeset(figHandles,'menu_file_openFitBit','callback',@obj.menuFileOpenFitBitCallback,'enable','off','visible','off');
+            safeset(figHandles,'menu_file_openVasTrac',menuCbKey,@obj.menuFileOpenVasTracCSVCallback,'enable','off','visible','off');
+            safeset(figHandles,'menu_file_openFitBit',menuCbKey,@obj.menuFileOpenFitBitCallback,'enable','off','visible','off');
             
-            safeset(figHandles,'menu_file_import_csv','callback',@obj.menuFileOpenCsvFileCallback,'enable','off');
+            safeset(figHandles,'menu_file_import_csv',menuCbKey,@obj.menuFileOpenCsvFileCallback,'enable','off');
             safeset(figHandles,'menu_file_import_general','label','Text (custom)',...
-                'callback',@obj.menuFileOpenGeneralCallback,'enable','on');
-            safeset(figHandles,'menubar_import_outcomes','callback',@obj.importOutcomesFileCb);
+                menuCbKey,@obj.menuFileOpenGeneralCallback,'enable','on');
+            safeset(figHandles,'menubar_import_outcomes',menuCbKey,@obj.importOutcomesFileCb);
             
-            safeset(figHandles,'menu_import_exclusions','callback',@obj.importClusterExclusionsCb);
+            safeset(figHandles,'menu_import_exclusions',menuCbKey,@obj.importClusterExclusionsCb);
             
             
             % screeshots
-            safeset(figHandles,'menu_file_screenshot_figure','callback',{@obj.menuFileScreenshotCallback,'figure'});
-            safeset(figHandles,'menu_file_screenshot_primaryAxes','callback',{@obj.menuFileScreenshotCallback,'primaryAxes'});
-            safeset(figHandles,'menu_file_screenshot_secondaryAxes','callback',{@obj.menuFileScreenshotCallback,'secondaryAxes'});
+            safeset(figHandles,'menu_file_screenshot_figure',menuCbKey,{@obj.menuFileScreenshotCallback,'figure'});
+            safeset(figHandles,'menu_file_screenshot_primaryAxes',menuCbKey,{@obj.menuFileScreenshotCallback,'primaryAxes'});
+            safeset(figHandles,'menu_file_screenshot_secondaryAxes',menuCbKey,{@obj.menuFileScreenshotCallback,'secondaryAxes'});
             
             %  quit - handled in main window.
-            safeset(figHandles,'menu_file_quit','callback',{@obj.menuFileQuitCallback,guidata(obj.figureH)},'label','Close');
-            safeset(figHandles,'menu_file_restart','callback',@restartDlg);
+            safeset(figHandles,'menu_file_quit',menuCbKey,{@obj.menuFileQuitCallback,guidata(obj.figureH)},'label','Close');
+            safeset(figHandles,'menu_file_restart',menuCbKey,@restartDlg);
             
             % export
-            safeset(figHandles,'menu_file_export','callback',@obj.menu_file_exportMenu_callback);
+            safeset(figHandles,'menu_file_export',menuCbKey,@obj.menu_file_exportMenu_callback);
             if(~isdeployed)
-                safeset(figHandles,'menu_file_export_sensorDataObj','callback',@obj.menu_file_export_sensorDataObj_callback);%,'label','Sensor object to MATLAB');
-                safeset(figHandles,'menu_file_export_clusterObj','callback',@obj.menu_file_export_clusterObj_callback); %,'label','Cluster object to MATLAB');
+                safeset(figHandles,'menu_file_export_sensorDataObj',menuCbKey,@obj.menu_file_export_sensorDataObj_callback);%,'label','Sensor object to MATLAB');
+                safeset(figHandles,'menu_file_export_clusterObj',menuCbKey,@obj.menu_file_export_clusterObj_callback); %,'label','Cluster object to MATLAB');
             % No point in sending data to the workspace on deployed
             % version.  There is no 'workspace'.
             else
@@ -265,24 +271,24 @@ classdef PAAppController < PAFigureController
                 safeset(figHandles,'menu_file_export_clusterObj','visible','off');                
             end
             
-            safeset(figHandles,'menu_file_export_clusters_to_csv','callback',{@obj.exportClustersCb,'csv'});%, 'label','Cluster results to disk');
-            safeset(figHandles,'menu_file_export_clusters_to_xls','callback',{@obj.exportClustersCb,'xls'});%, 'label','Cluster results to disk');
-            safeset(figHandles,'menu_export_nonwear_mat','callback',{@obj.exportClustersCb,'nonwear_mat'});%, 'label',');
+            safeset(figHandles,'menu_file_export_clusters_to_csv',menuCbKey,{@obj.exportClustersCb,'csv'});%, 'label','Cluster results to disk');
+            safeset(figHandles,'menu_file_export_clusters_to_xls',menuCbKey,{@obj.exportClustersCb,'xls'});%, 'label','Cluster results to disk');
+            safeset(figHandles,'menu_export_nonwear_mat',menuCbKey,{@obj.exportClustersCb,'nonwear_mat'});%, 'label',');
             
-            safeset(figHandles,'menu_export_timeseries_to_disk','callback',@obj.exportTimeSeriesCb);%,'label','Wear/nonwear to disk');
+            safeset(figHandles,'menu_export_timeseries_to_disk',menuCbKey,@obj.exportTimeSeriesCb);%,'label','Wear/nonwear to disk');
             
             %% View Modes
-            safeset(figHandles,'menu_viewmode_timeseries','callback',{@obj.setViewModeCallback,'timeSeries'});
-            safeset(figHandles,'menu_viewmode_results','callback',{@obj.setViewModeCallback,'results'});
+            safeset(figHandles,'menu_viewmode_timeseries',menuCbKey,{@obj.setViewModeCallback,'timeSeries'});
+            safeset(figHandles,'menu_viewmode_results',menuCbKey,{@obj.setViewModeCallback,'results'});
             
             %% Tools
-            safeset(figHandles,'menu_tools_batch','callback',@obj.menuToolsBatchCallback);
-            safeset(figHandles,'menu_tools_bootstrap','callback',@obj.menuToolsBootstrapCallback,'enable','off');  % enable state depends on PAStatTool construction success (see obj.events)
-            safeset(figHandles,'menu_tools_raw2bin','callback',@obj.menuToolsRaw2BinCallback); % This is empty ...
-            safeset(figHandles,'menu_tools_coptr2act','callback',@obj.coptr2actigraphCallback);
+            safeset(figHandles,'menu_tools_batch',menuCbKey,@obj.menuToolsBatchCallback);
+            safeset(figHandles,'menu_tools_bootstrap',menuCbKey,@obj.menuToolsBootstrapCallback,'enable','off');  % enable state depends on PAStatTool construction success (see obj.events)
+            safeset(figHandles,'menu_tools_raw2bin',menuCbKey,@obj.menuToolsRaw2BinCallback); % This is empty ...
+            safeset(figHandles,'menu_tools_coptr2act',menuCbKey,@obj.coptr2actigraphCallback);
             
             %% Help
-            safeset(figHandles,'menu_help_faq','callback',@obj.menuHelpFAQCallback);
+            safeset(figHandles,'menu_help_faq',menuCbKey,@obj.menuHelpFAQCallback);
             
             % enable remaining 
             set([
@@ -528,14 +534,55 @@ classdef PAAppController < PAFigureController
                 obj.SingleStudy.showReady('all');
             end
         end
-        
         % --------------------------------------------------------------------
-        %> @brief Menubar callback for opening a file.
+        %> @brief Menubar callback for opening a MIMS file (monitor independent motion summary).
         %> @param obj Instance of PAAppController
         %> @param hObject  handle to menu_file_open (see GCBO)
         %> @param eventdata Required by MATLAB, but not used.
         % --------------------------------------------------------------------
-        function menuFileOpenCallback(obj,varargin)
+        function menuFileOpenMimsCb(obj,varargin)
+            %SensorData.pathname	/Volumes/SeaG 1TB/sampleData/csv
+            %SensorData.filename	700023t00c1.csv.csv
+            f=uigetfullfile({'*.mims','Monitor Independent Motion Summary format';
+                '*.csv','Comma Separated Values';},...
+                'Select a file',fullfile(obj.SingleStudy.getSetting('pathname'),obj.SingleStudy.getSetting('filename')));
+            try
+                if(~isempty(f))                    
+                    obj.showBusy('Loading','all');
+                    obj.SingleStudy.disableWidgets();
+                    [pathname,basename, baseext] = fileparts(f);
+                    obj.SingleStudy.setSetting('pathname', pathname);
+                    obj.SingleStudy.setSetting('filename', strcat(basename,baseext));
+                    
+                    obj.SensorData = PASensorData(f,obj.AppSettings.SensorData);
+                    
+                    if(~strcmpi(obj.getViewMode(),'timeseries'))
+                        obj.setViewMode('timeseries');  % Call initAccelDataView as well 
+                    else
+                        %initialize the PASensorData object's visual properties
+                        obj.initAccelDataView(); %calls show obj.SingleStudy.showReady() Ready...                        
+                    end
+                    
+                    % For testing/debugging
+                    %                     featureFcn = 'mean';
+                    %                     elapsedStartHour = 0;
+                    %                     intervalDurationHours = 24;
+                    %                     signalTagLine = obj.getSignalSelection(); %'accel.count.x';
+                    %                     obj.SensorData.getAlignedFeatureVecs(featureFcn,signalTagLine,elapsedStartHour, intervalDurationHours);
+                end
+            catch me
+                showME(me);
+                obj.SingleStudy.showReady('all');
+            end
+        end
+        
+        % --------------------------------------------------------------------
+        %> @brief Menubar callback for opening an Actigraph file.
+        %> @param obj Instance of PAAppController
+        %> @param hObject  handle to menu_file_open (see GCBO)
+        %> @param eventdata Required by MATLAB, but not used.
+        % --------------------------------------------------------------------
+        function menuFileOpenActigraphCallback(obj,varargin)
             %SensorData.pathname	/Volumes/SeaG 1TB/sampleData/csv
             %SensorData.filename	700023t00c1.csv.csv
             f=uigetfullfile({'*.csv;*.raw;*.bin','All (counts, raw accelerations)';
@@ -966,7 +1013,7 @@ classdef PAAppController < PAFigureController
                         if(checkToOpenFile)
                             responseButton = questdlg('A time series file is not currently loaded.  Would you like to open one now?','Find a time series file to load?');
                             if(strcmpi(responseButton,'yes'))
-                                obj.menuFileOpenCallback();
+                                obj.menuFileOpenActigraphCallback();
                             end
                         end
                     else

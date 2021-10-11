@@ -1241,8 +1241,13 @@ classdef PASensorData < PAData
                 %msg = 'Select the .csv file';
                 %fullfilename = uigetfullfile(filtercell,pwd,msg);
             end
-
-            didLoad = obj.loadActigraphFile(fullfilename);
+            
+            [~,~, fileExt] = fileparts(fullfilename);
+            if strcmpi(fileExt, '.mims')
+                didLoad = obj.loadMimsFile(fullfilename);                
+            else
+                didLoad = obj.loadActigraphFile(fullfilename);
+            end
 
         end
 
@@ -1523,6 +1528,133 @@ classdef PASensorData < PAData
                     fclose(fid);
                 end                
             end
+        end
+        
+        function didLoad = loadMimsFile(obj, fullfilename)
+            didLoad = false;
+            
+            % Have one file version for counts...
+            if(exist(fullfilename,'file'))
+                [~, baseName, ~] = fileparts(fullfilename);
+                obj.studyID = obj.getStudyIDFromBasename(baseName);
+                
+                try
+                    fid = -1;
+                    fid = fopen(fullfilename,'r');
+                    if fid>2
+                        
+
+                        obj.countPeriodSec = 1;
+                        obj.startTime = 'N/A';
+                        obj.startDate = 'N/A';
+                        if(obj.countPeriodSec~=0)
+                            obj.sampleRate = 1/obj.countPeriodSec;
+                        else
+                            obj.sampleRate = 0;
+                        end
+                        
+                        headerLines = 1; %number of lines to skip
+                        % "HEADER_TIME_STAMP","MIMS_UNIT","MIMS_UNIT_X","MIMS_UNIT_Y","MIMS_UNIT_Z"
+                        % 2012-10-31 00:00:00.000,0.376399670962783,0.0528390934513008,0.285042889836922,0.0385176876745605
+                        % 2012-10-31 00:00:01.000,0.327736275887793,0.0461938669228184,0.245819011001523,0.0357233979634518
+                        % 2012-10-31 00:00:02.000,0.123508980491169,0.0173216117600595,0.0922664562901966,0.0139209124409133
+                        % 2012-10-31 00:00:03.000,0.194921998680942,0.0278222616326401,0.146223793033541,0.0208759440147609
+                        % 2012-10-31 00:00:04.000,0.0353253392880519,0,0.0353253392880519,0
+                        
+                        % MIMS_UNIT is the sum of x, y, and z.
+                        
+                        
+                        scanFormat = '%{yyyy-MM-dd HH:mm.ss.SSS}D,%d,%d,%d,%d';
+                        % frewind(fid);
+                        for f=1:headerLines
+                            fgetl(fid);
+                        end
+                        A  = fread(fid,'*char');
+                        tmpDataCell = textscan(A, scanFormat, 'delimiter','\n');
+                        
+                        
+                        %Date time handling
+                        %                        dateTime = strcat(tmpDataCell{1},{' '},tmpDataCell{2});
+                        % dateVecFound = round(datevec(dateTime,'mm/dd/yyyy HH:MM:SS'));
+                        dateVecFound = double([tmpDataCell{3},tmpDataCell{1},tmpDataCell{2},tmpDataCell{4},tmpDataCell{5},tmpDataCell{6}]);
+                        samplesFound = size(dateVecFound,1);
+                        
+                        % This is a mess -
+                        %                         obj.startDate(obj.startDate==',')=[];  %sometimes we get extra commas as files are copy and pasted between other programs (e.g. Excel)
+                        %                         obj.startTime(obj.startTime==',')=[];
+                        %                         startDateNum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
+                        
+                        % Trust the timestamps per record instead; even if they may get out of order?
+                        startDateNum = datenum(dateVecFound(1,:));
+                        
+                        stopDateNum = datenum(dateVecFound(end,:));
+                        
+                        windowDateNumDelta = datenum([0,0,0,0,0,obj.countPeriodSec]);
+                        
+                        
+                        % NOTE:  Chopping off the first six columns: date time values;
+                        tmpDataCell(1:6) = [];
+                        
+                        % The following call to mergedCell ensures the data
+                        % is chronologically ordered and data is not
+                        % missing.
+                        [dataCell, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,obj.getSetting('missingValue'));
+                        
+                        tmpDataCell = []; %free up this memory;
+                        
+                        %MATLAB has some strange behaviour with date num -
+                        %looks to be a precision problem
+                        %math.
+                        %                        dateTimeDelta2 = diff([datenum(2010,1,1,1,1,10),datenum(2010,1,1,1,1,11)]);
+                        %                        dateTimeDelta2 = datenum(2010,1,1,1,1,11)-datenum(2010,1,1,1,1,10); % or this one
+                        %                        dateTimeDelta = datenum(0,0,0,0,0,1);
+                        %                        dateTimeDelta == dateTimeDelta2  %what is going on here???
+                        
+                        obj.durSamples = numel(obj.dateTimeNum);
+                        obj.printLoadStatusMsg(samplesFound, fullFilename);
+                        
+                        
+                        obj.accel.count.x = dataCell{1};
+                        obj.accel.count.y = dataCell{2};
+                        obj.accel.count.z = dataCell{3};
+                        
+                        obj.steps = dataCell{4}; %what are steps?
+                        obj.lux = dataCell{5}; %0 to 612 - a measure of lumins...
+                        obj.inclinometer.standing = dataCell{7};
+                        obj.inclinometer.sitting = dataCell{8};
+                        obj.inclinometer.lying = dataCell{9};
+                        obj.inclinometer.off = dataCell{6};
+                        
+                        %                        inclinometerMat = cell2mat(dataCell(6:9));
+                        %                        unique(inclinometerMat,'rows');
+                        obj.accel.count.vecMag = dataCell{10};
+                        
+                        %either use countPeriodSec or use samplerate.
+                        if(obj.countPeriodSec>0)
+                            obj.sampleRate = 1/obj.countPeriodSec;
+                            obj.durationSec = floor(obj.getDurationSamples()*obj.countPeriodSec);
+                        else
+                            fprintf('There was an error when loading the window period second value (non-positive value found in %s).\n',fullFilename);
+                            obj.durationSec = 0;
+                        end
+                        
+                        
+                        obj.accelType = 'mims';
+                        didLoad = true;
+                        
+                        fclose(fid);
+                    else
+                        this.logWarning('Unable to load file %s', fullfilename);
+                    end
+                catch me
+                    showME(me);
+                    if fid>2
+                        fclose(fid);
+                    end
+                end
+            end
+            
+            
         end
 
         function didLoad = loadActigraphFile(obj, fullfilename)
@@ -3466,6 +3598,10 @@ classdef PASensorData < PAData
         %======================================================================
         function [tagLines,labels] = getDefaultTagLineLabels()
             tagLines = {
+                'accel.mims.vecMag';
+                'accel.mims.x';
+                'accel.mims.y';
+                'accel.mims.z';
                 'accel.raw.vecMag';
                 'accel.raw.x';
                 'accel.raw.y';
@@ -3482,6 +3618,10 @@ classdef PASensorData < PAData
                 'inclinometer.off';
                 };
             labels = {
+                'Magnitude (mims)';
+                'X (mims)';
+                'Y (mims)';
+                'Z (mims)';
                 'Magnitude (raw)';
                 'X (raw)';
                 'Y (raw)';

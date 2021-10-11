@@ -799,8 +799,9 @@ classdef PASingleStudyController < PAViewController
                 % many of the selected widgets.
                 
                 obj.showBusy('Initializing View','all');
-                
+                                    
                 obj.initSignalSelectionMenu();
+                
                 
                 curAccelType = obj.getAccelType();
                 if(any(strcmpi(curAccelType, {'all','raw'})))
@@ -2057,17 +2058,31 @@ classdef PASingleStudyController < PAViewController
         % --------------------------------------------------------------------
         function initSignalSelectionMenu(obj)
             [tagLines,labels] = PASensorData.getDefaultTagLineLabels();
-            offAccelType = obj.accelObj.getOffAccelType();
-            if(~isempty(offAccelType))
-                cellIndices = strfind(tagLines,offAccelType);
+            accelType = obj.getAccelType;
+            if isempty(accelType) || strcmpi(accelType, 'none')
+                set(obj.menuhandle.signalSelection,'string','Nothing loaded','userdata',[],'value',0);
+            else
+                
+                cellIndices = strfind(tagLines,accelType);
                 pruneIndices = false(size(cellIndices));
                 for k=1:numel(cellIndices)
-                    pruneIndices(k) = ~isempty(cellIndices{k});
+                    pruneIndices(k) = isempty(cellIndices{k});
                 end
                 labels(pruneIndices) = [];
-                tagLines(pruneIndices) = [];
+                tagLines(pruneIndices) = [];                
+                set(obj.menuhandle.signalSelection,'string',labels,'userdata',tagLines,'value',1);                
             end
-            set(obj.menuhandle.signalSelection,'string',labels,'userdata',tagLines,'value',1);
+%             offAccelType = obj.accelObj.getOffAccelType();
+%             if(~isempty(offAccelType))
+%                 cellIndices = strfind(tagLines,offAccelType);
+%                 pruneIndices = false(size(cellIndices));
+%                 for k=1:numel(cellIndices)
+%                     pruneIndices(k) = ~isempty(cellIndices{k});
+%                 end
+%                 labels(pruneIndices) = [];
+%                 tagLines(pruneIndices) = [];
+%             end
+%             set(obj.menuhandle.signalSelection,'string',labels,'userdata',tagLines,'value',1);
         end
         
         % --------------------------------------------------------------------
