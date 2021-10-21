@@ -170,7 +170,8 @@ classdef PASensorData < PAData
         
         % Flags for determining if counts and or raw data is loaded.
         hasCounts
-        hasRaw;
+        hasRaw;        
+        hasMims;
     end
 
     methods
@@ -193,6 +194,7 @@ classdef PASensorData < PAData
 
             obj.hasCounts = false;
             obj.hasRaw = false;
+            obj.hasMims = false;
             obj.accelType = 'none';
             obj.startDatenums = [];
 
@@ -262,7 +264,7 @@ classdef PASensorData < PAData
         end
         
         function hasIt = hasData(obj)
-            hasIt = obj.hasCounts||obj.hasRaw;
+            hasIt = obj.hasCounts||obj.hasRaw || obj.hasMims;
         end
 
         function [didExport, resultMsg] = exportToDisk(obj,exportPath)
@@ -859,8 +861,10 @@ classdef PASensorData < PAData
                 offAccelType = 'raw';
             elseif(strcmpi(accelTypeStr,'raw'))
                 offAccelType = 'count';
-            elseif(strcmpi(accelTypeStr,'all'))
+            elseif(strcmpi(accelTypeStr,'mims'))
                 offAccelType = [];
+            elseif(strcmpi(accelTypeStr,'all'))
+                offAccelType = [];                
             elseif(strcmpi(accelTypeStr,'none'))
                 offAccelType = [];
             else
@@ -1333,9 +1337,9 @@ classdef PASensorData < PAData
                 if(numMissing>0)
                     fprintf('%d rows loaded from %s.  However %u rows were expected.  %u missing samples are being filled in as %s.\n',samplesFound,fullFilename,samplesFound+numMissing,numMissing,num2str(obj.getSetting('missingValue')));
                 else
-                    obj.logWarning(['This case is not handled yet.\n%d rows loaded from %s.  However %u rows were expected.\n',...
+                    obj.logWarning(['This case is not handled yet.\n%d rows found in %s.  However %u rows were loaded.\n',...
                         'Most likely %u samples were removed during loading because they did not have valid timestamps.',...
-                        '\nSee log for more information.'],samplesFound,fullFilename,samplesFound-numMissing,-numMissing);
+                        '\nSee log for more information.'],samplesFound,fullFilename,obj.getDurationSamples(),-numMissing);
                 end
             end
         end
@@ -1562,43 +1566,28 @@ classdef PASensorData < PAData
                         % 2012-10-31 00:00:04.000,0.0353253392880519,0,0.0353253392880519,0
                         
                         % MIMS_UNIT is the sum of x, y, and z.
-                        
-                        
-                        scanFormat = '%{yyyy-MM-dd HH:mm.ss.SSS}D,%d,%d,%d,%d';
+                        scanFormat = '%{yyyy-MM-dd HH:mm:ss.SSS}D%f%f%f%f';
                         % frewind(fid);
                         for f=1:headerLines
                             fgetl(fid);
                         end
-                        A  = fread(fid,'*char');
-                        tmpDataCell = textscan(A, scanFormat, 'delimiter','\n');
+                        A  = fread(fid,'*char')';
+                        fclose(fid);
+                        tmpDataCell = textscan(A, scanFormat, 'delimiter',',');
                         
+                        samplesFound = numel(tmpDataCell{1});                     
+                        obj.logStatus('Loaded %d entries', samplesFound);
                         
-                        %Date time handling
-                        %                        dateTime = strcat(tmpDataCell{1},{' '},tmpDataCell{2});
-                        % dateVecFound = round(datevec(dateTime,'mm/dd/yyyy HH:MM:SS'));
-                        dateVecFound = double([tmpDataCell{3},tmpDataCell{1},tmpDataCell{2},tmpDataCell{4},tmpDataCell{5},tmpDataCell{6}]);
-                        samplesFound = size(dateVecFound,1);
-                        
-                        % This is a mess -
-                        %                         obj.startDate(obj.startDate==',')=[];  %sometimes we get extra commas as files are copy and pasted between other programs (e.g. Excel)
-                        %                         obj.startTime(obj.startTime==',')=[];
-                        %                         startDateNum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
-                        
-                        % Trust the timestamps per record instead; even if they may get out of order?
-                        startDateNum = datenum(dateVecFound(1,:));
-                        
-                        stopDateNum = datenum(dateVecFound(end,:));
-                        
-                        windowDateNumDelta = datenum([0,0,0,0,0,obj.countPeriodSec]);
-                        
-                        
-                        % NOTE:  Chopping off the first six columns: date time values;
-                        tmpDataCell(1:6) = [];
+                        datetimeFound = tmpDataCell{1};
+                        startDateNum = datenum(datetimeFound(1));
+                        stopDateNum = datenum(datetimeFound(end));
+                                                
+                        windowDateNumDelta = datenum([0,0,0,0,0,obj.countPeriodSec]);                        
+                        tmpDataCell(1:2) = []; % NOTE:  Chopping off the first two columns: date time values and sum of mim axes.
                         
                         % The following call to mergedCell ensures the data
-                        % is chronologically ordered and data is not
-                        % missing.
-                        [dataCell, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,dateVecFound,tmpDataCell,obj.getSetting('missingValue'));
+                        % is chronologically ordered and data is not missing.
+                        [dataCell, obj.dateTimeNum] = obj.mergedCell(startDateNum,stopDateNum,windowDateNumDelta,datetimeFound,tmpDataCell,obj.getSetting('missingValue'));
                         
                         tmpDataCell = []; %free up this memory;
                         
@@ -1611,23 +1600,13 @@ classdef PASensorData < PAData
                         %                        dateTimeDelta == dateTimeDelta2  %what is going on here???
                         
                         obj.durSamples = numel(obj.dateTimeNum);
-                        obj.printLoadStatusMsg(samplesFound, fullFilename);
+                        obj.printLoadStatusMsg(samplesFound, fullfilename);
                         
                         
-                        obj.accel.count.x = dataCell{1};
-                        obj.accel.count.y = dataCell{2};
-                        obj.accel.count.z = dataCell{3};
-                        
-                        obj.steps = dataCell{4}; %what are steps?
-                        obj.lux = dataCell{5}; %0 to 612 - a measure of lumins...
-                        obj.inclinometer.standing = dataCell{7};
-                        obj.inclinometer.sitting = dataCell{8};
-                        obj.inclinometer.lying = dataCell{9};
-                        obj.inclinometer.off = dataCell{6};
-                        
-                        %                        inclinometerMat = cell2mat(dataCell(6:9));
-                        %                        unique(inclinometerMat,'rows');
-                        obj.accel.count.vecMag = dataCell{10};
+                        obj.accel.mims.x = dataCell{1};
+                        obj.accel.mims.y = dataCell{2};
+                        obj.accel.mims.z = dataCell{3};                        
+                        obj.accel.mims.vecMag = sqrt(obj.accel.mims.x.^2+obj.accel.mims.y.^2+obj.accel.mims.z.^2);
                         
                         %either use countPeriodSec or use samplerate.
                         if(obj.countPeriodSec>0)
@@ -1638,11 +1617,11 @@ classdef PASensorData < PAData
                             obj.durationSec = 0;
                         end
                         
-                        
                         obj.accelType = 'mims';
+                        obj.hasMims = true;
+                        obj.classifyUsageForAllAxes();
                         didLoad = true;
                         
-                        fclose(fid);
                     else
                         this.logWarning('Unable to load file %s', fullfilename);
                     end
@@ -2323,7 +2302,10 @@ classdef PASensorData < PAData
                 tagParts = strsplit(signalTagLine,'.');  %break it up and give me the 'vecMag' in the default case.
                 axisName = tagParts{end};
 
-                usageVec = obj.usage.(axisName);
+                usageVec = [];
+                if isstruct(obj.usage) && isfield(obj.usage, axisName)
+                    usageVec = obj.usage.(axisName);
+                end
             catch me
                 rethrow(me);  %this is just for debugging.
             end
@@ -2624,11 +2606,14 @@ classdef PASensorData < PAData
         % ======================================================================
         function didClassify = classifyUsageForAllAxes(obj)
             try
-                if(obj.hasCounts || obj.hasRaw)
+                if(obj.hasCounts || obj.hasRaw || obj.hasMims)
                     dataStruct = obj.getStruct('all');
                     if strcmpi(obj.accelType,'raw') && obj.hasRaw
                         classifyObj = PAClassifyGravities();% %obj.classifyUsageState(dataStruct.(axesName));
                         dataStruct = dataStruct.accel.raw;
+                    elseif(strcmpi(obj.accelType,'mims') && obj.hasMims)                        
+                        dataStruct = dataStruct.accel.mims;
+                        classifyObj = PAClassifyMIMS();
                     else                        
                         classifyObj = PAClassifyCounts();% %obj.classifyUsageState(dataStruct.(axesName));
                         dataStruct = dataStruct.accel.count;
@@ -2661,7 +2646,9 @@ classdef PASensorData < PAData
                     end
                 else
                     didClassify = false;
-                    fprintf(1,'No data available to classify the usage state with.\n');
+                    obj.usage.(obj.accelType) = [];
+                     obj.usage.(axesName) = zeros(size(dataStruct.(axesName))); 
+                    fprintf(1,'Usage state is not classified for ''%s'' data\n', obj.accelType);
                 end
                 
             catch me
@@ -3754,14 +3741,42 @@ classdef PASensorData < PAData
             pStruct.visible.timeSeries = overwriteEmptyStruct(timeSeriesStruct,visibility);
 
             % yDelta = 1/20 of the vertical screen space (i.e. 20 can fit)
-            pStruct.offset.timeSeries.accel.raw.x = pStruct.yDelta*1;
-            pStruct.offset.timeSeries.accel.raw.y = pStruct.yDelta*4;
-            pStruct.offset.timeSeries.accel.raw.z = pStruct.yDelta*7;
-            pStruct.offset.timeSeries.accel.raw.vecMag = pStruct.yDelta*10;
-            pStruct.offset.timeSeries.accel.count.x = pStruct.yDelta*1;
-            pStruct.offset.timeSeries.accel.count.y = pStruct.yDelta*4;
-            pStruct.offset.timeSeries.accel.count.z = pStruct.yDelta*7;
-            pStruct.offset.timeSeries.accel.count.vecMag = pStruct.yDelta*10;
+            yOffsets.x = pStruct.yDelta*1;
+            yOffsets.y = pStruct.yDelta*4;
+            yOffsets.z = pStruct.yDelta*7;
+            yOffsets.vecMag = pStruct.yDelta*10;
+            
+            colors.x = 'r';
+            colors.y = 'g';
+            colors.z = 'b';
+            colors.vecMag = 'k';
+            
+            scales.x = 10;
+            scales.y = 10;
+            scales.z = 10;            
+            scales.vecMag = 10;
+            
+            accelTypes = {'raw','count','mims'};
+            for a=1:numel(accelTypes)
+                accelType = accelTypes{a};                
+                pStruct.offset.timeseries.accel.(accelType) = yOffsets;
+                pStruct.color.timeSeries.accel.(accelType) = colors;
+                pStruct.scale.timeSeries.accel.(accelType) = scales;
+            end
+            
+             pStruct.scale.timeSeries.accel.count.x = 1;
+             pStruct.scale.timeSeries.accel.count.y = 1;
+             pStruct.scale.timeSeries.accel.count.z = 1;
+             pStruct.scale.timeSeries.accel.count.vecMag = 1;
+            
+%             pStruct.offset.timeSeries.accel.raw.x = pStruct.yDelta*1;
+%             pStruct.offset.timeSeries.accel.raw.y = pStruct.yDelta*4;
+%             pStruct.offset.timeSeries.accel.raw.z = pStruct.yDelta*7;
+%             pStruct.offset.timeSeries.accel.raw.vecMag = pStruct.yDelta*10;
+%             pStruct.offset.timeSeries.accel.count.x = pStruct.yDelta*1;
+%             pStruct.offset.timeSeries.accel.count.y = pStruct.yDelta*4;
+%             pStruct.offset.timeSeries.accel.count.z = pStruct.yDelta*7;
+%             pStruct.offset.timeSeries.accel.count.vecMag = pStruct.yDelta*10;
             pStruct.offset.timeSeries.steps = pStruct.yDelta*14;
             pStruct.offset.timeSeries.lux = pStruct.yDelta*15;
             pStruct.offset.timeSeries.inclinometer.standing = pStruct.yDelta*19.0;
@@ -3769,15 +3784,15 @@ classdef PASensorData < PAData
             pStruct.offset.timeSeries.inclinometer.lying = pStruct.yDelta*17.5;
             pStruct.offset.timeSeries.inclinometer.off = pStruct.yDelta*16.75;
 
-
-            pStruct.color.timeSeries.accel.raw.x = 'r';
-            pStruct.color.timeSeries.accel.raw.y = 'g';
-            pStruct.color.timeSeries.accel.raw.z = 'b';
-            pStruct.color.timeSeries.accel.raw.vecMag = 'k';
-            pStruct.color.timeSeries.accel.count.x = 'r';
-            pStruct.color.timeSeries.accel.count.y = 'g';
-            pStruct.color.timeSeries.accel.count.z = 'b';
-            pStruct.color.timeSeries.accel.count.vecMag = 'k';
+            
+%             pStruct.color.timeSeries.accel.raw.x = 'r';
+%             pStruct.color.timeSeries.accel.raw.y = 'g';
+%             pStruct.color.timeSeries.accel.raw.z = 'b';
+%             pStruct.color.timeSeries.accel.raw.vecMag = 'k';
+%             pStruct.color.timeSeries.accel.count.x = 'r';
+%             pStruct.color.timeSeries.accel.count.y = 'g';
+%             pStruct.color.timeSeries.accel.count.z = 'b';
+%             pStruct.color.timeSeries.accel.count.vecMag = 'k';
             pStruct.color.timeSeries.steps = 'm'; %[1 0.5 0.5];
             pStruct.color.timeSeries.lux = 'y';
             pStruct.color.timeSeries.inclinometer.standing = 'k';
@@ -3788,14 +3803,14 @@ classdef PASensorData < PAData
             % Scale to show at
             % Increased scale used for raw acceleration data so that it can be
             % seen more easily.
-            pStruct.scale.timeSeries.accel.raw.x = 10;
-            pStruct.scale.timeSeries.accel.raw.y = 10;
-            pStruct.scale.timeSeries.accel.raw.z = 10;
-            pStruct.scale.timeSeries.accel.raw.vecMag = 10;
-            pStruct.scale.timeSeries.accel.count.x = 1;
-            pStruct.scale.timeSeries.accel.count.y = 1;
-            pStruct.scale.timeSeries.accel.count.z = 1;
-            pStruct.scale.timeSeries.accel.count.vecMag = 1;
+%             pStruct.scale.timeSeries.accel.raw.x = 10;
+%             pStruct.scale.timeSeries.accel.raw.y = 10;
+%             pStruct.scale.timeSeries.accel.raw.z = 10;
+%             pStruct.scale.timeSeries.accel.raw.vecMag = 10;
+%             pStruct.scale.timeSeries.accel.count.x = 1;
+%             pStruct.scale.timeSeries.accel.count.y = 1;
+%             pStruct.scale.timeSeries.accel.count.z = 1;
+%             pStruct.scale.timeSeries.accel.count.vecMag = 1;
             pStruct.scale.timeSeries.steps = 5;
             pStruct.scale.timeSeries.lux = 1;
             pStruct.scale.timeSeries.inclinometer.standing = 5;
@@ -3901,7 +3916,7 @@ classdef PASensorData < PAData
 
             %This takes 2.0 seconds!
             sampledDateNum = datenum(sampledDateVec);
-            [~,IA,~] = intersect(synthDateNum,sampledDateNum);
+            [~,IA,IB] = intersect(synthDateNum,sampledDateNum);
             % c = setdiff(synthDateNum,sampledDateNum);
 
             %This takes 153.7 seconds! - 'rows' option is not as helpful
@@ -3909,9 +3924,9 @@ classdef PASensorData < PAData
             %            [~,IA,~] = intersect(synthDateVec,sampledDateVec,'rows');
             for c=1:numel(orderedDataCell)
                 if(iscell(tmpDataCellOrMatrix))
-                    orderedDataCell{c}(IA) = tmpDataCellOrMatrix{c};
+                    orderedDataCell{c}(IA) = tmpDataCellOrMatrix{c}(IB);
                 else
-                    orderedDataCell{c}(IA) = tmpDataCellOrMatrix(:,c);
+                    orderedDataCell{c}(IA) = tmpDataCellOrMatrix(IB,c);
                 end
             end
         end

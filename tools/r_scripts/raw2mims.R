@@ -1,4 +1,5 @@
-# Enusre we have necessary mims package for the conversion.
+# Ensure we have necessary mims package for the conversion.
+# Uses mims_unit_from_files from MIMSunit package.
 
 # Kudos to Henry - https://stackoverflow.com/questions/9341635/check-for-installed-packages-before-running-install-packages
 mimsPackageName <- "MIMSunit"
