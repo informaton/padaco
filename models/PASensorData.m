@@ -2767,9 +2767,8 @@ classdef PASensorData < PAData
                         dat.accel.(obj.accelType).vecMag = double(obj.accel.(obj.accelType).vecMag(indices));
                     end
 
-                    % Raw accelerometer data does not include these fields
-                    % in their data file.
-                    if(~strcmpi(obj.accelType,'raw'))
+                    % Only counts include these fields in their data file.
+                    if(strcmpi(obj.accelType,'counts'))
                         dat.steps = double(obj.steps(indices));
                         dat.lux = double(obj.lux(indices));
                         dat.inclinometer.standing = double(obj.inclinometer.standing(indices));
@@ -3759,7 +3758,7 @@ classdef PASensorData < PAData
             accelTypes = {'raw','count','mims'};
             for a=1:numel(accelTypes)
                 accelType = accelTypes{a};                
-                pStruct.offset.timeseries.accel.(accelType) = yOffsets;
+                pStruct.offset.timeSeries.accel.(accelType) = yOffsets;
                 pStruct.color.timeSeries.accel.(accelType) = colors;
                 pStruct.scale.timeSeries.accel.(accelType) = scales;
             end
@@ -3768,6 +3767,11 @@ classdef PASensorData < PAData
              pStruct.scale.timeSeries.accel.count.y = 1;
              pStruct.scale.timeSeries.accel.count.z = 1;
              pStruct.scale.timeSeries.accel.count.vecMag = 1;
+             
+             pStruct.scale.timeSeries.accel.mims.x = 100;
+             pStruct.scale.timeSeries.accel.mims.y = 100;
+             pStruct.scale.timeSeries.accel.mims.z = 100;
+             pStruct.scale.timeSeries.accel.mims.vecMag = 100;
             
 %             pStruct.offset.timeSeries.accel.raw.x = pStruct.yDelta*1;
 %             pStruct.offset.timeSeries.accel.raw.y = pStruct.yDelta*4;
@@ -3957,15 +3961,13 @@ classdef PASensorData < PAData
 
             switch structType
                 case 'timeSeries'
-                    accelS.raw.x =[];
-                    accelS.raw.y = [];
-                    accelS.raw.z = [];
-                    accelS.raw.vecMag = [];
-
-                    accelS.count.x =[];
-                    accelS.count.y = [];
-                    accelS.count.z = [];
-                    accelS.count.vecMag = [];
+                    tmp.x = [];
+                    tmp.y = [];
+                    tmp.z = [];
+                    tmp.vecMag = [];
+                    accelS.raw = tmp;
+                    accelS.count = tmp;
+                    accelS.mims = tmp;
 
                     incl.standing = [];
                     incl.sitting = [];
