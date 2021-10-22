@@ -394,8 +394,7 @@ classdef PASingleStudyController < PAViewController
                         curStructName = fnames{f};
                         recurseHandleInit(obj.labelhandle.(curStructName), allProps);
                         recurseHandleInit(obj.referencelinehandle.(curStructName), allProps);
-                        recurseHandleInit(obj.linehandle.(curStructName), allProps);
-                        
+                        recurseHandleInit(obj.linehandle.(curStructName), allProps);                        
                     end
                 end
                 obj.setSetting('displayType',displayTypeStr);                
