@@ -1567,6 +1567,7 @@ classdef PASensorData < PAData
                         
                         % MIMS_UNIT is the sum of x, y, and z.
                         scanFormat = '%{yyyy-MM-dd HH:mm:ss.SSS}D%f%f%f%f';
+                        scanFormat = '%{yyyy-MM-dd HH:mm:ss}D%f%f%f%f';
                         % frewind(fid);
                         for f=1:headerLines
                             fgetl(fid);

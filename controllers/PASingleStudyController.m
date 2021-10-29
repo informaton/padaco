@@ -2809,7 +2809,13 @@ classdef PASingleStudyController < PAViewController
                     normalizedFeatureVector = double(normalizedFeatureVector);
                 end
 
-                smoothY = filtfilt(b,1,normalizedFeatureVector);
+                try
+                    smoothY = filtfilt(b,1,normalizedFeatureVector);
+                catch me
+                    fprintf(1,'Warning - exception caught when trying to smooth feature overlay plot;\n');
+                    smoothY = featureVector;
+                end
+                
             else
                 smoothY = normalizedFeatureVector;
             end

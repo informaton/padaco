@@ -32,7 +32,12 @@ if(useSmoothing)
     if(~isa(featureVector,'double'))
         featureVector = double(featureVector);
     end
-    smoothY = filtfilt(b,1,featureVector);
+    try
+        smoothY = filtfilt(b,1,featureVector);
+    catch me
+        fprintf(1,'Warning - exception caught when trying to smooth feature overlay plot;\n');
+        smoothY = featureVector;
+    end
 else
     smoothY = featureVector;
 end
