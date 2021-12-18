@@ -44,7 +44,7 @@ classdef PASingleStudyController < PAViewController
        %> @brief The number of items to be displayed in the secondary
         %> axes.
         numViewsInSecondaryDisplay;
-        %> @brief Identifies the acceleration type ('raw' or 'count' [default])
+        %> @brief Identifies the acceleration type ('mims', 'raw' or 'count' [default])
         %> displayed in the primary and secondary axes.  This is controlled
         %> by the users signal selection via GUI dropdown menu.  See
         %> updateSecondaryFeaturesDisplayCallback
@@ -394,8 +394,7 @@ classdef PASingleStudyController < PAViewController
                         curStructName = fnames{f};
                         recurseHandleInit(obj.labelhandle.(curStructName), allProps);
                         recurseHandleInit(obj.referencelinehandle.(curStructName), allProps);
-                        recurseHandleInit(obj.linehandle.(curStructName), allProps);
-                        
+                        recurseHandleInit(obj.linehandle.(curStructName), allProps);                        
                     end
                 end
                 obj.setSetting('displayType',displayTypeStr);                
@@ -799,14 +798,21 @@ classdef PASingleStudyController < PAViewController
                 % many of the selected widgets.
                 
                 obj.showBusy('Initializing View','all');
-                
+                                    
                 obj.initSignalSelectionMenu();
                 
+                
                 curAccelType = obj.getAccelType();
-                if(any(strcmpi(curAccelType, {'all','raw'})))
-                    obj.accelTypeShown = 'raw';
-                else
-                    obj.accelTypeShown = 'count';
+                switch lower(curAccelType)
+                    case {'all','raw'}
+                        obj.accelTypeShown = 'raw';
+                    case 'count'
+                        obj.accelTypeShown = 'count';
+                    case 'mims'
+                        obj.accelTypeShown = 'mims';
+                    otherwise
+                        obj.logWarning('Unknown type ''%s''.  Using ''count'' instead.', curAccelType);
+                        obj.accelTypeShown = 'count';
                 end
                 
                 obj.initView();                
@@ -814,7 +820,7 @@ classdef PASingleStudyController < PAViewController
                 
                 % Go ahead and extract features using current settings.  This
                 % is good because then we can use
-                obj.showBusy('Calculating features','all');                
+                obj.showBusy('Calculating features','all');
                 obj.accelObj.extractFeature(obj.getSignalSelection(),'all');
                 
                 % This was disabled until the first time features are
@@ -823,7 +829,7 @@ classdef PASingleStudyController < PAViewController
                 obj.enableFeatureRadioButton();
                 
                 % set the display to show time series data initially.
-                displayStructName = 'timeSeries';                
+                displayStructName = 'timeSeries';
                 obj.setDisplayType(displayStructName);
                 
                 
@@ -831,10 +837,10 @@ classdef PASingleStudyController < PAViewController
                 
                 % Update the secondary axes
                 % Items to display = 8 when count or all views exist.
-                if(strcmpi(obj.getAccelType(),'raw'))
-                    obj.numViewsInSecondaryDisplay = 7;
+                if(strcmpi(obj.getAccelType(),'count') || strcmpi(obj.getAccelType(),'all'))
+                    obj.numViewsInSecondaryDisplay = 8;
                 else
-                    obj.numViewsInSecondaryDisplay = 8;                    
+                    obj.numViewsInSecondaryDisplay = 7;                    
                 end
                 
                 % Items 1-5
@@ -868,7 +874,7 @@ classdef PASingleStudyController < PAViewController
                 
                 numFrames = obj.getFrameCount();
                 
-                if(~strcmpi(obj.getAccelType(),'raw'))
+                if strcmpi(curAccelType, 'all') || strcmpi(curAccelType, 'count')
                     % Next, add lumens intensity to secondary axes
                     heightOffset = heightOffset+height;
                     maxLumens = 250;
@@ -899,10 +905,11 @@ classdef PASingleStudyController < PAViewController
             
             % Show this regardless of whether we have something to show or
             % not
-            if(strcmpi(obj.accelObj.getAccelType(),'raw'))
-                ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Daylight'};
-            else
+            curAccelType = obj.getAccelType();
+            if strcmpi(curAccelType, 'raw') || strcmpi(curAccelType, 'all')
                 ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Lumens','Daylight'};
+            else
+                ytickLabel = {'X','Y','Z','|X,Y,Z|','|X,Y,Z|','Activity','Daylight'};                
             end
             
             axesProps.secondary.ytick = getTicksForLabels(ytickLabel);
@@ -1855,12 +1862,12 @@ classdef PASingleStudyController < PAViewController
                 end
                 
                 %axesHeight = 1;
-                if(strcmpi(obj.getAccelType(),'raw'))
+                if any(strcmpi(obj.getAccelType(),{'count','all'}))
+                    ytickLabels = [ytickLabels,'Activity','Lumens','Daylight'];
+                else
                     ytickLabels = [ytickLabels,'Activity','Daylight'];
                     %                 deltaHeight = 1/(numViews+1);
-                    %                 heightOffset = deltaHeight/2;
-                else
-                    ytickLabels = [ytickLabels,'Activity','Lumens','Daylight'];
+                    %                 heightOffset = deltaHeight/2;                    
                 end
                 
                 deltaHeight = 1/numViews;
@@ -2057,17 +2064,31 @@ classdef PASingleStudyController < PAViewController
         % --------------------------------------------------------------------
         function initSignalSelectionMenu(obj)
             [tagLines,labels] = PASensorData.getDefaultTagLineLabels();
-            offAccelType = obj.accelObj.getOffAccelType();
-            if(~isempty(offAccelType))
-                cellIndices = strfind(tagLines,offAccelType);
+            accelType = obj.getAccelType;
+            if isempty(accelType) || strcmpi(accelType, 'none')
+                set(obj.menuhandle.signalSelection,'string','Nothing loaded','userdata',[],'value',0);
+            else
+                
+                cellIndices = strfind(tagLines,accelType);
                 pruneIndices = false(size(cellIndices));
                 for k=1:numel(cellIndices)
-                    pruneIndices(k) = ~isempty(cellIndices{k});
+                    pruneIndices(k) = isempty(cellIndices{k});
                 end
                 labels(pruneIndices) = [];
-                tagLines(pruneIndices) = [];
+                tagLines(pruneIndices) = [];                
+                set(obj.menuhandle.signalSelection,'string',labels,'userdata',tagLines,'value',1);                
             end
-            set(obj.menuhandle.signalSelection,'string',labels,'userdata',tagLines,'value',1);
+%             offAccelType = obj.accelObj.getOffAccelType();
+%             if(~isempty(offAccelType))
+%                 cellIndices = strfind(tagLines,offAccelType);
+%                 pruneIndices = false(size(cellIndices));
+%                 for k=1:numel(cellIndices)
+%                     pruneIndices(k) = ~isempty(cellIndices{k});
+%                 end
+%                 labels(pruneIndices) = [];
+%                 tagLines(pruneIndices) = [];
+%             end
+%             set(obj.menuhandle.signalSelection,'string',labels,'userdata',tagLines,'value',1);
         end
         
         % --------------------------------------------------------------------
@@ -2788,7 +2809,13 @@ classdef PASingleStudyController < PAViewController
                     normalizedFeatureVector = double(normalizedFeatureVector);
                 end
 
-                smoothY = filtfilt(b,1,normalizedFeatureVector);
+                try
+                    smoothY = filtfilt(b,1,normalizedFeatureVector);
+                catch me
+                    fprintf(1,'Warning - exception caught when trying to smooth feature overlay plot;\n');
+                    smoothY = featureVector;
+                end
+                
             else
                 smoothY = normalizedFeatureVector;
             end

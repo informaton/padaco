@@ -1,9 +1,10 @@
-# Enusre we have necessary mims package for the conversion.
+# Ensure we have necessary mims package for the conversion.
+# Uses mims_unit_from_files from MIMSunit package.
 
 # Kudos to Henry - https://stackoverflow.com/questions/9341635/check-for-installed-packages-before-running-install-packages
 mimsPackageName <- "MIMSunit"
 if(mimsPackageName %in% rownames(installed.packages()) == FALSE) {
-  # install.packages(mimsPackageName)  
+  # install.packages(mimsPackageName)
   # remove.packages(mimsPackageName)
   if(!require(devtools)) install.packages("devtools")
   repo = paste('informaton', mimsPackageName, sep='/')
@@ -33,9 +34,9 @@ ext_pattern <- function(ext){
 raw2mims <- function(raw_file, raw_pathname, mims_pathname){
   mims_file = file.path(mims_pathname, paste(tools::file_path_sans_ext(raw_file),'.', mims_ext, sep=''))
   cat(raw_file) #, fill = TRUE)
-  
+
   if(file.exists(mims_file) & !SKIP_EXISTING_OUTPUT){
-    cat(' - SKIPPING.  Conversion file exists:',mims_file)  
+    cat(' - SKIPPING.  Conversion file exists:',mims_file)
   }
   else{
     cat(' - Converting ...')
@@ -91,12 +92,12 @@ if(USE_PARALLEL){
     foreach(i = 1:length(raw_files), .combine=cbind) %dopar% {
       raw2mims(raw_file[i], raw_pathname, mims_pathname)
     })[3]
-  
+
   cat('going parallel')
   # show the number of parallel workers to be used
   getDoParWorkers()
   parallel_time
-  
+
 }else{
   for(raw_file in raw_files){
     raw2mims(raw_file, raw_pathname, mims_pathname)
