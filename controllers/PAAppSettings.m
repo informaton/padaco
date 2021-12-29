@@ -179,8 +179,9 @@ classdef  PAAppSettings < PASettings
                 end
             end
         end
-        
         function loadDictionary(obj)
+            x.statTool = 'Statistics Tool';
+            x.singleStudy = 'Single Study';            
             x.curSignal = 'Signal of interest';
             x.plotType = 'Plot type';
             x.numShades = 'Number of shades for heatmap';
@@ -276,8 +277,7 @@ classdef  PAAppSettings < PASettings
             % x.filter_inf_file = 'Filter settings file';
             x.database_inf_file = 'Database credentials file';
             x.loadOutcomesOnStartup = {'Load outcomes file on startup when present','[0], 1'};
-            obj.dictionary = x;
-            
+            obj.setDictionary(x);             
         end
 
         % --------------------------------------------------------------------

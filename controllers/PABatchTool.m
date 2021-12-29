@@ -419,12 +419,12 @@ classdef PABatchTool < PAFigureFcnController
                 % signal, place groupings into feature function directories
                 
                 
-                this.setSetting('alignment.elapsedStartHours',0); %when to start the first measurement
-                this.setSetting('alignment.intervalLengthHours',24);  %duration of each interval (in hours) once started
+                this.setSetting('alignment','elapsedStartHours',0); %when to start the first measurement
+                this.setSetting('alignment','intervalLengthHours',24);  %duration of each interval (in hours) once started
                 
                 % setup developer friendly variable names
-                elapsedStartHour  = this.getSetting('alignment.elapsedStartHours');
-                intervalDurationHours = this.getSetting('alignment.intervalLengthHours');
+                elapsedStartHour  = this.getSetting('alignment','elapsedStartHours');
+                intervalDurationHours = this.getSetting('alignment','intervalLengthHours');
                 maxNumIntervals = 24/intervalDurationHours*maximumDaysAllowed;  %set maximum to a week
                 %this.setSetting('alignment.singalName = 'X';
                 
@@ -951,7 +951,7 @@ classdef PABatchTool < PAFigureFcnController
                     featureFcns = fieldnames(PASensorData.getFeatureDescriptionStruct()); %spits field-value pairs of feature names and feature description strings
                     featureDesc = PASensorData.getExtractorDescriptions();  %spits out the string values
                     
-                    featureFcns = [featureFcns; 'all_sans_psd';'all_sans_psd_usagestate','all'];
+                    featureFcns = [featureFcns; 'all_sans_psd';'all_sans_psd_usagestate';'all'];
                     featureLabels = [featureDesc;'All (sans PSD)';'All (sans PSD and activity categories)'; 'All'];
                     
                     
@@ -990,7 +990,7 @@ classdef PABatchTool < PAFigureFcnController
             
             startDateTime = datestr(now,'ddmmmyyyy_HHMM');
             
-            summaryFilename = strrep(settings.summaryFilename,'@TIMESTAMP',startDateTime);
+            summaryFilename = strrep(char(settings.summaryFilename),'@TIMESTAMP',startDateTime);
             
             isormkdir(featurePathname);
             isormkdir(unalignedFeaturePathname);
@@ -1004,28 +1004,28 @@ classdef PABatchTool < PAFigureFcnController
             end
             fprintf(summaryFID,'studyID, study_filename, total day count, complete day count, incomplete day count, counts per minute (x), counts per minute (y), counts per minute (z), counts per minute (vec magnitude)\n');
             
-            logFilename = strrep(settings.logFilename,'@TIMESTAMP',startDateTime);
-            logFullFilename = fullfile(settings.outputDirectory,logFilename);
+            logFilename = strrep(char(settings.logFilename),'@TIMESTAMP',startDateTime);
+            logFullFilename = fullfile(char(settings.outputDirectory),logFilename);
             
             logFID = fopen(logFullFilename,'w');
             if(logFID<0)
                 fprintf(1,'Cannot open or create the log file: %s\nSending log output to the console.\n',logFullFilename);
                 logFID = 1;
             end
-            versionStr = PAController.getVersionInfo('num');
+            versionStr = PAAppController.getVersionInfo('num');
             fprintf(logFID,'Padaco batch processing log\nStart time:\t%s\n',startDateTime);
             fprintf(logFID,'Padaco version %s\n',versionStr);
-            fprintf(logFID,'Source directory:\t%s\n',settings.sourceDirectory);
-            fprintf(logFID,'Output directory:\t%s\n',settings.outputDirectory);
+            fprintf(logFID,'Source directory:\t%s\n',char(settings.sourceDirectory));
+            fprintf(logFID,'Output directory:\t%s\n',char(settings.outputDirectory));
             fprintf(logFID,'Aligned features (for clustering):\t%s\n',featurePathname);
             fprintf(logFID,'Original features (for clustering):\t%s\n',unalignedFeaturePathname);
             
-            fprintf(logFID,'Features:\t%s\n',settings.featureLabel);
-            fprintf(logFID,'Frame duration (minutes):\t%0.2f\n',settings.frameDurationMinutes);
+            fprintf(logFID,'Features:\t%s\n',char(settings.featureLabel));
+            fprintf(logFID,'Frame duration (minutes):\t%0.2f\n',char(settings.frameDurationMinutes));
             
             fprintf(logFID,'Alignment settings:\n');
-            fprintf(logFID,'\tElapsed start (hours):\t%u\n',settings.alignment.elapsedStartHours);
-            fprintf(logFID,'\tInterval length (hours):\t%u\n',settings.alignment.intervalLengthHours);
+            fprintf(logFID,'\tElapsed start (hours):\t%u\n',char(settings.alignment.elapsedStartHours));
+            fprintf(logFID,'\tInterval length (hours):\t%u\n',char(settings.alignment.intervalLengthHours));
             fprintf(logFID,'Summary file:\t%s\n',summaryFullFilename);
         end 
         

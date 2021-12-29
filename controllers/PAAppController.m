@@ -972,7 +972,7 @@ classdef PAAppController < PAFigureController
             try
                 featuresPath = obj.AppSettings.BatchMode.outputDirectory.value;
                 if(isdir(featuresPath))
-                    obj.featuresPathname = featuresPath;
+                    obj.setFeaturesPathname(featuresPath);
                 end
             catch me
                 showME(me);

@@ -3270,7 +3270,6 @@ classdef PASensorData < PAData
             pStruct.offset.timeSeries.inclinometer.lying = pStruct.yDelta*17.5;
             pStruct.offset.timeSeries.inclinometer.off = pStruct.yDelta*16.75;
 
-
             pStruct.color.timeSeries.accel.raw.x = 'r';
             pStruct.color.timeSeries.accel.raw.y = 'g';
             pStruct.color.timeSeries.accel.raw.z = 'b';

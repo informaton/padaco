@@ -20,6 +20,8 @@ classdef  PASettings < handle
     
     properties(SetAccess=protected)         
         dictionary = struct();
+        lexicon; % fieldnames of dictionary (lower-case)
+        
         %> @brief name of text file that stores the toolkit's settings
         parameters_filename = '.pasettings';
         
@@ -59,9 +61,16 @@ classdef  PASettings < handle
         function loadDictionary(varargin)                    
         end
         
+        function setDictionary(obj, dictionaryStruct)
+            obj.dictionary = dictionaryStruct;
+            obj.lexicon = fieldnames(obj.dictionary);
+        end
+        
         function def = getDefinition(obj, word)
-            if(isfield(obj.dictionary,word))
-                def = obj.dictionary.(word);
+            matches = find(strcmpi(word, obj.lexicon),1,'first');
+            if ~isempty(matches)
+                tag = obj.lexicon{matches};
+                def = obj.dictionary.(tag);                
             else
                 def = strrep(word,'_',' ');
                 def(1) = upper(def(1)); % make an attempt at sentence casing.

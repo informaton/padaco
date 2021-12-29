@@ -58,22 +58,22 @@ classdef PASettingsEditor < PAFigureFcnController
                         pathBtnProps.callback = @this.pathBtnCb;
                         
                         for t = 1:numel(tabs)
-                            settingName = tabs{t};
-                            
-                            setting = this.settings.(settingName);
+                            settingTag = tabs{t};
+                            settingTitle = this.settings.getDefinition(settingTag);
+                            setting = this.settings.(settingTag);
                             if(isstruct(setting))
                                 
                                 keys = fieldnames(setting);
                                 numKeys = numel(keys);
                                 
-                                if(numKeys==0 || strcmpi(settingName,'SensorData'))
+                                if(numKeys==0 || strcmpi(settingTag,'SensorData'))
                                     fprintf('skipping sensor data')
                                     break;
                                     continue;
                                 end
                                 
                                 parent = uitab(this.handles.tabgroup,...
-                                    'title',settingName,'tag',sprintf('tag_%d',t));
+                                    'title',settingTitle,'tag',sprintf('tag_%d',t));
                                 
                                 % if we have too many keys to fit, then
                                 % need to place everything in a scrollable
