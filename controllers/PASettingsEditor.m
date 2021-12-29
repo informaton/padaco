@@ -30,6 +30,7 @@ classdef PASettingsEditor < PAFigureFcnController
             didInit = false;
             if(ishandle(this.figureH))
                 try
+                    set(this.figureH, 'CloseRequestFcn', @this.closereq)
                     set([this.handles.push_apply
                         this.handles.push_cancel
                         this.handles.push_defaults],'callback',@this.buttonCb);
@@ -67,8 +68,7 @@ classdef PASettingsEditor < PAFigureFcnController
                                 keys = fieldnames(setting);
                                 numKeys = numel(keys);
                                 
-
-                                if(numKeys==0 || strcmpi(settingName,'SensorData'))
+                                if(numKeys==0 || strcmpi(settingTag,'SensorData'))
                                     fprintf('Skipping sensor data.\n')
                                     % don't want to include the other settings after this right now.  
                                     break;
@@ -312,7 +312,12 @@ classdef PASettingsEditor < PAFigureFcnController
                 set(pathEditH,'string',newPath);
             end
         end
-        
+        function closereq(this, figureH, evtData)
+            fprintf('Settings configuration canceled\n');
+            this.settings = [];
+            delete(this.figureH);
+            
+        end
         function buttonCb(this, hButton, evtData)
             buttTag = get(hButton,'tag');
             switch(strrep(buttTag,'push_',''))

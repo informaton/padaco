@@ -414,16 +414,13 @@ classdef PAAppController < PAFigureController
         %> @param optionalSettingsName String specifying the settings to
         %> update (optional)
         % --------------------------------------------------------------------
-        function menuFileSettingsApplicationCallback(obj,~,~,optionalSettingsName)
-            if(nargin<4)
-                optionalSettingsName = [];
-            end
+        function menuFileSettingsApplicationCallback(obj,varargin)            
             
             % Need to refresh the current settings
             obj.refreshAppSettings();
             settingsEditor = PASettingsEditor(obj.AppSettings);
             
-            %wasModified = obj.AppSettings.defaultsEditor(optionalSettingsName);
+            %wasModified = obj.AppSettings.defaultsEditor('Settings');
             
             wasCanceled = isempty(settingsEditor.settings);
             if(~wasCanceled)

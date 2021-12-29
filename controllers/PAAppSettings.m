@@ -180,7 +180,7 @@ classdef  PAAppSettings < PASettings
             end
         end
         function loadDictionary(obj)
-            x.statTool = 'Statistics Tool';
+            x.statTool = 'Clustering';
             x.singleStudy = 'Single Study';            
             x.curSignal = 'Signal of interest';
             x.plotType = 'Plot type';
