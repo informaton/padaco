@@ -29,6 +29,14 @@ classdef PAStatTool < PAViewController
         bootstrapIterations;
         bootstrapSampleName;
         
+        %> structure containing Usage Activity feature output by padaco's batch tool.
+        %> This is used to obtain removal indices when loading data (i.e.
+        %> non-wear/study over state)
+        usageStateStruct;
+        
+        %> Struct for holding choi nonwear results.        
+        choiNonwearStruct;
+
         nonwear = struct('method','padaco','rows',[])
         exclusionsFilename = PAFilenameParam();
         
@@ -37,14 +45,6 @@ classdef PAStatTool < PAViewController
         %> pressed/manipulated.
         featureStruct;
         
-        %> structure containing Usage Activity feature output by padaco's batch tool.
-        %> This is used to obtain removal indices when loading data (i.e.
-        %> non-wear/study over state)
-        usageStateStruct;
-        
-        %> Struct for holding choi nonwear results.
-        
-        choiNonwearStruct;
         %> struct of handles that PAStatTool interacts with.  Inherited from PABase
         %>  See initHandles()
         %> Includes contextmenu

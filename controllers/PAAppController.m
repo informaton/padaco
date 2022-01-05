@@ -229,6 +229,8 @@ classdef PAAppController < PAFigureController
             % settings and about
             safeset(figHandles,'menu_file_about',menuCbKey,@obj.menuFileAboutCallback);
             safeset(figHandles,'menu_file_settings_application',menuCbKey,@obj.menuFileSettingsApplicationCallback);
+            safeset(figHandles,'menu_file_settings_nonwear',menuCbKey,@obj.nonwearSettingsCb);
+            
             safeset(figHandles,'menu_file_settings_usageRules',menuCbKey,@obj.menuFileSettingsUsageRulesCallback);
             safeset(figHandles,'menu_load_settings',menuCbKey,@obj.menuFileLoadSettingsCb);
             
@@ -442,6 +444,45 @@ classdef PAAppController < PAFigureController
             end
 
         end
+        
+         % --------------------------------------------------------------------
+        %> @brief Assign figure's menubar callbacks.
+        %> Called internally during class construction.
+        %> @param obj Instance of PAAppController
+        %> @param hObject
+        %> @param eventdata
+        %> @param optionalSettingsName String specifying the settings to
+        %> update (optional)
+        % --------------------------------------------------------------------
+        function nonwearSettingsCb(obj,varargin)            
+            
+            % Need to refresh the current settings
+            obj.refreshAppSettings();
+            settingsEditor = PASettingsEditor(obj.AppSettings);
+            
+            %wasModified = obj.AppSettings.defaultsEditor('Settings');
+            
+            wasCanceled = isempty(settingsEditor.settings);
+            if(~wasCanceled)
+                obj.AppSettings = settingsEditor.settings;  
+                
+                if(strcmpi(obj.getViewMode(),'results'))                
+                    initializeOnSet = true;  % This is necessary to update widgets, which are used in follow on call to saveAppSettings
+                    obj.StatTool.setWidgetSettings(obj.AppSettings.StatTool, initializeOnSet);
+                else
+                    obj.SingleStudy.updateWidgets()
+                end
+                
+                obj.setStatus('Settings have been updated.');
+                % save parameters to disk - this saves many parameters based on gui selection though ...
+                obj.saveAppSettings();
+                
+                % Activate a refresh()
+                obj.setViewMode(obj.getViewMode());                
+            end
+
+        end
+        
         
         % --------------------------------------------------------------------
         %> @brief Assign values for usage state classifier rules.
