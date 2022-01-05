@@ -4533,7 +4533,7 @@ classdef PAStatTool < PAViewController
             
             userSettings.discardNonwearFeatures = get(this.handles.check_discardNonwear,'value'); %this.originalSettings.get('discardNonwearFeatures;
             userSettings.processType = this.base.processedTypes{userSettings.processedTypeSelection};
-            userSettings.baseFeature = this.featureTypes{userSettings.baseFeatureSelection};
+            userSettings.baseFeature = this.base.featureTypes{userSettings.baseFeatureSelection}; % had an issue with this.featureTypes when it was initialized to empty on an incorrect path load
             userSettings.curSignal = this.base.signalTypes{userSettings.signalSelection};
             userSettings.plotType = this.base.plotTypes{userSettings.plotTypeSelection};
             userSettings.titleStr = this.base.plotTypeTitles{userSettings.plotTypeSelection};
