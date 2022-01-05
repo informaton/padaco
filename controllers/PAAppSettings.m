@@ -187,7 +187,8 @@ classdef  PAAppSettings < PASettings
             x.numShades = 'Number of shades for heatmap';
             x.baseFeature = 'Feature function';
             x.clusterDurationHours = 'Cluster length (hours)';
-            
+            x.timeSeries = 'Time Series';
+            x.features = 'Features';
             x.minDaysAllowed= 'Minimum number of days required';
             
             x.clusterMethod = {'Clustering Method','(''kmeans'',''kmedoids'')'};
