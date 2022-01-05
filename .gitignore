@@ -7,8 +7,6 @@ _padaco.parameters.txt
 
 features.mean.txt
 
-disableHandles.m
-
 archive/adaptiveKmeans.m
 
 archive/adaptiveKmeansBulk.m
