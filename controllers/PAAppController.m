@@ -6,10 +6,10 @@
 %
 %> In the model, view, controller paradigm, this is the
 %> controller.
-classdef PAAppController < PAFigureController    
+classdef PAAppController < PAFigureController
     events
-       StatToolCreationSuccess;
-       StatToolCreationFailure;
+        StatToolCreationSuccess;
+        StatToolCreationFailure;
     end
     
     % Mac OSX menubar = 21 pixels (I think)
@@ -50,7 +50,7 @@ classdef PAAppController < PAFigureController
         AppSettings;
         %> Instance of PASingleStudyController - Padaco's view component.
         SingleStudy;
-
+        
         %> Struct of batch settings with fields as described by
         %PABatchTool's getDefault
         % batch;
@@ -78,7 +78,7 @@ classdef PAAppController < PAFigureController
             obj@PAFigureController(hFigure);
             obj.rootpathname = rootPathname;
             %check to see if a settings file exists
-            if(nargin<3)                
+            if(nargin<3)
                 parameters_filename = PAAppSettings().parameters_filename; % '.pasettings'
             end
             
@@ -107,9 +107,9 @@ classdef PAAppController < PAFigureController
             % Create a SingleStudy class
             obj.SingleStudy = PASingleStudyController(obj.figureH, obj.AppSettings.SingleStudy);
             
-            % Create a results class            
+            % Create a results class
             
-            % Load last path on startup? 
+            % Load last path on startup?
             % @issue This is problematic when path has changed or been
             % moved since before, or is not longer valid
             if(obj.getSetting('startWithLastPath'))
@@ -119,7 +119,7 @@ classdef PAAppController < PAFigureController
             end
             obj.StatTool.setIcon(obj.iconFilename);
             obj.StatTool.setOutcomesTable(obj.OutcomesTableData);
-           
+            
             obj.showBusy([],'all');
             set(obj.figureH,'CloseRequestFcn',{@obj.figureCloseCallback,guidata(obj.figureH)});
             
@@ -266,11 +266,11 @@ classdef PAAppController < PAFigureController
             if(~isdeployed)
                 safeset(figHandles,'menu_file_export_sensorDataObj',menuCbKey,@obj.menu_file_export_sensorDataObj_callback);%,'label','Sensor object to MATLAB');
                 safeset(figHandles,'menu_file_export_clusterObj',menuCbKey,@obj.menu_file_export_clusterObj_callback); %,'label','Cluster object to MATLAB');
-            % No point in sending data to the workspace on deployed
-            % version.  There is no 'workspace'.
+                % No point in sending data to the workspace on deployed
+                % version.  There is no 'workspace'.
             else
                 safeset(figHandles,'menu_file_export_sensorDataObj','visible','off');
-                safeset(figHandles,'menu_file_export_clusterObj','visible','off');                
+                safeset(figHandles,'menu_file_export_clusterObj','visible','off');
             end
             
             safeset(figHandles,'menu_file_export_clusters_to_csv',menuCbKey,{@obj.exportClustersCb,'csv'});%, 'label','Cluster results to disk');
@@ -292,12 +292,12 @@ classdef PAAppController < PAFigureController
             %% Help
             safeset(figHandles,'menu_help_faq',menuCbKey,@obj.menuHelpFAQCallback);
             
-            % enable remaining 
+            % enable remaining
             set([
                 figHandles.menu_file
                 figHandles.menu_file_about
                 figHandles.menu_file_settings
-                figHandles.menu_file_open    
+                figHandles.menu_file_open
                 figHandles.menu_file_quit
                 figHandles.menu_viewmode
                 figHandles.menu_help
@@ -306,7 +306,7 @@ classdef PAAppController < PAFigureController
         end
         
         % Activate the tool when it makes sense to do so.
-        function StatToolCreationCallback(this,varargin)            
+        function StatToolCreationCallback(this,varargin)
             if(isa(this.StatTool,'PAStatTool'))
                 set(this.handles.menu_tools_bootstrap,'enable','on');
             else
@@ -344,7 +344,7 @@ classdef PAAppController < PAFigureController
             if(~isempty(a.outcomesFileStruct))
                 this.AppSettings.OutcomesTableSetup = a.getSaveParameters();
                 showLoadStatus = true;
-                this.OutcomesTableData.importWithSettings(this.AppSettings.OutcomesTableSetup, showLoadStatus);                
+                this.OutcomesTableData.importWithSettings(this.AppSettings.OutcomesTableSetup, showLoadStatus);
             else
                 this.logStatus('User cancelled');
             end
@@ -408,15 +408,12 @@ classdef PAAppController < PAFigureController
         end
         
         % --------------------------------------------------------------------
-        %> @brief Assign figure's menubar callbacks.
-        %> Called internally during class construction.
+        %> @brief Callback for application settings
         %> @param obj Instance of PAAppController
         %> @param hObject
         %> @param eventdata
-        %> @param optionalSettingsName String specifying the settings to
-        %> update (optional)
         % --------------------------------------------------------------------
-        function menuFileSettingsApplicationCallback(obj,varargin)            
+        function menuFileSettingsApplicationCallback(obj,varargin)
             
             % Need to refresh the current settings
             obj.refreshAppSettings();
@@ -426,9 +423,9 @@ classdef PAAppController < PAFigureController
             
             wasCanceled = isempty(settingsEditor.settings);
             if(~wasCanceled)
-                obj.AppSettings = settingsEditor.settings;  
+                obj.AppSettings = settingsEditor.settings;
                 
-                if(strcmpi(obj.getViewMode(),'results'))                
+                if(strcmpi(obj.getViewMode(),'results'))
                     initializeOnSet = true;  % This is necessary to update widgets, which are used in follow on call to saveAppSettings
                     obj.StatTool.setWidgetSettings(obj.AppSettings.StatTool, initializeOnSet);
                 else
@@ -440,22 +437,20 @@ classdef PAAppController < PAFigureController
                 obj.saveAppSettings();
                 
                 % Activate a refresh()
-                obj.setViewMode(obj.getViewMode());                
+                obj.setViewMode(obj.getViewMode());
             end
-
+            
         end
         
-         % --------------------------------------------------------------------
-        %> @brief Assign figure's menubar callbacks.
-        %> Called internally during class construction.
+        % --------------------------------------------------------------------
+        %> @brief Callback for nonwear seetings
         %> @param obj Instance of PAAppController
         %> @param hObject
         %> @param eventdata
-        %> @param optionalSettingsName String specifying the settings to
-        %> update (optional)
         % --------------------------------------------------------------------
-        function nonwearSettingsCb(obj,varargin)            
-            
+        function nonwearSettingsCb(obj,varargin)
+            obj.StatTool.selectNonwear();
+            return;
             % Need to refresh the current settings
             obj.refreshAppSettings();
             settingsEditor = PASettingsEditor(obj.AppSettings);
@@ -464,9 +459,9 @@ classdef PAAppController < PAFigureController
             
             wasCanceled = isempty(settingsEditor.settings);
             if(~wasCanceled)
-                obj.AppSettings = settingsEditor.settings;  
+                obj.AppSettings = settingsEditor.settings;
                 
-                if(strcmpi(obj.getViewMode(),'results'))                
+                if(strcmpi(obj.getViewMode(),'results'))
                     initializeOnSet = true;  % This is necessary to update widgets, which are used in follow on call to saveAppSettings
                     obj.StatTool.setWidgetSettings(obj.AppSettings.StatTool, initializeOnSet);
                 else
@@ -478,9 +473,9 @@ classdef PAAppController < PAFigureController
                 obj.saveAppSettings();
                 
                 % Activate a refresh()
-                obj.setViewMode(obj.getViewMode());                
+                obj.setViewMode(obj.getViewMode());
             end
-
+            
         end
         
         
@@ -490,8 +485,6 @@ classdef PAAppController < PAFigureController
         %> @param obj Instance of PAAppController
         %> @param hObject
         %> @param eventdata
-        %> @param optionalSettingsName String specifying the settings to
-        %> update (optional)
         % --------------------------------------------------------------------
         function menuFileSettingsUsageRulesCallback(obj,varargin)
             
@@ -523,7 +516,7 @@ classdef PAAppController < PAFigureController
                 obj.setViewMode(obj.getViewMode());
                 
             end
-        end 
+        end
         
         function menuFileLoadSettingsCb(obj, varargin)
             obj.logStatus('Goes here');
@@ -544,7 +537,7 @@ classdef PAAppController < PAFigureController
                 '*.csv','Comma Separated Values'},...
                 'Select a file',fullfile(obj.SingleStudy.getSetting('pathname'),obj.SingleStudy.getSetting('filename')));
             try
-                if(~isempty(f))                    
+                if(~isempty(f))
                     obj.showBusy('Loading','all');
                     obj.SingleStudy.disableWidgets();
                     [pathname,basename, baseext] = fileparts(f);
@@ -554,10 +547,10 @@ classdef PAAppController < PAFigureController
                     obj.SensorData = PASensorData(f,obj.AppSettings.SensorData);
                     
                     if(~strcmpi(obj.getViewMode(),'timeseries'))
-                        obj.setViewMode('timeseries');  % Call initAccelDataView as well 
+                        obj.setViewMode('timeseries');  % Call initAccelDataView as well
                     else
                         %initialize the PASensorData object's visual properties
-                        obj.initAccelDataView(); %calls show obj.SingleStudy.showReady() Ready...                        
+                        obj.initAccelDataView(); %calls show obj.SingleStudy.showReady() Ready...
                     end
                     
                     % For testing/debugging
@@ -585,7 +578,7 @@ classdef PAAppController < PAFigureController
                 '*.csv','Comma Separated Values';},...
                 'Select a file',fullfile(obj.SingleStudy.getSetting('pathname'),obj.SingleStudy.getSetting('filename')));
             try
-                if(~isempty(f))                    
+                if(~isempty(f))
                     obj.showBusy('Loading','all');
                     obj.SingleStudy.disableWidgets();
                     [pathname,basename, baseext] = fileparts(f);
@@ -595,10 +588,10 @@ classdef PAAppController < PAFigureController
                     obj.SensorData = PASensorData(f,obj.AppSettings.SensorData);
                     
                     if(~strcmpi(obj.getViewMode(),'timeseries'))
-                        obj.setViewMode('timeseries');  % Call initAccelDataView as well 
+                        obj.setViewMode('timeseries');  % Call initAccelDataView as well
                     else
                         %initialize the PASensorData object's visual properties
-                        obj.initAccelDataView(); %calls show obj.SingleStudy.showReady() Ready...                        
+                        obj.initAccelDataView(); %calls show obj.SingleStudy.showReady() Ready...
                     end
                     
                     % For testing/debugging
@@ -630,7 +623,7 @@ classdef PAAppController < PAFigureController
                 '*.gt3x','Raw GT3X binary'},...
                 'Select a file',fullfile(obj.SingleStudy.getSetting('pathname'),obj.SingleStudy.getSetting('filename')));
             try
-                if(~isempty(f))                    
+                if(~isempty(f))
                     obj.showBusy('Loading','all');
                     obj.SingleStudy.disableWidgets();
                     [pathname,basename, baseext] = fileparts(f);
@@ -640,10 +633,10 @@ classdef PAAppController < PAFigureController
                     obj.SensorData = PASensorData(f,obj.AppSettings.SensorData);
                     
                     if(~strcmpi(obj.getViewMode(),'timeseries'))
-                        obj.setViewMode('timeseries');  % Call initAccelDataView as well 
+                        obj.setViewMode('timeseries');  % Call initAccelDataView as well
                     else
                         %initialize the PASensorData object's visual properties
-                        obj.initAccelDataView(); %calls show obj.SingleStudy.showReady() Ready...                        
+                        obj.initAccelDataView(); %calls show obj.SingleStudy.showReady() Ready...
                     end
                     
                     % For testing/debugging
@@ -737,7 +730,7 @@ classdef PAAppController < PAFigureController
                     fmtStruct.fieldOrder = {'datetime','x','y','z'};
                     fmtStruct.headerLines = 2;
                     
-                    obj.SensorData.loadCustomRawCSVFile(f,fmtStruct); % two header lines %elapsed time stamp, x, y, z 
+                    obj.SensorData.loadCustomRawCSVFile(f,fmtStruct); % two header lines %elapsed time stamp, x, y, z
                     
                     if(~strcmpi(obj.getViewMode(),'timeseries'))
                         obj.setViewMode('timeseries');
@@ -749,7 +742,7 @@ classdef PAAppController < PAFigureController
             catch me
                 showME(me);
                 obj.SingleStudy.showReady('all');
-            end          
+            end
         end
         
         % --------------------------------------------------------------------
@@ -764,7 +757,7 @@ classdef PAAppController < PAFigureController
                 'Select a file',fullfile(obj.AppSettings.SensorData.pathname,obj.AppSettings.SensorData.filename));
             try
                 if(~isempty(f))
- 
+                    
                     obj.showBusy('Loading','all');
                     [pathname,basename, baseext] = fileparts(f);
                     obj.AppSettings.SensorData.pathname = pathname;
@@ -789,7 +782,7 @@ classdef PAAppController < PAFigureController
             catch me
                 showME(me);
                 obj.SingleStudy.showReady('all');
-            end            
+            end
         end
         
         % --------------------------------------------------------------------
@@ -819,9 +812,9 @@ classdef PAAppController < PAFigureController
                         % Need to update the settings from the GUI, otherwise
                         % the initial settings will be used that were last saved
                         % which are not necessarily the ones shown to the user at
-                        % this moment, which can be frustrating to see change.                        
+                        % this moment, which can be frustrating to see change.
                         obj.StatTool.updateSettingsFromGUI();
-                    end                    
+                    end
                     obj.showBusy('Initializing results view','all');
                     obj.setFeaturesPathnameAndUpdate(featuresPath);
                     if(obj.initResultsView())
@@ -843,7 +836,7 @@ classdef PAAppController < PAFigureController
                 %waitfor(f);
                 makeModal = true;
                 msg = sprintf('An error occurred while trying to load the feature set.\nSee the console log for details.');
-                pa_msgbox(msg,'Warning!',makeModal);           
+                pa_msgbox(msg,'Warning!',makeModal);
                 obj.showReady();
             end
         end
@@ -918,7 +911,7 @@ classdef PAAppController < PAFigureController
                 curHandles.menu_export_timeseries_to_disk];
             resultsH = [curHandles.menu_file_export_clusterObj;
                 curHandles.menu_file_export_clusters_to_csv];
-                    
+            
             set([timeSeriesH(:);resultsH(:)],'enable','off');
             switch lower(this.getViewMode())
                 case 'timeseries'
@@ -926,13 +919,13 @@ classdef PAAppController < PAFigureController
                         set(timeSeriesH,'enable','off');
                     else
                         set(timeSeriesH,'enable','on');
-                    end                    
+                    end
                 case 'results'
                     if(isempty(this.StatTool) || ~this.StatTool.hasCluster())
                         set(resultsH,'enable','off');
                     else
                         set(resultsH,'enable','on');
-                    end                       
+                    end
                 otherwise
             end
         end
@@ -977,7 +970,7 @@ classdef PAAppController < PAFigureController
             titleStr = 'Data Export';
             try
                 assignin('base',varName,centroidObj);
-                pa_msgbox(sprintf('Cluster object was assigned to workspace variable %s',varName),titleStr,makeModal);                
+                pa_msgbox(sprintf('Cluster object was assigned to workspace variable %s',varName),titleStr,makeModal);
             catch me
                 showME(me);
                 pa_msgbox('An error occurred while trying to export the centroid object to a workspace variable.  See console for details.','Warning',makeModal);
@@ -1037,9 +1030,9 @@ classdef PAAppController < PAFigureController
             
             if(strcmpi(obj.getSetting('viewMode'),viewMode))
                 obj.setStatus('Refreshing %s view',viewMode);
-                obj.showBusy(['Refreshing ',viewMode,' view'],'all'); 
+                obj.showBusy(['Refreshing ',viewMode,' view'],'all');
             else
-                obj.showBusy(['Switching to ',viewMode,' view'],'all');        
+                obj.showBusy(['Switching to ',viewMode,' view'],'all');
                 obj.setSetting('viewMode', viewMode);
             end
             
@@ -1081,7 +1074,7 @@ classdef PAAppController < PAFigureController
         %> @param eventdata  reserved - to be defined in a future version of MATLAB
         %> @param handles    structure with handles and user data (see GUIDATA)
         % --------------------------------------------------------------------
-        function menuToolsBatchCallback(obj,varargin)            
+        function menuToolsBatchCallback(obj,varargin)
             batchTool = PABatchTool(obj.AppSettings.BatchMode);
             batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
             batchTool.addlistener('SwitchToResults',@obj.setResultsViewModeCallback);
@@ -1103,7 +1096,7 @@ classdef PAAppController < PAFigureController
             %batchTool = PABatchTool(obj.AppSettings.BatchMode);
             %batchTool.addlistener('BatchToolStarting',@obj.updateBatchToolSettingsCallback);
             %batchTool.addlistener('SwitchToResults',@obj.setResultsViewModeCallback);
-        end        
+        end
         
         % --------------------------------------------------------------------
         %> @brief Menubar callback for starting the COPTR data to actigraph file conversion.
@@ -1113,7 +1106,7 @@ classdef PAAppController < PAFigureController
         % --------------------------------------------------------------------
         function coptr2actigraphCallback(varargin)
             coptr2actigraph();
-        end        
+        end
         
         % Pass through callback for setViewModeCallback method with
         % 'results' argument.
@@ -1124,11 +1117,11 @@ classdef PAAppController < PAFigureController
         function updateBatchToolSettingsCallback(obj,batchToolObj,eventData)
             obj.AppSettings.BatchMode = eventData.settings;
             try
-                featuresPath = obj.AppSettings.BatchMode.outputDirectory.value;                
+                featuresPath = obj.AppSettings.BatchMode.outputDirectory.value;
                 if(isormkdir(featuresPath))
                     obj.setFeaturesPathname(featuresPath);
                     % obj.setFeaturesPathnameAndUpdate(featuresPath);
-
+                    
                 else
                     fprintf('Features pathname does not exist nor could it be created: %s', featuresPath);
                 end
@@ -1192,7 +1185,7 @@ classdef PAAppController < PAFigureController
         end
         
         function resizeFigCb(obj, figH, szEvtData)
-            %obj.logStatus('Resizing');     
+            %obj.logStatus('Resizing');
             figPos = figH.Position;
             
             figPos(3) = max(min(figPos(3),obj.resizeValues.figure.max.w),obj.resizeValues.figure.min.w);
@@ -1222,25 +1215,25 @@ classdef PAAppController < PAFigureController
             
             panelPos = get(obj.handles.panel_timeseries,'position');
             initPosX = obj.resizeValues.panel_timeseries.init.pos(1);
-            panelPos(1) = initPosX*dW;            
+            panelPos(1) = initPosX*dW;
             panelPos(2) = statusPos(2)-panelPos(4);
             set(obj.handles.panel_timeseries,'position',panelPos);
             
             resultsPos = get(obj.handles.panel_results,'position');
             initPosX = obj.resizeValues.panel_results.init.pos(1);
-            resultsPos(1) = initPosX*dW;            
+            resultsPos(1) = initPosX*dW;
             resultsPos(2) = statusPos(2)-resultsPos(4);
             set(obj.handles.panel_results,'position',resultsPos);
             
             axes1Pos = get(obj.handles.axes_primary,'position');
             initPosX = obj.resizeValues.axes_primary.init.pos(1);
             initPosW = obj.resizeValues.axes_primary.init.pos(3);
-            axes1Pos(1) = initPosX*dW;            
+            axes1Pos(1) = initPosX*dW;
             axes1Pos(2) = statusPos(2)-axes1Pos(4);
             axes1Pos(3) = initPosW*dW;
             set(obj.handles.axes_primary,'position',axes1Pos);
             
-            axes2Pos = get(obj.handles.axes_secondary,'position');            
+            axes2Pos = get(obj.handles.axes_secondary,'position');
             axes2Pos(1) = axes1Pos(1);
             axes2Pos(3) = axes1Pos(3);
             set(obj.handles.axes_secondary,'position',axes2Pos);
@@ -1248,7 +1241,7 @@ classdef PAAppController < PAFigureController
             axes2CeilingY = sum(axes2Pos([2,4]));
             btngrpPos = obj.resizeValues.btngrp_clusters.init.pos;
             btngrpPos(1) = axes2Pos(1);
-            btngrpPos(2) = axes2CeilingY+1;      
+            btngrpPos(2) = axes2CeilingY+1;
             set(obj.handles.btngrp_clusters, 'position', btngrpPos);
             
             betweenAxes = 0.5*(axes1Pos(2)+axes2CeilingY);
@@ -1281,12 +1274,12 @@ classdef PAAppController < PAFigureController
             if(outerPos(2)<0)
                 figPos(4) = figPos(4)+outerPos(2)-1;
                 figPos(2) = 1;
-                set(obj.figureH,'position',figPos);                
+                set(obj.figureH,'position',figPos);
             end
             
             set(obj.figureH,'Resize','on',...
                 'SizeChangedFcn',@obj.resizeFigCb);
-                     
+            
             
             hoi = {'figure_padaco';
                 'text_status';
@@ -1302,8 +1295,8 @@ classdef PAAppController < PAFigureController
                 h = obj.handles.(tag);
                 % set(h,'units','normalized');
                 set(h,'units','pixels');
-                initPos.(tag) = struct('handle',h,'position',h.Position); 
-                obj.resizeValues.(tag).init.pos = initPos.(tag).position;                
+                initPos.(tag) = struct('handle',h,'position',h.Position);
+                obj.resizeValues.(tag).init.pos = initPos.(tag).position;
             end
             
             figPos = obj.figureH.Position;
@@ -1322,7 +1315,7 @@ classdef PAAppController < PAFigureController
             obj.resizeValues.figure.max.w = figPos(3)*maxScale.w;
             obj.resizeValues.figure.max.h = figPos(4)*maxScale.h;
         end
-         
+        
         % --------------------------------------------------------------------
         %> @brief Initializes the display for accelerometer data viewing
         %> using instantiated instance
@@ -1335,19 +1328,19 @@ classdef PAAppController < PAFigureController
         end
         
         function featuresPath = getFeaturesPathname(this)
-            featuresPath = this.getSetting('featuresPathname');             
+            featuresPath = this.getSetting('featuresPathname');
         end
-
+        
         function didSet = setFeaturesPathnameAndUpdate(this, featuresPath)
-           this.setSetting('featuresPathname',featuresPath);
-           didSet = this.StatTool.setFeaturesDirectoryAndUpdate(featuresPath); 
+            this.setSetting('featuresPathname',featuresPath);
+            didSet = this.StatTool.setFeaturesDirectoryAndUpdate(featuresPath);
         end
         
         function didSet = setFeaturesPathname(this, featuresPath)
-           this.setSetting('featuresPathname',featuresPath);
-           didSet = this.StatTool.setFeaturesDirectory(featuresPath); 
+            this.setSetting('featuresPathname',featuresPath);
+            didSet = this.StatTool.setFeaturesDirectory(featuresPath);
         end
-                
+        
         % --------------------------------------------------------------------
         %> @brief Initializes widgets for results view mode.  Widgets are
         %> disabled if the featuresPathname does not exist or cannot be
@@ -1359,7 +1352,7 @@ classdef PAAppController < PAFigureController
             success = false;
             featuresPath = this.getFeaturesPathname();
             currentFeaturesPath = this.StatTool.featuresDirectory;
-          
+            
             if(isdir(featuresPath))
                 if ~isdir(currentFeaturesPath) && isdir(featuresPath)
                     refreshPath = true;
@@ -1384,7 +1377,7 @@ classdef PAAppController < PAFigureController
                 end
                 
                 if(refreshPath)
-                    this.setFeaturesPathnameAndUpdate(featuresPath);                    
+                    this.setFeaturesPathnameAndUpdate(featuresPath);
                 else
                     % Make sure the featuresPath is up to date (e.g. when
                     % switching back from a batch mode.
@@ -1403,7 +1396,7 @@ classdef PAAppController < PAFigureController
                         this.menuFileOpenFeaturesPathCallback();
                     end
                 end
-
+                
             else
                 this.SingleStudy.showReady();
                 this.notify('StatToolCreationSuccess');
@@ -1556,7 +1549,7 @@ classdef PAAppController < PAFigureController
             fontReduction = min([4, floor(durationDays/4)]);
             axesProps.fontSize = 14-fontReduction;
             
-            set(axesH,axesProps);            
+            set(axesH,axesProps);
         end
         
         % --------------------------------------------------------------------
@@ -1610,7 +1603,7 @@ classdef PAAppController < PAFigureController
             end
         end
         
-
+        
         %> @brief Check if I the viewing mode passed in is current, and if it is
         %> displayable (i.e. has an accel or stat tool object)
         %> @param obj Instance of PAAppController
@@ -1630,7 +1623,7 @@ classdef PAAppController < PAFigureController
             else
                 viewable = false;
             end
-        end        
+        end
     end
     
     methods (Access=protected)
@@ -1647,7 +1640,7 @@ classdef PAAppController < PAFigureController
                 set(obj.figureH,'renderer','zbuffer'); %  set(obj.figureH,'renderer','OpenGL');
                 
                 set(obj.figureH, 'name', 'Padaco');
-
+                
                 figColor = get(hFigure,'color');
                 defaultUnits = 'pixels';
                 
@@ -1690,13 +1683,13 @@ classdef PAAppController < PAFigureController
                         set(h,'units','pixels');
                         pos = get(h,'position');  % get adjusted position
                         pos(2)=pos(2)-diffYpixels; %undo
-                        set(h,'position',pos);   % reset 
+                        set(h,'position',pos);   % reset
                     end
                 end
                 
                 timeSeriesPanelPos = get(obj.handles.panel_timeseries,'position');
                 resultsPanelPos = get(obj.handles.panel_results,'position');
-
+                
                 % Line our panels up to same top left position - do this here
                 % so I can edit them easy in GUIDE and avoid to continually
                 % updating the position property each time i need to drag the
@@ -1709,7 +1702,7 @@ classdef PAAppController < PAFigureController
                     set(hFigure,'position',figPos);
                     newResultsPanelY = sum(timeSeriesPanelPos([2,4]))-resultsPanelPos(4);
                     set(obj.handles.panel_results,'position',[timeSeriesPanelPos(1),newResultsPanelY,resultsPanelPos(3:4)]);
-                   
+                    
                     metaDataHandles = [obj.handles.panel_study;get(obj.handles.panel_study,'children')];
                     set(metaDataHandles,'backgroundcolor',[0.94,0.94,0.94],'visible','off');
                     
@@ -1748,17 +1741,17 @@ classdef PAAppController < PAFigureController
                 didInit = true;
             end
         end
-                
+        
         function showBusy(obj, varargin)
             obj.SingleStudy.showBusy(varargin{:});
-        end            
+        end
     end
     methods (Static)
         % --------------------------------------------------------------------
         %> @brief Returns version info in a struct.
         %> @param Optional string tag identifying a single parameter to be
         %> returned.  The tag request must match a structure field name of
-        %> versionInfo.  See below.  
+        %> versionInfo.  See below.
         %> @retval versionInfo Struct values include
         %> - @c num The version number (string)
         % --------------------------------------------------------------------
@@ -1824,9 +1817,9 @@ classdef PAAppController < PAFigureController
             pStruct.featuresPathname = PAPathParam('default','','description','Feature-set path','help','Foldername of featurized dataset');
             
             pStruct.startWithLastPath = PABoolParam('default',false,'description','Start with last used feature set');
-            %> Foldername of most recent screenshot.        
+            %> Foldername of most recent screenshot.
             pStruct.screenshotPathname = PAPathParam('default',getSavePath(),'description','Screenshot save path','help','Foldername of most recent screenshot');
-           
+            
             % pStruct.filter_inf_file = PAFilenameParam('default','filter.inf','description','Filter configuration file');
             % pStruct.database_inf_file = PAFilenameParam('default','database.inf','description','Database configuration file');
             
@@ -1838,7 +1831,7 @@ classdef PAAppController < PAFigureController
 end
 
 
-% 
+%
 % % --------------------------------------------------------------------
 % %> @brief Clears axes handles of any children and sets default properties.
 % %> Called when first creating a view.  See also initAxesHandles.
@@ -1848,16 +1841,16 @@ end
 % %> - @c results
 % % --------------------------------------------------------------------
 % function initAxesHandlesViewMode(obj,viewMode)
-% 
+%
 % obj.clearAxesHandles();
-% 
+%
 % axesProps.primary.xtickmode='manual';
 % axesProps.primary.xticklabelmode='manual';
 % axesProps.primary.xlimmode='manual';
 % axesProps.primary.xtick=[];
 % axesProps.primary.xgrid='on';
 % axesProps.primary.visible = 'on';
-% 
+%
 % %             axesProps.primary.nextplot='replacechildren';
 % axesProps.primary.box= 'on';
 % axesProps.primary.plotboxaspectratiomode='auto';
@@ -1868,43 +1861,43 @@ end
 % else
 %     axesProps.primary.sortmethod = 'childorder'; %fast does not allow alpha blending...
 % end
-% 
+%
 % axesProps.primary.ygrid='off';
 % axesProps.primary.ytick = [];
 % axesProps.primary.yticklabel = [];
 % axesProps.primary.uicontextmenu = [];
-% 
+%
 % if(strcmpi(viewMode,'timeseries'))
 %     % Want these for both the primary (upper) and secondary (lower) axes
 %     axesProps.primary.xAxisLocation = 'top';
 %     axesProps.primary.ylimmode = 'manual';
 %     axesProps.primary.ytickmode='manual';
 %     axesProps.primary.yticklabelmode = 'manual';
-%     
+%
 %     axesProps.secondary = axesProps.primary;
-%     
+%
 %     % Distinguish primary and secondary properties here:
 %     axesProps.primary.xminortick='on';
 %     axesProps.primary.uicontextmenu = obj.contextmenuhandle.primaryAxes;
-%     
+%
 %     axesProps.secondary.xminortick = 'off';
 %     axesProps.secondary.uicontextmenu = obj.contextmenuhandle.secondaryAxes;
-%     
+%
 % elseif(strcmpi(viewMode,'results'))
 %     axesProps.primary.ylimmode = 'auto';
 %     %                 axesProps.primary.ytickmode='auto';
 %     %                 axesProps.primary.yticklabelmode = 'auto';
 %     axesProps.primary.xAxisLocation = 'bottom';
 %     axesProps.primary.xminortick='off';
-%     
+%
 %     axesProps.secondary = axesProps.primary;
 %     % axesProps.secondary.visible = 'off';
 % end
-% 
+%
 % axesProps.secondary.xgrid = 'off';
 % axesProps.secondary.xminortick = 'off';
 % axesProps.secondary.xAxisLocation = 'bottom';
-% 
+%
 % %initialize axes
 % obj.initAxesHandles(axesProps);
 % end

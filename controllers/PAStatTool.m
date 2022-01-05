@@ -1501,6 +1501,33 @@ classdef PAStatTool < PAViewController
                 this.setUseOutcomesTable(this.getSetting('useOutcomes'));
             end
         end
+        
+        
+        function selectNonwear(this)
+            nonwearOptions = this.settings.discardMethod.categories(:);
+            listSize = [200, 100];
+            currentSelections = this.getSetting('discardMethod');
+            initialValue = find(strcmpi(nonwearOptions, currentSelections));
+            name = 'Nonwear Selection';
+            
+            promptString = 'Select method(s) for nonwear exclusion';
+            selectionMode = 'multiple';
+            
+            [selection, okayChecked] = listdlg('liststring',nonwearOptions,...
+                'name',name,'promptString',promptString,...
+                'listSize',listSize,...
+                'initialValue',initialValue,'selectionMode',selectionMode);
+            
+            if(okayChecked && ~isempty(selection) && ~isequal(selection,initialValue))
+                this.base.weekdayValues{customIndex} = selection-1;  %return to 0 based indexing for day of week fields.
+                this.previousState.weekdaySelection = curValue;
+                set(hObject,'tooltipstring',cell2str(listString(selection)));
+                this.enableClusterRecalculation();
+            else
+                set(hObject,'value',this.previousState.weekdaySelection);
+            end            
+        end
+        
     end
     
     methods(Access=private)
@@ -1965,6 +1992,7 @@ classdef PAStatTool < PAViewController
         function shouldShow = shouldShowAnalysisFigure(this)
             shouldShow = strcmpi(get(this.toolbarH.cluster.toggle_analysisFigure,'state'),'on');
         end
+        
     end
     
     methods(Access=protected)
@@ -2364,6 +2392,7 @@ classdef PAStatTool < PAViewController
             end
         end
         
+
         function menuWeekdaysCallback(this, hObject, eventData)
             curTag = getMenuUserData(hObject);
             curValue = get(hObject,'value');
@@ -5202,7 +5231,7 @@ classdef PAStatTool < PAViewController
             paramStruct.normalizeValues =       PABoolParam('default',false,'description','Normalize values');
             paramStruct.discardNonwearFeatures = PABoolParam('default',true,'description','Discard nonwear features prior to clustering');
             
-            paramStruct.discardMethod = PAEnumParam('default','padaco','categories',{{'padaco','choi','saved_file'}},'description','Data exclusion method');
+            paramStruct.discardMethod = PAEnumListParam('default','padaco','categories',{{'padaco','choi','saved_file'}},'description','Data exclusion method');
             
             paramStruct.trimResults = PABoolParam('default',false,'description','Trim results');
             paramStruct.trimToPercent =         PANumericParam('default',100,'description','Trim to percent');
