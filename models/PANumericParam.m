@@ -21,7 +21,12 @@ classdef PANumericParam < PAParam
         end
         
         function canIt = canSetValue(this, value2set)
-            canIt = canSetValue@PAParam(this,value2set) && ((value2set>=this.minAllowed && value2set<=this.maxAllowed) || (isnan(value2set) && isnan(this.default)));
+            try
+                canIt = canSetValue@PAParam(this,value2set) && ((value2set>=this.minAllowed && value2set<=this.maxAllowed) || (isnan(value2set) && isnan(this.default)));
+            catch me
+                showME(me);
+                canIt = false;
+            end
         end
     end
 end

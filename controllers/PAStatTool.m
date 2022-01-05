@@ -5232,7 +5232,7 @@ classdef PAStatTool < PAViewController
             paramStruct.stopTimeSelection =     PAIndexParam('default',-1,'description','Stop time selection');
             paramStruct.showTimeOfDayAsBackgroundColor = PABoolParam('default',false,'description','Show time of day visual indicator'); % do not display at first
             paramStruct.weekdaySelection =      PAIndexParam('default',1,'description','Weekday selection');
-            paramStruct.customDaysOfWeek =      PANumericParam('default',0,'min',0,'max',6,'Description','Day of week','help','0 = Sunday, 1 = Monday, ... 6 = Saturday');
+            paramStruct.customDaysOfWeek =      PANumericListParam('default',[],'min',0,'max',6,'Description','Day of week','help','0 = Sunday, 1 = Monday, ... 6 = Saturday');
             
             paramStruct.clusterDurationSelection = PAIndexParam('default',1,'description','Cluster duration');
             paramStruct.showClusterMembers =    PABoolParam('default',false,'description','Show cluster members');
