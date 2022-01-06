@@ -449,33 +449,7 @@ classdef PAAppController < PAFigureController
         %> @param eventdata
         % --------------------------------------------------------------------
         function nonwearSettingsCb(obj,varargin)
-            obj.StatTool.selectNonwear();
-            return;
-            % Need to refresh the current settings
-            obj.refreshAppSettings();
-            settingsEditor = PASettingsEditor(obj.AppSettings);
-            
-            %wasModified = obj.AppSettings.defaultsEditor('Settings');
-            
-            wasCanceled = isempty(settingsEditor.settings);
-            if(~wasCanceled)
-                obj.AppSettings = settingsEditor.settings;
-                
-                if(strcmpi(obj.getViewMode(),'results'))
-                    initializeOnSet = true;  % This is necessary to update widgets, which are used in follow on call to saveAppSettings
-                    obj.StatTool.setWidgetSettings(obj.AppSettings.StatTool, initializeOnSet);
-                else
-                    obj.SingleStudy.updateWidgets()
-                end
-                
-                obj.setStatus('Settings have been updated.');
-                % save parameters to disk - this saves many parameters based on gui selection though ...
-                obj.saveAppSettings();
-                
-                % Activate a refresh()
-                obj.setViewMode(obj.getViewMode());
-            end
-            
+            obj.StatTool.selectNonwear();            
         end
         
         

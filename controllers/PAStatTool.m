@@ -1507,7 +1507,7 @@ classdef PAStatTool < PAViewController
             nonwearOptions = this.settings.discardMethod.categories(:);
             listSize = [200, 100];
             currentSelections = this.getSetting('discardMethod');
-            initialValue = find(strcmpi(nonwearOptions, currentSelections));
+            [~, currentIndices, ~] = intersect(nonwearOptions, currentSelections);
             name = 'Nonwear Selection';
             
             promptString = 'Select method(s) for nonwear exclusion';
@@ -1516,15 +1516,11 @@ classdef PAStatTool < PAViewController
             [selection, okayChecked] = listdlg('liststring',nonwearOptions,...
                 'name',name,'promptString',promptString,...
                 'listSize',listSize,...
-                'initialValue',initialValue,'selectionMode',selectionMode);
+                'initialValue',currentIndices,'selectionMode',selectionMode);
             
-            if(okayChecked && ~isempty(selection) && ~isequal(selection,initialValue))
-                this.base.weekdayValues{customIndex} = selection-1;  %return to 0 based indexing for day of week fields.
-                this.previousState.weekdaySelection = curValue;
-                set(hObject,'tooltipstring',cell2str(listString(selection)));
-                this.enableClusterRecalculation();
-            else
-                set(hObject,'value',this.previousState.weekdaySelection);
+            if(okayChecked && ~isempty(selection) && ~isequal(selection,currentIndices))
+                this.setSetting('discardMethod', selection);
+                this.enableClusterRecalculation();            
             end            
         end
         
