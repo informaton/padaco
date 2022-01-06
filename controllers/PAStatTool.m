@@ -445,48 +445,56 @@ classdef PAStatTool < PAViewController
         end
         
         
+        %> @brief Feature data path must be loaded prior to calling
+        %> importExclusions which attempts to merge studyIDs and date time
+        %> stamps of feature data with exclusion data from the import file.
         function didImport = importExclusions(this, importFilename)
             didImport = false;
+            
             if nargin<2
                 importFilename = [];
             else
                 importFilename = char(importFilename);
             end
-            if isempty(importFilename)
-                lastImportFilename = char(this.exclusionsFilename);
-                if isempty(lastImportFilename)
-                    curCluster = this.getClusterObj();
-                    if ~isempty(curCluster)
-                        lastImportFilename = curCluster.getExportPath();
-                    end
-                end
-                importFilename = uigetfullfile({'*.mat', 'Exclusion file (*.mat)'},...
-                    'Select nonwear/bad data exclusion data to import',...
-                    lastImportFilename,'off');
-            end
-            
-            if isempty(importFilename)
-                this.logStatus('User canceled');
-            elseif ~exist(importFilename,'file')
-                this.logStatus('Import filename does not exist: %s', importFilename);
+            if isempty(this.originalFeatureStruct)
+                warndlg(sprintf('Feature data path must be loaded before importing exclusion data.\nHint: File->Open->Features Directory Path'), 'Cannot Import')
             else
-                try
-                    tmp = load(importFilename,'nonwearFeatures');
-                    nonwearStruct = tmp.nonwearFeatures;
-                    this.exclusionsFilename.setValue(importFilename);
-                    
-                    this.nonwear.import = nonwearStruct;
-                    % Merge the rows now ...
-                    current_keys = [this.originalFeatureStruct.studyIDs(:), this.originalFeatureStruct.startDatenums(:)];
-                    import_keys = [nonwearStruct.studyIDs(:), nonwearStruct.startDatenums(:)];
-                    [~, a, b] = intersect(current_keys, import_keys, 'rows', 'stable');
-                    
-                    this.nonwear.import.rows = false(size(this.originalFeatureStruct.startDatenums));
-                    this.nonwear.import.rows(a) = nonwearStruct.rows(b);
-                    
-                    didImport = true;
-                catch me
-                    showME(me);
+                if isempty(importFilename)
+                    lastImportFilename = char(this.exclusionsFilename);
+                    if isempty(lastImportFilename)
+                        curCluster = this.getClusterObj();
+                        if ~isempty(curCluster)
+                            lastImportFilename = curCluster.getExportPath();
+                        end
+                    end
+                    importFilename = uigetfullfile({'*.mat', 'Exclusion file (*.mat)'},...
+                        'Select nonwear/bad data exclusion data to import',...
+                        lastImportFilename,'off');
+                end
+                
+                if isempty(importFilename)
+                    this.logStatus('User canceled');
+                elseif ~exist(importFilename,'file')
+                    this.logStatus('Import filename does not exist: %s', importFilename);
+                else
+                    try
+                        tmp = load(importFilename,'nonwearFeatures');
+                        nonwearStruct = tmp.nonwearFeatures;
+                        this.exclusionsFilename.setValue(importFilename);
+                        
+                        this.nonwear.import = nonwearStruct;
+                        % Merge the rows now ...
+                        current_keys = [this.originalFeatureStruct.studyIDs(:), this.originalFeatureStruct.startDatenums(:)];
+                        import_keys = [nonwearStruct.studyIDs(:), nonwearStruct.startDatenums(:)];
+                        [~, a, b] = intersect(current_keys, import_keys, 'rows', 'stable');
+                        
+                        this.nonwear.import.rows = false(size(this.originalFeatureStruct.startDatenums));
+                        this.nonwear.import.rows(a) = nonwearStruct.rows(b);
+                        
+                        didImport = true;
+                    catch me
+                        showME(me);
+                    end
                 end
             end
         end
