@@ -150,7 +150,7 @@ classdef PASettingsEditor < PAFigureFcnController
                                 for k =1:numKeys
                                     try
                                         param = setting.(keys{k});
-                                        if(~isa(param,'PAParam'))
+                                        if(~isa(param,'PAParam') || isa(param,'PAEnumListParam') || isa(param, 'PANumericListParam'))
                                             continue;
                                         end
                                             

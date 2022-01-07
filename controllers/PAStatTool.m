@@ -969,10 +969,10 @@ classdef PAStatTool < PAViewController
                 this.nonwear.choi = tmpChoiStruct;
                 
                 nonwearMethod = this.getSetting('discardMethod');
-                if this.exclusionsFilename.exist && isfield(this.nonwear,'import')% if strcmpi(nonwearMethod, 'import')
-                    nonwearMethod = {'import',nonwearMethod};
-                    % nonwearMethod = 'import';
-                end
+                
+                %if this.exclusionsFilename.exist && isfield(this.nonwear,'import')
+                %    nonwearMethod = {'import',nonwearMethod};
+                %end
                 
                 [this.nonwear.rows, malfunctionRows] = this.getNonwearRows(nonwearMethod, this.nonwear);
                 % this.nonwear.rows = this.nonwear.rows | malfunctionRows;
@@ -4362,7 +4362,7 @@ classdef PAStatTool < PAViewController
                                 y = this.clusterObj.getHistogram('nonwear');
                                 if isempty(this.nonwear.rows)
                                     nonwear_occurrences = 0;
-                                    unique_subjects_with_nonwear(nonwear_study_id_occurrences) = 0;
+                                    unique_subjects_with_nonwear = 0;
                                 else
                                     try
                                         nonwear_occurrences = sum(this.nonwear.rows);
@@ -4953,7 +4953,7 @@ classdef PAStatTool < PAViewController
                             nonwearRows = any(choiStruct.shapes,2);
                         end
                         
-                    case 'import'
+                    case {'import','saved_file'}
                         if isstruct(nonwearStruct) && isfield(nonwearStruct, 'rows')
                             nonwearRows = nonwearStruct.rows;
                         end
