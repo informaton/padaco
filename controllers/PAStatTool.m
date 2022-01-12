@@ -38,7 +38,9 @@ classdef PAStatTool < PAViewController
         choiNonwearStruct;
 
         nonwear = struct('method','padaco','rows',[])
-        exclusionsFilename = PAFilenameParam();
+        
+        % Changing to a setting - use getSetting('exclusionsFilename')
+        % exclusionsFilename = PAFilenameParam();
         
         %> structure loaded features which is as current or as in sync with the gui settings
         %> as of the last time the 'Calculate' button was
@@ -98,7 +100,8 @@ classdef PAStatTool < PAViewController
         profileTableData;
         
         % boolean
-        useCache;
+        % useCache; --> migrated to a setting, which can be accessed via
+        % same named function
         useDatabase;
         useOutcomes;
         % holdPlots;  --> refactored to a method
@@ -241,6 +244,15 @@ classdef PAStatTool < PAViewController
         %             paramStruct.bootstrapSampleName = this.bootstrapSampleName;
         %         end
         
+        function useIt = useCache(this)
+            useIt = this.getSetting('useCache');
+        end
+        
+        % Callable for getting same named setting - added 1/12/2022
+        function filename = exclusionsFilename(this)
+            filename = this.getSetting('exclusionsFilename');
+        end
+        
         function didSet = setSettings(this, inputSettings)
             didSet = setSettings@PAFigureController(this, inputSettings);
             if(didSet)
@@ -253,7 +265,8 @@ classdef PAStatTool < PAViewController
                 this.logWarning('nonwear setting is not being updated in PAStatTool.m');
                 % this.nonwear
                 
-                this.useCache = this.getSetting('useCache');
+                % useCache property deprecated on 1/12/2022
+                % this.useCache = this.getSetting('useCache');                
                 this.cacheDirectory = this.getSetting('cacheDirectory');
                 
                 clusterFields = {'clusterMethod', 'distanceMetric', 'useDefaultRandomizer', 'initClusterWithPermutation'};
@@ -325,7 +338,17 @@ classdef PAStatTool < PAViewController
                         % features directory of the current object precendence
                         % over that found in the cache (e.g. we don't overwrite
                         % this.featuresDirectory with tmpStruct.featuresDirectory
-                        if(strcmpi(tmpStruct.featuresDirectory,this.featuresDirectory))
+                        
+                        if ~strcmpi(tmpStruct.featuresDirectory,this.featuresDirectory)                           
+                            warnmsg = sprintf('The cached features path (%s) is different than the one currently selected (%s).', tmpStruct.featuresDirectory,this.featuresDirectory);
+                            this.logWarning(warnmsg);
+                            cachePrompt = sprintf('%s\nWould you like to disable caching and use the current features path instead?', warnmsg);
+                            disableCaching = confirmDlg(warnmsg);
+                            if disableCaching
+                                this.setSetting('useCache', false);
+                            end
+                        else
+                            
                             for f = 1:numel(validFields)
                                 curField = validFields{f};
                                 if(isfield(tmpStruct,curField))
@@ -362,8 +385,6 @@ classdef PAStatTool < PAViewController
                             
                             % Updates our scatter plot as applicable.
                             this.refreshGlobalProfile();
-                        else
-                            this.logWarning('The cached features path (%s) is different than the one currently one (%s).', tmpStruct.featuresDirectory,this.featuresDirectory);
                         end
                     catch me
                         showME(me);
@@ -376,7 +397,7 @@ classdef PAStatTool < PAViewController
                         this.importExclusions(this.exclusionsFilename);
                     end
                 catch me
-                    this.logError(me, 'Failed to import exclusion data from %s', char(this.exclusionsFilename));
+                    this.logError(me, 'Failed to import exclusion data from %s', this.exclusionsFilename);
                 end
                 
                 
@@ -442,8 +463,7 @@ classdef PAStatTool < PAViewController
         % ======================================================================
         function canPlotValue = getCanPlot(this)
             canPlotValue = this.canPlot;
-        end
-        
+        end        
         
         %> @brief Feature data path must be loaded prior to calling
         %> importExclusions which attempts to merge studyIDs and date time
@@ -460,7 +480,7 @@ classdef PAStatTool < PAViewController
                 warndlg(sprintf('Feature data path must be loaded before importing exclusion data.\nHint: File->Open->Features Directory Path'), 'Cannot Import')
             else
                 if isempty(importFilename)
-                    lastImportFilename = char(this.exclusionsFilename);
+                    lastImportFilename = this.exclusionsFilename;
                     if isempty(lastImportFilename)
                         curCluster = this.getClusterObj();
                         if ~isempty(curCluster)
@@ -480,7 +500,7 @@ classdef PAStatTool < PAViewController
                     try
                         tmp = load(importFilename,'nonwearFeatures');
                         nonwearStruct = tmp.nonwearFeatures;
-                        this.exclusionsFilename.setValue(importFilename);
+                        this.setSetting('exclusionsFilename', importFilename);
                         
                         this.nonwear.import = nonwearStruct;
                         % Merge the rows now ...
@@ -530,7 +550,7 @@ classdef PAStatTool < PAViewController
                 exportPath = curCluster.getExportPath();
                 saveFile = fullfile(exportPath, sprintf('%s_%s_exclusions.mat',nonwearFeatures.method, nonwearFeatures.srcDataType));
                 save(saveFile, 'nonwearFeatures');
-                this.exclusionsFilename.setValue(saveFilename)
+                this.setSetting('exclusionsFilename', saveFilename)
                 fprintf(1,'nonwearFeatures saved to %s\n', saveFile);
                 didExport = true;
             else
@@ -4552,7 +4572,7 @@ classdef PAStatTool < PAViewController
             userSettings.showClusterSummary = istoggled(this.toolbarH.cluster.toggle_summary);
             
             userSettings.processedTypeSelection = 1;  %defaults to count!
-            
+            userSettings.exclusionsFilename = this.getSetting('exclusionsFilename');
             userSettings.baseFeatureSelection = get(this.handles.menu_feature,'value');
             userSettings.signalSelection = get(this.handles.menu_signalsource,'value');
             userSettings.plotTypeSelection = get(this.handles.menu_plottype,'value');
@@ -4566,7 +4586,16 @@ classdef PAStatTool < PAViewController
             
             userSettings.discardNonwearFeatures = get(this.handles.check_discardNonwear,'value'); %this.originalSettings.get('discardNonwearFeatures;
             userSettings.processType = this.base.processedTypes{userSettings.processedTypeSelection};
-            userSettings.baseFeature = this.base.featureTypes{userSettings.baseFeatureSelection}; % had an issue with this.featureTypes when it was initialized to empty on an incorrect path load
+            
+            
+            if isempty(this.featureTypes)
+                % had an issue with this.featureTypes when it was initialized to empty on an incorrect path load
+                userSettings.baseFeature = this.base.featureTypes{userSettings.baseFeatureSelection};
+            else
+                % had an issue with this.base.featureTypes when only a subset of features were available for the current path
+                userSettings.baseFeature = this.featureTypes{userSettings.baseFeatureSelection}; 
+            end
+            
             userSettings.curSignal = this.base.signalTypes{userSettings.signalSelection};
             userSettings.plotType = this.base.plotTypes{userSettings.plotTypeSelection};
             userSettings.titleStr = this.base.plotTypeTitles{userSettings.plotTypeSelection};
@@ -5236,6 +5265,7 @@ classdef PAStatTool < PAViewController
             paramStruct.discardNonwearFeatures = PABoolParam('default',true,'description','Discard nonwear features prior to clustering');
             
             paramStruct.discardMethod = PAEnumListParam('default','padaco','categories',{{'padaco','choi','saved_file'}},'description','Data exclusion method');
+            paramStruct.exclusionsFilename = PAFilenameParam('default','','Description', '.mat file of times to exclude for a study group','help',sprintf('This is created using the menubar:\n File-->Export-->Clusters-->Nonwear (.mat)'));
             
             paramStruct.trimResults = PABoolParam('default',false,'description','Trim results');
             paramStruct.trimToPercent =         PANumericParam('default',100,'description','Trim to percent');
