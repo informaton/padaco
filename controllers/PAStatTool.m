@@ -23,7 +23,7 @@ classdef PAStatTool < PAViewController
         %> Structure of original loaded features, that are a direct
         %> replication of the data obtained from disk (i.e. without further
         %> filtering).
-        originalFeatureStruct;
+        originalFeatureStruct;        
         
         bootstrapParamNames = {'bootstrapIterations','bootstrapSampleName'};
         bootstrapIterations;
@@ -37,7 +37,7 @@ classdef PAStatTool < PAViewController
         %> Struct for holding choi nonwear results.        
         choiNonwearStruct;
 
-        nonwear = struct('method','padaco','rows',[])
+        nonwear;
         
         % Changing to a setting - use getSetting('exclusionsFilename')
         % exclusionsFilename = PAFilenameParam();
@@ -139,6 +139,7 @@ classdef PAStatTool < PAViewController
         %> been load (i.e. and populates the dropdown menus.  These are the
         %> settings that were applied to the most recently cluster object.
         originalSettings;
+        nonwearRequiresUpdate = false;
     end
     
     properties
@@ -171,6 +172,13 @@ classdef PAStatTool < PAViewController
             this.coiProfile = [];
             this.allProfiles = [];
             this.featureTypes = this.base.featureTypes;
+            
+            discardMethod = this.getSettingsParam('discardMethod');            
+            this.nonwear = struct();            
+            for c = 1:numel(discardMethod.categories)                
+                % include categories: {'padaco'  'choi'  'imported_file'}
+                this.nonwear.(discardMethod.categories{c}) = struct('rows',[]);
+            end
             
             if nargin > 2
                 featuresPathname = varargin{3};
@@ -253,6 +261,7 @@ classdef PAStatTool < PAViewController
             filename = this.getSetting('exclusionsFilename');
         end
         
+        % More like "syncSettings"
         function didSet = setSettings(this, inputSettings)
             didSet = setSettings@PAFigureController(this, inputSettings);
             if(didSet)
@@ -262,8 +271,6 @@ classdef PAStatTool < PAViewController
                 this.maxNumDaysAllowed = this.getSetting('maxNumDaysAllowed');
                 this.minNumDaysAllowed = this.getSetting('minNumDaysAllowed');
                 
-                this.logWarning('nonwear setting is not being updated in PAStatTool.m');
-                % this.nonwear
                 
                 % useCache property deprecated on 1/12/2022
                 % this.useCache = this.getSetting('useCache');                
@@ -274,9 +281,6 @@ classdef PAStatTool < PAViewController
                     fname = clusterFields{c};
                     this.clusterSettings.(fname) = this.getSetting(fname);
                 end
-                %this.clusterSettings.clusterMethod = this.getSetting('clusterMethod');
-                %this.clusterSettings.useDefaultRandomizer = this.getSetting('useDefaultRandomizer');
-                %this.clusterSettings.initClusterWithPermutation = this.getSetting('initClusterWithPermutation');
                 
                 this.originalSettings = paparamsToValues(inputSettings);
             end
@@ -502,16 +506,17 @@ classdef PAStatTool < PAViewController
                         nonwearStruct = tmp.nonwearFeatures;
                         this.setSetting('exclusionsFilename', importFilename);
                         
-                        this.nonwear.import = nonwearStruct;
+                        this.nonwear.import_file = nonwearStruct;
                         % Merge the rows now ...
                         current_keys = [this.originalFeatureStruct.studyIDs(:), this.originalFeatureStruct.startDatenums(:)];
                         import_keys = [nonwearStruct.studyIDs(:), nonwearStruct.startDatenums(:)];
                         [~, a, b] = intersect(current_keys, import_keys, 'rows', 'stable');
                         
-                        this.nonwear.import.rows = false(size(this.originalFeatureStruct.startDatenums));
-                        this.nonwear.import.rows(a) = nonwearStruct.rows(b);
+                        this.nonwear.import_file.rows = false(size(this.originalFeatureStruct.startDatenums));
+                        this.nonwear.import_file.rows(a) = nonwearStruct.rows(b);
                         
                         didImport = true;
+                        this.nonwearRequiresUpdate = true;                        
                     catch me
                         showME(me);
                     end
@@ -891,8 +896,8 @@ classdef PAStatTool < PAViewController
                 
                 % update to here to make sure we are covered for the one
                 % week case now.  So we can exclude based on the days
-                % collected.
-                if(loadFileRequired)
+                % collected.                
+                if loadFileRequired || this.nonwearRequiresUpdate
                     ind2keepExactly1WeekAndNonwearExcluded = ind2keepExactly1Week;
                     ind2keepAndNonwearExcluded = ind2keep;
                     
@@ -930,6 +935,7 @@ classdef PAStatTool < PAViewController
                     this.originalFeatureStruct.ind2keepAndNonwearExcluded = ind2keepAndNonwearExcluded;
                     this.originalFeatureStruct.ind2keepExactly1WeekAndNonwearExcluded = ind2keepExactly1WeekAndNonwearExcluded;
                     fprintf(1, 'Number of individuals who will be removed from weeklong analysis if discarding nonwear: %d\n', individualsMissingCompleteWeekAfterNonWearExclusion);
+                    this.nonwearRequiresUpdate = false;
                 end
                 
                 if(~isempty(indicesToUse))
@@ -1548,6 +1554,7 @@ classdef PAStatTool < PAViewController
             
             if(okayChecked && ~isempty(selection) && ~isequal(selection,currentIndices))
                 this.setSetting('discardMethod', selection);
+                this.nonwearRequiresUpdate = true;
                 this.enableClusterRecalculation();            
             end            
         end
@@ -4982,7 +4989,7 @@ classdef PAStatTool < PAViewController
                             nonwearRows = any(choiStruct.shapes,2);
                         end
                         
-                    case {'import','saved_file'}
+                    case {'import','imported_file'}
                         if isstruct(nonwearStruct) && isfield(nonwearStruct, 'rows')
                             nonwearRows = nonwearStruct.rows;
                         end
@@ -5264,7 +5271,7 @@ classdef PAStatTool < PAViewController
             paramStruct.normalizeValues =       PABoolParam('default',false,'description','Normalize values');
             paramStruct.discardNonwearFeatures = PABoolParam('default',true,'description','Discard nonwear features prior to clustering');
             
-            paramStruct.discardMethod = PAEnumListParam('default','padaco','categories',{{'padaco','choi','saved_file'}},'description','Data exclusion method');
+            paramStruct.discardMethod = PAEnumListParam('default','padaco','categories',{{'padaco','choi','imported_file'}},'description','Data exclusion method');
             paramStruct.exclusionsFilename = PAFilenameParam('default','','Description', '.mat file of times to exclude for a study group','help',sprintf('This is created using the menubar:\n File-->Export-->Clusters-->Nonwear (.mat)'));
             
             paramStruct.trimResults = PABoolParam('default',false,'description','Trim results');
