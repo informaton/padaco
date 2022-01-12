@@ -9,6 +9,11 @@ classdef PAEnumListParam < PAEnumParam
                 if islogical(value2set) || isnumeric(value2set)
                     value2set = this.categories(value2set);
                 end
+                if iscell(value2set)
+                    value2set = unique(value2set);
+                else
+                    value2set = {value2set};
+                end
                 this.value = value2set;
                 didSet = true;
                 this.notify('ValueSet');
@@ -38,7 +43,11 @@ classdef PAEnumListParam < PAEnumParam
                         canIt = all(canIt);
                     end
                 end                    
-            end
+            end           
+        end
+        
+        function str = num2str(this)
+            str = strjoin(this.value, ',');
         end
     end
 end

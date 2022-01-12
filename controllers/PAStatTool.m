@@ -347,7 +347,7 @@ classdef PAStatTool < PAViewController
                             warnmsg = sprintf('The cached features path (%s) is different than the one currently selected (%s).', tmpStruct.featuresDirectory,this.featuresDirectory);
                             this.logWarning(warnmsg);
                             cachePrompt = sprintf('%s\nWould you like to disable caching and use the current features path instead?', warnmsg);
-                            disableCaching = confirmDlg(warnmsg);
+                            disableCaching = confirmDlg(cachePrompt);
                             if disableCaching
                                 this.setSetting('useCache', false);
                             end
@@ -515,8 +515,9 @@ classdef PAStatTool < PAViewController
                         this.nonwear.import_file.rows = false(size(this.originalFeatureStruct.startDatenums));
                         this.nonwear.import_file.rows(a) = nonwearStruct.rows(b);
                         
+                        this.setSetting('discardMethod', [this.getSetting('discardMethod'),'imported_file']);
+                        this.nonwearRequiresUpdate = true;
                         didImport = true;
-                        this.nonwearRequiresUpdate = true;                        
                     catch me
                         showME(me);
                     end
@@ -544,7 +545,7 @@ classdef PAStatTool < PAViewController
                     field = fieldsToCopy{f};
                     nonwearFeatures.(field) = originalFeatures.(field);
                 end
-                fieldsToRemove = {'import'};
+                fieldsToRemove = {'import','imported_file'};
                 for f=1:numel(fieldsToRemove)
                     field = fieldsToRemove{f};
                     if isfield(nonwearFeatures, field)
@@ -5271,7 +5272,7 @@ classdef PAStatTool < PAViewController
             paramStruct.normalizeValues =       PABoolParam('default',false,'description','Normalize values');
             paramStruct.discardNonwearFeatures = PABoolParam('default',true,'description','Discard nonwear features prior to clustering');
             
-            paramStruct.discardMethod = PAEnumListParam('default','padaco','categories',{{'padaco','choi','imported_file'}},'description','Data exclusion method');
+            paramStruct.discardMethod = PAEnumListParam('default',{'padaco'},'categories',{{'padaco','choi','imported_file'}},'description','Data exclusion method');
             paramStruct.exclusionsFilename = PAFilenameParam('default','','Description', '.mat file of times to exclude for a study group','help',sprintf('This is created using the menubar:\n File-->Export-->Clusters-->Nonwear (.mat)'));
             
             paramStruct.trimResults = PABoolParam('default',false,'description','Trim results');

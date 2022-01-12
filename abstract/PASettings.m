@@ -471,17 +471,20 @@ classdef  PASettings < handle
                     
                 else                    
                     fprintf(fid,['root %s',newline],num2str(root));
-                end
-                
+                end                
             else
                 field = getfield(root,varargin{:});
                 if(isstruct(field))
                     fields = fieldnames(getfield(root,varargin{:}));
                     for k=1:numel(fields)
                         PASettings.saveStruct(fid,root,varargin{:},fields{k});
-                    end
+                    end                
                 else
-                    fprintf(fid,['%s\t%s',newline],PASettings.strcat_with_dot(varargin{:}),num2str(field));
+                    try
+                        fprintf(fid,['%s\t%s',newline],PASettings.strcat_with_dot(varargin{:}),num2str(field));
+                    catch me
+                        showME(me);
+                    end
                 end
             end            
         end
