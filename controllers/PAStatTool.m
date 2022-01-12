@@ -3120,8 +3120,8 @@ classdef PAStatTool < PAViewController
             
             % warning off MATLAB:HandleGraphics:ObsoletedProperty:JavaFrame
             warning('off','MATLAB:HandleGraphics:ObsoletedProperty:JavaFrame');
-            
-            jAnalysisFrame = get(this.analysisFigureH,'JavaFrame');
+            warning('off','MATLAB:ui:javaframe:PropertyToBeRemoved');            
+            jAnalysisFrame = get(this.analysisFigureH, 'JavaFrame');
             jAnalysisFigPanel = get(jAnalysisFrame,'FigurePanelContainer');
             %             this.jhandles.table_clusterProfiles=jFigPanel.getComponent(0).getComponent(0).getComponent(0).getComponent(0).getComponent(0);
             
