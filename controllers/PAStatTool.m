@@ -389,20 +389,24 @@ classdef PAStatTool < PAViewController
                             
                             % Updates our scatter plot as applicable.
                             this.refreshGlobalProfile();
+                            
+                            % Imported exclusion data requires a merge with the current
+                            % dataset, once it has been loaded.
+                            try
+                                if exist(this.exclusionsFilename,'file')
+                                    this.importExclusions(this.exclusionsFilename);
+                                end
+                            catch me
+                                this.logError(me, 'Failed to import exclusion data from %s', this.exclusionsFilename);
+                            end                         
+                            
                         end
                     catch me
                         showME(me);
                     end
                 end
                 
-                % Imported exclusion data requires a merge with the current dataset..
-                try
-                    if exist(this.exclusionsFilename,'file')
-                        this.importExclusions(this.exclusionsFilename);
-                    end
-                catch me
-                    this.logError(me, 'Failed to import exclusion data from %s', this.exclusionsFilename);
-                end
+                
                 
                 
                 % This happens most often when we are switching to a new
@@ -469,9 +473,61 @@ classdef PAStatTool < PAViewController
             canPlotValue = this.canPlot;
         end        
         
+        function nonwearStruct = getExclusionsStruct(this, nonwearMethods, nonwearStruct)
+            narginchk(1,3);
+            if nargin<2
+                nonwearMethods = this.getSetting('discardMethod');
+                if nargin<3
+                    nonwearStruct = this.nonwear;
+                end
+            end
+            ind2keep = this.originalFeatureStruct.ind2keep1Week;  % logical index for subject days that are part of 1 week or less.
+            ind2keepExactly1Week = this.originalFeatureStruct.ind2keepExactly1Week; % logical index for subject days that are part of 1 week exactly (each day is covered).
+            
+            ind2keepExactly1WeekAndNonwearExcluded = ind2keepExactly1Week;
+            ind2keepAndNonwearExcluded = ind2keep;
+            oneWeekDayInd = this.originalFeatureStruct.indFirstLast1Week;
+            
+            [nonwear_rows, malfunctionRows] = this.getNonwearRows(nonwearMethods, nonwearStruct);
+            
+            % Make all week long data nonwear.  Then check and change
+            % all week entries found without nonwear.
+            nonwearStruct.week_exactly_rows = true(size(nonwear_rows));
+            
+            % go through our indices of first and last days of week
+            % again, and check if there are discards here.
+            
+            individualsMissingCompleteWeekAfterNonWearExclusion = 0;
+                        
+            % It is possible for nonwear_rows to be empty;
+            % e.g. if a user tries to overwrite previous usage state
+            % by running a batch job and then stopping before it finishes.
+            if ~isempty(nonwear_rows)
+                for d=1:size(oneWeekDayInd,1)
+                    if any(nonwear_rows(oneWeekDayInd(d,1):oneWeekDayInd(d,2)))
+                        % This is a conservative approach as it could be that a subject only has one or two days of nonwear over the course
+                        % of 10 days of data and still has a week left to be evaluated with.
+                        day_ind = oneWeekDayInd(d,1):oneWeekDayInd(d,2);
+                        ind2keepAndNonwearExcluded(day_ind) = false;
+                        if(this.originalFeatureStruct.numDays(d)>=7)
+                            ind2keepExactly1WeekAndNonwearExcluded(day_ind) = false;
+                            individualsMissingCompleteWeekAfterNonWearExclusion = individualsMissingCompleteWeekAfterNonWearExclusion + 1;
+                        end
+                        nonwearStruct.week_exactly_rows(day_ind) = true;
+                    end
+                end
+            end
+            nonwearStruct.ind2keepAndNonwearExcluded = ind2keepAndNonwearExcluded;
+            nonwearStruct.ind2keepExactly1WeekAndNonwearExcluded = ind2keepExactly1WeekAndNonwearExcluded;
+            nonwearStruct.individualsMissingCompleteWeekAfterNonWearExclusion = individualsMissingCompleteWeekAfterNonWearExclusion;
+        end
+        
+        
         %> @brief Feature data path must be loaded prior to calling
         %> importExclusions which attempts to merge studyIDs and date time
         %> stamps of feature data with exclusion data from the import file.
+        %> This is checked internally and a warning dialog is shown in the
+        %> event the check fails
         function didImport = importExclusions(this, importFilename)
             didImport = false;
             
@@ -506,14 +562,14 @@ classdef PAStatTool < PAViewController
                         nonwearStruct = tmp.nonwearFeatures;
                         this.setSetting('exclusionsFilename', importFilename);
                         
-                        this.nonwear.import_file = nonwearStruct;
+                        this.nonwear.imported_file = nonwearStruct;
                         % Merge the rows now ...
                         current_keys = [this.originalFeatureStruct.studyIDs(:), this.originalFeatureStruct.startDatenums(:)];
-                        import_keys = [nonwearStruct.studyIDs(:), nonwearStruct.startDatenums(:)];
-                        [~, a, b] = intersect(current_keys, import_keys, 'rows', 'stable');
+                        imported_keys = [nonwearStruct.studyIDs(:), nonwearStruct.startDatenums(:)];
+                        [~, a, b] = intersect(current_keys, imported_keys, 'rows', 'stable');
                         
-                        this.nonwear.import_file.rows = false(size(this.originalFeatureStruct.startDatenums));
-                        this.nonwear.import_file.rows(a) = nonwearStruct.rows(b);
+                        this.nonwear.imported_file.rows = false(size(this.originalFeatureStruct.startDatenums));
+                        this.nonwear.imported_file.rows(a) = nonwearStruct.rows(b);
                         
                         this.setSetting('discardMethod', [this.getSetting('discardMethod'),'imported_file']);
                         this.nonwearRequiresUpdate = true;
@@ -530,37 +586,56 @@ classdef PAStatTool < PAViewController
         % like exportNonwear - this is the more general case.
         function didExport = exportExclusions(this, exportFmt)
             didExport = false;
-            nonwearFeatures = this.nonwear;
+            exclusionsStruct = this.nonwear;
             curCluster = this.getClusterObj();
-            if isempty(nonwearFeatures) || isempty(curCluster)
+            if isempty(exclusionsStruct) || isempty(curCluster)
                 msg = 'No nonwear features exist.  Try clustering first.  Nothing to save.';
                 pa_msgbox(msg,'Warning');
-            elseif(curCluster.updateExportPath()) % false if user cancels
-                originalFeatures = this.originalFeatureStruct;
-                nonwearFeatures = rmfield(nonwearFeatures, 'featureStruct');
-                fieldsToCopy = {'studyIDs','startDatenums','indFirstLast', 'srcDataType',...
-                    'indFirstLast1Week', 'ind2keep1Week', 'ind2keepExactly1Week',...
-                    'ind2keepAndNonwearExcluded', 'ind2keepExactly1WeekAndNonwearExcluded'};
-                for f=1:numel(fieldsToCopy)
-                    field = fieldsToCopy{f};
-                    nonwearFeatures.(field) = originalFeatures.(field);
-                end
-                fieldsToRemove = {'import','imported_file'};
-                for f=1:numel(fieldsToRemove)
-                    field = fieldsToRemove{f};
-                    if isfield(nonwearFeatures, field)
-                        nonwearFeatures = rmfield(nonwearFeatures, field);
-                    end
-                end
-                
-                exportPath = curCluster.getExportPath();
-                saveFile = fullfile(exportPath, sprintf('%s_%s_exclusions.mat',nonwearFeatures.method, nonwearFeatures.srcDataType));
-                save(saveFile, 'nonwearFeatures');
-                this.setSetting('exclusionsFilename', saveFilename)
-                fprintf(1,'nonwearFeatures saved to %s\n', saveFile);
-                didExport = true;
             else
-                fprintf(1,'Cancelled\n');
+                % UI issue: All known nonwear methods are presented,
+                % however, there is not a filter to remove methods which do
+                % not exist for the current setup (e.g. a file may not have
+                % been imported, choi may not have been run, a usage state
+                % may not have been run, etc.
+                nonwearOptions = this.settings.discardMethod.categories(:);
+                currentSelections = this.getSetting('discardMethod');
+                selections = nonwearDlg(nonwearOptions, currentSelections);
+                
+                if ~isempty(selections) && curCluster.updateExportPath() % false if user cancels
+                    nonwearMethods = nonwearOptions(selections);
+                    [nonwear_rows, malfunctionRows] = this.getNonwearRows(nonwearMethods, this.nonwear); 
+                    exclusionsStruct = this.getExclusionsStruct(nonwearMethods, exclusionStruct);
+                    originalFeatures = this.originalFeatureStruct;
+                    exclusionsStruct = rmfield(exclusionsStruct, 'featureStruct');
+                    fieldsToCopy = {'studyIDs','startDatenums','indFirstLast', 'srcDataType',...
+                        'indFirstLast1Week', 'ind2keep1Week', 'ind2keepExactly1Week',...
+                        'ind2keepAndNonwearExcluded', 'ind2keepExactly1WeekAndNonwearExcluded'};
+                    for f=1:numel(fieldsToCopy)
+                        field = fieldsToCopy{f};
+                        exclusionsStruct.(field) = originalFeatures.(field);
+                    end
+                    
+                    fieldsToKeep = nonwearMethods; 
+                    fieldsToRemove = setdiff(nonwearOptions, fieldsToKeep); % nonwearOptions(fieldsToKeep) = [] --> another way to get the fields to remove
+                    for f=1:numel(fieldsToRemove)
+                        field = fieldsToRemove{f};
+                        if isfield(exclusionsStruct, field)
+                            exclusionsStruct = rmfield(exclusionsStruct, field);
+                        end
+                    end
+                    
+                    exportPath = curCluster.getExportPath();
+                    description = strjoin(fieldsToKeep,'_and_');
+                    exclusionsStruct.description = description;
+                    saveFile = fullfile(exportPath, sprintf('%s_%s_exclusions.mat',description, exclusionsStruct.srcDataType));
+                    nonwear = exclusionsStruct; %#ok<PROPLC>
+                    save(saveFile, 'nonwear');
+                    this.setSetting('exclusionsFilename', saveFile);
+                    fprintf(1,'nonwearFeatures saved to %s\n', saveFile);
+                    didExport = true;
+                else
+                    fprintf(1,'Cancelled\n');
+                end
             end
         end
         
@@ -878,6 +953,7 @@ classdef PAStatTool < PAViewController
                     tmpUsageStateStruct.method = 'usagestate';
                     tmpUsageStateStruct.filename = '';
                     tmpUsageStateStruct.srcDataType = srcDataType;
+                    tmpUsageStateStruct.methodDescription = 'Padaco nonwear';
                 end
                 
                 this.nonwear.padaco = tmpUsageStateStruct;
@@ -888,6 +964,7 @@ classdef PAStatTool < PAViewController
                     tmpChoiStruct = this.originalFeatureStruct;
                     tmpChoiStruct.shapes(:) = 0; %just make everything magically 0 (False for nonwear - meaning everything is wear) for right now to avoid having refactor further.
                     tmpChoiStruct.method = 'nonwear_choi';
+                    tmpChoiStruct.methodDescription = 'Choi nonwear';
                     tmpChoiStruct.filename = '';
                     tmpChoiStruct.srcDataType = srcDataType;
                 end
@@ -899,43 +976,21 @@ classdef PAStatTool < PAViewController
                 % week case now.  So we can exclude based on the days
                 % collected.                
                 if loadFileRequired || this.nonwearRequiresUpdate
-                    ind2keepExactly1WeekAndNonwearExcluded = ind2keepExactly1Week;
-                    ind2keepAndNonwearExcluded = ind2keep;
-                    
-                    nonwearMethod = this.getSetting('discardMethod');
-                    [nonwear_rows, malfunctionRows] = this.getNonwearRows(nonwearMethod, this.nonwear);
-                    
-                    
-                    % Make all week long data nonwear.  Then check and change
-                    % all week entries found without nonwear.
-                    this.nonwear.week_exactly_rows = true(size(nonwear_rows));
-                    
-                    % go through our indices of first and last days of week
-                    % again, and check if there are discards here.
-                    
-                    individualsMissingCompleteWeekAfterNonWearExclusion = 0;
-                    
-                    % It is possible for nonwear_rows to be empty;
-                    % e.g. if a user tries to overwrite previous usage state
-                    % by running a batch job and then stopping before it finishes.
-                    if ~isempty(nonwear_rows)
-                        for d=1:size(oneWeekDayInd,1)
-                            if any(nonwear_rows(oneWeekDayInd(d,1):oneWeekDayInd(d,2)))
-                                % This is a conservative approach as it could be that a subject only has one or two days of nonwear over the course
-                                % of 10 days of data and still has a week left to be evaluated with.
-                                day_ind = oneWeekDayInd(d,1):oneWeekDayInd(d,2);
-                                ind2keepAndNonwearExcluded(day_ind) = false;
-                                if(this.originalFeatureStruct.numDays(d)>=7)
-                                    ind2keepExactly1WeekAndNonwearExcluded(day_ind) = false;
-                                    individualsMissingCompleteWeekAfterNonWearExclusion = individualsMissingCompleteWeekAfterNonWearExclusion + 1;
-                                end
-                                this.nonwear.week_exactly_rows(day_ind) = true;
-                            end
+                    nonwearMethods = this.getSetting('discardMethod');
+                    if any(strcmpi(nonwearMethods, 'imported_file')) && exist(this.exclusionsFilename,'file') && isempty(this.nonwear.imported_file.rows)
+                        try
+                            this.importExclusions(this.exclusionsFilename);
+                        catch me
+                            this.logError(me, 'Failed to import exclusion data from %s', this.exclusionsFilename);
                         end
                     end
-                    this.originalFeatureStruct.ind2keepAndNonwearExcluded = ind2keepAndNonwearExcluded;
-                    this.originalFeatureStruct.ind2keepExactly1WeekAndNonwearExcluded = ind2keepExactly1WeekAndNonwearExcluded;
-                    fprintf(1, 'Number of individuals who will be removed from weeklong analysis if discarding nonwear: %d\n', individualsMissingCompleteWeekAfterNonWearExclusion);
+                    
+                    this.nonwear = this.getExclusionsStruct();                          
+                    
+                    this.originalFeatureStruct.ind2keepAndNonwearExcluded = this.nonwear.ind2keepAndNonwearExcluded;
+                    this.originalFeatureStruct.ind2keepExactly1WeekAndNonwearExcluded = this.nonwear.ind2keepExactly1WeekAndNonwearExcluded;
+                    
+                    fprintf(1, 'Number of individuals who will be removed from weeklong analysis if discarding nonwear: %d\n', this.nonwear.individualsMissingCompleteWeekAfterNonWearExclusion);
                     this.nonwearRequiresUpdate = false;
                 end
                 
@@ -970,8 +1025,7 @@ classdef PAStatTool < PAViewController
                     
                     tmpChoiStruct.startTimes = tmpChoiStruct.startTimes(startTimeSelection:stopTimeSelection);
                     tmpChoiStruct.shapes = tmpChoiStruct.shapes(:,startTimeSelection:stopTimeSelection);
-                    tmpChoiStruct.totalCount = numel(tmpChoiStruct.startTimes);
-                    
+                    tmpChoiStruct.totalCount = numel(tmpChoiStruct.startTimes);                    
                     
                     % For example:  22:00 to 04:00 is ~ stopTimeSelection = 22 and
                     % startTimeSelection = 81
@@ -986,22 +1040,20 @@ classdef PAStatTool < PAViewController
                     
                     tmpChoiStruct.startTimes = [tmpChoiStruct.startTimes(startTimeSelection:end), tmpChoiStruct.startTimes(1:stopTimeSelection)];
                     tmpChoiStruct.shapes = [tmpChoiStruct.shapes(:,startTimeSelection:end), tmpChoiStruct.shapes(:,1:stopTimeSelection)];
-                    tmpChoiStruct.totalCount = numel(tmpChoiStruct.startTimes);
-                    
+                    tmpChoiStruct.totalCount = numel(tmpChoiStruct.startTimes);                    
                 else
                     warndlg('Well this is unexpected.');
                 end
                 
                 this.nonwear.padaco = tmpUsageStateStruct;
-                this.nonwear.choi = tmpChoiStruct;
-                
-                nonwearMethod = this.getSetting('discardMethod');
+                this.nonwear.choi = tmpChoiStruct;                
+                nonwearMethods = this.getSetting('discardMethod');
                 
                 %if this.exclusionsFilename.exist && isfield(this.nonwear,'import')
                 %    nonwearMethod = {'import',nonwearMethod};
                 %end
                 
-                [this.nonwear.rows, malfunctionRows] = this.getNonwearRows(nonwearMethod, this.nonwear);
+                [this.nonwear.rows, malfunctionRows] = this.getNonwearRows(nonwearMethods, this.nonwear);
                 % this.nonwear.rows = this.nonwear.rows | malfunctionRows;
                 if this.isShowingWeekLong()
                     maxDaysAllowed = 7;
@@ -1031,8 +1083,6 @@ classdef PAStatTool < PAViewController
                     this.featureStruct = tmpFeatureStruct;
                     this.nonwear.featureStruct = [];
                 end
-                
-                
                 
                 % min and max days allowed interpeted in one of three ways
                 % 1.  both exactly 7
@@ -1537,23 +1587,15 @@ classdef PAStatTool < PAViewController
             end
         end
         
-        
         function selectNonwear(this)
             nonwearOptions = this.settings.discardMethod.categories(:);
-            listSize = [200, 100];
-            currentSelections = this.getSetting('discardMethod');
-            [~, currentIndices, ~] = intersect(nonwearOptions, currentSelections);
-            name = 'Nonwear Selection';
+            currentSelections = this.getSetting('discardMethod');            
+            [selection, okayChecked] = nonwearDlg(nonwearOptions, currentSelections);
             
-            promptString = 'Select method(s) for nonwear exclusion';
-            selectionMode = 'multiple';
-            
-            [selection, okayChecked] = listdlg('liststring',nonwearOptions,...
-                'name',name,'promptString',promptString,...
-                'listSize',listSize,...
-                'initialValue',currentIndices,'selectionMode',selectionMode);
-            
-            if(okayChecked && ~isempty(selection) && ~isequal(selection,currentIndices))
+            % Was something selected and (if so) was it different from the original selection
+            if okayChecked ...
+                    && ~isempty(selection) ...
+                    && isempty(setdiff(currentSelections, nonwearOptions(selection)))
                 this.setSetting('discardMethod', selection);
                 this.nonwearRequiresUpdate = true;
                 this.enableClusterRecalculation();            
@@ -4958,7 +5000,9 @@ classdef PAStatTool < PAViewController
         % nonwearRows = logical vector indicating which feature vectors of the second argument
         % are considered as nonwear or having data from a malfunctioning device.
         % malfunctionRows = logical vector indicating which feature vectors of the second argument
-        % are considered to be due to a malfunctioning device.
+        % are considered to be due to a malfunctioning device.  This is a
+        % subset of nonwearRows (i.e. a malfunction is also considered
+        % nonwear, but nonwear is not necessarily due to malfunction).
         function [nonwearRows, malfunctionRows] = getNonwearRows(nonwearMethod, nonwearStruct)
             nonwearRows = [];
             malfunctionRows = [];

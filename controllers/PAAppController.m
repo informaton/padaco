@@ -157,8 +157,7 @@ classdef PAAppController < PAFigureController
         
         function saveAppSettings(obj)
             obj.refreshAppSettings(); % updates the parameters based on current state of the gui.
-            obj.AppSettings.saveToFile();
-            fprintf(1,'Settings saved to disk.\n');
+            obj.AppSettings.saveToFile(); % --> prints saved to file message
         end
         
         %> @brief Sync the controller's settings with the SETTINGS object
