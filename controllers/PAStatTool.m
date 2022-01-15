@@ -604,7 +604,7 @@ classdef PAStatTool < PAViewController
                 if ~isempty(selections) && curCluster.updateExportPath() % false if user cancels
                     nonwearMethods = nonwearOptions(selections);
                     [nonwear_rows, malfunctionRows] = this.getNonwearRows(nonwearMethods, this.nonwear); 
-                    exclusionsStruct = this.getExclusionsStruct(nonwearMethods, exclusionStruct);
+                    exclusionsStruct = this.getExclusionsStruct(nonwearMethods, exclusionsStruct);
                     originalFeatures = this.originalFeatureStruct;
                     exclusionsStruct = rmfield(exclusionsStruct, 'featureStruct');
                     fieldsToCopy = {'studyIDs','startDatenums','indFirstLast', 'srcDataType',...
@@ -627,12 +627,15 @@ classdef PAStatTool < PAViewController
                     exportPath = curCluster.getExportPath();
                     description = strjoin(fieldsToKeep,'_and_');
                     exclusionsStruct.description = description;
-                    saveFile = fullfile(exportPath, sprintf('%s_%s_exclusions.mat',description, exclusionsStruct.srcDataType));
-                    nonwear = exclusionsStruct; %#ok<PROPLC>
-                    save(saveFile, 'nonwear');
-                    this.setSetting('exclusionsFilename', saveFile);
-                    fprintf(1,'nonwearFeatures saved to %s\n', saveFile);
-                    didExport = true;
+                    saveFilename = sprintf('%s_%s_exclusions.mat',description, exclusionsStruct.srcDataType);
+                    saveFile = fullfile(exportPath, saveFilename);
+                    if ~exist(saveFile, 'file') || confirmDlg(sprintf('A file named "%s"\nalready exists in "%s"\n\nWould you like to overwrite it?', saveFilename, exportPath))
+                        nonwear = exclusionsStruct; %#ok<PROPLC>
+                        save(saveFile, 'nonwear');
+                        this.setSetting('exclusionsFilename', saveFile);
+                        fprintf(1,'nonwearFeatures saved to %s\n', saveFile);
+                        didExport = true;
+                    end
                 else
                     fprintf(1,'Cancelled\n');
                 end
