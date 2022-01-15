@@ -954,7 +954,7 @@ classdef PAStatTool < PAViewController
                     tmpUsageStateStruct = this.originalFeatureStruct;
                     tmpUsageStateStruct.shapes(:) = 7;%just make everything magically 7 for right now to avoid having refactor further.
                     tmpUsageStateStruct.method = 'usagestate';
-                    tmpUsageStateStruct.filename = '';
+                    tmpUsageStateStruct.filename = 'none';
                     tmpUsageStateStruct.srcDataType = srcDataType;
                     tmpUsageStateStruct.methodDescription = 'Padaco nonwear';
                 end
