@@ -559,7 +559,13 @@ classdef PAStatTool < PAViewController
                 else
                     try
                         tmp = load(importFilename);
-                        nonwearStruct = tmp.nonwear;
+                        if isfield(tmp, 'nonwear')
+                            nonwearStruct = tmp.nonwear;
+                        elseif isfield(tmp,'nonwearFeatures')
+                            nonwearStruct = tmp.nonwearFeatures;
+                        else
+                            error('Import file (%s) is malformed and does not include ''nonwear'' field', importFilename);
+                        end
                         this.setSetting('exclusionsFilename', importFilename);
                         
                         this.nonwear.imported_file = nonwearStruct;
@@ -570,13 +576,13 @@ classdef PAStatTool < PAViewController
                         [~, a, b] = intersect(current_keys, imported_keys, 'rows', 'stable');
                         
                         this.nonwear.imported_file.rows = false(size(this.originalFeatureStruct.startDatenums));
-                        this.nonwear.imported_file.rows(a) = nonwearStruct.rows(b);
-                        
+                        this.nonwear.imported_file.rows(a) = nonwearStruct.rows(b);                        
                         this.setSetting('discardMethod', [this.getSetting('discardMethod'),'imported_file']);
                         this.nonwearRequiresUpdate = true;
                         didImport = true;
                     catch me
                         showME(me);
+                        fprintf('\nThe above exception was caught while trying to load %s\n', importFilename);
                     end
                 end
             end
