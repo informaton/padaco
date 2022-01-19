@@ -475,12 +475,13 @@ classdef PAStatTool < PAViewController
         
         function nonwearStruct = getExclusionsStruct(this, nonwearMethods, nonwearStruct)
             narginchk(1,3);
-            if nargin<2
-                nonwearMethods = this.getSetting('discardMethod');
-                if nargin<3
-                    nonwearStruct = this.nonwear;
+            if nargin<3
+                nonwearStruct = this.nonwear;
+                if nargin<2
+                    nonwearMethods = this.getSetting('discardMethod');
                 end
             end
+            nonwearStruct.methods = nonwearMethods;
             ind2keep = this.originalFeatureStruct.ind2keep1Week;  % logical index for subject days that are part of 1 week or less.
             ind2keepExactly1Week = this.originalFeatureStruct.ind2keepExactly1Week; % logical index for subject days that are part of 1 week exactly (each day is covered).
             
