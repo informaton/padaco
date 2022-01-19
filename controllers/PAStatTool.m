@@ -1533,7 +1533,7 @@ classdef PAStatTool < PAViewController
                 pSettings = this.getPlotSettings();
                 
                 switch(pSettings.plotType)
-                    case 'clustering'
+                    case 'clustering' % typically this is not reached because the clustering class is handled in switch2clustering method
                         this.plotClusters(pSettings);
                         this.enableClusterRecalculation();
                     otherwise
@@ -3247,7 +3247,7 @@ classdef PAStatTool < PAViewController
             end
             
             switch(plotOptions.plotType)
-                case {'clustering','quantile'}  % passthrough
+                case {'clustering','quantile'}  % passthrough - the plotSelection is plots selections other than these in practice
                 case 'dailyaverage'
                     imageMap = nan(7,1);
                     for dayofweek=0:6
@@ -3338,7 +3338,12 @@ classdef PAStatTool < PAViewController
                 otherwise
                     disp Oops!;
             end
-            hT = title(axesHandle,plotOptions.titleStr,'fontsize',14);%,'units','normalized','visible','off');
+            if isunix
+                fontsize = 12;
+            else
+                fontsize = 14;
+            end
+            hT = title(axesHandle,plotOptions.titleStr,'fontsize',fontsize);%,'units','normalized','visible','off');
             
             xlimits = minmax(weekdayticks);
             
@@ -4185,7 +4190,10 @@ classdef PAStatTool < PAViewController
         %> display of cluster data.
         % ======================================================================
         function plotClusters(this,clusterAndPlotSettings)
-            
+            fontsize = 14;
+            if isunix
+                fontsize = 12;
+            end
             this.clearPrimaryAxes();
             
             %  this.clearPlots();
@@ -4483,7 +4491,7 @@ classdef PAStatTool < PAViewController
                             %title(distributionAxes,sprintf('%s. Clusters: %u Load shapes: %u',distTitle,this.clusterObj.numClusters(), this.clusterObj.numLoadShapes()),'fontsize',14);
                             
                             %ylabel(distributionAxes,sprintf('Load shape count'));
-                            xlabel(distributionAxes,'Cluster popularity','fontsize',14);
+                            xlabel(distributionAxes,'Cluster popularity','fontsize',fontsize);
                             xlim(distributionAxes,[0.25 numClusters+.75]);
                             set(distributionAxes,'ygrid','on','ytickmode','auto','xtick',[]);
                             %                     case 'globalprofile'
@@ -4499,8 +4507,8 @@ classdef PAStatTool < PAViewController
                             warndlg(sprintf('Distribution type (%s) is unknonwn and or not supported',this.getSetting('clusterDistributionType')));
                     end
                     
-                    ylabel(distributionAxes,yLabelStr,'fontsize',14);
-                    hT = title(distributionAxes,titleStr,'fontsize',14,'units','normalized','visible','off');
+                    ylabel(distributionAxes,yLabelStr,'fontsize',fontsize);
+                    hT = title(distributionAxes,titleStr,'fontsize',fontsize,'units','normalized','visible','off');
                     hPos = get(hT,'position');
                     set(hT,'position',[hPos(1) 0.9 hPos(3)],'visible','on');
                     this.refreshCOIProfile();
@@ -4513,6 +4521,10 @@ classdef PAStatTool < PAViewController
         end
         
         function [legendStrings, clusterTitle, clusterDescription] = displayClusterSummary(this, coiMemberIDs, coiSortOrders)
+            fontsize=14;
+            if isunix
+                fontsize=12;
+            end
             % summaryTextH = this.handles.text_clusterResultsOverlay;
             clusterAxes = this.handles.axes_primary;
             
@@ -4589,7 +4601,7 @@ classdef PAStatTool < PAViewController
                 %title(clusterAxes,clusterTitle,'fontsize',14,'interpreter','none','visible','off');
             else
                 set(this.handles.panel_clusterInfo,'visible','off');
-                title(clusterAxes,clusterTitle,'fontsize',14,'interpreter','none','visible','on');
+                title(clusterAxes,clusterTitle,'fontsize',fontsize,'interpreter','none','visible','on');
             end
             
             if(this.useDatabase || this.useOutcomes)
