@@ -177,7 +177,7 @@ classdef PAStatTool < PAViewController
             this.nonwear = struct();            
             for c = 1:numel(discardMethod.categories)                
                 % include categories: {'padaco'  'choi'  'imported_file'}
-                this.nonwear.(discardMethod.categories{c}) = struct('rows',[]);
+                this.nonwear.(discardMethod.categories{c}) = struct('filename', 'none'); % struct('rows',[]);
             end
             
             if nargin > 2
@@ -558,11 +558,12 @@ classdef PAStatTool < PAViewController
                     this.logStatus('Import filename does not exist: %s', importFilename);
                 else
                     try
-                        tmp = load(importFilename,'nonwearFeatures');
-                        nonwearStruct = tmp.nonwearFeatures;
+                        tmp = load(importFilename);
+                        nonwearStruct = tmp.nonwear;
                         this.setSetting('exclusionsFilename', importFilename);
                         
                         this.nonwear.imported_file = nonwearStruct;
+                        this.nonwear.imported_file.filename = importFilename;
                         % Merge the rows now ...
                         current_keys = [this.originalFeatureStruct.studyIDs(:), this.originalFeatureStruct.startDatenums(:)];
                         imported_keys = [nonwearStruct.studyIDs(:), nonwearStruct.startDatenums(:)];
@@ -596,13 +597,13 @@ classdef PAStatTool < PAViewController
                 % however, there is not a filter to remove methods which do
                 % not exist for the current setup (e.g. a file may not have
                 % been imported, choi may not have been run, a usage state
-                % may not have been run, etc.
-                nonwearOptions = this.settings.discardMethod.categories(:);
+                % may not have been run, etc.                
+                [validNonwearOptions, nonwearOptions] = this.getValidNonwearOptions();        
                 currentSelections = this.getSetting('discardMethod');
-                selections = nonwearDlg(nonwearOptions, currentSelections);
+                selections = nonwearDlg(validNonwearOptions, currentSelections);
                 
                 if ~isempty(selections) && curCluster.updateExportPath() % false if user cancels
-                    nonwearMethods = nonwearOptions(selections);
+                    nonwearMethods = validNonwearOptions(selections);
                     [nonwear_rows, malfunctionRows] = this.getNonwearRows(nonwearMethods, this.nonwear); 
                     exclusionsStruct = this.getExclusionsStruct(nonwearMethods, exclusionsStruct);
                     originalFeatures = this.originalFeatureStruct;
@@ -629,7 +630,7 @@ classdef PAStatTool < PAViewController
                     exclusionsStruct.description = description;
                     saveFilename = sprintf('%s_%s_exclusions.mat',description, exclusionsStruct.srcDataType);
                     saveFile = fullfile(exportPath, saveFilename);
-                    if ~exist(saveFile, 'file') || confirmDlg(sprintf('A file named "%s"\nalready exists in "%s"\n\nWould you like to overwrite it?', saveFilename, exportPath))
+                    if ~exist(saveFile, 'file') || confirmDlg(sprintf('A file named "%s"\nalready exists in "%s"\n\nWould you like to overwrite it?', saveFilename, exportPath),'Confirm overwrite')
                         nonwear = exclusionsStruct; %#ok<PROPLC>
                         save(saveFile, 'nonwear');
                         this.setSetting('exclusionsFilename', saveFile);
@@ -1591,18 +1592,32 @@ classdef PAStatTool < PAViewController
         end
         
         function selectNonwear(this)
-            nonwearOptions = this.settings.discardMethod.categories(:);
-            currentSelections = this.getSetting('discardMethod');            
-            [selection, okayChecked] = nonwearDlg(nonwearOptions, currentSelections);
-            
+            [validNonwearOptions, nonwearOptions] = this.getValidNonwearOptions();        
+            currentSelections = this.getSetting('discardMethod');
+            selections = nonwearDlg(validNonwearOptions, currentSelections);
+            selections = nonwearOptions(selections);
+                       
             % Was something selected and (if so) was it different from the original selection
-            if okayChecked ...
-                    && ~isempty(selection) ...
-                    && isempty(setdiff(currentSelections, nonwearOptions(selection)))
-                this.setSetting('discardMethod', selection);
+            if ~isempty(selections) && isempty(setdiff(currentSelections, selections))
+                this.setSetting('discardMethod', selections);
                 this.nonwearRequiresUpdate = true;
                 this.enableClusterRecalculation();            
             end            
+        end
+        
+        function [validNonwearOptions, nonwearOptions] = getValidNonwearOptions(this)
+            
+            nonwearOptions = this.settings.discardMethod.categories(:);
+            validOptions = false(size(nonwearOptions));
+            for n=1:numel(nonwearOptions)
+                option = nonwearOptions{n};
+                if isfield(this.nonwear, option) && ~isempty(this.nonwear.(option))
+                    if ~strcmpi(this.nonwear.(option).filename, 'none')
+                        validOptions(n) = true;
+                    end
+                end
+            end
+            validNonwearOptions = nonwearOptions(validOptions);
         end
         
     end
