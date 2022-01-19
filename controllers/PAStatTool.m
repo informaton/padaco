@@ -972,8 +972,9 @@ classdef PAStatTool < PAViewController
                 if(~isempty(this.choiNonwearStruct))
                     tmpChoiStruct = this.choiNonwearStruct;
                 else
-                    tmpChoiStruct = this.originalFeatureStruct;
-                    tmpChoiStruct.shapes(:) = 0; %just make everything magically 0 (False for nonwear - meaning everything is wear) for right now to avoid having refactor further.
+                    tmpChoiStruct = struct(filename,'none');
+                    % tmpChoiStruct = this.originalFeatureStruct;
+                    % tmpChoiStruct.shapes(:) = 0; %just make everything magically 0 (False for nonwear - meaning everything is wear) for right now to avoid having refactor further.
                     tmpChoiStruct.method = 'nonwear_choi';
                     tmpChoiStruct.methodDescription = 'Choi nonwear';
                     tmpChoiStruct.filename = '';
