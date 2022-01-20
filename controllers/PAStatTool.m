@@ -567,7 +567,6 @@ classdef PAStatTool < PAViewController
                         else
                             error('Import file (%s) is malformed and does not include ''nonwear'' field', importFilename);
                         end
-                        this.setSetting('exclusionsFilename', importFilename);
                         
                         this.nonwear.imported_file = nonwearStruct;
                         this.nonwear.imported_file.filename = importFilename;
@@ -576,11 +575,18 @@ classdef PAStatTool < PAViewController
                         imported_keys = [nonwearStruct.studyIDs(:), nonwearStruct.startDatenums(:)];
                         [~, a, b] = intersect(current_keys, imported_keys, 'rows', 'stable');
                         
-                        this.nonwear.imported_file.rows = false(size(this.originalFeatureStruct.startDatenums));
-                        this.nonwear.imported_file.rows(a) = nonwearStruct.rows(b);                        
+                        % this.nonwear.imported_file.rows = false(size(this.originalFeatureStruct.startDatenums));
+                        % this.nonwear.imported_file.rows(a) = nonwearStruct.rows(b);
+                        this.nonwear.imported_file.rows = nonwearStruct.rows(b);
+                        this.nonwear.startDatenums = nonwearStruct.startDatenums(b);
+                        this.nonwear.studyIDs = nonwearStruct.studyIDs(b);
+                        % fieldsToMerge = {'ind2keep1week','ind2keepExactly1Week','startDatenums','studyIDs','week_exactly_rows','ind2keepAndNonwearExcluded'
                         this.setSetting('discardMethod', [this.getSetting('discardMethod'),'imported_file']);
                         this.nonwearRequiresUpdate = true;
+                        this.setSetting('exclusionsFilename', importFilename);
+
                         didImport = true;
+
                     catch me
                         showME(me);
                         fprintf('\nThe above exception was caught while trying to load %s\n', importFilename);
@@ -972,12 +978,14 @@ classdef PAStatTool < PAViewController
                 if(~isempty(this.choiNonwearStruct))
                     tmpChoiStruct = this.choiNonwearStruct;
                 else
-                    tmpChoiStruct = struct(filename,'none');
-                    % tmpChoiStruct = this.originalFeatureStruct;
-                    % tmpChoiStruct.shapes(:) = 0; %just make everything magically 0 (False for nonwear - meaning everything is wear) for right now to avoid having refactor further.
+                    tmpChoiStruct = this.originalFeatureStruct;
+                    %just make everything magically 0 (False for nonwear - meaning everything is wear) for right now to avoid having refactor further.
+                    % When you are ready to refactor, see the remaining
+                    % portions of this function; start times and such
+                    tmpChoiStruct.shapes(:) = 0; 
                     tmpChoiStruct.method = 'nonwear_choi';
                     tmpChoiStruct.methodDescription = 'Choi nonwear';
-                    tmpChoiStruct.filename = '';
+                    tmpChoiStruct.filename = 'none';
                     tmpChoiStruct.srcDataType = srcDataType;
                 end
                 
@@ -5015,6 +5023,36 @@ classdef PAStatTool < PAViewController
         end
         
         % ======================================================================
+        % Obtains the intersection os exclusion structs A and B and then returns
+        % the structs of each for the locations where they intersect based on same studyID and startDatenum values.        
+        function [excA, excB] = intersectExclusions(exclusionsA, exclusionsB)
+            a = exclusionsA;
+            b = exclusionsB;
+            
+            a_keys = [a.studyIDs(:), a.startDatenums(:)];
+            b_keys = [b.studyIDs(:), b.startDatenums(:)];
+            [~, a_idx, b_idx] = intersect(a_keys, b_keys, 'rows', 'stable');
+            
+            fields = {'rows','startDatenums','studyIDs','startDaysOfWeek','shapes'};
+            for f=1:numel(fields)
+                field = fields{f};
+                if isfield(a, field) && isfield(b, field)
+                    if strcmpi(field, 'shapes') % 2d array
+                        a.(field) = a.(field)(a_idx,:);
+                        b.(field) = b.(field)(b_idx,:);
+                    else
+                        a.(field) = a.(field)(a_idx);
+                        b.(field) = b.(field)(b_idx);
+                    end
+                else
+                    fprintf('"%s" field does not exist in one or both structures.  Skipped.\n', field);
+                end
+            end
+            
+            excA = a;
+            excB = b;
+
+        end
         % ======================================================================
         function [featureStruct, discardedFeatureStruct] = discardNonwearFeatures(featureStructIn,nonwearRows)
             %         function featureStruct = getValidFeatureStruct(originalFeatureStruct,usageStateStruct)
