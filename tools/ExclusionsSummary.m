@@ -64,6 +64,7 @@ classdef ExclusionsSummary < handle
             s_endHour = summary.endHour(idx);
             s_time_str =summary.time_str(idx);
             s_resultStr = summary.result_str(idx);
+            s_num_valid_profiles_per_subject = summary.num_valid_profiles_per_subject(idx,:);
             
             fprintf('Start-Stop, Duration (h), Profiles Excluded (n), Unique Individuals Excluded (n)\n');
             for s=1:numel(s_resultStr)
@@ -74,10 +75,11 @@ classdef ExclusionsSummary < handle
             fprintf('\n\t\tSubjects with x+ profiles\n');
             fprintf(' Start-Stop, Duration (h), 0 profiles (n), 1+ (n), 2+ (n), 3+ (n), 4+ (n), 5+ (n), 6+ (n), 7+ (n)\n');
             for s=1:numel(s_resultStr)
-                zero_count = 0;
+                num_valid_profiles_per_subject = s_num_valid_profiles_per_subject(s,:);
+                zero_count = sum(num_valid_profiles_per_subject==0);
                 fprintf('%s, %d, %d', s_time_str{s}, s_duration(s), zero_count);
                 for n=1:7
-                    n_count = n;
+                    n_count = sum(num_valid_profiles_per_subject>=n);
                     fprintf(', %d', n_count);
                 end
                 fprintf('\n');
@@ -150,7 +152,8 @@ classdef ExclusionsSummary < handle
                 nonwear.padaco = p;
                 
                 studyIDs = nonwear.studyIDs;
-                num_unique_subjects = numel(unique(studyIDs));
+                unique_studyIDs = unique(studyIDs);
+                summary.num_unique_subjects = numel(unique_studyIDs);
                 num_rows = numel(nonwear.rows);
                 
                 curEntry=0;
@@ -162,6 +165,16 @@ classdef ExclusionsSummary < handle
                 summary.time_str = cell(numEntries,1);
                 summary.num_unique_subjects_with_exclusion = nan(numEntries,1);
                 summary.num_profiles_with_exclusion = nan(numEntries,1);
+                
+                summary.num_valid_profiles_per_subject = nan(numEntries,summary.num_unique_subjects);
+                subject_profile_idx = cell(summary.num_unique_subjects,1);
+                for s=1:numel(subject_profile_idx)
+                    study_id = unique_studyIDs(s);
+                    subject_profile_idx{s} = studyIDs==study_id;
+                end
+                    
+                
+                
                 summary.result_str  = cell(numEntries,1);
                 for startHour = 0:23
                     for endHour = startHour+1:24
@@ -173,15 +186,19 @@ classdef ExclusionsSummary < handle
                         nonwear.choi.shapes = c.shapes(:, choiRange);
                         rows = PAStatTool.getNonwearRows({'padaco','choi'},nonwear);
                         
+                        % Determine the number of 
+                        summary.num_valid_profiles_per_subject(curEntry,:) = cellfun(@(c) sum(c)-sum(c&rows), subject_profile_idx);
+                        
                         nonwear_occurrences = sum(rows);
                         num_unique_subjects_with_nonwear = numel(unique(studyIDs(rows)));
+                        
                         summary.time_str{curEntry} = sprintf('%02d:00-%02d:00', startHour, endHour);
                         resultStr = sprintf(['Nonwear Occurrences from %d:00 to %d:00:\n',...
                             ' * Profiles with nonwear: %d of %d\n',...
                             ' * Unique individuals with nonwear: %d of %d'],...
                             startHour, endHour, ...
                             nonwear_occurrences, num_rows,...
-                            num_unique_subjects_with_nonwear, num_unique_subjects);
+                            num_unique_subjects_with_nonwear, summary.num_unique_subjects);
                         summary.startHour(curEntry) = startHour;
                         summary.endHour(curEntry) = endHour;
                         summary.result_str{curEntry} = resultStr;
