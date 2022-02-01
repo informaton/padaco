@@ -1,3 +1,13 @@
+% Optional arguments include:
+% 'table' - shows results as a csv table
+% 'interactive' - produces an interactive scatter plot
+% These can be added separately, in either order, to produce the effects of
+% each.
+% 
+%     
+%   s = getExclusionsSummary('~/Documents/padaco/choi_and_imported_file_count_exclusions.mat');
+%   s.showSummaryTable();  
+%   s.showInteractiveTable();
 function summary = getExclusionsSummary(exclusionsFile, varargin)
     if nargin<1 || isempty(exclusionsFile)
         exclusionsFile = fullfile('~/Documents/padaco','choi_and_imported_file_count_exclusions.mat');
@@ -17,6 +27,7 @@ function summary = getExclusionsSummary(exclusionsFile, varargin)
             fprintf('Unrecognized flag (''%s'').  Valid flags include ''interactive'' and ''table''\n', flag);
         end
     end
+
 end
 
 

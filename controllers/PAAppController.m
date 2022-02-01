@@ -109,14 +109,8 @@ classdef PAAppController < PAFigureController
             
             % Create a results class
             
-            % Load last path on startup?
-            % @issue This is problematic when path has changed or been
-            % moved since before, or is not longer valid
-            if(obj.getSetting('startWithLastPath'))
-                obj.StatTool = PAStatTool(obj.figureH, obj.AppSettings.StatTool, obj.getSetting('featuresPathname'));
-            else
-                obj.StatTool = PAStatTool(obj.figureH, obj.AppSettings.StatTool);
-            end
+            obj.StatTool = PAStatTool(obj.figureH, obj.AppSettings.StatTool);
+            
             obj.StatTool.setIcon(obj.iconFilename);
             obj.StatTool.setOutcomesTable(obj.OutcomesTableData);
             
@@ -1301,16 +1295,20 @@ classdef PAAppController < PAFigureController
         end
         
         function featuresPath = getFeaturesPathname(this)
-            featuresPath = this.getSetting('featuresPathname');
+            if ~isempty(this.StatTool)
+                featuresPath = this.StatTool.getSetting('featuresPathname');
+            else
+                featuresPath = this.AppSettings.StatTool.featuresPathname;
+            end
         end
         
         function didSet = setFeaturesPathnameAndUpdate(this, featuresPath)
-            this.setSetting('featuresPathname',featuresPath);
+            % this.setSetting('featuresPathname',featuresPath);
             didSet = this.StatTool.setFeaturesDirectoryAndUpdate(featuresPath);
         end
         
         function didSet = setFeaturesPathname(this, featuresPath)
-            this.setSetting('featuresPathname',featuresPath);
+            % this.setSetting('featuresPathname',featuresPath);
             didSet = this.StatTool.setFeaturesDirectory(featuresPath);
         end
         
@@ -1323,6 +1321,10 @@ classdef PAAppController < PAFigureController
         % --------------------------------------------------------------------
         function success = initResultsView(this)
             success = false;
+            
+            % Not sure if/why featuresPath and currentFeaturesPath will
+            % ever be different now that I refactored featuresPath to be a
+            % setting of StatTool @hyatt 1/31/2022
             featuresPath = this.getFeaturesPathname();
             currentFeaturesPath = this.StatTool.featuresDirectory;
             
@@ -1786,10 +1788,6 @@ classdef PAAppController < PAFigureController
             %> - @c results
             pStruct.viewMode = PAEnumParam('default','timeseries','categories',{'timeseries','results'},'description','Current View','help','String identifying Padaco''s current view mode.');
             
-            %> Foldername of last features path selected
-            pStruct.featuresPathname = PAPathParam('default','','description','Feature-set path','help','Foldername of featurized dataset');
-            
-            pStruct.startWithLastPath = PABoolParam('default',false,'description','Start with last used feature set');
             %> Foldername of most recent screenshot.
             pStruct.screenshotPathname = PAPathParam('default',getSavePath(),'description','Screenshot save path','help','Foldername of most recent screenshot');
             

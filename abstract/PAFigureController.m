@@ -48,7 +48,7 @@ classdef(Abstract) PAFigureController < PABaseWithSettings
                 end
                 didSet = true;
             else
-                disp('oops');
+                disp('No valid figure handle provide.  Entering headless/non-UI mode');
             end
         end
 

@@ -171,6 +171,10 @@ classdef PAStatTool < PAViewController
             this.globalProfile  = [];
             this.coiProfile = [];
             this.allProfiles = [];
+            
+            if isempty(this.figureH)
+                this.initBase();
+            end
             this.featureTypes = this.base.featureTypes;
             
             discardMethod = this.getSettingsParam('discardMethod');            
@@ -180,12 +184,11 @@ classdef PAStatTool < PAViewController
                 this.nonwear.(discardMethod.categories{c}) = struct('filename', 'none'); % struct('rows',[]);
             end
             
-            if nargin > 2
-                featuresPathname = varargin{3};
+            if this.getSetting('startWithLastPath')      
+                featuresPathname = this.getSetting('featuresPathname');
                 if(isdir(featuresPathname))
-                    this.setFeaturesDirectoryAndUpdate(featuresPathname); % a lot of initialization code in side this call.
-                    % this.setFeaturesDirectory(featuresPathname); % not a lot of initialization code in side this call.
-                else
+                    this.setFeaturesDirectoryAndUpdate(featuresPathname); % a lot of initialization code in side this call.                    
+                else                    
                     fprintf('%s does not exist!\n',featuresPathname);
                 end
             end
@@ -1611,10 +1614,10 @@ classdef PAStatTool < PAViewController
             [validNonwearOptions, nonwearOptions] = this.getValidNonwearOptions();        
             currentSelections = this.getSetting('discardMethod');
             selections = nonwearDlg(validNonwearOptions, currentSelections);
-            selections = nonwearOptions(selections);
+            selections = validNonwearOptions(selections);
                        
             % Was something selected and (if so) was it different from the original selection
-            if ~isempty(selections) && isempty(setdiff(currentSelections, selections))
+            if ~isempty(selections) && ~isempty(setdiff(currentSelections, selections))
                 this.setSetting('discardMethod', selections);
                 this.nonwearRequiresUpdate = true;
                 this.enableClusterRecalculation();            
@@ -2358,6 +2361,11 @@ classdef PAStatTool < PAViewController
                 
                 % Cluster widgets
                 set(this.handles.menu_precluster_reduction,'string',this.base.preclusterReductionDescriptions,'userdata',this.base.preclusterReductions);
+                if isunix
+                   cur_pos = get(this.handles.menu_precluster_reduction,'position'); 
+                   wider_pos = cur_pos+[0 0 cur_pos(3) 0]*0.5; % 50% wider
+                   set(this.handles.menu_precluster_reduction, 'position', wider_pos);
+                end
                 set(this.handles.menu_number_of_data_segments,'string',this.base.numDataSegmentsDescriptions,'userdata',this.base.numDataSegments);
                 
                 
@@ -3367,7 +3375,7 @@ classdef PAStatTool < PAViewController
                     set(axesHandle,'ygrid','on');
                     
                 otherwise
-                    disp Oops!;
+                    disp Oops! Uknown plot type;
             end
             if isunix
                 fontsize = 12;
@@ -5386,19 +5394,24 @@ classdef PAStatTool < PAViewController
             % Prime with cluster parameters.
             paramStruct = PACluster.getDefaults();
             
+            %> Foldername of last features path selected
+            paramStruct.featuresPathname = PAPathParam('default','','description','Feature-set path','help','Foldername of featurized dataset');           
+            paramStruct.startWithLastPath = PABoolParam('default',false,'description','Start with last used feature set');
+            
+            
             paramStruct.maxNumDaysAllowed = PANumericParam('default',0,'Description','Maximum number of days allowed per subject.','help','Leave 0 to include all days.','min',0);
             paramStruct.minNumDaysAllowed = PANumericParam('default',0,'Description','Minimum number of days allowed per subject.','help','Leave 0 for no minimum.  Currently variable has no effect at all.','min',0);
             
-            paramStruct.normalizeValues =       PABoolParam('default',false,'description','Normalize values');
+            paramStruct.normalizeValues = PABoolParam('default',false,'description','Normalize values');
             paramStruct.discardNonwearFeatures = PABoolParam('default',true,'description','Discard nonwear features prior to clustering');
             
             paramStruct.discardMethod = PAEnumListParam('default',{'padaco'},'categories',{{'padaco','choi','imported_file'}},'description','Data exclusion method');
             paramStruct.exclusionsFilename = PAFilenameParam('default','','Description', '.mat file of times to exclude for a study group','help',sprintf('This is created using the menubar:\n File-->Export-->Clusters-->Nonwear (.mat)'));
             
             paramStruct.trimResults = PABoolParam('default',false,'description','Trim results');
-            paramStruct.trimToPercent =         PANumericParam('default',100,'description','Trim to percent');
+            paramStruct.trimToPercent = PANumericParam('default',100,'description','Trim to percent');
             paramStruct.cullResults = PABoolParam('default',false,'description','Cull results');
-            paramStruct.cullToValue =           PANumericParam('default',0,'description','Cull to');
+            paramStruct.cullToValue = PANumericParam('default',0,'description','Cull to');
             
             paramStruct.chunkShapes = PABoolParam('default',false,'description','Chunk feature vectors prior to clustering');
             numChunks = 6;
