@@ -19,7 +19,68 @@ classdef PAStatTool < PAViewController
         DISTRIBUTION_TYPES = {'loadshape_membership','participant_membership','nonwear_membership','weekday_scores','weekday_membership','performance_progression'}
     end
     
+    properties
+        %> struct of fields to use when profiling/describing clusters.
+        %> These are names of database fields extracted which are keyed on
+        %> the subject id's that are members of the cluster of interest.
+        profileFields;
+        maxNumDaysAllowed;
+        minNumDaysAllowed;
+    end
+    
     properties(SetAccess=protected)
+    
+        featuresDirectory;
+        
+        %> structure loaded features which is as current or as in sync with the gui settings
+        %> as of the last time the 'Calculate' button was
+        %> pressed/manipulated.
+        featureStruct;
+        
+        %> instance of PACluster class
+        clusterObj;
+        
+        %> @brief Struct with key value pairs for clustering:
+        %> - @c clusterMethod Cluster method employed {'kmeans','kmedoids'}
+        %> - @c useDefaultRandomizer = widgetSettings.useDefaultRandomizer;
+        %> - @c initClusterWithPermutation = settings.initClusterWithPermutation;
+        %> @note Initialized in the setWidgetSettings() method
+        clusterSettings;
+
+        nonwear;
+        
+        % boolean
+        % useCache; --> migrated to a setting, which can be accessed via
+        % same named function
+        useDatabase = 0;
+        useOutcomes = 0;
+        
+        %> @brief Struct with fields consisting of summary statistics for
+        %> field names contained in the subject info table of the goals
+        %> database for all clusters.
+        %> @note Database must be developed and maintained externally
+        %> to Padaco.
+        globalProfile;
+        
+        %> @brief Struct with fields consisting of summary statistics for
+        %> field names contained in the subject info table of the goals
+        %> database for the cluster of interest.
+        %> @note Database must be developed and maintained externally
+        %> to Padaco.
+        coiProfile;
+        
+        %> @brief Fx3xC matrix where N is the number of covariate fields
+        %> to be analyzed and C is the number of clusters.  '3' represents
+        %> the columns: n, mean, and standard error of the mean for the
+        %> subjects in cluster c with values found in covariate f.
+        allProfiles;
+        
+        profileTableData;
+    end
+    
+    properties(Access=protected)
+        cacheDirectory;
+        
         %> Structure of original loaded features, that are a direct
         %> replication of the data obtained from disk (i.e. without further
         %> filtering).
@@ -37,16 +98,11 @@ classdef PAStatTool < PAViewController
         %> Struct for holding choi nonwear results.        
         choiNonwearStruct;
 
-        nonwear;
-        
         % Changing to a setting - use getSetting('exclusionsFilename')
         % exclusionsFilename = PAFilenameParam();
         
-        %> structure loaded features which is as current or as in sync with the gui settings
-        %> as of the last time the 'Calculate' button was
-        %> pressed/manipulated.
-        featureStruct;
-        
+        % holdPlots;  --> refactored to a method
+
         %> struct of handles that PAStatTool interacts with.  Inherited from PABase
         %>  See initHandles()
         %> Includes contextmenu
@@ -74,48 +130,10 @@ classdef PAStatTool < PAViewController
         %> - @c plotType The tag of the current plot type
         %> - @c colorMap - colormap of figure;
         %> These are initialized in the initWidgets() method.
-        previousState;
-        %> instance of PACluster class
-        clusterObj;
+        previousState;            
         
-        %> @brief Struct with fields consisting of summary statistics for
-        %> field names contained in the subject info table of the goals
-        %> database for all clusters.
-        %> @note Database must be developed and maintained externally
-        %> to Padaco.
-        globalProfile;
-        
-        %> @brief Struct with fields consisting of summary statistics for
-        %> field names contained in the subject info table of the goals
-        %> database for the cluster of interest.
-        %> @note Database must be developed and maintained externally
-        %> to Padaco.
-        coiProfile;
-        
-        %> @brief Fx3xC matrix where N is the number of covariate fields
-        %> to be analyzed and C is the number of clusters.  '3' represents
-        %> the columns: n, mean, and standard error of the mean for the
-        %> subjects in cluster c with values found in covariate f.
-        allProfiles;
-        profileTableData;
-        
-        % boolean
-        % useCache; --> migrated to a setting, which can be accessed via
-        % same named function
-        useDatabase;
-        useOutcomes;
-        % holdPlots;  --> refactored to a method
-        
-        featuresDirectory;
-        cacheDirectory;
-        
-        %> @brief Struct with key value pairs for clustering:
-        %> - @c clusterMethod Cluster method employed {'kmeans','kmedoids'}
-        %> - @c useDefaultRandomizer = widgetSettings.useDefaultRandomizer;
-        %> - @c initClusterWithPermutation = settings.initClusterWithPermutation;
-        %> @note Initialized in the setWidgetSettings() method
-        clusterSettings;
     end
+    
     properties(Access=private)
         %> @brief Bool (true: has icon/false: does not have icon)
         hasIcon;
@@ -142,14 +160,6 @@ classdef PAStatTool < PAViewController
         nonwearRequiresUpdate = false;
     end
     
-    properties
-        %> struct of fields to use when profiling/describing clusters.
-        %> These are names of database fields extracted which are keyed on
-        %> the subject id's that are members of the cluster of interest.
-        profileFields;
-        maxNumDaysAllowed;
-        minNumDaysAllowed;
-    end
     
     methods
         
@@ -172,9 +182,26 @@ classdef PAStatTool < PAViewController
             this.coiProfile = [];
             this.allProfiles = [];
             
+            this.featureInputFilePattern = ['%s',filesep,'%s',filesep,'features.%s.accel.%s.%s.txt'];
+            this.featureInputFileFieldnames = {'inputPathname','displaySeletion','processType','curSignal'};
+            
+            this.originalFeatureStruct = [];
+            this.canPlot = false;
+            this.featuresDirectory = [];            
+            this.featureStruct = [];
+                        
             if isempty(this.figureH)
                 this.initBase();
+                
+                % Necessary b/c weekday tag is updated from gui in
+                % getPlotSettings otherwise, but necessary for
+                % calculateFeatureStructures at the moment 2/2/2022
+                this.settings.weekdayTag = this.base.weekdayTags{this.getSetting('weekdaySelection')};
+                this.settings.clusterDurationHours = this.base.clusterHourlyDurations(this.getSetting('clusterDurationSelection'));
+                this.settings.preclusterReduction = this.base.preclusterReductions{this.getSetting('preclusterReductionSelection')}; 
             end
+            
+            
             this.featureTypes = this.base.featureTypes;
             
             discardMethod = this.getSettingsParam('discardMethod');            
@@ -184,13 +211,16 @@ classdef PAStatTool < PAViewController
                 this.nonwear.(discardMethod.categories{c}) = struct('filename', 'none'); % struct('rows',[]);
             end
             
+            featuresPathname = this.getSetting('featuresPathname');
             if this.getSetting('startWithLastPath')      
-                featuresPathname = this.getSetting('featuresPathname');
+                
                 if(isdir(featuresPathname))
                     this.setFeaturesDirectoryAndUpdate(featuresPathname); % a lot of initialization code in side this call.                    
                 else                    
                     fprintf('%s does not exist!\n',featuresPathname);
                 end
+            else
+                this.setFeaturesDirectory(featuresPathname);
             end
         end
         
@@ -318,9 +348,10 @@ classdef PAStatTool < PAViewController
                     featuresPath = resultsPath;
                     % fprintf('Assuming features pathFeatures pathname (%s) does not exist!\n',featuresPath);
                 end
-                
-                this.featuresDirectory = featuresPath;
-                didSet = true;
+                if this.setSetting('featuresPathname', featuresPath)
+                    this.featuresDirectory = featuresPath;
+                    didSet = true;
+                end
             end
         end
         
@@ -838,9 +869,11 @@ classdef PAStatTool < PAViewController
                 stopTimeSelection = numel(startTimeCellStr);
             end
             
-            stopTimeCellStr = circshift(startTimeCellStr(:),-1);
-            set(this.handles.menu_clusterStartTime,'string',startTimeCellStr,'value',startTimeSelection);
-            set(this.handles.menu_clusterStopTime,'string',stopTimeCellStr,'value',stopTimeSelection);
+            if ~isempty(this.figureH)
+                stopTimeCellStr = circshift(startTimeCellStr(:),-1);
+                set(this.handles.menu_clusterStartTime,'string',startTimeCellStr,'value',startTimeSelection);
+                set(this.handles.menu_clusterStopTime,'string',stopTimeCellStr,'value',stopTimeSelection);
+            end
         end
         
         function isIt = isShowingWeekLong(this, pSettings)
@@ -851,13 +884,22 @@ classdef PAStatTool < PAViewController
             isIt = strcmpi(pSettings.weekdayTag,'weeklong');
         end
         
+        function didCalc = calcFeaturesFromFile(this, featuresFilename)
+            indicesToUse = [];
+            didCalc = this.calcFeatureStruct(indicesToUse, featuresFilename);            
+        end
+        
         % ======================================================================
         %> @brief Loads feature struct from disk using the current features
         %> directory.
         %> @param this Instance of PAStatTool
         %> @retval success Boolean: true if features are loaded from file.  False if they are not.
         % ======================================================================
-        function didCalc = calcFeatureStruct(this, indicesToUse)
+        function didCalc = calcFeatureStruct(this, indicesToUse, inputFilename)
+            
+            if nargin<3
+                inputFilename = [];
+            end
             if(nargin<2)
                 indicesToUse = [];
                 %                 if(~isempty(this.originalFeatureStruct))
@@ -875,25 +917,48 @@ classdef PAStatTool < PAViewController
                 end
             end
             
-            pSettings = this.getPlotSettings();
+            if ~isempty(this.figureH)
+                pSettings = this.getPlotSettings();
+            else
+                pSettings = this.getSettings();
+                fields = fieldnames(pSettings);
+                for f=1:numel(fields)
+                    key = fields{f};
+                    if isa(pSettings.(key), 'PAParam')
+                        pSettings.(key) = pSettings.(key).value;
+                    end
+                end
+            end
+            
+            
             
             countProcessType = this.base.processedTypes{1};
             rawProcessType = this.base.processedTypes{2};
             unknownProcessType = '*'; %anyProcessType ?
             
-            inputCountFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,countProcessType,pSettings.curSignal);
-            inputRawFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,rawProcessType,pSettings.curSignal);
-            inputUnknownFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,unknownProcessType,pSettings.curSignal);
             isCountData = false;
             isRawData = false;
-            if(exist(inputCountFilename,'file'))
-                inputFilename = inputCountFilename;
-                isCountData = 1;
-            elseif(exist(inputRawFilename,'file'))
-                inputFilename = inputRawFilename;
-                isRawData = 1;
+                
+            if isempty(inputFilename)
+                inputCountFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,countProcessType,pSettings.curSignal);
+                inputRawFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,rawProcessType,pSettings.curSignal);
+                inputUnknownFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory,pSettings.baseFeature,pSettings.baseFeature,unknownProcessType,pSettings.curSignal);
+                if(exist(inputCountFilename,'file'))
+                    inputFilename = inputCountFilename;
+                    isCountData = 1;
+                elseif(exist(inputRawFilename,'file'))
+                    inputFilename = inputRawFilename;
+                    isRawData = 1;
+                else
+                    inputFilename = inputUnknownFilename;
+                end
             else
-                inputFilename = inputUnknownFilename;
+                [~, baseName]  = fileparts(inputFilename);  %/features/sum/features.sum.accel.count.vecMag.txt' --> 'features.sum.accel.count.vecMag'
+                filenameStruct = cell2struct(strsplit(baseName,'.'),{'collection','baseFeature','source','processType','signal'},2);
+                pSettings.baseFeature = filenameStruct.baseFeature;
+                pSettings.curSignal = filenameStruct.signal;
+                isRawData = strcmpi(filenameStruct.processType,rawProcessType);
+                isCountData = strcmpi(filenameStruct.processType,countProcessType);
             end
             
             if(isRawData || isCountData)
@@ -930,7 +995,9 @@ classdef PAStatTool < PAViewController
                     end
                 end
                 
-                loadFileRequired = isempty(this.originalFeatureStruct) || ~strcmpi(inputFilename,this.originalFeatureStruct.filename);
+                loadFileRequired = isempty(this.originalFeatureStruct) ...
+                    || ~strcmpi(inputFilename,this.originalFeatureStruct.filename) ...
+                    || nargin > 2;  % an input filename was provided from the start
                 
                 if(loadFileRequired)
                     this.originalFeatureStruct = this.loadAlignedFeatures(inputFilename);
@@ -1078,7 +1145,7 @@ classdef PAStatTool < PAViewController
                 
                 [this.nonwear.rows, malfunctionRows] = this.getNonwearRows(nonwearMethods, this.nonwear);
                 % this.nonwear.rows = this.nonwear.rows | malfunctionRows;
-                if this.isShowingWeekLong()
+                if this.isShowingWeekLong(pSettings)
                     maxDaysAllowed = 7;
                     minDaysAllowed = 7;
                 else
@@ -1086,7 +1153,8 @@ classdef PAStatTool < PAViewController
                     minDaysAllowed = this.minNumDaysAllowed;
                 end
                 
-                if(pSettings.discardNonwearFeatures)
+                % logical() ensures type casting of PABoolParam if we get pSettings from somewhere else
+                if pSettings.discardNonwearFeatures
                     % min and max days allowed interpeted in one of three ways
                     % 1.  both exactly 7
                     % 2.  either more than 0
@@ -1209,27 +1277,28 @@ classdef PAStatTool < PAViewController
                     % featuresPerCluster = hoursPerCluster*featuresPerHour;
                 end
                 % If there is precluster reduction
-                if(~strcmpi(pSettings.preclusterReduction,'none'))
+                if ~strcmpi(pSettings.preclusterReduction,'none')
+                    numChunks = double(pSettings.numChunks);  
                     
-                    if(pSettings.chunkShapes && pSettings.numChunks>1)
+                    if pSettings.chunkShapes && numChunks>1
                         % The other transformation will reduce the number
                         % of columns, so we need to account for that here.
                         [numRows, numCols] = size(loadFeatures);
                         if(~strcmpi(pSettings.preclusterReduction,'sort'))
-                            numCols = pSettings.numChunks;
+                            numCols = numChunks;
                         end
                         splitLoadFeatures = nan(numRows,numCols);
                         
                         % 1. Reshape the loadFeatures by segments
                         % 2. Sort the loadfeatures
-                        % 3. Resahpe the load features back to the original
+                        % 3. Resahpe the load features back to the original                        % 
                         % way
                         
                         % Or make a for loop and sort along the way ...
-                        sections = round(linspace(0,size(loadFeatures,2),pSettings.numChunks+1));  %Round to give integer indices
+                        sections = round(linspace(0,size(loadFeatures,2), numChunks+1));  %Round to give integer indices
                         for s=1:numel(sections)-1
                             sectionInd = sections(s)+1:sections(s+1); % Create consecutive, non-overlapping sections of column indices.
-                            if(numCols == pSettings.numChunks)
+                            if(numCols == numChunks)
                                 % Case 1: we are we reducing the output, so
                                 % only 1 column per s
                                 splitLoadFeatures(:,s) = PAStatTool.featureSetAdjustment(loadFeatures(:,sectionInd),pSettings.preclusterReduction);
@@ -1250,7 +1319,7 @@ classdef PAStatTool < PAViewController
                     % if we had a precluster feature set reduction
                     if(~strcmpi(pSettings.preclusterReduction,'sort'))
                         
-                        if(pSettings.chunkShapes)
+                        if pSettings.chunkShapes
                             initialCount = this.featureStruct.totalCount;
                             this.featureStruct.totalCount = pSettings.numChunks;
                             indicesToUse = floor(linspace(1,initialCount,this.featureStruct.totalCount));
@@ -1271,8 +1340,8 @@ classdef PAStatTool < PAViewController
                         this.featureStruct.startTimes = this.featureStruct.startTimes(indicesToUse);
                     end
                 end
-                
-                if(pSettings.trimResults)
+
+                if pSettings.trimResults
                     pctValues = prctile(loadFeatures,pSettings.trimToPercent);
                     pctValuesMat = repmat(pctValues,size(loadFeatures,1),1);
                     adjustInd = loadFeatures>pctValuesMat;
@@ -2111,16 +2180,10 @@ classdef PAStatTool < PAViewController
         
         % Called from constructor.
         function didInit = initFigure(this)
-            this.originalFeatureStruct = [];
-            this.canPlot = false;
-            this.featuresDirectory = [];
-            
-            this.featureStruct = [];
             
             this.initBase();
             
-            this.featureInputFilePattern = ['%s',filesep,'%s',filesep,'features.%s.accel.%s.%s.txt'];
-            this.featureInputFileFieldnames = {'inputPathname','displaySeletion','processType','curSignal'};
+
             
             didInit = initFigure@PAViewController(this); % calls: obj.designateHandles(); obj.initWidgets();  obj.initCallbacks();
             if(didInit)

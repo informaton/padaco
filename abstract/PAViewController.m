@@ -1,5 +1,5 @@
 classdef(Abstract) PAViewController < PAFigureController
-    properties(SetAccess=protected)
+    properties(Access=protected)
         %> @brief struct whose fields are axes handles.  Fields include:
         %> - @b primary handle to the main axes an instance of this class is associated with
         %> - @b secondary Window view of events (over view)

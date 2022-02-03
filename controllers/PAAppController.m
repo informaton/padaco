@@ -784,7 +784,7 @@ classdef PAAppController < PAFigureController
                     end
                     obj.showBusy('Initializing results view','all');
                     obj.setFeaturesPathnameAndUpdate(featuresPath);
-                    if(obj.initResultsView())
+                    if obj.initResultsView()
                         obj.StatTool.showReady('all');
                     else
                         f=warndlg('I could not find any feature files in the directory you selected.  Check the editor window for further information','Load error','modal');
@@ -1297,6 +1297,8 @@ classdef PAAppController < PAFigureController
         function featuresPath = getFeaturesPathname(this)
             if ~isempty(this.StatTool)
                 featuresPath = this.StatTool.getSetting('featuresPathname');
+                % featuresPath = this.StatTool.featuresPathname;
+                
             else
                 featuresPath = this.AppSettings.StatTool.featuresPathname;
             end
