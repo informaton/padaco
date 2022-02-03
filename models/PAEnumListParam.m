@@ -11,7 +11,9 @@ classdef PAEnumListParam < PAEnumParam
                 end
                 if iscell(value2set)
                     value2set = unique(value2set);
-                else
+                elseif contains(value2set, ',')  % for example:  'choi,imported_file' which happens when importing from a text file
+                    value2set = unique(strsplit(value2set,','));
+                else                    
                     value2set = {value2set};
                 end
                 this.value = value2set;
@@ -29,7 +31,11 @@ classdef PAEnumListParam < PAEnumParam
                 if islogical(value2set) && any(value2set) && numValues==numCategories
                     canIt = true;
                 elseif ischar(value2set)
-                    canIt = canSetValue@PAEnumParam(this, value2set);                        
+                    if contains(value2set, ',')
+                        canIt = this.canSetValue(unique(strsplit(value2set, ','))); % for example:  'choi,imported_file' which happens when importing from a text file
+                    else
+                        canIt = canSetValue@PAEnumParam(this, value2set);
+                    end
                 elseif numValues <= numCategories
                     if isnumeric(value2set) && all(arrayfun(@(x)(x>=1 && x<= numCategories), value2set))
                         canIt = true;                    

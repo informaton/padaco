@@ -1416,127 +1416,131 @@ classdef PAStatTool < PAViewController
         
         % didUpdate will be false in the event of an exception.
         function didUpdate = updateWidgets(this, varargin)
+            didUpdate = false;
             try
-                this.updateWidgets@PAViewController(varargin{:});
-                featuresPathname = this.featuresDirectory;
-                % this.hideClusterControls();
                 
-                this.canPlot = false;    %changes to true if we find data that can be processed in featuresPathname
-                
-                set(this.handles.result_widgets_selection,'enable','off');
-                
-                clusterMethods = PACluster.getClusterMethods();
-                cmIndex = find(strcmpi(clusterMethods,this.getSetting('clusterMethod')),1);
-                if(isempty(cmIndex))
-                    cmIndex = 1;
-                end
-                set(this.handles.menu_clusterMethod,'string',clusterMethods,'value',cmIndex);
-                if(isdir(featuresPathname))
-                    % find allowed features which are in our base parameter and
-                    % also get their description.
-                    featureNames = getPathnames(featuresPathname);
-                    if(~isempty(featureNames))
-                        [this.featureTypes,~,ib] = intersect(featureNames,this.base.featureTypes);
-                        
-                        if(~isempty(this.featureTypes))
-                            % clear results text
-                            set(this.handles.text_clusterResultsOverlay,'string',[]);
+                if ~isempty(this.figureH)
+                    this.updateWidgets@PAViewController(varargin{:});
+                    featuresPathname = this.featuresDirectory;
+                    % this.hideClusterControls();
+                    
+                    this.canPlot = false;    %changes to true if we find data that can be processed in featuresPathname
+                    
+                    set(this.handles.result_widgets_selection,'enable','off');
+                    
+                    clusterMethods = PACluster.getClusterMethods();
+                    cmIndex = find(strcmpi(clusterMethods,this.getSetting('clusterMethod')),1);
+                    if(isempty(cmIndex))
+                        cmIndex = 1;
+                    end
+                    set(this.handles.menu_clusterMethod,'string',clusterMethods,'value',cmIndex);
+                    if(isdir(featuresPathname))
+                        % find allowed features which are in our base parameter and
+                        % also get their description.
+                        featureNames = getPathnames(featuresPathname);
+                        if(~isempty(featureNames))
+                            [this.featureTypes,~,ib] = intersect(featureNames,this.base.featureTypes);
                             
-                            % Use to enable everything and then shut things down as needed.
-                            % set(findall(this.handles.panels_sansClusters,'enable','off'),'enable','on');
-                            
-                            % now disable and then enable as eeded
-                            this.disable();
-                            this.canPlot = true;
-                            
-                            this.featureDescriptions = this.base.featureDescriptions(ib);
-                            set(this.handles.menu_feature,'string',this.featureDescriptions,'userdata',this.featureTypes,'value',this.getSetting('baseFeatureSelection'));
-                            
-                            % Checkboxes
-                            % This is good for a true false checkbox value
-                            % Checked state has a value of 1
-                            % Unchecked state has a value of 0
-                            set(this.handles.check_discardNonwear,'value',this.getSetting('discardNonwearFeatures'));
-                            set(this.handles.check_segment,'value',this.getSetting('chunkShapes'));
-                            set(this.handles.check_trim,'value',this.getSetting('trimResults'));
-                            set(this.handles.check_cull,'value',this.getSetting('cullResults'));
-                            set(this.handles.check_normalizevalues,'value',this.getSetting('normalizeValues'));
-                            
-                            % This should be updated to parse the actual output feature
-                            % directories for signal type (count) or raw and the signal
-                            % source (vecMag, x, y, z)
-                            set(this.handles.menu_signalsource,'value',this.getSetting('signalSelection'));
-                            set(this.handles.menu_plottype,'value',this.getSetting('plotTypeSelection'));
-                            
-                            % Cluster widgets
-                            set(this.handles.menu_precluster_reduction,'value',this.getSetting('preclusterReductionSelection'));
-                            set(this.handles.menu_number_of_data_segments,'value',this.getSetting('numDataSegmentsSelection'));
-                            
-                            if(strcmpi(this.base.weekdayTags{this.getSetting('weekdaySelection')},'custom'))
-                                customIndex = this.getSetting('weekdaySelection');
-                                tooltipString = cell2str(this.base.daysOfWeekDescriptions(this.base.weekdayValues{customIndex}+1));
-                            elseif(strcmpi(this.base.weekdayTags{this.getSetting('weekdaySelection')},'weeklong'))
-                                tooltipString = 'Concatenates days, Sunday through Saturday, into a single week';
-                            else
-                                tooltipString = '';
+                            if(~isempty(this.featureTypes))
+                                % clear results text
+                                set(this.handles.text_clusterResultsOverlay,'string',[]);
+                                
+                                % Use to enable everything and then shut things down as needed.
+                                % set(findall(this.handles.panels_sansClusters,'enable','off'),'enable','on');
+                                
+                                % now disable and then enable as eeded
+                                this.disable();
+                                this.canPlot = true;
+                                
+                                this.featureDescriptions = this.base.featureDescriptions(ib);
+                                set(this.handles.menu_feature,'string',this.featureDescriptions,'userdata',this.featureTypes,'value',this.getSetting('baseFeatureSelection'));
+                                
+                                % Checkboxes
+                                % This is good for a true false checkbox value
+                                % Checked state has a value of 1
+                                % Unchecked state has a value of 0
+                                set(this.handles.check_discardNonwear,'value',this.getSetting('discardNonwearFeatures'));
+                                set(this.handles.check_segment,'value',this.getSetting('chunkShapes'));
+                                set(this.handles.check_trim,'value',this.getSetting('trimResults'));
+                                set(this.handles.check_cull,'value',this.getSetting('cullResults'));
+                                set(this.handles.check_normalizevalues,'value',this.getSetting('normalizeValues'));
+                                
+                                % This should be updated to parse the actual output feature
+                                % directories for signal type (count) or raw and the signal
+                                % source (vecMag, x, y, z)
+                                set(this.handles.menu_signalsource,'value',this.getSetting('signalSelection'));
+                                set(this.handles.menu_plottype,'value',this.getSetting('plotTypeSelection'));
+                                
+                                % Cluster widgets
+                                set(this.handles.menu_precluster_reduction,'value',this.getSetting('preclusterReductionSelection'));
+                                set(this.handles.menu_number_of_data_segments,'value',this.getSetting('numDataSegmentsSelection'));
+                                
+                                if(strcmpi(this.base.weekdayTags{this.getSetting('weekdaySelection')},'custom'))
+                                    customIndex = this.getSetting('weekdaySelection');
+                                    tooltipString = cell2str(this.base.daysOfWeekDescriptions(this.base.weekdayValues{customIndex}+1));
+                                elseif(strcmpi(this.base.weekdayTags{this.getSetting('weekdaySelection')},'weeklong'))
+                                    tooltipString = 'Concatenates days, Sunday through Saturday, into a single week';
+                                else
+                                    tooltipString = '';
+                                end
+                                
+                                set(this.handles.menu_weekdays,'value',this.getSetting('weekdaySelection'),'tooltipstring',tooltipString);
+                                set(this.handles.menu_duration,'value',this.getSetting('clusterDurationSelection'));
+                                
+                                % Trim results
+                                if(this.getSetting('trimResults'))
+                                    enableState = 'on';
+                                else
+                                    enableState = 'off';
+                                end
+                                set(this.handles.edit_trimToPercent,'string',num2str(this.getSetting('trimToPercent')),'enable',enableState);
+                                
+                                % Cull results
+                                if(this.getSetting('cullResults'))
+                                    enableState = 'on';
+                                else
+                                    enableState = 'off';
+                                end
+                                set(this.handles.edit_cullToValue,'string',num2str(this.getSetting('cullToValue')),'enable',enableState);
+                                
+                                % Check results
+                                if(this.getSetting('chunkShapes'))
+                                    enableState = 'on';
+                                else
+                                    enableState = 'off';
+                                end
+                                set(this.handles.menu_number_of_data_segments,'enable',enableState);
+                                
+                                this.setClusterDistributionType(this.getSetting('clusterDistributionType'));
                             end
-                            
-                            set(this.handles.menu_weekdays,'value',this.getSetting('weekdaySelection'),'tooltipstring',tooltipString);
-                            set(this.handles.menu_duration,'value',this.getSetting('clusterDurationSelection'));
-                            
-                            % Trim results
-                            if(this.getSetting('trimResults'))
-                                enableState = 'on';
-                            else
-                                enableState = 'off';
-                            end
-                            set(this.handles.edit_trimToPercent,'string',num2str(this.getSetting('trimToPercent')),'enable',enableState);
-                            
-                            % Cull results
-                            if(this.getSetting('cullResults'))
-                                enableState = 'on';
-                            else
-                                enableState = 'off';
-                            end
-                            set(this.handles.edit_cullToValue,'string',num2str(this.getSetting('cullToValue')),'enable',enableState);
-                            
-                            % Check results
-                            if(this.getSetting('chunkShapes'))
-                                enableState = 'on';
-                            else
-                                enableState = 'off';
-                            end
-                            set(this.handles.menu_number_of_data_segments,'enable',enableState);
-                            
-                            this.setClusterDistributionType(this.getSetting('clusterDistributionType'));
                         end
                     end
+                    
+                    customIndex = strcmpi(this.base.weekdayTags,'custom');
+                    this.base.weekdayValues{customIndex} = this.getSetting('customDaysOfWeek');
+                    
+                    % These are required by follow-on calls, regardless if the gui
+                    % can be shown or not.
+                    
+                    % Previous state initialization - set to current state.
+                    this.previousState.normalizeValues = this.getSetting('normalizeValues');
+                    this.previousState.weekdaySelection = this.getSetting('weekdaySelection');
+                    
+                    % Set previous plot type to 'clustering' which is how it look
+                    % in the guide figure on startup, and is dynamically when
+                    % switching from clustering.
+                    if(~isfield(this.previousState,'plotType') || isempty(this.previousState.plotType))
+                        this.previousState.plotType = 'clustering';  % don't refresh here, as we may want to use a cached result.
+                    else
+                        this.refreshPlotType();
+                    end
+                    
+                    % disable everything
+                    if(~this.canPlot)
+                        set(findall(this.handles.panel_results,'enable','on'),'enable','off');
+                    end
+                    didUpdate = true;
                 end
-                
-                customIndex = strcmpi(this.base.weekdayTags,'custom');
-                this.base.weekdayValues{customIndex} = this.getSetting('customDaysOfWeek');
-                
-                % These are required by follow-on calls, regardless if the gui
-                % can be shown or not.
-                
-                % Previous state initialization - set to current state.
-                this.previousState.normalizeValues = this.getSetting('normalizeValues');
-                this.previousState.weekdaySelection = this.getSetting('weekdaySelection');
-                
-                % Set previous plot type to 'clustering' which is how it look
-                % in the guide figure on startup, and is dynamically when
-                % switching from clustering.
-                if(~isfield(this.previousState,'plotType') || isempty(this.previousState.plotType))
-                    this.previousState.plotType = 'clustering';  % don't refresh here, as we may want to use a cached result.
-                else
-                    this.refreshPlotType();
-                end
-                
-                % disable everything
-                if(~this.canPlot)
-                    set(findall(this.handles.panel_results,'enable','on'),'enable','off');
-                end
-                didUpdate = true;
             catch me
                 this.logError(me, 'Display update failed');
                 didUpdate = false;
