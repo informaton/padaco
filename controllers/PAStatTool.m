@@ -1067,7 +1067,8 @@ classdef PAStatTool < PAViewController
                 % collected.                
                 if loadFileRequired || this.nonwearRequiresUpdate
                     nonwearMethods = this.getSetting('discardMethod');
-                    if any(strcmpi(nonwearMethods, 'imported_file')) && exist(this.exclusionsFilename,'file') && isempty(this.nonwear.imported_file.rows)
+                    if any(strcmpi(nonwearMethods, 'imported_file')) && exist(this.exclusionsFilename,'file') && ...
+                        (~isfield(this.nonwear.imported_file, 'rows') || isempty(this.nonwear.imported_file.rows))
                         try
                             this.importExclusions(this.exclusionsFilename);
                         catch me
@@ -1690,7 +1691,7 @@ classdef PAStatTool < PAViewController
             selections = validNonwearOptions(selections);
                        
             % Was something selected and (if so) was it different from the original selection
-            if ~isempty(selections) && ~isempty(setdiff(currentSelections, selections))
+            if ~isempty(selections) && ~isequal(sort(currentSelections), sort(selections))
                 this.setSetting('discardMethod', selections);
                 this.nonwearRequiresUpdate = true;
                 this.enableClusterRecalculation();            

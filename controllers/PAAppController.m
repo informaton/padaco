@@ -222,7 +222,7 @@ classdef PAAppController < PAFigureController
             % settings and about
             safeset(figHandles,'menu_file_about',menuCbKey,@obj.menuFileAboutCallback);
             safeset(figHandles,'menu_file_settings_application',menuCbKey,@obj.menuFileSettingsApplicationCallback);
-            safeset(figHandles,'menu_file_settings_nonwear',menuCbKey,@obj.nonwearSettingsCb);
+            safeset(figHandles,'menu_file_settings_nonwear',menuCbKey,@obj.nonwearSettingsCb); % exclusions
             
             safeset(figHandles,'menu_file_settings_usageRules',menuCbKey,@obj.menuFileSettingsUsageRulesCallback);
             safeset(figHandles,'menu_load_settings',menuCbKey,@obj.menuFileLoadSettingsCb);
