@@ -11,6 +11,7 @@
 function summary = getExclusionsSummary(exclusionsFile, varargin)
     if nargin<1 || isempty(exclusionsFile)
         exclusionsFile = fullfile('~/Documents/padaco','choi_and_imported_file_count_exclusions.mat');
+        fprintf('Additional arguments can be used to print a table or produce interactive scatter of the results: ''table'', ''interactive''\n');        
     end
     if ~exist(exclusionsFile,'file')
         error('Exclusions file (%s) does not exist', exclusionsFile);

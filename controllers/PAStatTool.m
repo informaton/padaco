@@ -76,6 +76,13 @@ classdef PAStatTool < PAViewController
         allProfiles;
         
         profileTableData;
+        
+        % Stores last used settings, from plot settings or settings property
+        % (when headless), following successful feature calculation.  This
+        % is used to determine if additional cacluations need to be done,
+        % such as refreshing nonwear exclusion ranges for times/days
+        lastUsedSettings = struct();
+        
     end
     
     properties(Access=protected)
@@ -627,6 +634,9 @@ classdef PAStatTool < PAViewController
                     end
                 end
             end
+            if didImport
+                this.enableClusterRecalculation();
+            end
         end
         
         % Exclusions are those days which are excluded from analysis either because of sensor malfunction,
@@ -889,6 +899,23 @@ classdef PAStatTool < PAViewController
             didCalc = this.calcFeatureStruct(indicesToUse, featuresFilename);            
         end
         
+        function isIt = isNonwearUpdateRequired(this, curSettings, lastSettings)
+            isIt = true;
+            if nargin < 2
+                lastSettings = this.lastUsedSettings;
+            end
+            if ~isempty(lastSettings) && isstruct(lastSettings) && isstruct(curSettings)
+                if curSettings.startTimeSelect == lastSettings.startTimeSelect ...
+                        && curSettings.stopTimeSelect == lastSettings.stopTimeSelect ...
+                        && strcmpi(curSettings.weekdayTag, lastSettings.weekdayTag)
+                    if ~strcmpi(curSettings.weekdayTag, 'custom') ...
+                            || isequal(curSettings.customDaysOfWeek, lastSettings.customDaysOfWeek)
+                        isIt = false;                    
+                    end
+                end
+            end
+        end
+        
         % ======================================================================
         %> @brief Loads feature struct from disk using the current features
         %> directory.
@@ -930,6 +957,8 @@ classdef PAStatTool < PAViewController
                 end
             end
             
+            % True if certain things have changed.
+            this.nonwearRequiresUpdate = this.nonwearRequiresUpdate || this.doesNonwearRequireUpdate(pSettings);
             
             
             countProcessType = this.base.processedTypes{1};
@@ -1383,6 +1412,7 @@ classdef PAStatTool < PAViewController
                     this.featureStruct.features = loadFeatures;
                 end
                 
+                this.lastUsedSettings = pSettings;
                 didCalc = true;
             else
                 this.featureStruct = [];
@@ -2285,16 +2315,31 @@ classdef PAStatTool < PAViewController
                 
                 set(this.handles.menu_weekdays,'callback',@this.menuWeekdaysCallback);
                 
+                
                 set([
                     this.handles.menu_feature;
                     this.handles.menu_signalsource;
                     ],'callback',@this.refreshPlot);
+                
                 set([
                     this.handles.check_normalizevalues;
                     this.handles.menu_precluster_reduction;
                     this.handles.menu_number_of_data_segments;
                     this.handles.menu_clusterMethod;
-                    this.handles.check_segment],'callback',@this.enableClusterRecalculation);
+                    this.handles.check_segment
+                    this.handles.menu_clusterStartTime
+                     this.handles.menu_clusterStopTime
+                    this.handles.edit_minClusters
+                    this.handles.edit_clusterConvergenceThreshold
+                    this.handles.menu_duration],'callback',@this.enableClusterRecalculation);
+                
+                % Delete commented code after 2/22/2022
+                %                 set([this.handles.menu_clusterStartTime
+                %                      this.handles.menu_clusterStopTime
+                %                     this.handles.edit_minClusters
+                %                     this.handles.edit_clusterConvergenceThreshold
+                %                     this.handles.menu_duration
+                %                     ],'callback',@this.enableClusterRecalculation);
                 
                 set(this.handles.menu_plottype,'callback',@this.plotSelectionChangeCb);
                 
@@ -2302,8 +2347,7 @@ classdef PAStatTool < PAViewController
                 set(this.handles.edit_trimToPercent,'callback',@this.editTrimToPercentChange);
                 
                 set(this.handles.check_cull,'callback',@this.checkCullCallback);
-                set(this.handles.edit_cullToValue,'callback',@this.editCullToValueChange);
-                
+                set(this.handles.edit_cullToValue,'callback',@this.editCullToValueChange);                
                 
                 % Push buttons
                 % this should not normally be enabled if plotType
@@ -2315,14 +2359,7 @@ classdef PAStatTool < PAViewController
                 this.initRefreshClusterButton('off');
                 
                 drawnow();
-                
-                set([
-                    this.handles.menu_clusterStartTime
-                    this.handles.menu_clusterStopTime
-                    this.handles.edit_minClusters
-                    this.handles.edit_clusterConvergenceThreshold
-                    this.handles.menu_duration
-                    ],'callback',@this.enableClusterRecalculation);
+
                 
                 % add a context menu now to figureH in order to use with cluster load
                 % shape line handles.
@@ -4809,12 +4846,10 @@ classdef PAStatTool < PAViewController
             userSettings.initClusterWithPermutation = this.clusterSettings.initClusterWithPermutation;
             userSettings.useDefaultRandomizer = this.clusterSettings.useDefaultRandomizer;
             
-            
             % Cluster reduction settings
             userSettings.preclusterReductionSelection = get(this.handles.menu_precluster_reduction,'value');
             userSettings.preclusterReduction = this.base.preclusterReductions{userSettings.preclusterReductionSelection};  %singular entry now.    %  = getuserdata(this.handles.menu_precluster_reduction);
             % userSettings.reductionTransformationFcn = getMenuUserData(this.handles.menu_precluster_reduction);
-            
             
         end
         
@@ -5099,7 +5134,7 @@ classdef PAStatTool < PAViewController
         end
         
         % ======================================================================
-        % Obtains the intersection os exclusion structs A and B and then returns
+        % Obtains the intersection of exclusion structs A and B and then returns
         % the structs of each for the locations where they intersect based on same studyID and startDatenum values.        
         function [excA, excB] = intersectExclusions(exclusionsA, exclusionsB)
             a = exclusionsA;

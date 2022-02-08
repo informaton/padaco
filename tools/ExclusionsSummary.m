@@ -140,11 +140,73 @@ classdef ExclusionsSummary < handle
             nonwear = mat.nonwear;
             
             % nonwearRows = PAStatTool.getNonwearRows(nonwear.methods, nonwear);
-            isSpecial = true;
+            isSpecial = false;
             if ~isSpecial
                 summary = nonwear;
+                %                 nonwear.padaco = nonwear.imported_file.padaco;
+                %                 startHours = hours(duration(nonwear.padaco.startTimes,'inputformat','hh:mm'));
+                
+                studyIDs = nonwear.studyIDs;
+                unique_studyIDs = unique(studyIDs);
+                summary.num_unique_subjects = numel(unique_studyIDs);
+                num_rows = numel(nonwear.rows);
+                
+                curEntry=0;
+                numEntries = sum(1:24);
+                startStopHours = nan(numEntries, 2);
+                summary.startHour = startStopHours(:,1);
+                summary.endHour = startStopHours(:,1);
+                summary.duration = nan(numEntries,1);
+                summary.time_str = cell(numEntries,1);
+                summary.num_unique_subjects_with_exclusion = nan(numEntries,1);
+                summary.num_profiles_with_exclusion = nan(numEntries,1);
+                
+                summary.num_valid_profiles_per_subject = nan(numEntries,summary.num_unique_subjects);
+                subject_profile_idx = cell(summary.num_unique_subjects,1);
+                for s=1:numel(subject_profile_idx)
+                    study_id = unique_studyIDs(s);
+                    subject_profile_idx{s} = studyIDs==study_id;
+                end
+                
+                summary.result_str  = cell(numEntries,1);
+                for startHour = 0:23
+                    for endHour = startHour+1:24
+                        curEntry=curEntry+1;
+                        
+                        startStopHours(curEntry,:) = [startHour, endHour];                        
+                        rows = PAStatTool.getNonwearRows(nonwear.methods, nonwear);
+                        
+                        % Determine the number of 
+                        summary.num_valid_profiles_per_subject(curEntry,:) = cellfun(@(c) sum(c)-sum(c&rows), subject_profile_idx);
+                        
+                        nonwear_occurrences = sum(rows);
+                        num_unique_subjects_with_nonwear = numel(unique(studyIDs(rows)));
+                        
+                        summary.time_str{curEntry} = sprintf('%02d:00-%02d:00', startHour, endHour);
+                        resultStr = sprintf(['Nonwear Occurrences from %d:00 to %d:00:\n',...
+                            ' * Profiles with nonwear: %d of %d\n',...
+                            ' * Unique individuals with nonwear: %d of %d'],...
+                            startHour, endHour, ...
+                            nonwear_occurrences, num_rows,...
+                            num_unique_subjects_with_nonwear, summary.num_unique_subjects);
+                        summary.startHour(curEntry) = startHour;
+                        summary.endHour(curEntry) = endHour;
+                        summary.result_str{curEntry} = resultStr;
+                        summary.num_unique_subjects_with_exclusion(curEntry) = num_unique_subjects_with_nonwear;
+                        summary.num_profiles_with_exclusion(curEntry) = nonwear_occurrences;
+                    end
+                end
+                
+                summary.duration = summary.endHour-summary.startHour;
+                summary.nonwear_profiles_per_subject = summary.num_profiles_with_exclusion./summary.num_unique_subjects_with_exclusion;
+                
+                summary.nonwear_profiles_per_subject(isinf(summary.nonwear_profiles_per_subject)) = nan; % address divide by 0 this way.
+                
+                
+                
             elseif isSpecial
-                [p, c] = PAStatTool.intersectExclusions(nonwear.imported_file.padaco, nonwear.choi);
+                % p for padaco; c for choi
+                [p, c] = PAStatTool.intersectExclusions(nonwear.imported_file. padaco, nonwear.choi);
                 
                 c.startHours = hours(duration(c.startTimes,'inputformat','hh:mm'));
                 p.startHours = hours(duration(p.startTimes,'inputformat','hh:mm'));
@@ -172,8 +234,6 @@ classdef ExclusionsSummary < handle
                     study_id = unique_studyIDs(s);
                     subject_profile_idx{s} = studyIDs==study_id;
                 end
-                    
-                
                 
                 summary.result_str  = cell(numEntries,1);
                 for startHour = 0:23

@@ -443,8 +443,7 @@ classdef PAAppController < PAFigureController
         % --------------------------------------------------------------------
         function nonwearSettingsCb(obj,varargin)
             obj.StatTool.selectNonwear();            
-        end
-        
+        end        
         
         % --------------------------------------------------------------------
         %> @brief Assign values for usage state classifier rules.
