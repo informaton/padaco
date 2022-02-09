@@ -607,7 +607,8 @@ classdef PAStatTool < PAViewController
                             nonwearStruct = tmp.nonwearFeatures;
                         else
                             error('Import file (%s) is malformed and does not include ''nonwear'' field', importFilename);
-                        end
+                        end                        
+                        nonwearStruct = this.matchExclusionsToContent(nonwearStruct);
                         
                         this.nonwear.imported_file = nonwearStruct;
                         this.nonwear.imported_file.filename = importFilename;
@@ -638,6 +639,29 @@ classdef PAStatTool < PAViewController
                 this.enableClusterRecalculation();
             end
         end
+        
+        % Recursively attempts to match the id's and start datenums from the exclusions
+        % struct to the second structure (contentToMatch).  
+        % If the second second structure is not included then the
+        % 'originalFeatureStruct' property is used.
+        function exclusions = matchExclusionsToContent(this, exclusions, contentToMatch)
+            narginchk(2,3);
+            if nargin<3
+                contentToMatch = this.originalFeatureStruct;
+            end
+            methods = exclusions.methods;
+            % match exclusions --> like intersect exclusions,
+            % but only keep it to match the second entry
+            for m=1:numel(methods)
+                method = methods{m};
+                if strcmpi(method, 'imported_file')
+                    exclusions.imported_file = this.matchExclusionsToContent(exclusions.imported_file, contentToMatch);
+                else
+                    exclusions.(method) = this.intersectExclusions(exclusions.(method), contentToMatch);
+                end
+            end
+        end
+
         
         % Exclusions are those days which are excluded from analysis either because of sensor malfunction,
         % nonwear identification, imcomplete wear time, etc.
@@ -901,12 +925,13 @@ classdef PAStatTool < PAViewController
         
         function isIt = isNonwearUpdateRequired(this, curSettings, lastSettings)
             isIt = true;
-            if nargin < 2
+            if nargin < 3
                 lastSettings = this.lastUsedSettings;
             end
-            if ~isempty(lastSettings) && isstruct(lastSettings) && isstruct(curSettings)
-                if curSettings.startTimeSelect == lastSettings.startTimeSelect ...
-                        && curSettings.stopTimeSelect == lastSettings.stopTimeSelect ...
+            if ~isempty(lastSettings) && isstruct(lastSettings) && isstruct(curSettings) ...
+                    && isfield(lastSettings, 'startTimeSelection') && isfield(curSettings, 'startTimeSelection')
+                if curSettings.startTimeSelection == lastSettings.startTimeSelection ...
+                        && curSettings.stopTimeSelection == lastSettings.stopTimeSelection ...
                         && strcmpi(curSettings.weekdayTag, lastSettings.weekdayTag)
                     if ~strcmpi(curSettings.weekdayTag, 'custom') ...
                             || isequal(curSettings.customDaysOfWeek, lastSettings.customDaysOfWeek)
@@ -958,7 +983,7 @@ classdef PAStatTool < PAViewController
             end
             
             % True if certain things have changed.
-            this.nonwearRequiresUpdate = this.nonwearRequiresUpdate || this.doesNonwearRequireUpdate(pSettings);
+            this.nonwearRequiresUpdate = this.nonwearRequiresUpdate || this.isNonwearUpdateRequired(pSettings);
             
             
             countProcessType = this.base.processedTypes{1};
@@ -1105,7 +1130,7 @@ classdef PAStatTool < PAViewController
                         end
                     end
                     
-                    this.nonwear = this.getExclusionsStruct();                          
+                    this.nonwear = this.getExclusionsStruct();
                     
                     this.originalFeatureStruct.ind2keepAndNonwearExcluded = this.nonwear.ind2keepAndNonwearExcluded;
                     this.originalFeatureStruct.ind2keepExactly1WeekAndNonwearExcluded = this.nonwear.ind2keepExactly1WeekAndNonwearExcluded;
@@ -1168,12 +1193,8 @@ classdef PAStatTool < PAViewController
                 this.nonwear.padaco = tmpUsageStateStruct;
                 this.nonwear.choi = tmpChoiStruct;                
                 nonwearMethods = this.getSetting('discardMethod');
-                
-                %if this.exclusionsFilename.exist && isfield(this.nonwear,'import')
-                %    nonwearMethod = {'import',nonwearMethod};
-                %end
-                
-                [this.nonwear.rows, malfunctionRows] = this.getNonwearRows(nonwearMethods, this.nonwear);
+                startEndTimes = this.originalFeatureStruct.startTimes([startTimeSelection, stopTimeSelection]);
+                [this.nonwear.rows, malfunctionRows] = this.getNonwearRows(nonwearMethods, this.nonwear, startEndTimes);
                 % this.nonwear.rows = this.nonwear.rows | malfunctionRows;
                 if this.isShowingWeekLong(pSettings)
                     maxDaysAllowed = 7;
@@ -5190,13 +5211,20 @@ classdef PAStatTool < PAViewController
         % are considered to be due to a malfunctioning device.  This is a
         % subset of nonwearRows (i.e. a malfunction is also considered
         % nonwear, but nonwear is not necessarily due to malfunction).
-        function [nonwearRows, malfunctionRows] = getNonwearRows(nonwearMethod, nonwearStruct)
+        function [nonwearRows, malfunctionRows] = getNonwearRows(nonwearMethod, nonwearStruct, startEndTimes)
             nonwearRows = [];
             malfunctionRows = [];
+            if nargin<3
+                startEndTimes = {'0:00','24:00'};
+            end
+            
+            if ~isempty(startEndTimes) && ~isa(startEndTimes,'duration')
+                startEndTimes = duration(startEndTimes,'inputformat','hh:mm');
+            end
             
             if iscell(nonwearMethod)
                 for c=1:numel(nonwearMethod)
-                    [tmpNonwearRows, tmpMalfunctionRows] = PAStatTool.getNonwearRows(nonwearMethod{c}, nonwearStruct);
+                    [tmpNonwearRows, tmpMalfunctionRows] = PAStatTool.getNonwearRows(nonwearMethod{c}, nonwearStruct, startEndTimes);
                     if isempty(nonwearRows)
                         nonwearRows = tmpNonwearRows;
                     elseif ~isempty(tmpNonwearRows)
@@ -5216,31 +5244,35 @@ classdef PAStatTool < PAViewController
                 nonwearStruct = getfieldi(nonwearStruct, nonwearMethod);
                 switch(nonwearMethod)
                     case 'choi'
-                        choiStruct = nonwearStruct;
+                        choiStruct = nonwearStruct;                        
+                        validIdx = arrayfun(@(c) c>=startEndTimes(1) & c<=startEndTimes(2), duration(nonwearStruct.startTimes,'inputformat','hh:mm'));
                         if strcmpi(choiStruct.srcDataType, 'count')
-                            nonwearRows = any(choiStruct.shapes,2);
+                            nonwearRows = any(choiStruct.shapes(:, validIdx),2);
                         end
                         
                     case {'import','imported_file'}
                         if isstruct(nonwearStruct) && isfield(nonwearStruct, 'rows')
-                            nonwearRows = nonwearStruct.rows;
+                            nonwearRows = PAStatTool.getNonwearRows(nonwearStruct.methods, nonwearStruct, startEndTimes);
+                        else
+                            fprintf('Imported exclusion data not found.\n');
                         end
                     case 'padaco'
                         usageStateStruct = nonwearStruct;
                         if(isstruct(usageStateStruct))
                             tagStruct = PASensorData.getActivityTags();
-                            
+                            validIdx = arrayfun(@(c) c>=startEndTimes(1) & c<=startEndTimes(2), duration(nonwearStruct.startTimes,'inputformat','hh:mm'));
+                        
                             % count data
                             if strcmpi(usageStateStruct.srcDataType, 'count')
-                                nonwearRows = any(usageStateStruct.shapes<=tagStruct.NONWEAR,2);
+                                nonwearRows = any(usageStateStruct.shapes(:, validIdx)<=tagStruct.NONWEAR,2);
                             elseif strcmpi(usageStateStruct.srcDataType, 'raw')
-                                zeroDuringRows = any(usageStateStruct.shapes==tagStruct.NOT_WORKING, 2);
-                                zeroStartRows = any(usageStateStruct.shapes==tagStruct.STUDY_NOT_STARTED, 2);
-                                zeroEndRows = any(usageStateStruct.shapes==tagStruct.STUDYOVER, 2);
+                                zeroDuringRows = any(usageStateStruct.shapes(:,validIdx)==tagStruct.NOT_WORKING, 2);
+                                zeroStartRows = any(usageStateStruct.shapes(:,validIdx)==tagStruct.STUDY_NOT_STARTED, 2);
+                                zeroEndRows = any(usageStateStruct.shapes(:,validIdx)==tagStruct.STUDYOVER, 2);
                                 
                                 zeroRows = zeroDuringRows| zeroStartRows| zeroEndRows;
-                                stuckRows = any(usageStateStruct.shapes==tagStruct.SENSOR_STUCK,2);
-                                burstRows = any(usageStateStruct.shapes==tagStruct.SENSOR_BURST, 2); % one sensor showing excessive readings for 5+ minutes.
+                                stuckRows = any(usageStateStruct.shapes(:,validIdx)==tagStruct.SENSOR_STUCK,2);
+                                burstRows = any(usageStateStruct.shapes(:,validIdx)==tagStruct.SENSOR_BURST, 2); % one sensor showing excessive readings for 5+ minutes.
                                 malfunctionRows = stuckRows | burstRows;
                                 
                                 % raw data?
