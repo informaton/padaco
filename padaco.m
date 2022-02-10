@@ -2,6 +2,10 @@ function padaco()
     mPathname = pathsetup();
     hObject = padacoFig('visible','off');    
     try
+        if isunix
+            addpath('~/sleep.dev/projects/goalsAnalysis/models/');
+            addpath('~/git/matlab/gee/');            
+        end
         parametersFile = '.pasettings'; % PASettings.parameters_filename; % .pasettings now '_padaco.parameters.txt';
         PAAppController(hObject,mPathname,parametersFile);
     catch me

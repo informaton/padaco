@@ -1,3 +1,23 @@
+# Database build
+
+Shell
+0. cd ~/git/padaco/utility
+1. ln -s ~/git/sev/CLASSES/CLASS_database.m .
+
+MySQL
+0. mysql -uRootUser -p    
+1. set password policy as necessary for the class database goals password.
+    * mysql> show variables like "validate_password%";
+    * mysql> set GLOBAL validate_password_policy=LOW;  # Or not
+
+MATLAB
+0. db = CLASS_database_goals()
+1. db.createDBandTables()
+   * subject_outcomes.csv --> subject information
+   * outcomes_dictionary.csv --> definition and labels
+   * padaco_summary.csv --> load shape information
+
+# Notes
 Use the output from 
 CONTROLLER.resultsPathname	/Users/unknown/Data/GOALS/output/output_8_19_2015
 

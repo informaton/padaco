@@ -172,11 +172,17 @@ classdef CLASS_database_goals < CLASS_database
                 ]; 
 
             this.createTable(this.tableNames.studyInfo, tableStr);
-        end
-        
+        end        
         
         
         function loadSubjectInfo_T(this,subjectinfo_csv_filename)
+            
+            if(nargin<2 || ~exist(subjectinfo_csv_filename,'file'))
+                promptStr = sprintf('Select Subject information .csv file to import to %s table','loadSubjectInfo_T');
+                subjectinfo_csv_filename = uigetfullfile({'*.csv','Comma separated values (*.csv)'},...
+                    promptStr);
+                
+            end
             this.importCSV('subjectinfo_t',subjectinfo_csv_filename,'Select GOALS subject data file');
         end
         
@@ -187,7 +193,7 @@ classdef CLASS_database_goals < CLASS_database
             end
             
             if(nargin<2 || ~exist(csv_filename,'file'))
-                promptStr = sprintf('Select .csv file to import to %s table',tableName);
+                promptStr = sprintf('Select Load study information .csv file to import to %s table',tableName);
                 csv_filename = uigetfullfile({'*.csv','Comma separated values (*.csv)'},...
                     promptStr);
                 
@@ -214,10 +220,15 @@ classdef CLASS_database_goals < CLASS_database
             else
                 throw(MException('CLASS_database_goals','Invalid arguments for loadStudyInfo_T'));
             end
-        end      
-        
+        end        
         
         function loadDictionary_T(this, dictionary_csv_filename)
+            
+            if(nargin<2 || ~exist(dictionary_csv_filename,'file'))
+                promptStr = sprintf('Select .csv file to import to %s table','dictionary_T');
+                dictionary_csv_filename = uigetfullfile({'*.csv','Comma separated values (*.csv)'},...
+                    promptStr);                
+            end
             this.importCSV('dictionary_t',dictionary_csv_filename,'Select GOALS dictionary mapping file');            
         end
     end

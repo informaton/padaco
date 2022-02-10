@@ -1887,7 +1887,13 @@ classdef PAStatTool < PAViewController
                     databaseValue = this.getSetting('databaseClass');
                     this.databaseObj = feval(databaseValue);
                     %this.databaseObj = feval(this.originalSettings.databaseClass.value);
-                    this.profileFields = this.databaseObj.getColumnNames('subjectInfo_t');
+                    
+                    if isunix
+                        this.profileFields = this.databaseObj.getColumnNames('subjectinfo_t');
+                    else
+                        this.profileFields = this.databaseObj.getColumnNames('subjectInfo_t');    
+                    end
+                    
                     didInit = true;
                 else
                     this.databaseObj = [];
@@ -5086,7 +5092,13 @@ classdef PAStatTool < PAViewController
                 if(this.useOutcomes())
                     fieldsOfInterest = this.outcomesObj.getColumnNames('subjects');
                 elseif(this.useDatabase())
-                    fieldsOfInterest = this.databaseObj.getColumnNames('subjectInfo_t');
+                    
+                    if isunix
+                        fieldsOfInterest = this.databaseObj.getColumnNames('subjectinfo_t');
+                    else
+                        fieldsOfInterest = this.databaseObj.getColumnNames('subjectInfo_t');    
+                    end
+                    
                 end
                 %                 fieldsOfInterest = {'bmi_zscore';
                 %                     'insulin'};
