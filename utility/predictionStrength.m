@@ -1,5 +1,6 @@
-function optimal_k = predictionStrength(features, varargin)
+function [optimal_k, avg_prediction] = predictionStrength(features, varargin)
     narginchk(1, inf);
+    
     defaults = struct('minK',2,'maxK',5,'M',100,'clusterMethod',@kmeans,...
         'classification', 'centroid', 'cutoff', 0.8,...
         'nkk', 1, 'distances',[], 'showProgress', false, 'gui', false);

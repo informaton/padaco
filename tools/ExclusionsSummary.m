@@ -172,10 +172,9 @@ classdef ExclusionsSummary < handle
                 summary.result_str  = cell(numEntries,1);
                 for startHour = 0:23
                     for endHour = startHour+1:24
-                        curEntry=curEntry+1;
-                        
+                        curEntry=curEntry+1;                        
                         startStopHours(curEntry,:) = [startHour, endHour];                        
-                        rows = PAStatTool.getNonwearRows(nonwear.methods, nonwear);
+                        rows = PAStatTool.getNonwearRows(nonwear.methods, nonwear, hours(startStopHours(curEntry, :)));
                         
                         % Determine the number of 
                         summary.num_valid_profiles_per_subject(curEntry,:) = cellfun(@(c) sum(c)-sum(c&rows), subject_profile_idx);

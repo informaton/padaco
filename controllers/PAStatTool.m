@@ -2568,7 +2568,7 @@ classdef PAStatTool < PAViewController
             % Set a variable to keep track that new calculation is needed,
             % or just check current settings versus last settings when it
             % is time to actually calculate again...
-            if(this.isClusterMode())
+            if ~isempty(this.figureH) && this.isClusterMode()
                 % bgColor = [0.2 0.8 0.1];
                 % fgColor = [ 0 0 0];
                 
