@@ -608,7 +608,7 @@ classdef PAStatTool < PAViewController
                         else
                             error('Import file (%s) is malformed and does not include ''nonwear'' field', importFilename);
                         end                        
-                        nonwearStruct = this.matchExclusionsToContent(nonwearStruct);
+                        nonwearStruct = this.matchExclusionsToContent(nonwearStruct, this.originalFeatureStruct);
                         
                         this.nonwear.imported_file = nonwearStruct;
                         this.nonwear.imported_file.filename = importFilename;
@@ -640,29 +640,7 @@ classdef PAStatTool < PAViewController
             end
         end
         
-        % Recursively attempts to match the id's and start datenums from the exclusions
-        % struct to the second structure (contentToMatch).  
-        % If the second second structure is not included then the
-        % 'originalFeatureStruct' property is used.
-        function exclusions = matchExclusionsToContent(this, exclusions, contentToMatch)
-            narginchk(2,3);
-            if nargin<3
-                contentToMatch = this.originalFeatureStruct;
-            end
-            methods = exclusions.methods;
-            % match exclusions --> like intersect exclusions,
-            % but only keep it to match the second entry
-            for m=1:numel(methods)
-                method = methods{m};
-                if strcmpi(method, 'imported_file')
-                    exclusions.imported_file = this.matchExclusionsToContent(exclusions.imported_file, contentToMatch);
-                else
-                    exclusions.(method) = this.intersectExclusions(exclusions.(method), contentToMatch);
-                end
-            end
-        end
-
-        
+                
         % Exclusions are those days which are excluded from analysis either because of sensor malfunction,
         % nonwear identification, imcomplete wear time, etc.
         % like exportNonwear - this is the more general case.
@@ -5197,6 +5175,28 @@ classdef PAStatTool < PAViewController
             excB = b;
 
         end
+        
+        
+        % Recursively attempts to match the id's and start datenums from the exclusions
+        % struct to the second structure (contentToMatch).          
+        function exclusions = matchExclusionsToContent(exclusions, contentToMatch)
+            narginchk(2,2);
+            %if nargin<3
+            %    contentToMatch = this.originalFeatureStruct;
+            %end
+            methods = exclusions.methods;
+            % match exclusions --> like intersect exclusions,
+            % but only keep it to match the second entry
+            for m=1:numel(methods)
+                method = methods{m};
+                if strcmpi(method, 'imported_file')
+                    exclusions.imported_file = PAStatTool.matchExclusionsToContent(exclusions.imported_file, contentToMatch);
+                else
+                    exclusions.(method) = PAStatTool.intersectExclusions(exclusions.(method), contentToMatch);
+                end
+            end
+        end
+        
         % ======================================================================
         function [featureStruct, discardedFeatureStruct] = discardNonwearFeatures(featureStructIn,nonwearRows)
             %         function featureStruct = getValidFeatureStruct(originalFeatureStruct,usageStateStruct)

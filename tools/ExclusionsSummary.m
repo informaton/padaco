@@ -138,6 +138,7 @@ classdef ExclusionsSummary < handle
                 error('Run <strong>pathsetup</strong> first. It is located in Padaco''s main directory');
             end
             nonwear = mat.nonwear;
+            nonwear = PAStatTool.matchExclusionsToContent(nonwear, nonwear);
             
             % nonwearRows = PAStatTool.getNonwearRows(nonwear.methods, nonwear);
             isSpecial = false;
