@@ -126,18 +126,24 @@ function [optimal_k, avg_prediction] = predictionStrength(features, varargin)
         avg_prediction(2:minK-1) = nan;
     end
     
-    if showProgress
-        disp(avg_prediction');
+    optimal_k = find(avg_prediction> cutoff, 1, 'last');  %max(which(mean.pred > cutoff))
+    
+    showResults = true;
+    if showProgress || showResults
+        disp(avg_prediction'); % space delimited results
         for k = 1:maxK
             fprintf('%6d, ', k); 
         end
         fprintf('\b\b%c%c\n',127, 127); % two backspaces and possibly two deletes if backspace is not destructive
+        
+        % comma separated values
         for k = 1:maxK
             fprintf('%6.04f, ', avg_prediction(k));
         end
         fprintf('\b\b\n');
+        fprintf(1,'\nOptimal K=%d\n',optimal_k);
     end
-    optimal_k = find(avg_prediction> cutoff, 1, 'last');  %max(which(mean.pred > cutoff))
+    
     %out <- list(predcorr = corrpred, mean.pred = mean.pred, optimalk = optimalk,
     %    cutoff = cutoff, method = clusterings{1}$clustermethod,
     %    maxK = maxK, M = M)
