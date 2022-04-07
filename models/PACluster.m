@@ -254,6 +254,7 @@ classdef PACluster < PAData
                 end
             else
                 this.performanceLineHandle = -1;
+                this.performanceAxesHandle = -1;
             end
 
             this.performanceCriterion = 'CalinskiHarabasz';
@@ -262,8 +263,12 @@ classdef PACluster < PAData
             this.performanceMeasure = [];            
             
             %/ Do not let K start off higher than 
-            % And don't let it fall to less than 1.
-            this.setSetting('minClusters', max(1,min(floor(size(loadShapes,1)/2),settings.minClusters)));
+            % And don't let it fall to less than 1. 
+            if isfield(settings,'minClusters')
+                this.setSetting('minClusters', max(1,min(floor(size(loadShapes,1)/2),double(settings.minClusters))));
+            else
+                this.setSetting('minClusters', max(1,min(floor(size(loadShapes,1)/2),this.getSetting('minClusters'))));
+            end
             this.setSetting('maxClusters', ceil(size(loadShapes,1)/2));
             
             this.loadShapes = loadShapes;
@@ -1441,13 +1446,15 @@ classdef PACluster < PAData
                 textStatusH = -1;
             end
             
+            % Make sure we have an axes handle.
             if(ishandle(performanceAxesH) && ~strcmpi(get(performanceAxesH,'type'),'axes'))
                 fprintf(1,'Input graphic handle is of type %s, but ''axes'' type is required.  Performance measures will not be shown.',get(performanceAxesH,'type'));
                 performanceAxesH = -1;
             end
             
-            % Make sure we have an axes handle.
-            if(ishandle(performanceAxesH))
+            % Needs to be a follow-on check, cannot be an 'else' of the
+            % above
+            if ishandle(performanceAxesH)
                 %performanceAxesH = axes('parent',calinskiFig,'box','on');
                 %calinskiLine = line('xdata',nan,'ydata',nan,'parent',performanceAxesH,'linestyle','none','marker','o');
                 xlabel(performanceAxesH,'K');
