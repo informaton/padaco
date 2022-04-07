@@ -7,7 +7,11 @@ function clusterObj = getClusterObject(signalFilename, settingsFilename, setting
     % end
         
     if nargin<2
-        settingsFilename = '~/Documents/padaco/.pasettings';
+        if isunix
+            settingsFilename = '~/Documents/padaco/.pasettings';
+        elseif ispc
+            error('Unhandled case for pc');
+        end
         % settingsFilename = './.pasettings'; % can also be in the current path        
     end
     
