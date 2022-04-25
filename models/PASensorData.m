@@ -2361,8 +2361,10 @@ classdef PASensorData < PAData
                 case {'all', 'all_sans_psd', 'all_sans_psd_usagestate'}
                     obj.features.rms = sqrt(mean(data.^2))';
                     obj.features.mean = mean(data)';
-                    obj.features.meanad = mad(data,0)';
-                    obj.features.medianad = mad(data,1)';
+                    obj.features.meanad = mean_abs_dev(data);
+                    obj.features.medianad = median_abs_dev(data)';
+                    % obj.features.meanad = mad(data,0)';
+                    % obj.features.medianad = mad(data,1)';
                     obj.features.median = median(data)';
                     obj.features.sum = sum(data)';
                     obj.features.var = var(data)';
@@ -3528,9 +3530,11 @@ classdef PASensorData < PAData
                 case 'mean'
                     Mx1_featureVector = mean(NxM_dataFrames)';
                 case 'meanad'
-                    Mx1_featureVector = mad(NxM_dataFrames,0)';
+                    % Mx1_featureVector = mad(NxM_dataFrames,0)';
+                    Mx1_featureVector = mean_abs_dev(NxM_dataFrames);                    
                 case 'medianad'
-                    Mx1_featureVector = mad(NxM_dataFrames,1)';
+                    % Mx1_featureVector = mad(NxM_dataFrames,1)';
+                    Mx1_featureVector = median_abs_dev(NxM_dataFrames)';
                 case 'median'
                     Mx1_featureVector = median(NxM_dataFrames)';
                 case 'sum'
@@ -3554,9 +3558,11 @@ classdef PASensorData < PAData
                 case 'mean'
                     featureFcn = @(x)mean(x)';
                 case 'meanad'
-                    featureFcn = @(x)mad(x,0)';
+                    % featureFcn = @(x)mad(x,0)';
+                    featureFcn = @(x)mean_abs_dev(x)';
                 case 'medianad'
-                    featureFcn = @(x)mad(x,1)';
+                    % featureFcn = @(x)mad(x,1)';
+                    featureFcn = @(x)median_abs_dev(x)';
                 case 'median'
                     featureFcn = @(x)median(x)';
                 case 'sum'

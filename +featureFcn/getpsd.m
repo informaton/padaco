@@ -52,7 +52,7 @@ function [psd_vec, freq_vec, nfft] = getpsd(signal_x,Fs,PSD_settings,ZeroPad)
         
         if(nargin<4)
             ZeroPad = false;
-        end;
+        end
         
         if(nargin<3)
             PSD_settings = defaultSettings;
@@ -80,7 +80,7 @@ function [psd_vec, freq_vec, nfft] = getpsd(signal_x,Fs,PSD_settings,ZeroPad)
             % or use next highest power of 2 greater than or equal to length(x) to
             % calculate FFT.
             nfft= 2^(nextpow2(winlen*Fs));
-        end;
+        end
         
         if(rows==0)
             signal_x = [signal_x(:);zeros(nfft-numel(signal_x),1)];
@@ -92,8 +92,11 @@ function [psd_vec, freq_vec, nfft] = getpsd(signal_x,Fs,PSD_settings,ZeroPad)
         % for some reason, I cannot get hann to show up in the deployed
         % version.  Most likely, I will need to add other methods like this
         % manually with the deploytool application compiler.
-        if(strcmpi(wintype,'hann'))
-            win = hann(nfft);
+        if(strcmpi(wintype,'hann'))            
+            n=0:nfft-1;
+            win = sin(pi*n/(nfft-1)).^2; % Ref: https://en.wikipedia.org/wiki/Hann_function
+            win = win(:);
+            % win = hann(nfft);
         else
             win = window(wintype,nfft);
         end
@@ -122,7 +125,7 @@ function [psd_vec, freq_vec, nfft] = getpsd(signal_x,Fs,PSD_settings,ZeroPad)
             if(RemoveMean)
                 mx = mean(x);
                 x = x-mx;
-            end;
+            end
             x = x(:).*win(:);
             
             %     fft_x= abs(fft(x,nfft));
@@ -154,8 +157,8 @@ function [psd_vec, freq_vec, nfft] = getpsd(signal_x,Fs,PSD_settings,ZeroPad)
             
             if(RemoveMean)  %Place mean value as 0 Hz.
                 psd_vec(r,1) = mx;
-            end;
+            end
             
-        end;
+        end
     end
 end

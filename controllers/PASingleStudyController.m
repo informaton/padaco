@@ -2768,7 +2768,8 @@ classdef PASingleStudyController < PAViewController
             minColor = [0.1 0.1 0.1];
             
             %             maxValue = max(featureVector);
-            maxValue = quantile(featureVector,0.90);
+            maxValue = featureVector(ceil(numel(featureVector)*0.90));
+            % maxValue = quantile(featureVector,0.90); % requires stats toolbox 
             nFaces = numel(featureVector);
             
             x = nan(4,nFaces);
@@ -2792,7 +2793,9 @@ classdef PASingleStudyController < PAViewController
             feature_patchH = patch(x,y,vertexColor,'parent',axesH,'edgecolor','interp','facecolor','interp','hittest','off');
                         
             % draw the lines
-            ninetyninth = quantile(featureVector,0.99);
+            % ninetyninth = quantile(featureVector,0.99); % needs stats toolbox
+            ninetyninth = featureVector(ceil(numel(featureVector)*0.99));
+            
             if(ninetyninth==0)
                 normalizedFeatureVector = featureVector*overlayHeight/2;
             else
