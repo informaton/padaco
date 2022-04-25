@@ -189,7 +189,12 @@ classdef PAStatTool < PAViewController
             this.coiProfile = [];
             this.allProfiles = [];
             
-            this.featureInputFilePattern = ['%s',filesep,'%s',filesep,'features.%s.accel.%s.%s.txt'];
+            % filesep on PC is '\' which acts as an escape character in the
+            % context that we are using the file pattern here, so don't
+            % bother and instead stick with '/' which works for all cases
+            % here anway.  4/7/2022 @hyatt
+            % this.featureInputFilePattern = ['%s',filesep,'%s',filesep,'features.%s.accel.%s.%s.txt'];
+            this.featureInputFilePattern = ['%s','/','%s','/','features.%s.accel.%s.%s.txt'];
             this.featureInputFileFieldnames = {'inputPathname','displaySeletion','processType','curSignal'};
             
             this.originalFeatureStruct = [];
