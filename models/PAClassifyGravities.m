@@ -16,29 +16,6 @@ classdef PAClassifyGravities < PAClassifyUsage
             obj = obj@PAClassifyUsage(varargin{:});                        
         end
         
-        function [sigma_bai, sigma_x, sigma_y_sigma_z] = classifiyBaiActivity(obj, g_x, g_y, g_z, fs)
-            narginchk(4, 5);
-            % check that all are the same length
-            n_x = numel(g_x);
-            n_y = numel(g_y);
-            n_z = numel(g_z);
-            if ~(n_x==n_y && n_y==n_z)
-                error('x, y, and z gravity vectors are not the same length');
-            else
-                n = n_x;
-                if nargin<5
-                    fs = 40; % 40 hz sampling default
-                end
-                n = n-rem(n, fs);
-                g_x = g_x(1:n);
-                g_y = g_y(1:n);
-                g_z = g_z(1:n);
-                sigma_x = std(reshape(g_x(:), n, []))';  % reshape so columns contain consecutive 1-s blocks
-                sigma_y = std(reshape(g_y(:), n, []))';  % std calculates standard deviation along columns and returns a row vector
-                sigma_z = std(reshape(g_z(:), n, []))';  % transpose (') row vector to be a column vector
-                sigma_bai = (sigma_x+sigma_y+sigma_z)/3;                
-            end
-        end
      
         % ======================================================================
         %> @brief Categorizes the study's usage state.
@@ -239,6 +216,30 @@ classdef PAClassifyGravities < PAClassifyUsage
             usageStateRules.mergeWithinHoursOfStudyNotStarted = 4;            
             
             usageStateRules.sampleRate = 1;
+        end
+        
+        function [sigma_bai, sigma_x, sigma_y, sigma_z] = classifiyBaiActivity(g_x, g_y, g_z, fs)
+            narginchk(3, 4);
+            % check that all are the same length
+            n_x = numel(g_x);
+            n_y = numel(g_y);
+            n_z = numel(g_z);
+            if ~(n_x==n_y && n_y==n_z)
+                error('x, y, and z gravity vectors are not the same length');
+            else
+                n = n_x;
+                if nargin<4
+                    fs = 40; % 40 hz sampling default
+                end
+                n = n-rem(n, fs);
+                g_x = g_x(1:n);
+                g_y = g_y(1:n);
+                g_z = g_z(1:n);
+                sigma_x = std(reshape(g_x(:), fs, []))';  % reshape so columns contain consecutive 1-s blocks
+                sigma_y = std(reshape(g_y(:), fs, []))';  % std calculates standard deviation along columns and returns a row vector
+                sigma_z = std(reshape(g_z(:), fs, []))';  % transpose (') row vector to be a column vector
+                sigma_bai = (sigma_x+sigma_y+sigma_z)/3;
+            end
         end
     end
 end

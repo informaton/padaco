@@ -9,7 +9,7 @@ classdef PABatchTool < PAFigureFcnController
     properties(Constant)
         % In minutes
         featureDurationStr = {
-            %'1 second'
+            '1 second'
             '15 seconds'
             '30 seconds'
             '1 minute'
@@ -20,7 +20,7 @@ classdef PABatchTool < PAFigureFcnController
             '30 minutes'
             '1 hour'};
         featureDurationVal = {
-            % 0  % 0 is used to represent 1 sample frames.
+            1/60 % 0 is used to represent 1 sample frames.
             0.25
             0.5
             1
@@ -229,11 +229,17 @@ classdef PABatchTool < PAFigureFcnController
                    sourcePathname = this.getSourcePath();
                end
            end
-          
-           %get the file count and update the file count text field. 
-           rawFileCount = numel(getFilenamesi(sourcePathname,'.raw'));
-           binFileCount = numel(getFilenamesi(sourcePathname,'.bin'));           
-           csvFileCount = numel(getFilenamesi(sourcePathname,'.csv'));
+           
+           %get the file count and update the file count text field.
+           %            rawFileCount = numel(getFilenamesi(sourcePathname,'.raw'));
+           %            binFileCount = numel(getFilenamesi(sourcePathname,'.bin'));
+           %            csvFileCount = numel(getFilenamesi(sourcePathname,'.csv'));
+
+           % ignore "hidden" files which begin with a '.'
+           rawFileCount = sum(cellfun(@(c)c(1)~='.',getFilenamesi(sourcePathname,'.raw')));
+           binFileCount = sum(cellfun(@(c)c(1)~='.',getFilenamesi(sourcePathname,'.bin')));
+           csvFileCount = sum(cellfun(@(c)c(1)~='.',getFilenamesi(sourcePathname,'.csv')));
+
            msg = '';
            if(rawFileCount==0 && csvFileCount==0 && binFileCount==0)
                msg = '0 files found.';
@@ -322,8 +328,7 @@ classdef PABatchTool < PAFigureFcnController
         %> @param hObject MATLAB graphic handle of the callback object
         %> @param eventdata reserved by MATLAB, not used.
         % --------------------------------------------------------------------        
-        function startBatchProcessCallback(this,hObject,eventdata)
-                     
+        function startBatchProcessCallback(this,hObject,eventdata)                    
             
             this.disable();
             waitH = [];
@@ -353,6 +358,10 @@ classdef PABatchTool < PAFigureFcnController
                     fullFilenames = rawFullFilenames;
                 end
                 
+                % exclude "hidden" files which start with a '.'
+                fullFilenames = fullFilenames(~startsWith(filenames,'.'));
+                filenames = filenames(~startsWith(filenames,'.'));
+                
                 failedFiles = {};
                 fileCount = numel(fullFilenames);
                 fileCountStr = num2str(fileCount);
@@ -360,9 +369,6 @@ classdef PABatchTool < PAFigureFcnController
                 % Get batch processing settings from the GUI
                 
                 this.notify('BatchToolStarting',EventData_BatchTool(this.settings));
-                
-                
-                
                 this.isRunning = true;
                 
                 
@@ -682,7 +688,7 @@ classdef PABatchTool < PAFigureFcnController
                     catch me
                         showME(me);
                         failedFiles{end+1} = filenames{f};
-                        failMsg = sprintf('\t%s\tFAILED.\n',fullFilenames{f});
+                        failMsg = sprintf('\t%s\tFAILED.\n',strrep(fullFilenames{f},'\','\\'));
                         fprintf(1,failMsg);
                         
                         % Log error

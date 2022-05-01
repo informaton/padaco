@@ -39,6 +39,8 @@ classdef PASensorData < PAData
         %> @li z z-axis
         %> @li vecMag vectorMagnitude
         usage;
+        
+        bai; % 1 second standard deviations available for raw data only
 
         %> @brief Structure of power spectral densities for count and raw accelerations structs (x,y,z).  Fields are:
         %> - @c frames PSD of the data currently in the @c @b frames member
@@ -2345,10 +2347,10 @@ classdef PASensorData < PAData
             end
 
 
-            obj.usageFrames =  reshape(usageVec(1:frameableSamples),[],obj.numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
+            obj.usageFrames =  reshape(usageVec(1:frameableSamples), [], obj.numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
 
 
-            obj.frames =  reshape(data(1:frameableSamples),[],obj.numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
+            obj.frames =  reshape(data(1:frameableSamples), [], obj.numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
             % Frames are stored in consecutive columns.  Thus the rows
             % represent the consecutive samples of data for that frame
             % Feature functions operate along columns (i.e. down the rows) and the output is then
@@ -2624,9 +2626,13 @@ classdef PASensorData < PAData
                     
                     classifyObj.setDatenumVec(obj.dateTimeNum);
                     obj.usage = struct();
+                    obj.bai = struct();
                     
-                    axesNames = fieldnames(dataStruct);
-                    
+                    axesNames = fieldnames(dataStruct);                    
+
+                    if strcmpi(obj.accelType,'raw') && obj.hasRaw
+                        [obj.bai.vecMag, obj.bai.x, obj.bai.y, obj.bai.z] = classifyObj.classifiyBaiActivity(dataStruct.x, dataStruct.y, dataStruct.z, obj.sampleRate);
+                    end
                     % As long as you don't run into an exception, it passes.
                     didClassify = true;
                     for a=1:numel(axesNames)
@@ -2636,7 +2642,7 @@ classdef PASensorData < PAData
                         catch me
                             showME(me);
                             didClassify = false;
-                            obj.usage.(axesName) = zeros(size(dataStruct.(axesName))); 
+                            obj.usage.(axesName) = zeros(size(dataStruct.(axesName)));
                         end
                     end
                     
@@ -2650,8 +2656,11 @@ classdef PASensorData < PAData
                 else
                     didClassify = false;
                     obj.usage.(obj.accelType) = [];
-                     obj.usage.(axesName) = zeros(size(dataStruct.(axesName))); 
-                    fprintf(1,'Usage state is not classified for ''%s'' data\n', obj.accelType);
+                    %                     for a=1:numel(axesNames)
+                    %                         axesName = axesNames{a};
+                    %                         obj.usage.(axesName) = zeros(size(dataStruct.(axesName)));
+                    %                     end
+                    fprintf(1,'Usage state is not classif-ied for ''%s'' data\n', obj.accelType);
                 end
                 
             catch me
@@ -2691,6 +2700,8 @@ classdef PASensorData < PAData
             end
             wearVec = rcall_getnonwear(objcountFilename, classificationMethod);
         end
+        
+        
 
 
         % ======================================================================
@@ -3428,7 +3439,7 @@ classdef PASensorData < PAData
         end
 
         %> @param fid File identifier is expected to be a file resource
-        %> for a binary file obainted using fopen(<filename>,'r');
+        %> for a binary file obtained using fopen(<filename>,'r');
         %> @retval fileHeader A struct with file header field value pairs.
         %> An empty value is returned in the event that the fid is bad.
         function fileHeader = loadPadacoRawBinFileHeader(fid)
