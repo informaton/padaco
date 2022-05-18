@@ -1,6 +1,6 @@
 %   clusterObj = getClusterObj(signalFile, settingsFilename, settingStruct)
-function clusterObj = getClusterObject(varargin)
-    statTool = getStatTool(varargin{:});
+function clusterObj = getClusterObject(signalFilename, settingsFilename, varargin)
+    [statTool, settings] = getStatTool(signalFilename, settingsFilename, varargin{:});
     didCalc = statTool.calcFeaturesFromFile(signalFilename);
     if ~didCalc
         error('Unable to calculate features');
@@ -16,8 +16,5 @@ function clusterObj = getClusterObject(varargin)
     
     % fprintf(1, 'Calculating prediction strength from %s%s.\n', signalFilename, extraLabel);
     fprintf(1, 'Clustering from from %s%s.\n', signalFilename, extraLabel);
-
-    clusterObj = PACluster(statTool.featureStruct.features,cSettings,[],[],statTool.featureStruct.studyIDs, statTool.featureStruct.startDaysOfWeek, delayedStart);             
-    
+    clusterObj = PACluster(statTool.featureStruct.features,cSettings,[],[],statTool.featureStruct.studyIDs, statTool.featureStruct.startDaysOfWeek, delayedStart);    
 end
-

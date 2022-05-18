@@ -1,4 +1,4 @@
-function statTool = getStatTool(signalFilename, settingsFilename, settingsStruct)
+function [statTool, settings] = getStatTool(signalFilename, settingsFilename, settingsStruct)
     narginchk(1,3)
 
     % if nargin<1 || isempty(signalFilename)

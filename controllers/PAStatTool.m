@@ -5602,7 +5602,6 @@ classdef PAStatTool < PAViewController
             
             paramStruct.primaryAxis_horizontalGrid =    PAEnumParam('default','on','categories',{{'on','off'}},'description','Horizontal grid lines');
             
-            
             % plots clusters id's (sorted by membership in ascending order) on x-axis
             % and the count of loadshapes (i.e. membership count) on the y-axis.
             %> @brief Cluster distribution mode, which is updated from the ui
