@@ -2123,8 +2123,9 @@ classdef PAStatTool < PAViewController
                     
                     this.plotClusters();
                 else
-                    this.disableClusterControls();
-                    this.refreshClustersAndPlot();
+                    % this.disableClusterControls()                    
+                    % this.refreshClustersAndPlot();
+                    this.enableClusterControls();                    
                 end
                 
                 set(findall(this.handles.panel_clusterSettings,'-property','enable'),'enable','on');
@@ -2324,7 +2325,8 @@ classdef PAStatTool < PAViewController
                 set(this.handles.btngrp_clusters,'SelectionChangedFcn',@this.distributionChangeCb);
                 
                 set(this.handles.menu_weekdays,'callback',@this.menuWeekdaysCallback);
-                
+                set(this.handles.menu_number_of_data_segments, 'callback',@this.updateNumChunksCb);
+
                 
                 set([
                     this.handles.menu_feature;
@@ -2333,8 +2335,7 @@ classdef PAStatTool < PAViewController
                 
                 set([
                     this.handles.check_normalizevalues;
-                    this.handles.menu_precluster_reduction;
-                    this.handles.menu_number_of_data_segments;
+                    this.handles.menu_precluster_reduction;                    
                     this.handles.menu_clusterMethod;
                     this.handles.check_segment
                     this.handles.menu_clusterStartTime
@@ -2483,7 +2484,6 @@ classdef PAStatTool < PAViewController
                 end
                 set(this.handles.menu_number_of_data_segments,'string',this.base.numDataSegmentsDescriptions,'userdata',this.base.numDataSegments);
                 
-                
                 set(this.handles.menu_weekdays,'string',this.base.weekdayDescriptions,'userdata',this.base.weekdayTags);
                 set(this.handles.menu_duration,'string',this.base.clusterDurationDescriptions);
                 
@@ -2558,7 +2558,28 @@ classdef PAStatTool < PAViewController
             this.plotClusters();
         end
         
-        
+        function updateNumChunksCb(this, hObject, varargin)            
+            curTag = getMenuString(hObject);            
+            if(strcmpi(curTag,'custom'))
+                curValue = getMenuUserData(hObject);
+                prompt='Enter the number of chunks to split the selected time frame into:';
+                name='Custom number of chunks';
+                numlines=1;
+                defaultanswer={num2str(curValue)};
+                answer=inputdlg(prompt,name,numlines,defaultanswer);
+                answerValue = round(str2double(answer{1}));
+                if isnan(answerValue)
+                    this.logWarning('Custom value cannot be ''%s''.  Using 1 instead', answer{1});
+                    set(hObject, 'value', 1);                    
+                else
+                    userData = get(hObject, 'userdata');
+                    userData(end) = answerValue;
+                    set(hObject, 'userdata', userData)
+                end
+                
+            end
+            this.enableClusterRecalculation();
+        end
         
         % ======================================================================
         %> @brief Callback to enable the push_refreshClusters button.  The button's
@@ -2697,7 +2718,8 @@ classdef PAStatTool < PAViewController
             initString = get(hObject,'string');
             
             % modelSelections = {'Membership Proportion','Proportion+isWeekend','Daily','Daily+isWeekend'};
-            userdata =          {'model_1a',              'model_1aw',            'model_1b','model_1bw'};
+            % userdata =        {'model_1a',              'model_1aw',            'model_1b','model_1bw'};
+            userdata =          {'model_1',              'model_2',            'model_2_w'};
 
             modelSelection = getMenuUserData(this.handles.menu_model);
             try
@@ -2711,10 +2733,15 @@ classdef PAStatTool < PAViewController
                 covariateStruct = this.clusterObj.getCovariateStruct();
                 covariateStruct.id.memberIDs = covariateStruct.memberIDs;
                 
+                % current selection
+                coiSortOrders = this.clusterObj.getAllCOISortOrders();
+                
                 ANALYZE_ALL_CLUSTERS = any(strcmpi(modelSelection, userdata));
                 if ANALYZE_ALL_CLUSTERS
-                    
-                    if any(strcmpi(modelSelection,{'model_1b','model_1bw'}))
+                    if numel(coiSortOrders)>1
+                        coiSortOrders = coiSortOrders(1);
+                    end
+                    if any(strcmpi(modelSelection,{'model_2','model_2_w'})) % binary approach and binary approach with weekednd (2w)
                         varnames = covariateStruct.id.varnames(2:end);
                         colnames = covariateStruct.id.colnames(2:end);
                         covariateStruct = covariateStruct.loadshape;
@@ -2722,7 +2749,7 @@ classdef PAStatTool < PAViewController
                         clusters = covariateStruct.cluster';
                         clusters = clusters(:, 2:end);
                         
-                        if strcmpi(modelSelection, 'model_1bw')
+                        if strcmpi(modelSelection, 'model_2')
                             isWeekendCluster = repmat(covariateStruct.weekend, 1, size(clusters, 2));
                             weekendClusters = clusters.*isWeekendCluster;
                             covariateStruct.values = [clusters, weekendClusters];
@@ -2738,21 +2765,36 @@ classdef PAStatTool < PAViewController
                             covariateStruct.varnames = varnames;
                         end
                         % covariateStruct.values = covariateStruct.values(:, 2:end);
-                    elseif any(strcmpi(modelSelection,{'model_1a','model_1aw'}))
+                    elseif any(strcmpi(modelSelection,{'model_1'}))
                         covariateStruct = covariateStruct.id;
                         
                         % Normalize values
                         values = covariateStruct.values;
-                        covariateStruct.values = diag(sum(values,2))*values;                        
- 
-                        if strcmpi(modelSelection, 'model_1aw')
-                            fprintf(1,'%s is not handled differently than model_1a\n', modelSelection);
-                        else
-                            
-                        end
+                        covariateStruct.values = diag(sum(values,2))*values;
                     end
                 else
                     covariateStruct = covariateStruct.id;
+                    % Analyze selections of clusters versus the remaining clusters.
+                    if numel(coiSortOrders)>1
+                        
+                        % If we have multiple elements selected then group
+                        % together and add as an extra element to the other
+                        % group.
+                        nonCoiInd = true(size(covariateStruct.colnames));
+                        nonCoiInd(coiSortOrders) = false;
+                        coiColname = {cell2str(covariateStruct.colnames(coiSortOrders),' AND ')};
+                        coiVarname = {cell2str(covariateStruct.varnames(coiSortOrders),'_AND_')};
+                        coiOccurrences =  sum(covariateStruct.values(:,coiSortOrders),2); %sum across each row
+                        
+                        covariateStruct.values = [covariateStruct.values(:,nonCoiInd), coiOccurrences];
+                        covariateStruct.colnames = [covariateStruct.colnames(nonCoiInd), coiColname];
+                        covariateStruct.varnames = [covariateStruct.varnames(nonCoiInd), coiVarname];
+                        coiSortOrders = numel(covariateStruct.varnames);
+                        %                    covariateStruct = this.clusterObj.getCovariateStruct(coiSortOrders);
+                        %                    covariateStruct.colnames = {cell2str(covariateStruct.colnames,' AND ')};
+                        %                    covariateStruct.varnames = {cell2str(covariateStruct.varnames,'_AND_')};
+                        %                    covariateStruct.values = sum(covariateStruct.values,2); %sum each row
+                    end
                 end 
                 
                 % Normalize values
@@ -2760,40 +2802,32 @@ classdef PAStatTool < PAViewController
                 % covariateStruct.values = diag(sum(values,2))*values;
                 % [resultStr, resultStruct] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'});
                 
-                % current selection
-                coiSortOrders = this.clusterObj.getAllCOISortOrders();
+
                 %covariateStruct = this.clusterObj.getCovariateStruct();
                 
-                % Analyze selections of clusters versus the remaining clusters.
-                if ~ANALYZE_ALL_CLUSTERS && numel(coiSortOrders)>1
-                    
-                    % If we have multiple elements selected then group
-                    % together and add as an extra element to the other
-                    % group.
-                    nonCoiInd = true(size(covariateStruct.colnames));
-                    nonCoiInd(coiSortOrders) = false;
-                    coiColname = {cell2str(covariateStruct.colnames(coiSortOrders),' AND ')};
-                    coiVarname = {cell2str(covariateStruct.varnames(coiSortOrders),'_AND_')};
-                    coiOccurrences =  sum(covariateStruct.values(:,coiSortOrders),2); %sum across each row
-                    
-                    covariateStruct.values = [covariateStruct.values(:,nonCoiInd), coiOccurrences];
-                    covariateStruct.colnames = [covariateStruct.colnames(nonCoiInd), coiColname];
-                    covariateStruct.varnames = [covariateStruct.varnames(nonCoiInd), coiVarname];
-                    coiSortOrders = numel(covariateStruct.varnames);
-                    %                    covariateStruct = this.clusterObj.getCovariateStruct(coiSortOrders);
-                    %                    covariateStruct.colnames = {cell2str(covariateStruct.colnames,' AND ')};
-                    %                    covariateStruct.varnames = {cell2str(covariateStruct.varnames,'_AND_')};
-                    %                    covariateStruct.values = sum(covariateStruct.values,2); %sum each row                    
-                end                
-
-                if ANALYZE_ALL_CLUSTERS
-                    [resultStr, resultStruct, mdl, dataSet] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'}, coiSortOrders);   
-                    % dataSet = [id,Y,time,X];
-                    fprintf(1,'\nResults from <strong>%s</strong>.\n', modelSelection);
+                include_age_and_gender = false;
+                if include_age_and_gender
+                    covariates = {'age'; '(sex=1) as male'};
                 else
-                    [resultStr, resultStruct] = gee_model(covariateStruct,dependentVar,{'age'; '(sex=1) as male'}, coiSortOrders);
+                    covariates = {};
                 end
+
+                %                 if ANALYZE_ALL_CLUSTERS
+                %                     [resultStr, resultStruct, mdl, dataSet] = gee_model(covariateStruct,dependentVar,covariates, coiSortOrders);
+                %                     % dataSet = [id,Y,time,X];
+                %                     % fprintf(1,'\nResults from <strong>%s</strong>.\n', modelSelection);
+                %                 else
+                %                     [resultStr, resultStruct] = gee_model(covariateStruct,dependentVar,covariates, coiSortOrders);
+                %                 end
                 %                [resultStr, resultStruct] = gee_model(this.clusterObj.getCovariateStruct(this.clusterObj.getCOISortOrder()),dependentVar,{'age'; '(sex=1) as male'});
+                [resultStr, resultStruct, mdl, dataSet] = gee_model(covariateStruct,dependentVar,covariates, coiSortOrders);   
+
+                label = sprintf('Results for <strong>%s</strong> (%s)', getModelDescription(modelSelection), modelSelection);
+                fprintf(1, '%s\n', label);
+                featureName = sprintf('%s_%s', this.featureStruct.method, this.featureStruct.signal.name);
+                results = struct(dependentVar, struct(featureName, struct('summary_string', resultStr,'struct', resultStruct,...
+                    'model',mdl, 'data', dataSet)));
+                displayResults(results);
                 
                 showMsgBox = false;
                 if showMsgBox && ~isempty(resultStr)
@@ -3109,8 +3143,8 @@ classdef PAStatTool < PAViewController
             
             % Initialize the scatter plot axes
             this.initScatterPlotAxes();
-            modelSelections = {'Membership Proportion','Proportion+isWeekend','Daily','Daily+isWeekend'};
-            userdata = {'model_1a','model_1aw','model_1b','model_1bw'};
+            modelSelections = {'Membership Proportion','Daily (binary)','Daily (binary) +isWeekend'};
+            userdata = {'model_1','model_2','model_2_w'};
             set(this.handles.menu_model,'string',modelSelections, 'userdata',userdata);
             set(this.handles.push_plotHistogram,'string','Histogram','callback',@this.analysisFigurePlotHistogramCb);
             set(this.handles.push_analyzeClusters,'string','Analyze Selection','callback',@this.analyzeClustersCallback);
@@ -4798,7 +4832,7 @@ classdef PAStatTool < PAViewController
             
             userSettings.chunkShapes = get(this.handles.check_segment,'value'); % returns 0 for unchecked, 1 for checked
             
-            userSettings.numChunks = getMenuUserData(this.handles.menu_number_of_data_segments);   % 6;
+            userSettings.numChunks = getMenuUserData(this.handles.menu_number_of_data_segments);   % can be a custom value for index value 9 (last selection);
             userSettings.numDataSegmentsSelection = get(this.handles.menu_number_of_data_segments,'value');
             
             userSettings.normalizeValues = get(this.handles.check_normalizevalues,'value');  %return 0 for unchecked, 1 for checked
@@ -5455,7 +5489,7 @@ classdef PAStatTool < PAViewController
                     featureSet = sum(featureSet>500,2);
                 case 'above_1000'
                     featureSet = sum(featureSet>1000,2);
-                case {'romanzini_sb','romanzini_lpa','romanzini_mpa','romanzini_vpa','romanzini_all'}
+                case {'romanzini_sb','romanzini_lpa','romanzini_mvpa','romanzini_mpa','romanzini_vpa','romanzini_all'}
                     fprintf(1,'Romanzini cutpoints assume Vector Magnitude counts calculated with a 1 minute epoch.\n');
                     [rziStruct, fnames, cutpoints] = getRomanziniCutpoints();
                     if strcmpi(reductionMethod, 'romanzini_all')
@@ -5724,6 +5758,7 @@ classdef PAStatTool < PAViewController
                 'max','Maximum';
                 'romanzini_sb','Minutes of SB (Romanzini)';
                 'romanzini_lpa','Minutes of LPA (Romanzini)';
+                'romanzini_mvpa','Minutes of MVPA (Romanzini)';
                 'romanzini_mpa','Minutes of MPA (Romanzini)';
                 'romanzini_vpa','Minutes of VPA (Romanzini)';
                 'romanzini_all','Minutes of [SB, LPA, MPA, VPA] (Romanzini)';
@@ -5738,8 +5773,11 @@ classdef PAStatTool < PAViewController
             
             baseSettings.preclusterReductions = reduction_dictionary(:,1);
             baseSettings.preclusterReductionDescriptions = reduction_dictionary(:,2);
-            baseSettings.numDataSegments = [1,2,3,4,6,8,12,24]';
+            
+            % numChunks.  nan indicates a custom selection
+            baseSettings.numDataSegments = [1,2,3,4,6,8,12,24, nan]';
             baseSettings.numDataSegmentsDescriptions = cellstr(num2str(baseSettings.numDataSegments(:)));
+            baseSettings.numDataSegmentsDescriptions{end} = 'Custom';
             
             baseSettings.plotTypes = {'clustering','dailyaverage','dailytally','morningheatmap','heatmap','rolling','morningrolling'};
             baseSettings.plotTypeTitles = {'';
@@ -5778,7 +5816,7 @@ classdef PAStatTool < PAViewController
             baseSettings.daysOfWeekOrder = 1:7;
             
             
-            baseSettings.clusterDurationDescriptions = {'1 day','12 hours','6 hours','4 hours','3 hours','2 hours','1 hour'};
+            baseSettings.clusterDurationDescriptions = {'1 day'   ,'12 hours','6 hours','4 hours','3 hours','2 hours','1 hour'};
             baseSettings.clusterDurationDescriptions = {'24 hours','12 hours','6 hours','4 hours','3 hours','2 hours','1 hour'};
             
             baseSettings.clusterHourlyDurations = [24

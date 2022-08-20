@@ -6,7 +6,7 @@
 %     romanzini_mpa: [328 4447]
 %     romanzini_vpa: [4448 Inf]
 function [rziStruct, fields, cutpoints] = getRomanziniCutpoints()
-        fields = {'romanzini_sb','romanzini_lpa','romanzini_mpa','romanzini_vpa'};
-        cutpoints = {[0, 720], [721, 3027], [3028, 4447], [4448, inf]};
+        fields = {'romanzini_sb','romanzini_mvpa','romanzini_lpa','romanzini_mpa','romanzini_vpa'};
+        cutpoints = {[0, 720], [3028, inf], [721, 3027], [3028, 4447], [4448, inf]};
         rziStruct = mkstruct(fields, cutpoints);
 end

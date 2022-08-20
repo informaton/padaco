@@ -1,9 +1,11 @@
 function padaco()
     mPathname = pathsetup();
-    hObject = padacoFig('visible','off');    
+    hObject = padacoFig('visible','off');
     try
         if isunix
-            addpath('~/sleep.dev/projects/goalsAnalysis/models/');
+            addpath('~/git/sleep.dev/projects/goalsAnalysis/models/');
+            addpath('~/git/sleep.dev/projects/goalsAnalysis/modelAnalysis/'); % getModelDescription and displayResults
+            
             addpath('~/git/matlab/gee/');            
         end
         parametersFile = '.pasettings'; % PASettings.parameters_filename; % .pasettings now '_padaco.parameters.txt';

@@ -587,8 +587,7 @@ classdef PABatchTool < PAFigureFcnController
                                     if(this.shouldExportUnalignedFeatures())
                                         [unalignedVec, unalignedDatenums] = curData.getFeatureVecs(outputFeatureFcn,signalName);
                                     end
-                                    
-                                    
+                                                                        
                                     % Currently, only x,y,z or vector magnitude
                                     % are considered for signal names.  And
                                     % they all have the same number of samples.
@@ -672,8 +671,7 @@ classdef PABatchTool < PAFigureFcnController
                                         throw(MException('PA:Batch:File',errMsg));
                                     end
                                 end
-                            end
-                            
+                            end                            
                             
                             [curCPM_x, curCPM_y, curCPM_z, curCPM_vm] = curData.getCountsPerMinute();
                             
@@ -682,8 +680,7 @@ classdef PABatchTool < PAFigureFcnController
                             completeDayCount = completeDayCount + curCompleteDayCount;
                             incompleteDayCount = incompleteDayCount + curIncompleteDayCount;
                             
-                            fprintf(summaryFid,'%d, %s, %d, %d, %d, %d, %d, %d, %d\n',curStudyID, fullFilenames{f}, curTotalDayCount, curCompleteDayCount, curIncompleteDayCount, curCPM_x, curCPM_y, curCPM_z, curCPM_vm);
-                            
+                            fprintf(summaryFid,'%d, %s, %d, %d, %d, %d, %d, %d, %d\n',curStudyID, fullFilenames{f}, curTotalDayCount, curCompleteDayCount, curIncompleteDayCount, curCPM_x, curCPM_y, curCPM_z, curCPM_vm);                            
                         end
                     catch me
                         showME(me);
