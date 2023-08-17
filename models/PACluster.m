@@ -52,12 +52,8 @@ classdef PACluster < PAData
         %> order as the index into coiSortOrder2Index to retrieve the 
         %> original, unsorted index.
         coiSortOrder2Index;  % To get original index of the most popular cluster (sort order =1 ) use index =  coiSortOrder2Index(1)
-         
-        
         coiIndex2SortOrder; % To get the popularity order based off the original cluster index.
-        
-        
-        
+         
         %> The sort order index for the centroid of interest (coi) 
         %> identified for analysis.  It is 
         %> initialized to the most frequent centroid upon successful
@@ -817,6 +813,103 @@ classdef PACluster < PAData
             end
         end
         
+        % sorts clusters, permanently by popularity.  the coiSortOrder will
+        % be 1:K when done
+        function resortClusters(this)
+
+            fieldsResorted = {'weekdayScores','sumD','coiIndex2SortOrder'};
+            for f=1:numel(fieldsResorted)
+                field = fieldsResorted{f};
+                this.(field) = this.(field)(this.centroidSortMap);
+            end
+
+            % These will be the same now;
+            this.coiSortOrder2Index = this.coiIndex2SortOrder;
+
+            % Now cull the unwanted matrices
+            fieldsResorted = {'centroidShapes','clusterMemberIndices'};
+            for f=1:numel(fieldsResorted)
+                field = fieldsResorted{f};
+                this.(field) = this.(field)(this.centroidSortMap,:);
+            end
+
+            % Histograms are already sorted ...
+            % fieldsResorted = fieldnames(this.histogram);
+            % for f=1:numel(fieldsResorted)
+            %     field = fieldsResorted{f};
+            %     this.histogram.(field) = this.histogram.(field)(this.centroidSortMap);
+            %     this.histogram_ids.(field) = this.histogram.(field)(this.centroidSortMap);
+            % end
+            
+            this.loadshapeIndex2centroidIndexMap = this.centroidSortMap(this.loadshapeIndex2centroidIndexMap);
+            this.centroidSortMap = this.centroidSortMap(this.centroidSortMap);  
+        end
+
+        % remove clusters with min_n or fewer loadshapes
+        function cullSmallClusters(this, min_n)
+            if nargin<2 || isempty(min_n)
+                min_n = 1;
+            end
+            % [distrStruct, idsStruct] = this.getDistributions();
+            % clusters_too_small_idx = distrStruct.loadshapes<=min_n;
+            % ids_to_remove = [idsStruct.loadshapes{clusters_too_small_idx}];
+            
+            clusters_too_small_idx = sum(this.clusterMemberIndices,2)<=min_n;
+            
+            this.loadshapeIndex2centroidIndexMap = this.centroidSortMap(this.loadshapeIndex2centroidIndexMap);
+            
+            num_culled = sum(clusters_too_small_idx);
+            if num_culled>0
+                fprintf('Removing %d clusters which only have 1 loadshape\n', num_culled);
+                
+                % sum the rows of the cluster shapes that are too small and
+                % logify the result to get an indexing mask
+
+                % do not include these any longer
+                cluster_member_to_remove_idx = sum(this.clusterMemberIndices(clusters_too_small_idx,:),1)>0;
+                this.loadShapeIDs(cluster_member_to_remove_idx) = 0;
+
+                % Remove the unique ID?
+                % [~,unique_idx] = intersect(this.uniqueLoadShapeIDs,ids_to_remove);
+
+                % this.loadshapeIndex2centroidIndexMap this.loadShapeIDs needs to go
+                % this.uniqueLoadShapeIDs(unique_idx) = [];
+
+                % [~,loadshapes_to_go_idx] = intersect(this.loadShapeIDs,ids_to_remove);
+
+                % Now cull the unwanted vectors
+                fieldsCulled = {'weekdayScores','sumD','centroidSortMap','coiIndex2SortOrder'};
+                for f=1:numel(fieldsCulled)
+                    field = fieldsCulled{f};
+                    this.(field)(clusters_too_small_idx) = [];
+                end
+
+                % Now cull the unwanted matrices
+                fieldsCulled = {'centroidShapes','clusterMemberIndices'};
+                for f=1:numel(fieldsCulled)
+                    field = fieldsCulled{f};
+                    this.(field)(clusters_too_small_idx,:) = [];
+                end
+
+                sorted_clusters_too_small_idx = this.histogram.loadshapes<=min_n;
+                fieldsCulled = fieldnames(this.histogram);
+                for f=1:numel(fieldsCulled)
+                    field = fieldsCulled{f};
+                    this.histogram.(field)(sorted_clusters_too_small_idx) = [];
+                    this.histogram_ids.(field)(sorted_clusters_too_small_idx) = [];
+                end
+
+
+                % now cull the unwanted load shapes
+                %{'loadShapes', 'loadShapeIDs','loadSahpeDayOfWeek','clusterMemberIndices'}
+                %this.weekdayScores
+
+
+
+                % now clean up the remaining
+            end
+
+        end
         function didChange = increaseCOISortOrder(this)
             didChange = this.setCOISortOrder(this.coiSortOrder+1);
         end
@@ -1263,6 +1356,21 @@ classdef PACluster < PAData
             end
         end
         
+        % Returns the distributions of the clusters (participant,
+        % loadshape, and nonwear counts)
+        function [histograms, member_ids] = getDistributions(this)
+            member_ids = this.histogram_ids;
+            histograms = this.histogram;
+
+            fields = fieldnames(histograms); 
+            for f=1:numel(fields)
+                fname = fields{f};
+                member_ids.(fname) = member_ids.(fname)(this.coiIndex2SortOrder);
+                histograms.(fname) = histograms.(fname)(this.coiIndex2SortOrder);
+            end
+
+        end
+
         function [h, yLabelStr, titleStr] = plotPerformance(this, axesH)
             X = this.performanceProgression.X;
             Y = this.performanceProgression.Y;
@@ -1314,10 +1422,13 @@ classdef PACluster < PAData
             for row=1:numSubjects
                 try
                     curSubject = subjectIDs(row);
-                    centroidIDForSubject = this.loadshapeIndex2centroidIndexMap(this.loadShapeIDs==curSubject);
-                    centroidSortOrderForSubject = this.coiIndex2SortOrder(centroidIDForSubject);
-                    %centroidSortOrderForSubject = this.coiIndex2SortOrder(this.loadshapeIndex2centroidIndexMap(this.loadShapeIDs==curSubject));
-                    
+                    try
+                        centroidIDForSubject = this.loadshapeIndex2centroidIndexMap(this.loadShapeIDs==curSubject);
+                        centroidSortOrderForSubject = this.coiIndex2SortOrder(centroidIDForSubject);
+                        %centroidSortOrderForSubject = this.coiIndex2SortOrder(this.loadshapeIndex2centroidIndexMap(this.loadShapeIDs==curSubject));
+                    catch me
+                        showME(me);
+                    end
                     for c=1:numel(centroidSortOrderForSubject)
                         coiSO = centroidSortOrderForSubject(c);
                         coiID = centroidIDForSubject(c);

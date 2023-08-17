@@ -49,7 +49,8 @@ function [predStrength, optimal_k, statTool] = getPredictionStrength(signalFilen
                 
     minK = statTool.getSetting('predictionStrength_minK'); % 2 
     maxK = statTool.getSetting('predictionStrength_maxK'); % 10
-    iterations = statTool.getSetting('predictionStrength_iterations'); % 20
+    iterations = statTool.getSetting('predictionStrength_iterations'); % 20  % 100 for now
+    iterations = 200;
     showProgress = true; % ~isdeployed;
     extraLabel = '';
     if nargin==3
