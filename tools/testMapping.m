@@ -1,16 +1,17 @@
 % p is the noise level you can add to it
-function testMapping(r,c, p)
+function results = testMapping(r,c, p)
     if nargin<3
-        p=0;
+        p=100;
     end
     if nargin<1
         % Generate example x matrix
         r = 5;
-        c = 3;
+        c = 30;
     elseif nargin<2
         c = r;
     end
 
+    is_verbose = false;
     x = randi(100, r, c);
 
     % Create y and get the known permutation
@@ -22,15 +23,19 @@ function testMapping(r,c, p)
     y = round(y);
     %  known_perm
 
-    methods = {'cross-correlation', 'euclidean', 'cosine', 'manhattan', 'chebyshev', 'hamming'};
+    methods = {'cross_correlation', 'euclidean', 'cosine', 'manhattan', 'chebyshev'};
+        % 'hamming' - dropping hamming, which does not do well
+        % 'mahalanobis' - needs to have more rows than columns
 
+    results = mkstruct(methods);
     for method = methods
         computed_mapping = computeMapping(x, y, method{1});
         correct_matches = sum(computed_mapping == known_perm);
         total_rows = length(computed_mapping);
+        results.(method{1}) = correct_matches/total_rows;
         disp([method{1} '. Correctly matched rows: ' num2str(correct_matches) '/' num2str(total_rows) ' (' num2str(100*correct_matches/total_rows) '%)']);
         
-        if correct_matches~=total_rows
+        if is_verbose && correct_matches~=total_rows
             for i = 1:total_rows
                 x_row_str = sprintf('(%d) %s', i, mat2str(x(i,:)));
                 if computed_mapping(i)==0

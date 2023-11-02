@@ -42,7 +42,7 @@ function mapping = computeMapping(x, y, method)
     end
 
     switch method
-        case 'cross-correlation'
+        case {'cross-correlation','cross_correlation','crosscorrelation'}
             mapping = crossCorrelationMapping(x, y);
         case 'euclidean'
             mapping = euclideanMapping(x, y);
