@@ -2346,9 +2346,7 @@ classdef PASensorData < PAData
                 % otherwise just use the original
             end
 
-
             obj.usageFrames =  reshape(usageVec(1:frameableSamples), [], obj.numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
-
 
             obj.frames =  reshape(data(1:frameableSamples), [], obj.numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
             % Frames are stored in consecutive columns.  Thus the rows

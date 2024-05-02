@@ -19,4 +19,4 @@ See the license.txt file for licensing information.
 
 # Funding
 
-This work was funded in part by a Stanford-Oxford Big Data for Human Health seed grant from the Li Ka Shing Foundation and a grant from the Stanford Child Health Research Institute.
+This work was partially funded by a Stanford-Oxford Big Data for Human Health seed grant from the Li Ka Shing Foundation and a grant from the Stanford Child Health Research Institute and a grant from the Food and Drug Administration.
