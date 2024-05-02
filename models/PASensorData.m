@@ -3529,9 +3529,9 @@ classdef PASensorData < PAData
         function featureVector = calcFeatureVector(dataVector,samplesPerFrame,featureFcn)
             numelements = numel(dataVector);
             numFrames = floor(numelements/samplesPerFrame);
-            frameableSamples = numelements*numFrames;
+            frameableSamples = samplesPerFrame*numFrames;
             NxM_dataFrames =  reshape(dataVector(1:frameableSamples),[],numFrames);  %each frame consists of a column of data.  Consecutive columns represent consecutive frames.
-            featureVector = PASensorData.FromFrames(NxM_dataFrames,featureFcn);
+            featureVector = PASensorData.calcFeatureVectorFromFrames(NxM_dataFrames,featureFcn);
         end
 
         function Mx1_featureVector = calcFeatureVectorFromFrames(NxM_dataFrames,featureFcn)

@@ -137,7 +137,7 @@ classdef PAStatTool < PAViewController
         %> - @c plotType The tag of the current plot type
         %> - @c colorMap - colormap of figure;
         %> These are initialized in the initWidgets() method.
-        previousState;            
+        previousState;
         
     end
     
@@ -5206,7 +5206,7 @@ classdef PAStatTool < PAViewController
                         b.(field) = b.(field)(b_idx);
                     end
                 else
-                    fprintf('"%s" field does not exist in one or both structures.  Skipped.\n', field);
+                    fprintf('"%s" field does not exist in one or both structures.  Skipped this field.\n', field);
                 end
             end
             

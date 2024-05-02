@@ -6,7 +6,9 @@ function [statTool, settings] = getStatTool(signalFilename, settingsFilename, se
     % end
         
     if nargin<2
-        if isunix
+        if ismac
+            settingsFilename = '~/Documents/padaco/.mac_pasettings';
+        elseif isunix
             settingsFilename = '~/Documents/padaco/.pasettings';
         elseif ispc
             error('Unhandled case for pc');
