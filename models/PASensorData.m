@@ -14,6 +14,7 @@ classdef PASensorData < PAData
     properties(Constant)
         NUM_PSD_BANDS = 5;
     end
+
     properties
         %> @brief Type of acceleration stored; can be
         %> - @c raw This is not processed
@@ -1698,60 +1699,75 @@ classdef PASensorData < PAData
                             %load meta data from info.txt
                             [infoStruct, firmwareVersion] = obj.parseInfoTxt(infoFile);
 
-
-                            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                            % Ensure firmware version is either 1.5.0, 2.2.1, 2.5.0 or 3.1.0
-                            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                            if(strcmp(firmwareVersion,'2.5.0')||strcmp(firmwareVersion,'3.1.0') || strcmp(firmwareVersion,'2.2.1') || strcmp(firmwareVersion,'1.5.0'))
-                                obj.setFullFilename(fullfilename);
-                                obj.sampleRate = str2double(infoStruct.Sample_Rate);
-
-                                % Version 2.5.0 firmware
-                                if strcmp(firmwareVersion,'2.5.0')  || strcmp(firmwareVersion,'1.5.0')
-
-                                    unitsTimePerDay = 24*3600*10^7;
-                                    matlabDateTimeOffset = 365+1+1;  %367, 365 days for the first year + 1 day for the first month + 1 day for the first day of the month
-                                    %start, stop and delta date nums
-                                    binStartDatenum = str2double(infoStruct.Start_Date)/unitsTimePerDay+matlabDateTimeOffset;
-
-                                    if(~isempty(obj.startDate))
-                                        countStartDatenum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
-
-                                        if(binStartDatenum~=countStartDatenum)
-                                            fprintf('There is a discrepancy between the start date-time in the count file and the binary file.  I''m not sure what is going to happen because of obj.\n');
-                                        end
-                                    else
-
-                                    end
-
-                                    didLoad = obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
-
-                                    obj.durationSec = floor(obj.getDurationSamples()/obj.sampleRate);
-
-                                    binDatenumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
-                                    binStopDatenum = datenum(binDatenumDelta*obj.durSamples)+binStartDatenum;
-                                    synthDateVec = datevec(binStartDatenum:binDatenumDelta:binStopDatenum);
-                                    synthDateVec(:,6) = round(synthDateVec(:,6)*1000)/1000;
-
-                                    %This takes 2.0 seconds!
-                                    obj.dateTimeNum = datenum(synthDateVec);
-
-                                    % Version 3.1.0 firmware                                % Version 2.2.1 firmware
-
-                                elseif(strcmp(firmwareVersion,'3.1.0') || strcmp(firmwareVersion,'2.2.1'))
-                                    didLoad = obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
-                                end
-                                obj.hasRaw = didLoad;
-
-                            else
-                                didLoad = false;
-                                
-
-                                % for future firmware version loaders
-                                % Not 2.2.1, 2.5.0 or 3.1.0 - skip - cannot handle right now.
-                                fprintf(1,'Firmware version (%s) either not found or unrecognized in %s.\n',firmwareVersion,infoFile);
-                                obj.hasRaw = false;
+                            obj.setFullFilename(fullBinFilename);
+                            if isfield(infoStruct,'Sample_Rate')
+                                obj.getSampleRate(infoStruct.Sample_Rate);
                             end
+                            if isfield(infoStruct,'Subject_Name')
+                                obj.studyID = infoStruct.Subject_Name;
+                            end
+                            if isfield(infoStruct,'Start_Date')
+                                obj.startDate = infoStruct.Start_Date;
+                                % obj.startTime = infoStruct.Start_Date;
+                            end
+                            if isfield(infoStruct,'Stop_Date')
+                                obj.stopDate = infoStruct.Stop_Date;
+                                % obj.stopTime = infoStruct.Stop_Date;
+                            end
+                            if isfield(infoStruct,'Last_Sample_Time')
+                                % obj.stopTime = infoStruct.Start_Date;
+                            end
+
+
+
+
+                            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                            % Ensure firmware version is either 1.5.0, 1.7.2, 2.2.1, 2.5.0 or 3.1.0
+                            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                            if ~any(strcmp(firmwareVersion,{'2.5.0','3.1.0','2.2.1','1.5.0','1.7.2'}))
+                                fprintf(1,'Firmware version (%s) has not been tested specifically with the Padaco software suite.  It may work fine, or it may not :(.\n',firmwareVersion);
+                            end
+
+                            % Version 2.5.0, 1.5.0 firmware
+                            if any(strcmp(firmwareVersion,{'2.5.0','1.5.0'}))
+                                unitsTimePerDay = 24*3600*10^7;
+                                matlabDateTimeOffset = 365+1+1;  %367, 365 days for the first year + 1 day for the first month + 1 day for the first day of the month
+                                %start, stop and delta date nums
+                                binStartDatenum = str2double(infoStruct.Start_Date)/unitsTimePerDay+matlabDateTimeOffset;
+
+                                if(~isempty(obj.startDate))
+                                    countStartDatenum = datenum(strcat(obj.startDate,{' '},obj.startTime),'mm/dd/yyyy HH:MM:SS');
+
+                                    if(binStartDatenum~=countStartDatenum)
+                                        fprintf('There is a discrepancy between the start date-time in the count file and the binary file.  I''m not sure what is going to happen because of obj.\n');
+                                    end
+                                else
+
+                                end
+
+                                didLoad = obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
+
+                                obj.durationSec = floor(obj.getDurationSamples()/obj.sampleRate);
+
+                                binDatenumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
+                                binStopDatenum = datenum(binDatenumDelta*obj.durSamples)+binStartDatenum;
+                                synthDateVec = datevec(binStartDatenum:binDatenumDelta:binStopDatenum);
+                                synthDateVec(:,6) = round(synthDateVec(:,6)*1000)/1000;
+
+                                %This takes 2.0 seconds!
+                                obj.dateTimeNum = datenum(synthDateVec);
+                            else  %                      any(strcmp(firmwareVersion,{'3.1.0','2.2.1','1.7.2'}))
+                                
+                                [axesFloatData, timeStamps] = getActigraphRecordsFromBin(fullfilename,0, accelerationScale);
+                                didLoad = ~isempty(axesFloatData);
+                                if didLoad
+                                    obj.timeStamp = timeStamps;
+                                    obj.setRawXYZ(axesFloatData);
+                                end                                
+                            end
+
+                            obj.hasRaw = didLoad;
+
                         end
                     end
                 end
@@ -1862,7 +1878,7 @@ classdef PASensorData < PAData
 
                         tmpDataCell = []; %free up this memory;
 
-                        %MATLAB has some strange behaviour with date num -
+                        %MATLAB has some strange behaviour with datenum -
                         %looks to be a precision problem
                         %math.
                         %                        dateTimeDelta2 = diff([datenum(2010,1,1,1,1,10),datenum(2010,1,1,1,1,11)]);
@@ -1913,7 +1929,6 @@ classdef PASensorData < PAData
                 didLoad = false;
             end
         end
-
 
         % ======================================================================
         %> @brief Loads an accelerometer raw data file.  This function is
@@ -2091,31 +2106,18 @@ classdef PASensorData < PAData
         %> - 3.1.0
         % =================================================================
         function didLoad = loadPathOfRawBinary(obj, pathWithRawBinaryFiles)
-            infoFile = fullfile(pathWithRawBinaryFiles,'info.txt');
-
-            %load meta data from info.txt
-            [infoStruct, firmwareVersion] = obj.parseInfoTxt(infoFile);
-
-            % Determine the specification
-
-            % It is either 2.5.0 or 3.1.0
-            if(strcmp(firmwareVersion,'2.5.0') || strcmp(firmwareVersion,'3.1.0')|| strcmp(firmwareVersion,'1.5.0'))
-                if(strcmp(firmwareVersion,'2.5.0'))
-                    fullBinFilename = fullfile(pathWithRawBinaryFiles,'activity.bin');
-                elseif(strcmp(firmwareVersion,'3.1.0') || strcmp(firmwareVersion,'1.5.0') )
-                    fullBinFilename = fullfile(pathWithRawBinaryFiles,'log.bin');
-                else
-                    % for future firmware version loaders
-                    warndlg(sprintf('Attempting to load data from untested firmware version (%s)',firmwareVersion));
-                    fullBinFilename = fullfile(pathWithRawBinaryFiles,'log.bin');
-                end
-                obj.setFullFilename(fullBinFilename);
-                didLoad = obj.loadFile(fullBinFilename);
+            
+            % Determine the .bin file based on the firmware            
+            if strcmp(firmwareVersion,'2.5.0')
+                fullBinFilename = fullfile(pathWithRawBinaryFiles,'activity.bin');
+            elseif any(strmcp(firmwareVersion,{'3.1.0','1.5.0','1.7.2'}))
+                fullBinFilename = fullfile(pathWithRawBinaryFiles,'log.bin');
             else
-                % Not 2.5.0 or 3.1.0 - skip - cannot handle right now.
-                fprintf(1,'Firmware version (%s) either not found or unrecognized in %s.\n',firmwareVersion,infoFile);
-                didLoad = false;
+                % for future firmware version loaders
+                warndlg(sprintf('Attempting to load data from untested firmware version (%s)',firmwareVersion));
+                fullBinFilename = fullfile(pathWithRawBinaryFiles,'log.bin');
             end
+            didLoad = obj.loadActigraphFile(fullBinFilename);
         end
 
 
@@ -2984,17 +2986,13 @@ classdef PASensorData < PAData
         %> and loaded in the file.
         % =================================================================
         function recordCount = loadRawActivityBinFile(obj,fullFilename,firmwareVersion)
-            if(exist(fullFilename,'file'))
+            if exist(fullFilename,'file')
 
                 recordCount = 0;
-
                 fid = fopen(fullFilename,'r','b');  %I'm going with a big endian format here.
-
-                if(fid>0)
-
+                if fid>0
                     encodingEPS = 1/341; %from trial and error - or math:  341*3 == 1023; this is 10 bits across three vlues
                     precision = 'ubit12=>double';
-
 
                     % Testing for ver 2.5.0
                     % fullRawActivityBinFilename = '/Volumes/SeaG 1TB/sampledata_reveng/700851.activity.bin'
@@ -3016,15 +3014,22 @@ classdef PASensorData < PAData
                     %                 10/25/2012 00:00:00.075,-0.044,0.361,-0.915
                     % Use big endian format
                     try
-                        % both fw 2.5 and 3.1.0 use same packet format for
-                        % acceleration data.
-                        if(strcmp(firmwareVersion,'2.5.0')||strcmp(firmwareVersion,'3.1.0')||strcmp(firmwareVersion,'2.2.1')||strcmp(firmwareVersion,'1.5.0'))
-                            tic
+                        tic
                             axesPerRecord = 3;
                             checksumSizeBytes = 1;
-                            if(strcmp(firmwareVersion,'2.5.0'))
+                        if ~any(strcmp(firmwareVersion,{'2.5.0','3.1.0','2.2.1','1.5.0'}))
+                            record_type_id = 26;   % corresponds to activity2 type which has x, y, z accelerations as 
+                                            % One second of raw activity samples as little-endian signed-shorts in XYZ order.
+                                            % Ref: https://github.com/actigraph/GT3X-File-Format/blob/main/LogRecords/Activity2.md
 
+                            [axesFloatData, timeStamps] = fgetactigraphaxesrecords(fid, record_type_id);
+                            obj.setRawXYZ(axesFloatData);
+                            obj.timeStamp = timeStamps;
 
+                        else
+                            % both fw 2.5 and 3.1.0 use same packet format for
+                            % acceleration data.
+                            if any(strcmp(firmwareVersion,{'2.5.0'}))
                                 % The following, commented code is for determining
                                 % expected record count.  However, the [] notation
                                 % is used as a shortcut below.
@@ -3040,7 +3045,7 @@ classdef PASensorData < PAData
                                 % desired result here.
                                 axesUBitData = fread(fid,[axesPerRecord,inf],precision)';
 
-                            elseif(strcmp(firmwareVersion,'3.1.0')||strcmp(firmwareVersion,'2.2.1') || strcmp(firmwareVersion,'1.5.0'))
+                            elseif any(strcmp(firmwareVersion,{'3.1.0','2.2.1','1.5.0'}))
                                 % endian format: big
                                 % global header: none
                                 % packet encoding:
@@ -3048,9 +3053,15 @@ classdef PASensorData < PAData
                                 %   accel packets:  36 bits each (format: see ver 2.5.0) + 1 byte for checksum
 
                                 triaxialAccelCodeBigEndian = 7680;
-                                trixaialAccelCodeLittleEndian = 7686; %?
+                                
                                 triaxialAccelCodeLittleEndian = 30;
-                                triaxialAccelCode = triaxialAccelCodeBigEndian;
+                                if strcmp(firmwareVersion, '1.7.2')
+                                    triaxialAccelCodeLittleEndian = 7686; %? <-- for 1.7.2
+                                    triaxialAccelCode = triaxialAccelCodeLittleEndian;
+                                else
+                                    triaxialAccelCode = triaxialAccelCodeBigEndian;
+                                end
+                                
                                 %                                packetCode = 7686 (popped up in a firmware version 1.5
                                 bitsPerByte = 8;
                                 bitsPerAccelRecord = 36;  %size in number of bits (12 bits per acceleration axis)
@@ -3093,14 +3104,13 @@ classdef PASensorData < PAData
                                     if(packetCode==triaxialAccelCode)  % This is for the triaxial accelerometers
                                         obj.timeStamp(curRecord) = fread(fid,1,'uint32=>double');
                                         packetSizeBytes = [1 256]*fread(fid,2,'uint8');
-
                                         packetRecordCount = packetSizeBytes*recordsPerByte;
-
                                         axesUBitData(curRecord:curRecord+packetRecordCount-1,:) = fread(fid,[axesPerRecord,packetRecordCount],precision)';
                                         curRecord = curRecord+packetRecordCount;
                                         checkSum = fread(fid,checksumSizeBytes,'uint8');
                                     elseif(packetCode==0)
-
+                                        % handles the issue of strings of
+                                        % 0's in there.
                                     else
                                         fseek(fid,timeStampSizeBytes,0);
                                         packetSizeBytes = fread(fid,2,'uint8');
@@ -3110,21 +3120,16 @@ classdef PASensorData < PAData
                                         end
                                     end
                                 end
-
                                 curRecord = curRecord -1;  %adjust for the 1 base offset matlab uses.
                                 if(recordCount~=curRecord)
                                     fprintf(1,'There is a mismatch between the number of records expected and the number of records found.\n\tPlease check your data for corruption.\n');
                                 end
                             end
 
-
                             axesFloatData = (-bitand(axesUBitData,2048)+bitand(axesUBitData,2047))*encodingEPS;
-
                             obj.setRawXYZ(axesFloatData);
-
-
-                            toc;
                         end
+                        toc;
                         fclose(fid);
 
                         fprintf('Skipping resample count data step\n');
@@ -3169,7 +3174,6 @@ classdef PASensorData < PAData
             switch structType
                 case 'timeSeries'
                     accelTypeStr = obj.accelType;
-
                     if(strcmpi(accelTypeStr,'all'))
                         dat.accel= obj.accel;
                     else
@@ -3502,8 +3506,20 @@ classdef PASensorData < PAData
                     firmware = infoStruct.Firmware;
                 else
                     firmware = '';
-                end
+                end                
                 fclose(fid);
+
+                numericFields = {'Sample_Rate','Acceleration_Scale',...
+                    'Acceleration_Max','Acceleration_Min',...
+                    'Download_Date','Start_Date','Stop_Date','Last_Sample_Time',...
+                    'Battery_Voltage','Unexpected_Resets','Board_Revision'};
+
+                for field = numericFields
+                    fieldName = field{1};
+                    if isfield(infoStruct,fieldName)
+                        infoStruct.(fieldName) = str2double(infoStruct.(fieldName));
+                    end
+                end
 
             else
                 infoStruct=[];

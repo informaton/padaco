@@ -582,7 +582,8 @@ classdef PAAppController < PAFigureController
         function menuFileOpenActigraphCallback(obj,varargin)
             %SensorData.pathname	/Volumes/SeaG 1TB/sampleData/csv
             %SensorData.filename	700023t00c1.csv.csv
-            f=uigetfullfile({'*.csv;*.raw;*.bin','All (counts, raw accelerations)';
+            f=uigetfullfile({           
+                '*.csv;*.raw;*.bin','All (counts, raw accelerations)';
                 '*.csv','Comma Separated Values';
                 '*.bin','Raw Acceleration (binary format: firmwares 2.2.1, 2.5.0, and 3.1.0)';
                 '*.raw','Raw Acceleration (comma separated values)';
