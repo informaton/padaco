@@ -106,6 +106,13 @@ classdef PASensorData < PAData
         %> @note See getStudyIDFromBasename()
         studyID;
 
+        actigraphActitivityID = 26;    % for loading actilife records
+                                       % 0  for acitivity1 records
+                                       % 26 for activity2 records.  
+                                       % Ref: https://github.com/actigraph/GT3X-File-Format/blob/main/LogRecords/Activity2.md
+
+        samplesPerG = 341;  % bits to encode the dynamic range of gravity.  341 steps per unit of gravity for 12 bit encoding of +/-6g,  255 for 12 bit encoding of +/-8g
+
     end
 
     properties (SetAccess = protected)
@@ -1255,7 +1262,6 @@ classdef PASensorData < PAData
             else
                 didLoad = obj.loadActigraphFile(fullfilename);
             end
-
         end
 
         % Format String
@@ -1636,8 +1642,6 @@ classdef PASensorData < PAData
                     end
                 end
             end
-            
-            
         end
 
         function didLoad = loadActigraphFile(obj, fullfilename)
@@ -1698,10 +1702,13 @@ classdef PASensorData < PAData
                         else
                             %load meta data from info.txt
                             [infoStruct, firmwareVersion] = obj.parseInfoTxt(infoFile);
+                            obj.setFullFilename(fullfilename);
 
-                            obj.setFullFilename(fullBinFilename);
+                            if isfield(infoStruct,'Acceleration_Scale')
+                                obj.samplesPerG = infoStruct.Acceleration_Scale;
+                            end
                             if isfield(infoStruct,'Sample_Rate')
-                                obj.getSampleRate(infoStruct.Sample_Rate);
+                                obj.sampleRate = infoStruct.Sample_Rate;
                             end
                             if isfield(infoStruct,'Subject_Name')
                                 obj.studyID = infoStruct.Subject_Name;
@@ -1718,9 +1725,6 @@ classdef PASensorData < PAData
                                 % obj.stopTime = infoStruct.Start_Date;
                             end
 
-
-
-
                             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                             % Ensure firmware version is either 1.5.0, 1.7.2, 2.2.1, 2.5.0 or 3.1.0
                             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1733,6 +1737,10 @@ classdef PASensorData < PAData
                                 unitsTimePerDay = 24*3600*10^7;
                                 matlabDateTimeOffset = 365+1+1;  %367, 365 days for the first year + 1 day for the first month + 1 day for the first day of the month
                                 %start, stop and delta date nums
+
+                                % This uses the unix time stamp - but other
+                                % firmware versions do not and use a
+                                % Net.Ticks approach it seems.
                                 binStartDatenum = str2double(infoStruct.Start_Date)/unitsTimePerDay+matlabDateTimeOffset;
 
                                 if(~isempty(obj.startDate))
@@ -1745,29 +1753,35 @@ classdef PASensorData < PAData
 
                                 end
 
-                                didLoad = obj.loadRawActivityBinFile(fullfilename,firmwareVersion);
+                                didLoad = obj.loadRawActivityBinFile(fullfilename,firmwareVersion, obj.actigraphActitivityID, obj.samplesPerG);
 
-                                obj.durationSec = floor(obj.getDurationSamples()/obj.sampleRate);
+                                if didLoad
+                                    obj.durationSec = floor(obj.getDurationSamples()/obj.sampleRate);
 
-                                binDatenumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
-                                binStopDatenum = datenum(binDatenumDelta*obj.durSamples)+binStartDatenum;
-                                synthDateVec = datevec(binStartDatenum:binDatenumDelta:binStopDatenum);
-                                synthDateVec(:,6) = round(synthDateVec(:,6)*1000)/1000;
+                                    binDatenumDelta = datenum([0,0,0,0,0,1/obj.sampleRate]);
+                                    binStopDatenum = datenum(binDatenumDelta*obj.durSamples)+binStartDatenum;
+                                    synthDateVec = datevec(binStartDatenum:binDatenumDelta:binStopDatenum);
+                                    synthDateVec(:,6) = round(synthDateVec(:,6)*1000)/1000;
 
-                                %This takes 2.0 seconds!
-                                obj.dateTimeNum = datenum(synthDateVec);
-                            else  %                      any(strcmp(firmwareVersion,{'3.1.0','2.2.1','1.7.2'}))
+                                    %This takes 2.0 seconds!
+                                    obj.dateTimeNum = datenum(synthDateVec);
+                                else
+                                    warning('Did not load file! (%s)', fullfilename)
+                                end
+                            else  % any(strcmp(firmwareVersion,{'3.1.0','2.2.1','1.7.2'}))
                                 
-                                [axesFloatData, timeStamps] = getActigraphRecordsFromBin(fullfilename,0, accelerationScale);
+                                [axesFloatData, datenums]= getActigraphRecordsFromBin(fullfilename, obj.actigraphActitivityID, obj.samplesPerG, obj.getSampleRate());
+
                                 didLoad = ~isempty(axesFloatData);
                                 if didLoad
-                                    obj.timeStamp = timeStamps;
+                                    obj.dateTimeNum = datenums;
                                     obj.setRawXYZ(axesFloatData);
+                                    obj.durationSec = floor(obj.getDurationSamples()/obj.sampleRate);
+                                else
+                                    warning('Did not load file! (%s)', fullfilename)
                                 end                                
                             end
-
                             obj.hasRaw = didLoad;
-
                         end
                     end
                 end
@@ -2105,12 +2119,21 @@ classdef PASensorData < PAData
         %> - 2.5.0
         %> - 3.1.0
         % =================================================================
-        function didLoad = loadPathOfRawBinary(obj, pathWithRawBinaryFiles)
-            
+        function didLoad = loadPathOfRawBinary(obj, pathWithRawBinaryFiles, firmwareVersion)
+            if nargin<3
+                infoFile = fullfile(pathWithRawBinaryFiles,'info.txt');
+                if(~exist(infoFile,'file'))
+                    firmwareVersion = '???';
+                else
+                    %load meta data from info.txt
+                    [~, firmwareVersion] = obj.parseInfoTxt(infoFile);
+                end
+            end
+
             % Determine the .bin file based on the firmware            
             if strcmp(firmwareVersion,'2.5.0')
                 fullBinFilename = fullfile(pathWithRawBinaryFiles,'activity.bin');
-            elseif any(strmcp(firmwareVersion,{'3.1.0','1.5.0','1.7.2'}))
+            elseif any(strcmp(firmwareVersion,{'3.1.0','1.5.0','1.7.2'}))
                 fullBinFilename = fullfile(pathWithRawBinaryFiles,'log.bin');
             else
                 % for future firmware version loaders
@@ -2985,13 +3008,22 @@ classdef PASensorData < PAData
         %> @retval recordCount - The number of records (or samples) found
         %> and loaded in the file.
         % =================================================================
-        function recordCount = loadRawActivityBinFile(obj,fullFilename,firmwareVersion)
+        function recordCount = loadRawActivityBinFile(obj,fullFilename,firmwareVersion, samplesPerG, activityTypeID)
             if exist(fullFilename,'file')
 
+                if nargin<4 || isempty(samplesPerG)
+                    encodingEPS = 1/obj.samplesPerG; % 1/341 from trial and error - or math:  
+                else
+                    encodingEPS = 1/samplesPerG;
+                end
+
+                if nargin<5 || isempty(activityTypeID)
+                    activityTypeID = obj.actigraphActitivityID; % see comments in properties of this class for actigraphActivityID
+                end
+                
                 recordCount = 0;
                 fid = fopen(fullFilename,'r','b');  %I'm going with a big endian format here.
                 if fid>0
-                    encodingEPS = 1/341; %from trial and error - or math:  341*3 == 1023; this is 10 bits across three vlues
                     precision = 'ubit12=>double';
 
                     % Testing for ver 2.5.0
@@ -3018,11 +3050,8 @@ classdef PASensorData < PAData
                             axesPerRecord = 3;
                             checksumSizeBytes = 1;
                         if ~any(strcmp(firmwareVersion,{'2.5.0','3.1.0','2.2.1','1.5.0'}))
-                            record_type_id = 26;   % corresponds to activity2 type which has x, y, z accelerations as 
-                                            % One second of raw activity samples as little-endian signed-shorts in XYZ order.
-                                            % Ref: https://github.com/actigraph/GT3X-File-Format/blob/main/LogRecords/Activity2.md
 
-                            [axesFloatData, timeStamps] = fgetactigraphaxesrecords(fid, record_type_id);
+                            [axesFloatData, timeStamps] = fgetactigraphaxesrecords(fid, activityTypeID);
                             obj.setRawXYZ(axesFloatData);
                             obj.timeStamp = timeStamps;
 
