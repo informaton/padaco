@@ -20,8 +20,7 @@ classdef PAData < PABaseWithSettings
         
         function this = PAData(varargin)  
             this@PABaseWithSettings(varargin{:})            
-        end
-        
+        end        
         
         % --------------------------------------------------------------------
         % Helper functions for setting the export paths to be used when
@@ -262,8 +261,7 @@ classdef PAData < PABaseWithSettings
             else
                 merged_events = event_mat_in;
             end
-        end
-        
+        end        
         
         %> @brief Parses the input file's basename (i.e. sans folder and extension)
         %> for the study id.  This will vary according from site to site as
@@ -278,6 +276,5 @@ classdef PAData < PABaseWithSettings
                 studyID = baseName;
             end
         end
-
     end
 end

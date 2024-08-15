@@ -253,7 +253,7 @@ classdef PASingleStudyController < PAViewController
         end
         
         % --------------------------------------------------------------------
-        %> @brief Set the frame size minute's units and Sets frame duration
+        %> @brief Set the frame size minute's value and the frame duration's
         %> edit box (minutes) string value.
         %> @param obj Controller instance.
         %> @param new_frameDurationMinutes Frame duration minutes measure.
@@ -277,8 +277,7 @@ classdef PASingleStudyController < PAViewController
                     end
                 end
             end
-        end
-        
+        end        
         
         % --------------------------------------------------------------------
         %> @brief Set the current window for the instance variable accelObj
@@ -627,9 +626,7 @@ classdef PASingleStudyController < PAViewController
             else
                 %featureVec = zeros(numSections,1);            
                 featureVec = featureStruct.(featureFcnName);
-                featureFcn = PASensorData.getFeatureFcn(featureFcnName);
-
-                
+                featureFcn = PASensorData.getFeatureFcn(featureFcnName);                
                 timeSeriesStruct = paDataObj.getStruct('all','timeSeries');
                 
                 % Can't get nested fields directly with
@@ -639,6 +636,7 @@ classdef PASingleStudyController < PAViewController
                 
                 indices = ceil(linspace(1,numel(fieldData),numSections+1));
                 try
+                    % Evaluate the features directly here for each section of interest.  
                     for i=1:numSections
                         featureVec(i) = feval(featureFcn,fieldData(indices(i):indices(i+1)));
                     end
@@ -1511,8 +1509,9 @@ classdef PASingleStudyController < PAViewController
                 4,'4 s';
                 5,'5 s';
                 10,'10 s';
+                15,'15 s';
                 %30,'30 s';
-                % 60,'1 min';
+                60,'1 min';
                 %120,'2 min';
                 300,'5 min';
                 600,'10 min';
@@ -1899,7 +1898,7 @@ classdef PASingleStudyController < PAViewController
                     featureVec = obj.getFeatureVec(featureFcnName,signalName,numFeatures);  %  redundant time stamp calculations benig done for start stpop dateneums in here.
                     
                     % x, y, z
-                    if(s<numel(signalTagLines) || (s==numel(signalTagLines)&&strcmpi(featureFcnName,'psd')))
+                    if s<numel(signalTagLines) || (s==numel(signalTagLines)&&strcmpi(featureFcnName,'psd'))
                         vecHandles = obj.addFeaturesVecToSecondaryAxes(featureVec,startStopDatenums,deltaHeight,heightOffset);
                         heightOffset = heightOffset+deltaHeight;
                         
