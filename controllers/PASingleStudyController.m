@@ -958,7 +958,7 @@ classdef PASingleStudyController < PAViewController
                 
                 visibleStruct = obj.accelObj.getVisible(curStructType);
                 
-                % Keep everything invisible at this point - so ovewrite the
+                % Keep everything invisible at this point - so overwrite the
                 % visibility property before we merge it together.
                 visibleStruct = structEval('overwrite',visibleStruct,visibleStruct,'off');
                 allStruct = mergeStruct(colorStruct,visibleStruct);

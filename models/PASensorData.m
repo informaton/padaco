@@ -239,6 +239,41 @@ classdef PASensorData < PAData
                 obj.loadFile();
             end
 
+            % We want to ensure the acceleration types just loaded are set to be visible
+            % Otherwise we may be getting mixed up with the previous
+            % visible selections coming in that could be for a different acceleration type
+            % and would also turn off the visibility for this accel type just loaded.            
+
+            % Turn off all visibility.
+            timeSeriesStruct = PASensorData.getDummyStruct('timeSeries');
+            %visibleProp.visible = 'on';
+            visibility = 'off';
+            timeSeriesStruct = overwriteEmptyStruct(timeSeriesStruct,visibility);            
+
+            accelTypes = {};
+
+            if obj.hasCounts
+                accelTypes = {'count'};                
+            end
+            if obj.hasRaw
+                accelTypes{end+1} = 'raw';
+            end
+            if obj.hasMims
+                accelTypes{end+1} = 'mims';
+            end
+
+            for a=1:numel(accelTypes)
+                accelType = accelTypes{a};
+                % subFields = fieldnames(timeSeriesStruct.visible.timeSeries.(accelType));
+                subFields = fieldnames(timeSeriesStruct.accel.(accelType));                
+                for s=1:numel(subFields)
+                    subField = subFields{s};
+                    timeSeriesStruct.accel.(accelType).(subField) = 'on';
+                    % timeSeriesStruct.visible.timeSeries.(accelType).(subField) = 'on';
+                end
+            end
+            obj.settings.visible.timeSeries.accel = timeSeriesStruct.accel; % timeSeriesStruct;
+
             obj.setCurWindow(obj.getSetting('curWindow'));
         end
 
@@ -1261,7 +1296,9 @@ classdef PASensorData < PAData
                 didLoad = obj.loadMimsFile(fullfilename);                
             else
                 didLoad = obj.loadActigraphFile(fullfilename);
-            end
+            end           
+
+
         end
 
         % Format String
@@ -1576,7 +1613,7 @@ classdef PASensorData < PAData
                         
                         % MIMS_UNIT is the sum of x, y, and z.
                         scanFormat = '%{yyyy-MM-dd HH:mm:ss.SSS}D%f%f%f%f';
-                        scanFormat = '%{yyyy-MM-dd HH:mm:ss}D%f%f%f%f';
+                        %  This version fails as of August 15, 2024 -- scanFormat = '%{yyyy-MM-dd HH:mm:ss}D%f%f%f%f';
                         % frewind(fid);
                         for f=1:headerLines
                             fgetl(fid);

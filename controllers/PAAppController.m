@@ -599,11 +599,12 @@ classdef PAAppController < PAFigureController
                     
                     obj.SensorData = PASensorData(f,obj.AppSettings.SensorData);
                     
-                    if(~strcmpi(obj.getViewMode(),'timeseries'))
+
+                    if ~strcmpi(obj.getViewMode(),'timeseries')
                         obj.setViewMode('timeseries');  % Call initAccelDataView as well
                     else
                         %initialize the PASensorData object's visual properties
-                        obj.initAccelDataView(); %calls show obj.SingleStudy.showReady() Ready...
+                        obj.initAccelDataView(); % calls show obj.SingleStudy.showReady() Ready...
                     end
                     
                     % For testing/debugging
