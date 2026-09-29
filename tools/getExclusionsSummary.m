@@ -11,6 +11,7 @@
 function summary = getExclusionsSummary(exclusionsFile, varargin)
     if nargin<1 || isempty(exclusionsFile)
         exclusionsFile = fullfile('~/Documents/padaco','choi_and_imported_file_count_exclusions.mat');
+        exclusionsFile = '/Users/known/git/sleep.dev/projects/goalsAnalysis/data/Documents/padaco/choi_and_imported_file_count_exclusions.mat';
         fprintf('Additional arguments can be used to print a table or produce interactive scatter of the results: ''table'', ''interactive''\n');        
     end
     if ~exist(exclusionsFile,'file')

@@ -1008,8 +1008,14 @@ classdef PAStatTool < PAViewController
                     srcDataType = 'count';
                 end
                 
-                usageFilename = sprintf(this.featureInputFilePattern,this.featuresDirectory, usageFeature, usageFeature, srcDataType, 'vecMag');
-                choiFilename = sprintf(this.featureInputFilePattern, this.featuresDirectory, choiFeature, choiFeature, srcDataType, 'vecMag');
+                % remove, potentially trailing slash
+                featuresDir = this.featuresDirectory;
+                if ~isempty(featuresDir)
+                    featuresDir = regexprep(featuresDir, '[\\/]+$', '');
+                end
+
+                usageFilename = sprintf(this.featureInputFilePattern,featuresDir, usageFeature, usageFeature, srcDataType, 'vecMag');
+                choiFilename = sprintf(this.featureInputFilePattern, featuresDir, choiFeature, choiFeature, srcDataType, 'vecMag');
                 
                 % Usage state previously based on count data, but now supporting both.  However, the states are not fully overlapping, so some are supported by
                 % one form but not the other (e.g. not_working for raw, and nonwear for count)

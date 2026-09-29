@@ -1,81 +1,38 @@
-
-_padaco.parameters.txt
-
-*.*~ 
-
-*.m~
-
-features.mean.txt
-
-archive/adaptiveKmeans.m
-
-archive/adaptiveKmeansBulk.m
-
-archive/loadAlignedFeatures.m
-
-archive/normalizeLoadShapes.m
-
-archive/processClusters.m
-
-archive/processProgressions.m
-
-archive/processResults.m
-
+# Editor backups and temporary files
+*.*~
 *.bak
+*.asv
+*.tmp
 
-huh/bartest.m
-
+# Data, analysis output, and local settings
 *.mat
-
-matlab_workspace.mat
-
-matlab.mat
-
-utility/lib
-
-*.prj
-
-model/model_summary.m
-model/table_summary.m
-*.tmp
-
 *.csv
-
-padaco_config_10Feb2017.txt
-
-padaco_config_15Feb2017.txt
-
-*.log
-
-model/gee_model.m
-
 *.raw
-*.o
-
-src/test.raw
-
 *.bin
-
-src/testtools
-
-*.c~
-
-src/rawcsv2rawbin
-
-*.tmp
-
+*.log
+# Retained for compatibility: generated text output and local settings.
+# This also ignores new .txt documentation; use Markdown for documentation.
 *.txt
 
-cache/results.tmp
+# Build artifacts and local libraries
+*.o
+*.prj
+utility/lib
+src/testtools
+src/rawcsv2rawbin
 
-.DS_Store
+# Local development scripts
+archive/adaptiveKmeans.m
+archive/adaptiveKmeansBulk.m
+archive/loadAlignedFeatures.m
+archive/normalizeLoadShapes.m
+archive/processClusters.m
+archive/processProgressions.m
+archive/processResults.m
+huh/bartest.m
+model/model_summary.m
+model/table_summary.m
+model/gee_model.m
 
-resources/icons/.DS_Store
-
+# macOS metadata (including prefixed variants)
 *.DS_Store
-
-*/.DS_Store
-*.log~
-*.dtd~
-*.html~
-*.asv
